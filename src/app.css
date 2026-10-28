@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+/* The interface is monochrome; colour only ever comes from a person's own data (`--d-*`). */
+:root {
+	color-scheme: light dark;
+
+	--canvas: oklch(96.7% 0.001 286);
+	--surface: oklch(100% 0 0);
+	--surface-2: oklch(96.7% 0.001 286);
+	--sunken: oklch(92% 0.004 286);
+	--ink: oklch(21% 0.006 286);
+	--ink-muted: oklch(44% 0.017 286);
+	--ink-faint: oklch(55% 0.014 286);
+	--line: oklch(87% 0.006 286);
+	--line-soft: oklch(93% 0.004 286);
+	--hover: oklch(95% 0.003 286);
+	--fill: oklch(21% 0.006 286);
+	--on-fill: oklch(100% 0 0);
+	--scrim: rgb(0 0 0 / 0.4);
+
+	--d-gray-fg: oklch(37% 0.013 286);
+	--d-gray-bg: oklch(92% 0.004 286);
+	--d-gray: oklch(55% 0.014 286);
+	--d-orange-fg: oklch(47% 0.137 46);
+	--d-orange-bg: oklch(95.4% 0.038 75);
+	--d-orange: oklch(64.6% 0.222 41);
+	--d-amber-fg: oklch(47.3% 0.137 46);
+	--d-amber-bg: oklch(96.2% 0.059 95);
+	--d-amber: oklch(76.9% 0.188 70);
+	--d-green-fg: oklch(44.8% 0.119 151);
+	--d-green-bg: oklch(96.2% 0.044 157);
+	--d-green: oklch(62.7% 0.194 149);
+	--d-teal-fg: oklch(43.7% 0.078 189);
+	--d-teal-bg: oklch(95.3% 0.051 181);
+	--d-teal: oklch(51.1% 0.096 186);
+	--d-blue-fg: oklch(42.4% 0.199 266);
+	--d-blue-bg: oklch(93.2% 0.032 256);
+	--d-blue: oklch(54.6% 0.245 263);
+	--d-violet-fg: oklch(43.2% 0.232 293);
+	--d-violet-bg: oklch(94.3% 0.029 295);
+	--d-violet: oklch(54.1% 0.281 293);
+	--d-pink-fg: oklch(45.9% 0.187 4);
+	--d-pink-bg: oklch(94.8% 0.028 342);
+	--d-pink: oklch(59.2% 0.249 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--canvas: oklch(14.1% 0.005 286);
+		--surface: oklch(21% 0.006 286);
+		--surface-2: oklch(25% 0.006 286);
+		--sunken: oklch(17% 0.005 286);
+		--ink: oklch(98.5% 0 0);
+		--ink-muted: oklch(78% 0.01 286);
+		--ink-faint: oklch(68% 0.013 286);
+		--line: oklch(32% 0.008 286);
+		--line-soft: oklch(27% 0.006 286);
+		--hover: oklch(25% 0.006 286);
+		--fill: oklch(98.5% 0 0);
+		--on-fill: oklch(21% 0.006 286);
+		--scrim: rgb(0 0 0 / 0.6);
+
+		--d-gray-fg: oklch(87% 0.006 286);
+		--d-gray-bg: oklch(32% 0.008 286);
+		--d-orange-fg: oklch(83.7% 0.128 66);
+		--d-orange-bg: oklch(33% 0.08 46);
+		--d-amber-fg: oklch(87.9% 0.169 91);
+		--d-amber-bg: oklch(33% 0.07 70);
+		--d-green-fg: oklch(87.1% 0.15 154);
+		--d-green-bg: oklch(30% 0.06 150);
+		--d-teal-fg: oklch(85.5% 0.138 181);
+		--d-teal-bg: oklch(30% 0.05 186);
+		--d-blue-fg: oklch(80.9% 0.105 251);
+		--d-blue-bg: oklch(30% 0.09 265);
+		--d-violet-fg: oklch(81.1% 0.111 293);
+		--d-violet-bg: oklch(30% 0.1 293);
+		--d-pink-fg: oklch(82.3% 0.12 346);
+		--d-pink-bg: oklch(31% 0.09 0);
+	}
+}
+
+@theme inline {
+	--font-sans: 'Geist Variable', system-ui, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+	--color-canvas: var(--canvas);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-sunken: var(--sunken);
+	--color-ink: var(--ink);
+	--color-ink-muted: var(--ink-muted);
+	--color-ink-faint: var(--ink-faint);
+	--color-line: var(--line);
+	--color-line-soft: var(--line-soft);
+	--color-hover: var(--hover);
+	--color-fill: var(--fill);
+	--color-on-fill: var(--on-fill);
+	--color-scrim: var(--scrim);
+}
+
+html,
+body {
+	background: var(--canvas);
+	color: var(--ink);
+	font-family: var(--font-sans);
+	font-variant-numeric: tabular-nums;
+	-webkit-tap-highlight-color: transparent;
+}
+
+body {
+	margin: 0;
+	min-height: 100dvh;
+}
+
+button {
+	cursor: pointer;
+}
