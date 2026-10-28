@@ -1,0 +1,243 @@
+import { newId } from './ids.ts';
+import type { Change, Choice, FieldDef, FieldType, Value, ViewConfig, ViewType } from './model.ts';
+import { CREATED, DELETED } from './model.ts';
+import { coerce } from './values.ts';
+import type { Workspace } from './workspace.ts';
+
+export type FieldSpec = {
+	name: string;
+	type: FieldType;
+	choices?: Choice[];
+	target?: string | null;
+	expr?: string | null;
+	description?: string | null;
+	step?: number | null;
+};
+
+export type ViewSpec = { name: string; type: ViewType; config?: ViewConfig };
+
+function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {
+	const set: Record<string, Value> = { name: spec.name.trim(), type: spec.type, order };
+
+	if (spec.type === 'choice') {
+		set.choices = (spec.choices ?? []).map((choice) => ({
+			name: choice.name,
+			color: choice.color
+		}));
+	}
+	if (spec.type === 'link') {
+		set.target = spec.target ?? null;
+	}
+	if (spec.type === 'formula') {
+		set.expr = spec.expr ?? null;
+	}
+	if (spec.description !== undefined) {
+		set.description = spec.description;
+	}
+	if (spec.step !== undefined) {
+		set.step = spec.step;
+	}
+
+	return set;
+}
+
+export function createBase(ws: Workspace, name: string): { id: string; changes: Change[] } {
+	const id = newId('b');
+
+	return {
+		id,
+		changes: [
+			{
+				id,
+				kind: 'base',
+				base: id,
+				parent: '',
+				set: { name: name.trim(), order: ws.nextOrder('', 'base') }
+			}
+		]
+	};
+}
+
+export function defaultViews(fields: { id: string; type: FieldType }[]): ViewSpec[] {
+	return [
+		{ name: 'Grille', type: 'grid', config: {} },
+		{
+			name: 'Saisie',
+			type: 'entry',
+			config: {
+				fields: fields.filter((field) => field.type !== 'formula').map((field) => field.id)
+			}
+		}
+	];
+}
+
+export function createTable(
+	ws: Workspace,
+	baseId: string,
+	name: string,
+	fields: FieldSpec[],
+	views?: (fieldIds: { id: string; type: FieldType }[]) => ViewSpec[]
+): { id: string; fieldIds: string[]; viewIds: string[]; changes: Change[] } {
+	const id = newId('t');
+	const changes: Change[] = [
+		{
+			id,
+			kind: 'table',
+			base: baseId,
+			parent: baseId,
+			set: { name: name.trim(), order: ws.nextOrder(baseId, 'table') }
+		}
+	];
+
+	const made = fields.map((spec, order) => {
+		const fieldId = newId('f');
+		changes.push({
+			id: fieldId,
+			kind: 'field',
+			base: baseId,
+			parent: id,
+			set: fieldSet(spec, order)
+		});
+		return { id: fieldId, type: spec.type };
+	});
+
+	const viewIds = (views ?? defaultViews)(made).map((spec, order) => {
+		const viewId = newId('v');
+		changes.push({
+			id: viewId,
+			kind: 'view',
+			base: baseId,
+			parent: id,
+			set: { name: spec.name, type: spec.type, order, config: spec.config ?? {} }
+		});
+		return viewId;
+	});
+
+	return { id, fieldIds: made.map((field) => field.id), viewIds, changes };
+}
+
+export function addField(
+	ws: Workspace,
+	tableId: string,
+	spec: FieldSpec
+): { id: string; changes: Change[] } {
+	const table = ws.table(tableId);
+	if (table === undefined) {
+		throw new Error('table introuvable');
+	}
+
+	const id = newId('f');
+
+	return {
+		id,
+		changes: [
+			{
+				id,
+				kind: 'field',
+				base: table.base,
+				parent: tableId,
+				set: fieldSet(spec, ws.nextOrder(tableId, 'field'))
+			}
+		]
+	};
+}
+
+export function updateRecord(ws: Workspace, id: string, set: Record<string, Value>): Change[] {
+	const rec = ws.live(id);
+	if (rec === undefined) {
+		throw new Error('élément introuvable');
+	}
+
+	return [{ id, kind: rec.kind, base: rec.base, parent: rec.parent, set }];
+}
+
+export function deleteRecords(ws: Workspace, ids: string[]): Change[] {
+	return ids.flatMap((id) => updateRecord(ws, id, { [DELETED]: true }));
+}
+
+/** Values keyed by field id, coerced to each field's type; unknown and computed fields dropped. */
+export function rowValues(
+	fields: FieldDef[],
+	values: Record<string, unknown>
+): Record<string, Value> {
+	const out: Record<string, Value> = {};
+
+	for (const field of fields) {
+		if (field.type !== 'formula' && field.id in values) {
+			out[field.id] = coerce(field, values[field.id]);
+		}
+	}
+
+	return out;
+}
+
+export function insertRows(
+	ws: Workspace,
+	tableId: string,
+	rows: Record<string, unknown>[],
+	now: number = Date.now()
+): { ids: string[]; changes: Change[] } {
+	const table = ws.table(tableId);
+	if (table === undefined) {
+		throw new Error('table introuvable');
+	}
+
+	const fields = ws.fields(tableId);
+	const ids: string[] = [];
+
+	const changes = rows.map((values, index): Change => {
+		const id = newId('r');
+		ids.push(id);
+
+		return {
+			id,
+			kind: 'row',
+			base: table.base,
+			parent: tableId,
+			// Rows inserted together keep their order even within one millisecond.
+			set: { ...rowValues(fields, values), [CREATED]: now + index / 1000 }
+		};
+	});
+
+	return { ids, changes };
+}
+
+export function updateRow(ws: Workspace, rowId: string, values: Record<string, unknown>): Change[] {
+	const rec = ws.live(rowId);
+	if (rec === undefined || rec.kind !== 'row') {
+		throw new Error('ligne introuvable');
+	}
+
+	return updateRecord(ws, rowId, rowValues(ws.fields(rec.parent), values));
+}
+
+export function createView(
+	ws: Workspace,
+	tableId: string,
+	spec: ViewSpec
+): { id: string; changes: Change[] } {
+	const table = ws.table(tableId);
+	if (table === undefined) {
+		throw new Error('table introuvable');
+	}
+
+	const id = newId('v');
+
+	return {
+		id,
+		changes: [
+			{
+				id,
+				kind: 'view',
+				base: table.base,
+				parent: tableId,
+				set: {
+					name: spec.name.trim(),
+					type: spec.type,
+					order: ws.nextOrder(tableId, 'view'),
+					config: spec.config ?? {}
+				}
+			}
+		]
+	};
+}
