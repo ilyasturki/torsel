@@ -16,7 +16,7 @@ import { openEngine } from '../../core/engine.ts';
 import { FormulaError, toDisplay, toStored } from '../../core/formula.ts';
 import type { Change, Choice, FieldDef, TableDef, Value, ViewConfig } from '../../core/model.ts';
 import { FIELD_TYPES, VIEW_TYPES } from '../../core/model.ts';
-import { checkFormula, formulaColumns, materializeBase, readQuery } from '../../core/sql.ts';
+import { formulaProblem, materializeBase, readQuery } from '../../core/sql.ts';
 import type { Workspace } from '../../core/workspace.ts';
 
 export type Tier = 'apply' | 'propose' | 'confirm';
@@ -131,14 +131,7 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	if (table === undefined) {
 		return;
 	}
-	const engine = await engineFor(ws, table.base);
-	const sql = stored.replace(/\{\{([a-z]_[0-9a-z]+)\}\}/gu, (_, id: string) => {
-		const field = ws.field(id);
-		return field?.type === 'formula'
-			? `(${formulaColumns(ws, tableId).get(id) ?? 'NULL'})`
-			: `t.${id}`;
-	});
-	const problem = checkFormula(engine, tableId, sql);
+	const problem = formulaProblem(await engineFor(ws, table.base), ws, tableId, stored);
 	if (problem !== null) {
 		throw new ToolError(`SQLite refuse la formule : ${problem}`);
 	}

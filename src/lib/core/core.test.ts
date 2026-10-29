@@ -15,7 +15,7 @@ import { FormulaError, toDisplay, toStored } from './formula.ts';
 import { merge, sameRec } from './merge.ts';
 import type { Change, Rec } from './model.ts';
 import { isDeleted } from './model.ts';
-import { checkFormula, materializeBase, readQuery } from './sql.ts';
+import { formulaProblem, materializeBase, readQuery } from './sql.ts';
 import { coerce, parseDate, parseNumber } from './values.ts';
 import { Workspace } from './workspace.ts';
 
@@ -187,7 +187,7 @@ describe('materialize', () => {
 		]);
 
 		expect(() => readQuery(engine, `delete from ${table.id}`)).toThrow();
-		expect(checkFormula(engine, table.id, 'nope(1)')).toMatch(/no such function/u);
+		expect(formulaProblem(engine, ws, table.id, 'nope(1)')).toMatch(/no such function/u);
 		engine.close();
 	});
 });

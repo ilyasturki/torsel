@@ -58,6 +58,13 @@ export function createBase(ws: Workspace, name: string): { id: string; changes: 
 	};
 }
 
+/** The field "the last time" is read on when a view does not say: the choice with the most values. */
+export function defaultMatch(fields: FieldDef[]): string[] {
+	const keys = fields.filter((field) => field.type === 'choice' || field.type === 'link');
+	const best = keys.sort((a, b) => b.choices.length - a.choices.length)[0];
+	return best === undefined ? [] : [best.id];
+}
+
 export function defaultViews(fields: { id: string; type: FieldType }[]): ViewSpec[] {
 	return [
 		{ name: 'Grille', type: 'grid', config: {} },

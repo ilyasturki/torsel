@@ -163,7 +163,19 @@ export function materializeTable(engine: Engine, ws: Workspace, tableId: string)
 	return problems;
 }
 
-export function checkFormula(engine: Engine, tableId: string, sql: string): string | null {
+/** Why SQLite refuses a stored formula on this table, or null; the table must be materialized. */
+export function formulaProblem(
+	engine: Engine,
+	ws: Workspace,
+	tableId: string,
+	stored: string
+): string | null {
+	const formulas = formulaColumns(ws, tableId);
+	const sql = toSql(stored, (id) => {
+		const field = ws.field(id);
+		return field?.type === 'formula' ? `(${formulas.get(id) ?? 'NULL'})` : `t.${id}`;
+	});
+
 	try {
 		engine.all(`select (${sql}) as v from ${tableId} t limit 1`);
 		return null;
@@ -173,9 +185,7 @@ export function checkFormula(engine: Engine, tableId: string, sql: string): stri
 }
 
 function primaryColumn(ws: Workspace, tableId: string): string {
-	const fields = ws.fields(tableId);
-	const primary = fields.find((field) => field.type === 'text') ?? fields[0];
-	return primary === undefined ? 'id' : primary.id;
+	return ws.primaryField(tableId)?.id ?? 'id';
 }
 
 /**

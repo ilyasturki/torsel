@@ -265,6 +265,22 @@ export class Workspace {
 		return out;
 	}
 
+	/** The field a row is named by: the first text field, else the first field. */
+	public primaryField(tableId: string): FieldDef | undefined {
+		const fields = this.fields(tableId);
+		return fields.find((field) => field.type === 'text') ?? fields[0];
+	}
+
+	public rowTitle(rowId: string): string {
+		const row = this.live(rowId);
+		if (row === undefined) {
+			return '';
+		}
+		const primary = this.primaryField(row.parent);
+		const value = primary === undefined ? undefined : row.data[primary.id];
+		return value === undefined || value === null ? '' : String(value);
+	}
+
 	public nextOrder(parent: string, kind: Rec['kind']): number {
 		let max = -1;
 
