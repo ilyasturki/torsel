@@ -24,13 +24,11 @@
 
 	const tables = $derived.by(() => {
 		void app.version;
-		return app.ws
-			.tables(baseId)
-			.map((table) => ({
-				...table,
-				rows: app.ws.rows(table.id).length,
-				views: app.ws.views(table.id).length
-			}));
+		return app.ws.tables(baseId).map((table) => ({
+			...table,
+			rows: app.ws.rows(table.id).length,
+			views: app.ws.views(table.id).length
+		}));
 	});
 
 	let naming = $state(false);
