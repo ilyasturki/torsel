@@ -203,6 +203,47 @@ test('the table menu renames the table, opens view settings and adds a view', as
 	).toBeVisible();
 });
 
+test('settings can be reached from the home and from a table', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+
+	await page.goto('/app');
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+
+	await page.goto(`/app/t/${lifts}`);
+	const more = page.getByRole('button', { name: 'More' });
+	if (test.info().project.name === 'phone') {
+		await more.click();
+	}
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+});
+
+test('undo takes back the last change, and the keyboard changes the view', async ({
+	page,
+	context,
+	account
+}) => {
+	test.skip(test.info().project.name === 'phone', 'the phone reaches both through its menu');
+	void account;
+	const { lifts, entry } = await seedTwoTables(context.request);
+	await page.goto(`/app/t/${lifts}`);
+	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
+
+	await page.keyboard.press('Alt+2');
+	await expect(page).toHaveURL(new RegExp(`v=${entry}`, 'u'));
+
+	await page.getByRole('button', { name: 'Add row' }).click();
+	await expect(page.getByText('2 rows')).toBeVisible();
+	await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+});
+
 test('a number typed in a sheet stays and is saved', async ({ page, context, account }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);

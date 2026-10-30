@@ -189,7 +189,7 @@ function primaryColumn(ws: Workspace, tableId: string): string {
 }
 
 /**
- * Views named as the person reads them — `"Séries"."Poids"` — over the `v_` views, for SQL
+ * Views named as the person reads them — `"Sets"."Weight"` — over the `v_` views, for SQL
  * written by an assistant. A link reads as the linked row's first text field.
  */
 export function createNamedViews(engine: Engine, ws: Workspace, baseId: string): void {
@@ -203,7 +203,7 @@ export function createNamedViews(engine: Engine, ws: Workspace, baseId: string):
 		used.add(name.toLowerCase());
 
 		const taken = new Set(['_id']);
-		const columns = ['v.id as "_id"', `v.${quote(CREATED)} as "_créé"`];
+		const columns = ['v.id as "_id"', `v.${quote(CREATED)} as "_created"`];
 
 		for (const field of ws.fields(table.id)) {
 			let label = field.name;

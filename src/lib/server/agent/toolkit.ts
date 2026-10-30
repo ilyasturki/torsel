@@ -405,7 +405,7 @@ export const TOOLS: Tool[] = [
 		name: 'query',
 		title: 'Lire avec SQL',
 		description:
-			'Une requête SELECT SQLite en lecture seule sur une base. Chaque table est une vue nommée comme la table, ses colonnes nommées comme ses champs : select "Exercice", max("Poids") from "Séries" group by 1. Les colonnes "_id" et "_créé" (ms) existent aussi. Dates en texte AAAA-MM-JJ, cases en 0/1, un lien se lit comme le texte de la ligne liée. 200 lignes au plus.',
+			'Une requête SELECT SQLite en lecture seule sur une base. Chaque table est une vue nommée comme la table, ses colonnes nommées comme ses champs : select "Exercice", max("Poids") from "Séries" group by 1. Les colonnes "_id" et "_created" (ms) existent aussi. Dates en texte AAAA-MM-JJ, cases en 0/1, un lien se lit comme le texte de la ligne liée. 200 lignes au plus.',
 		input: z.object({ base: BASE, sql: z.string().min(1) }),
 		readOnly: true,
 		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {

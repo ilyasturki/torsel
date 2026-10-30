@@ -130,8 +130,10 @@
 				{/if}
 				<a
 					href={SETTINGS}
-					class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink max-sm:hidden"
-					>Settings</a
+					class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {table ===
+					undefined
+						? ''
+						: 'max-sm:hidden'}">Settings</a
 				>
 				{#if table !== undefined}
 					<Button

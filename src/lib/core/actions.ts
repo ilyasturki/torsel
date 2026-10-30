@@ -72,7 +72,6 @@ export function homeBase(ws: Workspace): { id: string; changes: Change[] } {
 		: createBase(ws, 'Tables');
 }
 
-/** A new table named "Table N", in the home base unless a base is given. */
 export function blankTable(
 	ws: Workspace,
 	baseId?: string
