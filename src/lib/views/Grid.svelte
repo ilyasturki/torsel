@@ -172,7 +172,7 @@
 						</button>
 					</th>
 				{/each}
-				<th class="px-1 py-1">
+				<th class="w-11 px-1 py-1">
 					<button
 						type="button"
 						class="flex size-8 items-center justify-center rounded-lg hover:bg-hover"
@@ -185,6 +185,7 @@
 						<Plus class="size-4" />
 					</button>
 				</th>
+				<th></th>
 			</tr>
 		</thead>
 		<tbody>
@@ -265,6 +266,7 @@
 							{/if}
 						</td>
 					{/each}
+					<td></td>
 					<td></td>
 				</tr>
 			{/each}

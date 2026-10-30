@@ -98,6 +98,10 @@ test('the add-field column stays reachable when the fields outgrow the screen', 
 	const { path } = await seedEveryType(context.request);
 	await page.goto(path);
 
-	await page.getByRole('button', { name: 'Ajouter un champ' }).click();
+	const add = page.getByRole('button', { name: 'Ajouter un champ' });
+	const column = await page.locator('thead th').filter({ has: add }).boundingBox();
+	expect(column?.width).toBe(44);
+
+	await add.click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 });
