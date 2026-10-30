@@ -1,8 +1,4 @@
 <script lang="ts">
-	import Minus from '@lucide/svelte/icons/minus';
-	import Plus from '@lucide/svelte/icons/plus';
-	import Search from '@lucide/svelte/icons/search';
-
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
@@ -10,8 +6,14 @@
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { parseNumber, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
-	import { DATA_COLORS, chipStyle } from '#lib/ui/colors.ts';
-	import { input, select } from '#lib/ui/styles.ts';
+	import Button from '#lib/ui/Button.svelte';
+	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
+	import Empty from '#lib/ui/Empty.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
+	import Stepper from '#lib/ui/Stepper.svelte';
+	import { checkbox, input, select } from '#lib/ui/styles.ts';
+
+	import CellValue from './CellValue.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
 
@@ -139,7 +141,7 @@
 				...field.choices,
 				{ name, color: DATA_COLORS[(field.choices.length % 7) + 1] }
 			];
-			app.apply(updateRecord(app.ws, field.id, { choices }), `Choix « ${name} » ajouté`);
+			app.apply(updateRecord(app.ws, field.id, { choices }), `Choice "${name}" added`);
 		}
 		if (keyIds.has(field.id)) pickKey(field, name);
 		else set(field, name);
@@ -163,11 +165,11 @@
 		for (const field of others) row[field.id] = shown(field);
 
 		const { changes } = insertRows(app.ws, tableId, [row]);
-		const group = app.apply(changes, 'Ligne ajoutée');
+		const group = app.apply(changes, 'Row added');
 		for (const field of others) values[field.id] = row[field.id];
 		touched = {};
 		texts = {};
-		showToast('Ajouté', group?.id ?? null);
+		showToast('Row added', group?.id ?? null);
 	}
 
 	function summary(row: Rec): string {
@@ -178,49 +180,109 @@
 	}
 
 	const today = todayIso();
+
+	const numbers = $derived(others.filter((field) => field.type === 'number'));
+
+	const recent = $derived.by(() => {
+		let previous: string | null = null;
+		return ordered
+			.slice(0, 20)
+			.reverse()
+			.map((row) => {
+				const value = dateField ? row.data[dateField.id] : null;
+				const date = typeof value === 'string' ? value.slice(0, 10) : '';
+				const changed = date !== previous;
+				previous = date;
+				return {
+					row,
+					day: !changed || date === '' ? null : date === today ? 'Today' : formatDate(date)
+				};
+			});
+	});
+
+	const stepperSize = $derived(numbers.length === 1 ? 'lg' : numbers.length === 2 ? 'md' : 'sm');
+	const chip =
+		'motion inline-flex h-control shrink-0 items-center gap-2 rounded-box px-3 font-medium transition-colors';
+	const chipOff = 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink';
+	const chipOn = 'bg-fill text-on-fill';
 </script>
 
 {#if fields.length === 0}
-	<p class="rounded-2xl bg-surface px-4 py-10 text-center text-ink-muted">
-		Cette vue n’a aucun champ à saisir.
-	</p>
+	<Empty text="This view has no fields to fill in." />
 {:else}
-	<div class="mx-auto flex w-full max-w-xl flex-col gap-3">
-		<section class="flex flex-col gap-5 rounded-3xl bg-surface p-4 sm:p-5">
+	<div class="flex h-full min-h-0 flex-col lg:flex-row lg:items-end">
+		<div class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden lg:pb-tabs-clear">
+			<ul class="flex flex-col">
+				{#each recent as { row, day } (row.id)}
+					{#if day !== null}
+						<li class="flex h-8 shrink-0 items-center gap-3 px-4 text-sm font-medium text-ink-3">
+							<span class="min-w-0 flex-1 truncate">{day}</span>
+							{#each numbers as field (field.id)}
+								<span class="w-14 shrink-0 truncate text-right">{field.name}</span>
+							{/each}
+						</li>
+					{/if}
+					<li
+						class="flex h-9 shrink-0 items-center gap-3 px-4 transition-colors motion hover:bg-tint"
+					>
+						<span class="min-w-0 flex-1 truncate">
+							{#if keys[0] !== undefined}
+								<CellValue field={keys[0]} value={row.data[keys[0].id]} />
+							{:else}
+								{summary(row)}
+							{/if}
+						</span>
+						{#each numbers as field (field.id)}
+							<span class="w-14 shrink-0 truncate text-right"
+								><CellValue {field} value={row.data[field.id]} /></span
+							>
+						{/each}
+					</li>
+				{/each}
+			</ul>
+		</div>
+
+		<section class="flex shrink-0 flex-col gap-3 p-4 pb-tabs-clear lg:w-entry">
+			{#if last !== undefined && others.length > 0}
+				<p class="flex items-center justify-between gap-3 text-ink-2">
+					<span
+						>Last time{dateField && typeof last.data[dateField.id] === 'string'
+							? `, ${formatDate(String(last.data[dateField.id]))}`
+							: ''}</span
+					>
+					<span class="truncate font-medium text-ink">{summary(last)}</span>
+				</p>
+			{/if}
+
 			{#each keys as field (field.id)}
 				<div class="flex flex-col gap-2">
-					<div class="flex items-center gap-2">
-						<span class="text-[13px] font-medium text-ink-muted">{field.name}</span>
-						{#if field.type === 'choice' && field.choices.length > MANY}
-							<label
-								class="ml-auto flex h-9 items-center gap-2 rounded-full bg-surface-2 px-3 text-sm"
-							>
-								<Search class="size-4 text-ink-faint" />
-								<input
-									class="w-32 bg-transparent outline-none"
-									bind:value={search}
-									placeholder="Chercher"
-								/>
-							</label>
-						{/if}
-					</div>
+					{#if field.type === 'choice' && field.choices.length > MANY}
+						<input
+							class={input}
+							bind:value={search}
+							placeholder="Search {field.name}"
+							aria-label="Search {field.name}"
+						/>
+					{/if}
 					{#if field.type === 'choice'}
-						<div class="flex flex-wrap gap-2">
+						<div
+							class="flex hide-scrollbar gap-1 max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-4 sm:flex-wrap"
+						>
 							{#each choiceList(field) as choice (choice.name)}
 								{@const on = values[field.id] === choice.name}
 								<button
 									type="button"
-									class="min-h-11 rounded-full px-4 text-[15px] font-medium {on
-										? 'bg-fill text-on-fill'
-										: ''}"
-									style={on ? '' : chipStyle(choice.color)}
+									class="{chip} {on ? chipOn : chipOff}"
 									aria-pressed={on}
-									onclick={() => pickKey(field, choice.name)}>{choice.name}</button
+									onclick={() => pickKey(field, choice.name)}
 								>
+									<span class="size-mark rounded-box" style={swatch(choice.color)}
+									></span>{choice.name}
+								</button>
 							{/each}
 							{#if adding === field.id}
 								<form
-									class="flex gap-2"
+									class="shrink-0"
 									onsubmit={(event) => {
 										event.preventDefault();
 										addChoice(field);
@@ -228,28 +290,28 @@
 								>
 									<!-- svelte-ignore a11y_autofocus -->
 									<input
-										class="{input} w-44"
+										class="{input} w-40"
 										bind:value={newChoice}
-										placeholder="Nouveau"
+										placeholder="New choice"
+										aria-label="New choice"
 										autofocus
 										onblur={() => addChoice(field)}
 									/>
 								</form>
 							{:else}
-								<button
-									type="button"
-									class="flex min-h-11 items-center gap-1 rounded-full border border-dashed border-line px-4 text-[15px] text-ink-muted"
-									onclick={() => (adding = field.id)}><Plus class="size-4" /> Nouveau</button
-								>
+								<button type="button" class="{chip} {chipOff}" onclick={() => (adding = field.id)}>
+									<Icon name="plus" /> New
+								</button>
 							{/if}
 						</div>
 					{:else if field.type === 'link'}
 						<select
 							class={select}
+							aria-label={field.name}
 							value={values[field.id] ?? ''}
 							onchange={(event) => pickKey(field, event.currentTarget.value || null)}
 						>
-							<option value="">—</option>
+							<option value="">Choose {field.name}</option>
 							{#each targets(field) as target (target.id)}
 								<option value={target.id}>{target.title}</option>
 							{/each}
@@ -257,6 +319,8 @@
 					{:else}
 						<input
 							class={input}
+							aria-label={field.name}
+							placeholder={field.name}
 							value={values[field.id] ?? ''}
 							oninput={(event) => pickKey(field, event.currentTarget.value || null)}
 						/>
@@ -264,115 +328,84 @@
 				</div>
 			{/each}
 
-			{#if last !== undefined && others.length > 0}
-				<p class="-mt-1 text-[13px] text-ink-muted">
-					La dernière fois{dateField && typeof last.data[dateField.id] === 'string'
-						? `, le ${formatDate(String(last.data[dateField.id]))}`
-						: ''} :
-					<span class="text-ink">{summary(last)}</span>
-				</p>
-			{/if}
-
-			<div class="grid grid-cols-2 gap-3">
-				{#each others as field (field.id)}
-					{@const value = shown(field)}
-					{@const ghost = !touched[field.id]}
-					<div class="flex flex-col gap-1.5 {field.type === 'number' ? '' : 'col-span-2'}">
-						<span class="text-[13px] font-medium text-ink-muted">{field.name}</span>
-						{#if field.type === 'number'}
-							<div class="flex h-14 items-center rounded-2xl bg-surface-2">
+			{#each others as field (field.id)}
+				{@const value = shown(field)}
+				{#if field.type === 'number'}
+					<Stepper
+						label={field.name}
+						size={stepperSize}
+						ghost={!touched[field.id]}
+						text={texts[field.id] ?? (typeof value === 'number' ? formatNumber(value) : '')}
+						oninput={(text) => {
+							texts[field.id] = text;
+							set(field, parseNumber(text));
+						}}
+						onstep={(direction) => step(field, direction)}
+					/>
+				{:else if field.type === 'choice'}
+					<div class="flex flex-col gap-1">
+						<span class="text-sm font-medium text-ink-2">{field.name}</span>
+						<div class="flex flex-wrap gap-1">
+							{#each field.choices as choice (choice.name)}
+								{@const on = value === choice.name}
 								<button
 									type="button"
-									class="flex size-14 items-center justify-center"
-									aria-label="Moins"
-									onclick={() => step(field, -1)}><Minus class="size-5" /></button
+									class="{chip} {on ? chipOn : chipOff}"
+									aria-pressed={on}
+									onclick={() => set(field, on ? null : choice.name)}
 								>
-								<input
-									class="w-full min-w-0 bg-transparent text-center text-2xl font-semibold outline-none {ghost
-										? 'text-ink-muted'
-										: 'text-ink'}"
-									inputmode="decimal"
-									aria-label={field.name}
-									value={texts[field.id] ?? (typeof value === 'number' ? formatNumber(value) : '')}
-									placeholder="—"
-									oninput={(event) => {
-										texts[field.id] = event.currentTarget.value;
-										set(field, parseNumber(event.currentTarget.value));
-									}}
-								/>
-								<button
-									type="button"
-									class="flex size-14 items-center justify-center"
-									aria-label="Plus"
-									onclick={() => step(field, 1)}><Plus class="size-5" /></button
-								>
-							</div>
-						{:else if field.type === 'choice'}
-							<div class="flex flex-wrap gap-2">
-								{#each field.choices as choice (choice.name)}
-									{@const on = value === choice.name}
-									<button
-										type="button"
-										class="min-h-10 rounded-full px-3 text-sm font-medium {on
-											? 'bg-fill text-on-fill'
-											: ''}"
-										style={on ? '' : chipStyle(choice.color)}
-										onclick={() => set(field, on ? null : choice.name)}>{choice.name}</button
-									>
-								{/each}
-							</div>
-						{:else if field.type === 'check'}
-							<button
-								type="button"
-								role="switch"
-								aria-checked={value === true}
-								aria-label={field.name}
-								class="relative h-9 w-16 rounded-full transition-colors {value === true
-									? 'bg-fill'
-									: 'bg-sunken'}"
-								onclick={() => set(field, value !== true)}
-							>
-								<span
-									class="absolute top-1 size-7 rounded-full bg-surface shadow transition-all {value ===
-									true
-										? 'left-8'
-										: 'left-1'}"
-								></span>
-							</button>
-						{:else if field.type === 'link'}
-							<select
-								class={select}
-								value={value ?? ''}
-								onchange={(event) => set(field, event.currentTarget.value || null)}
-							>
-								<option value="">—</option>
-								{#each targets(field) as target (target.id)}
-									<option value={target.id}>{target.title}</option>
-								{/each}
-							</select>
-						{:else if field.type === 'date'}
-							<input
-								class={input}
-								type="date"
-								value={typeof value === 'string' ? value.slice(0, 10) : ''}
-								oninput={(event) => set(field, event.currentTarget.value || null)}
-							/>
-						{:else}
-							<input
-								class={input}
-								value={typeof value === 'string' ? value : ''}
-								oninput={(event) => set(field, event.currentTarget.value || null)}
-							/>
-						{/if}
+									<span class="size-mark rounded-box" style={swatch(choice.color)}
+									></span>{choice.name}
+								</button>
+							{/each}
+						</div>
 					</div>
-				{/each}
-			</div>
+				{:else if field.type === 'check'}
+					<label class="flex min-h-control items-center gap-2">
+						<input
+							type="checkbox"
+							class={checkbox}
+							checked={value === true}
+							onchange={() => set(field, value !== true)}
+						/>
+						{field.name}
+					</label>
+				{:else if field.type === 'link'}
+					<select
+						class={select}
+						aria-label={field.name}
+						value={value ?? ''}
+						onchange={(event) => set(field, event.currentTarget.value || null)}
+					>
+						<option value="">Choose {field.name}</option>
+						{#each targets(field) as target (target.id)}
+							<option value={target.id}>{target.title}</option>
+						{/each}
+					</select>
+				{:else if field.type === 'date'}
+					<input
+						class={input}
+						type="date"
+						aria-label={field.name}
+						value={typeof value === 'string' ? value.slice(0, 10) : ''}
+						oninput={(event) => set(field, event.currentTarget.value || null)}
+					/>
+				{:else}
+					<input
+						class={input}
+						aria-label={field.name}
+						placeholder={field.name}
+						value={typeof value === 'string' ? value : ''}
+						oninput={(event) => set(field, event.currentTarget.value || null)}
+					/>
+				{/if}
+			{/each}
 
 			{#if dateField !== undefined}
-				<label class="flex items-center justify-between gap-3 text-[13px] text-ink-muted">
+				<label class="flex items-center justify-between gap-3 text-ink-2">
 					{dateField.name}
 					<input
-						class="h-10 rounded-xl border border-line bg-surface px-3 text-[15px] text-ink"
+						class="{input} w-auto"
 						type="date"
 						value={String(values[dateField.id] ?? today).slice(0, 10)}
 						oninput={(event) => {
@@ -382,37 +415,7 @@
 				</label>
 			{/if}
 
-			<button
-				type="button"
-				class="h-16 rounded-2xl bg-fill text-lg font-semibold text-on-fill disabled:opacity-40"
-				disabled={!ready}
-				onclick={commit}>Ajouter</button
-			>
+			<Button variant="primary" size="cta" disabled={!ready} onclick={commit}>Add row</Button>
 		</section>
-
-		{#if history.length > 0}
-			<section class="rounded-3xl bg-surface p-2">
-				<h2 class="px-3 pt-2 pb-1 text-[13px] font-medium text-ink-muted">Dernières lignes</h2>
-				<ul>
-					{#each history.slice(0, 8) as row (row.id)}
-						{@const day = dateField ? row.data[dateField.id] : null}
-						<li class="flex items-center gap-3 rounded-xl px-3 py-2.5">
-							<span
-								class="w-16 shrink-0 text-[13px] {day === today
-									? 'font-semibold text-ink'
-									: 'text-ink-muted'}"
-							>
-								{typeof day === 'string'
-									? day.slice(0, 10) === today
-										? 'Auj.'
-										: formatDate(day)
-									: ''}
-							</span>
-							<span class="min-w-0 flex-1 truncate text-[15px]">{summary(row) || '—'}</span>
-						</li>
-					{/each}
-				</ul>
-			</section>
-		{/if}
 	</div>
 {/if}

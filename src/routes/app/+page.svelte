@@ -1,94 +1,97 @@
 <script lang="ts">
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-	import FileUp from '@lucide/svelte/icons/file-up';
-	import Plus from '@lucide/svelte/icons/plus';
-	import Settings from '@lucide/svelte/icons/settings';
-
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { createBase } from '#lib/core/actions.ts';
+	import { tableUrl } from '#lib/client/nav.ts';
+	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { blankTable, createBase, deleteRecords, updateRecord } from '#lib/core/actions.ts';
+	import type { BaseDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import Empty from '#lib/ui/Empty.svelte';
 	import ImportSheet from '#lib/views/ImportSheet.svelte';
 	import NameSheet from '#lib/views/NameSheet.svelte';
 
-	let naming = $state(false);
 	let importing = $state(false);
-
-	$effect(() => {
-		if (page.url.searchParams.get('new') === '1') {
-			naming = true;
-			void goto('/app', { replaceState: true });
-		}
-	});
+	let creatingBase = $state(false);
+	let renaming = $state<BaseDef | null>(null);
 
 	const bases = $derived.by(() => {
 		void app.version;
-		return app.ws.bases().map((base) => {
-			const tables = app.ws.tables(base.id);
-			const rows = tables.reduce((total, table) => total + app.ws.rows(table.id).length, 0);
-			return { ...base, tables, rows };
-		});
+		return app.ws.bases().map((base) => ({
+			...base,
+			tables: app.ws.tables(base.id).map((table) => ({
+				...table,
+				rows: app.ws.rows(table.id).length
+			}))
+		}));
 	});
 
-	function create(name: string): void {
-		const { id, changes } = createBase(app.ws, name);
-		app.apply(changes, `Base « ${name} » créée`);
-		void goto(`/app/b/${id}`);
+	const empty = $derived(bases.every((base) => base.tables.length === 0));
+	const grouped = $derived(bases.length > 1);
+
+	function newTable(baseId?: string): void {
+		const made = blankTable(app.ws, baseId);
+		app.apply(made.changes, `Table "${made.name}" created`);
+		void goto(tableUrl(made.id));
+	}
+
+	function removeBase(base: BaseDef): void {
+		const label = `Base "${base.name}" deleted`;
+		const group = app.apply(deleteRecords(app.ws, [base.id]), label);
+		showToast(label, group?.id ?? null);
 	}
 </script>
 
-<div class="mx-auto flex max-w-2xl flex-col gap-5 pt-4">
-	<header class="flex items-center justify-between px-1">
-		<h1 class="text-[32px] leading-10 font-bold tracking-tight">Bases</h1>
-		<a
-			href="/app/settings"
-			class="flex size-11 items-center justify-center rounded-full hover:bg-hover lg:hidden"
-			aria-label="Réglages"
-		>
-			<Settings class="size-5" />
-		</a>
-	</header>
-
-	{#if bases.length > 0}
-		<div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
-			{#each bases as base (base.id)}
+<div class="flex min-h-full flex-col pb-tabs-clear">
+	{#if empty}
+		<Empty text="No tables yet. Start a table, or import a CSV.">
+			<Button variant="primary" onclick={() => newTable()}>New table</Button>
+			<Button onclick={() => (importing = true)}>Import a CSV</Button>
+		</Empty>
+	{:else}
+		{#each bases as base (base.id)}
+			{#if grouped}
+				<div class="flex items-center gap-1 pt-4 pr-2 pb-1 pl-4">
+					<h2 class="min-w-0 flex-1 truncate text-sm font-medium text-ink-3">{base.name}</h2>
+					<Button variant="ghost" onclick={() => newTable(base.id)}>New table</Button>
+					<Button variant="ghost" onclick={() => (renaming = base)}>Rename</Button>
+					<Button variant="ghost" onclick={() => removeBase(base)}>Delete</Button>
+				</div>
+			{/if}
+			{#each base.tables as table (table.id)}
 				<a
-					href="/app/b/{base.id}"
-					class="flex min-h-16 items-center gap-3 border-b border-line-soft px-4 py-3 last:border-b-0 hover:bg-hover"
+					href={tableUrl(table.id)}
+					class="flex min-h-row items-center gap-3 px-4 transition-colors motion hover:bg-tint"
 				>
-					<span class="flex min-w-0 flex-1 flex-col">
-						<span class="text-[17px] font-semibold">{base.name}</span>
-						<span class="truncate text-sm text-ink-muted">
-							{base.tables.map((table) => table.name).join(', ') || 'Vide'}{base.rows > 0
-								? ` · ${base.rows} ligne${base.rows > 1 ? 's' : ''}`
-								: ''}
-						</span>
-					</span>
-					<ChevronRight class="size-5 text-ink-faint" />
+					<span class="min-w-0 flex-1 truncate font-medium">{table.name}</span>
+					<span class="shrink-0 text-ink-3">{table.rows} {table.rows === 1 ? 'row' : 'rows'}</span>
 				</a>
 			{/each}
-		</div>
-	{:else}
-		<div class="flex flex-col gap-2 rounded-2xl bg-surface px-5 py-8 text-center">
-			<p class="text-[17px] font-semibold">Rien pour l’instant</p>
-			<p class="text-ink-muted">
-				Crée une base, importe un CSV, ou décris ce que tu veux suivre dans la barre en bas.
-			</p>
+		{/each}
+		<div class="flex flex-wrap gap-2 p-4">
+			{#if !grouped}
+				<Button variant="primary" onclick={() => newTable()}>New table</Button>
+			{/if}
+			<Button onclick={() => (importing = true)}>Import a CSV</Button>
+			<Button variant="ghost" onclick={() => (creatingBase = true)}>New base</Button>
 		</div>
 	{/if}
-
-	<div class="flex flex-wrap gap-2">
-		<Button onclick={() => (naming = true)}><Plus class="size-4" /> Nouvelle base</Button>
-		<Button onclick={() => (importing = true)}><FileUp class="size-4" /> Importer un CSV</Button>
-	</div>
 </div>
 
-<NameSheet
-	bind:open={naming}
-	title="Nouvelle base"
-	placeholder="Muscu, Dépenses, Lectures…"
-	onsave={create}
-/>
 <ImportSheet bind:open={importing} />
+<NameSheet
+	bind:open={creatingBase}
+	title="New base"
+	placeholder="Gym, Money, Reading"
+	onsave={(name) => app.apply(createBase(app.ws, name).changes, `Base "${name}" created`)}
+/>
+<NameSheet
+	open={renaming !== null}
+	onclose={() => (renaming = null)}
+	title="Rename base"
+	initial={renaming?.name ?? ''}
+	action="Rename"
+	onsave={(name) => {
+		if (renaming !== null) app.apply(updateRecord(app.ws, renaming.id, { name }), 'Base renamed');
+	}}
+/>

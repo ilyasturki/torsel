@@ -35,7 +35,7 @@ function readQuoted(expr: string, start: number, close: string): { text: string;
 		i += 1;
 	}
 
-	throw new FormulaError(`${close === "'" ? 'texte' : 'nom'} non fermé`);
+	throw new FormulaError(`unclosed ${close === "'" ? 'text' : 'name'}`);
 }
 
 function nextNonSpace(expr: string, from: number): string {
@@ -64,7 +64,7 @@ export function toStored(expr: string, fields: Named[]): string {
 			const { text, end } = readQuoted(expr, i, char === '[' ? ']' : char);
 			const id = byName.get(normal(text));
 			if (id === undefined) {
-				throw new FormulaError(`champ inconnu : « ${text} »`);
+				throw new FormulaError(`unknown field: "${text}"`);
 			}
 			out += `{{${id}}}`;
 			i = end;
@@ -77,7 +77,7 @@ export function toStored(expr: string, fields: Named[]): string {
 			out += `{{${id}}}`;
 			i = end + 2;
 		} else if (char === ';') {
-			throw new FormulaError('une formule est une seule expression, sans « ; »');
+			throw new FormulaError('a formula is one expression, with no ";"');
 		} else if (char === '-' && expr[i + 1] === '-') {
 			const end = expr.indexOf('\n', i);
 			i = end < 0 ? expr.length : end;

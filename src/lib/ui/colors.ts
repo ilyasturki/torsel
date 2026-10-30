@@ -15,9 +15,8 @@ export function isDataColor(value: unknown): value is DataColor {
 	return typeof value === 'string' && (DATA_COLORS as readonly string[]).includes(value);
 }
 
-export function chipStyle(color: string | null | undefined): string {
-	const name = isDataColor(color) ? color : 'gray';
-	return `color: var(--d-${name}-fg); background: var(--d-${name}-bg)`;
+export function swatch(color: string | null | undefined): string {
+	return `background: var(--d-${isDataColor(color) ? color : 'gray'})`;
 }
 
 export function strongColor(color: string | null | undefined, index: number): string {

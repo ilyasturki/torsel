@@ -1,17 +1,16 @@
 <script lang="ts">
-	import Plus from '@lucide/svelte/icons/plus';
-	import X from '@lucide/svelte/icons/x';
-
 	import { app } from '#lib/client/app.svelte.ts';
+	import { formatNumber } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, updateRecord } from '#lib/core/actions.ts';
 	import { FormulaError, toDisplay, toStored } from '#lib/core/formula.ts';
 	import type { Choice, FieldType, Value } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import { DATA_COLORS, chipStyle } from '#lib/ui/colors.ts';
+	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
-	import { input, select } from '#lib/ui/styles.ts';
+	import { input, select, textarea } from '#lib/ui/styles.ts';
 
 	let {
 		open = $bindable(false),
@@ -26,13 +25,13 @@
 	} = $props();
 
 	const TYPES: { id: FieldType; label: string }[] = [
-		{ id: 'text', label: 'Texte' },
-		{ id: 'number', label: 'Nombre' },
+		{ id: 'text', label: 'Text' },
+		{ id: 'number', label: 'Number' },
 		{ id: 'date', label: 'Date' },
-		{ id: 'choice', label: 'Choix' },
-		{ id: 'check', label: 'Case à cocher' },
-		{ id: 'link', label: 'Lien vers une table' },
-		{ id: 'formula', label: 'Calculé (SQL)' }
+		{ id: 'choice', label: 'Choice' },
+		{ id: 'check', label: 'Checkbox' },
+		{ id: 'link', label: 'Link to a table' },
+		{ id: 'formula', label: 'Formula (SQL)' }
 	];
 
 	let name = $state('');
@@ -44,6 +43,11 @@
 	let step = $state('');
 	let newChoice = $state('');
 	let problem = $state('');
+	let start = $state('');
+
+	const snapshot = (): string =>
+		JSON.stringify({ name, type, choices, target, formula, description, step, newChoice });
+	const dirty = $derived(open && snapshot() !== start);
 
 	const existing = $derived(fieldId === null ? undefined : app.ws.field(fieldId));
 
@@ -62,9 +66,10 @@
 			target = field?.target ?? '';
 			formula = field?.expr ? toDisplay(field.expr, app.ws.fields(tableId)) : '';
 			description = field?.description ?? '';
-			step = field?.step ? String(field.step).replace('.', ',') : '';
+			step = field?.step ? formatNumber(field.step) : '';
 			newChoice = '';
 			problem = '';
+			start = snapshot();
 		}
 	});
 
@@ -86,7 +91,7 @@
 	function save(): void {
 		problem = '';
 		if (name.trim() === '') {
-			problem = 'Donne un nom au champ.';
+			problem = 'Give this field a name.';
 			return;
 		}
 
@@ -103,7 +108,7 @@
 			}
 			const refused = app.checkFormula(tableId, expr);
 			if (refused !== null) {
-				problem = `SQLite refuse la formule : ${refused}`;
+				problem = `SQLite refused the formula: ${refused}`;
 				return;
 			}
 		}
@@ -123,10 +128,10 @@
 			const { changes } = addField(app.ws, tableId, { name: name.trim(), type });
 			app.apply(
 				[{ ...changes[0], set: { ...changes[0].set, ...set } }],
-				`Champ « ${name.trim()} » ajouté`
+				`Field "${name.trim()}" added`
 			);
 		} else {
-			app.apply(updateRecord(app.ws, existing.id, set), `Champ « ${name.trim()} » modifié`);
+			app.apply(updateRecord(app.ws, existing.id, set), `Field "${name.trim()}" changed`);
 		}
 		open = false;
 	}
@@ -137,22 +142,22 @@
 		}
 		const group = app.apply(
 			deleteRecords(app.ws, [existing.id]),
-			`Champ « ${existing.name} » supprimé`
+			`Field "${existing.name}" deleted`
 		);
-		showToast(`Champ « ${existing.name} » supprimé`, group?.id ?? null);
+		showToast(`Field "${existing.name}" deleted`, group?.id ?? null);
 		open = false;
 	}
 </script>
 
-<Sheet bind:open title={existing === undefined ? 'Nouveau champ' : 'Champ'}>
-	<div class="flex flex-col gap-4">
-		<Field label="Nom">
-			<input class={input} bind:value={name} placeholder="Poids, Exercice, Montant…" />
+<Sheet bind:open title={existing === undefined ? 'New field' : 'Field'} {dirty}>
+	<div class="flex flex-col gap-3">
+		<Field label="Name">
+			<input class={input} bind:value={name} placeholder="Weight, Exercise, Amount" />
 		</Field>
 
 		<Field
 			label="Type"
-			hint={existing === undefined ? undefined : 'Le type ne change pas une fois le champ créé.'}
+			hint={existing === undefined ? undefined : "A field's type can't change once it exists."}
 		>
 			<select class={select} bind:value={type} disabled={existing !== undefined}>
 				{#each TYPES as option (option.id)}
@@ -163,29 +168,25 @@
 
 		{#if type === 'choice'}
 			<div class="flex flex-col gap-2">
-				<span class="text-[13px] font-medium text-ink-muted"
-					>Choix · touche une pastille pour changer sa couleur</span
-				>
-				<div class="flex flex-wrap gap-2">
+				<span class="text-sm font-medium text-ink-2">Choices. Click one to change its colour.</span>
+				<div class="flex flex-wrap gap-1">
 					{#each choices as choice, index (choice.name)}
-						<span
-							class="inline-flex items-center gap-1 rounded-full pl-1"
-							style={chipStyle(choice.color)}
-						>
+						<span class="inline-flex h-control items-center rounded-box bg-tint">
 							<button
 								type="button"
-								class="rounded-full px-2 py-1 text-sm font-medium"
+								class="flex h-full items-center gap-2 pl-3 font-medium"
 								onclick={() => cycleColor(index)}
 							>
-								{choice.name}
+								<span class="size-mark rounded-box" style={swatch(choice.color)}
+								></span>{choice.name}
 							</button>
 							<button
 								type="button"
-								class="flex size-7 items-center justify-center rounded-full"
-								aria-label="Retirer {choice.name}"
+								class="flex h-full w-control items-center justify-center text-ink-2 hover:text-ink"
+								aria-label="Remove {choice.name}"
 								onclick={() => choices.splice(index, 1)}
 							>
-								<X class="size-3.5" />
+								<Icon name="x" class="size-3" />
 							</button>
 						</span>
 					{/each}
@@ -197,16 +198,16 @@
 						addChoice();
 					}}
 				>
-					<input class={input} bind:value={newChoice} placeholder="Ajouter un choix" />
-					<Button type="submit" aria-label="Ajouter le choix"><Plus class="size-4" /></Button>
+					<input class={input} bind:value={newChoice} placeholder="Add a choice" />
+					<Button type="submit" aria-label="Add this choice"><Icon name="plus" /></Button>
 				</form>
 			</div>
 		{/if}
 
 		{#if type === 'link'}
-			<Field label="Table liée">
+			<Field label="Linked table">
 				<select class={select} bind:value={target} disabled={existing !== undefined}>
-					<option value="">—</option>
+					<option value=""></option>
 					{#each tables as table (table.id)}
 						<option value={table.id}>{table.name}</option>
 					{/each}
@@ -216,18 +217,15 @@
 
 		{#if type === 'formula'}
 			<Field
-				label="Formule SQL"
-				hint="Une expression SQLite sur les champs de la ligne, noms entre guillemets : &quot;Poids&quot; * (1 + &quot;Reps&quot; / 30.0)"
+				label="SQL formula"
+				hint="A SQLite expression on the row's fields, names in double quotes: &quot;Weight&quot; * (1 + &quot;Reps&quot; / 30.0)"
 			>
-				<textarea
-					class="{input} h-24 py-2 font-mono text-sm"
-					bind:value={formula}
-					spellcheck="false"></textarea>
+				<textarea class="{textarea} h-24" bind:value={formula} spellcheck="false"></textarea>
 			</Field>
 		{/if}
 
 		{#if type === 'number'}
-			<Field label="Pas des boutons + et −" hint="Par exemple 2,5 pour des disques de 1,25 kg.">
+			<Field label="Step of the plus and minus buttons" hint="For example 2.5 for 1.25 kg plates.">
 				<input class={input} inputmode="decimal" bind:value={step} placeholder="1" />
 			</Field>
 		{/if}
@@ -236,39 +234,37 @@
 			<input
 				class={input}
 				bind:value={description}
-				placeholder="Ce que le champ contient, en une phrase"
+				placeholder="What this field holds, in one sentence"
 			/>
 		</Field>
 
 		{#if existing !== undefined && onsort}
 			<div class="flex gap-2">
 				<Button
-					size="sm"
 					onclick={() => {
 						onsort?.('asc');
 						open = false;
-					}}>Trier croissant</Button
+					}}>Sort ascending</Button
 				>
 				<Button
-					size="sm"
 					onclick={() => {
 						onsort?.('desc');
 						open = false;
-					}}>Trier décroissant</Button
+					}}>Sort descending</Button
 				>
 			</div>
 		{/if}
 
 		{#if problem}
-			<p class="rounded-xl bg-surface-2 px-3 py-2 text-sm" role="alert">{problem}</p>
+			<p class="rounded-box bg-tint p-2" role="alert">{problem}</p>
 		{/if}
 	</div>
 
 	{#snippet footer()}
 		{#if existing !== undefined}
-			<Button variant="ghost" onclick={remove}>Supprimer</Button>
+			<Button variant="ghost" onclick={remove}>Delete</Button>
 		{/if}
 		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>Enregistrer</Button>
+		<Button variant="primary" onclick={save}>Save</Button>
 	{/snippet}
 </Sheet>

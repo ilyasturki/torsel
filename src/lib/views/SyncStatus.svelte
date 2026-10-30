@@ -6,7 +6,7 @@
 	import { me } from '#lib/client/session.svelte.ts';
 	import { sync, syncNow } from '#lib/client/sync.svelte.ts';
 
-	const action = 'font-semibold underline';
+	const action = 'underline';
 
 	function retry(): void {
 		void (me.account === undefined ? invalidateAll() : syncNow());
@@ -14,7 +14,7 @@
 </script>
 
 {#if sync.status !== 'idle' && (sync.status !== 'offline' || app.pending > 0)}
-	<p role="status" class="mb-3 flex min-h-11 items-center gap-1 text-sm">
+	<p role="status" class="flex shrink-0 items-center gap-1 pt-1 font-medium">
 		{#if sync.status === 'offline'}
 			Offline, {app.pending} change{app.pending === 1 ? '' : 's'} waiting
 		{:else if sync.status === 'signed-out'}

@@ -3,7 +3,7 @@
 	import { formatNumber, formatValue } from '#lib/client/format.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { parseNumber } from '#lib/core/values.ts';
-	import { input, select } from '#lib/ui/styles.ts';
+	import { checkbox, input, select } from '#lib/ui/styles.ts';
 
 	let {
 		field,
@@ -40,7 +40,6 @@
 		inputmode="decimal"
 		bind:value={numberText}
 		oninput={() => (value = parseNumber(numberText))}
-		placeholder="—"
 	/>
 {:else if field.type === 'date'}
 	<input
@@ -57,29 +56,19 @@
 		value={typeof value === 'string' ? value : ''}
 		onchange={(event) => (value = event.currentTarget.value || null)}
 	>
-		<option value="">—</option>
+		<option value=""></option>
 		{#each field.choices as choice (choice.name)}
 			<option value={choice.name}>{choice.name}</option>
 		{/each}
 	</select>
 {:else if field.type === 'check'}
-	<button
+	<input
 		{id}
-		type="button"
-		role="switch"
-		aria-checked={value === true}
-		aria-label={field.name}
-		class="relative h-8 w-14 rounded-full transition-colors {value === true
-			? 'bg-fill'
-			: 'bg-sunken'}"
-		onclick={() => (value = value !== true)}
-	>
-		<span
-			class="absolute top-1 size-6 rounded-full bg-surface shadow transition-all {value === true
-				? 'left-7'
-				: 'left-1'}"
-		></span>
-	</button>
+		type="checkbox"
+		class={checkbox}
+		checked={value === true}
+		onchange={() => (value = value !== true)}
+	/>
 {:else if field.type === 'link'}
 	<select
 		{id}
@@ -87,14 +76,14 @@
 		value={typeof value === 'string' ? value : ''}
 		onchange={(event) => (value = event.currentTarget.value || null)}
 	>
-		<option value="">—</option>
+		<option value=""></option>
 		{#each targets as target (target.id)}
 			<option value={target.id}>{target.title}</option>
 		{/each}
 	</select>
 {:else if field.type === 'formula'}
-	<p class="flex h-11 items-center rounded-xl bg-surface-2 px-3 text-[15px] text-ink-muted">
-		{formatValue({ type: 'number' }, computed ?? null) || '—'}
+	<p class="flex h-control items-center rounded-box bg-tint px-2 text-ink-2">
+		{formatValue({ type: 'number' }, computed ?? null)}
 	</p>
 {:else}
 	<input

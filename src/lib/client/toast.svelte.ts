@@ -18,6 +18,6 @@ export function showToast(text: string, undo: number | null = null): void {
 export function undoToast(): void {
 	if (toast.undo !== null) {
 		const group = app.undo(toast.undo);
-		showToast(group === undefined ? 'Rien à annuler' : `Annulé : ${group.label}`);
+		showToast(group === undefined ? 'Nothing to undo' : `Undid: ${group.label}`);
 	}
 }

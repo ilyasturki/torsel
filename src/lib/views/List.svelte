@@ -5,6 +5,7 @@
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Chip from '#lib/ui/Chip.svelte';
+	import Empty from '#lib/ui/Empty.svelte';
 
 	import CellValue from './CellValue.svelte';
 	import RowSheet from './RowSheet.svelte';
@@ -68,7 +69,7 @@
 	}
 
 	function groupLabel(key: string): string {
-		if (key === '') return group === undefined ? '' : 'Sans valeur';
+		if (key === '') return group === undefined ? '' : 'No value';
 		if (group?.type === 'date') return key.length === 7 ? formatMonth(key) : formatDate(key);
 		if (group?.type === 'link') return app.ws.rowTitle(key);
 		return key;
@@ -103,56 +104,52 @@
 			: null;
 </script>
 
-<div class="mx-auto flex w-full max-w-2xl flex-col gap-5">
+<div class="flex min-h-full flex-col pb-tabs-clear">
 	{#each groups.entries as [key, rows] (key)}
-		<section class="flex flex-col gap-2">
+		<section class="flex flex-col">
 			{#if group !== undefined}
-				<h2 class="flex items-center gap-2 px-1 text-[13px] font-medium text-ink-muted">
+				<h2 class="flex items-center gap-2 px-4 pt-4 pb-1 text-sm font-medium text-ink-3">
 					{#if group.type === 'choice' && key !== ''}
 						<Chip name={key} color={groupColor(key)} />
 					{:else}
 						{groupLabel(key)}
 					{/if}
-					<span class="text-ink-faint">· {rows.length}</span>
+					<span>{rows.length}</span>
 				</h2>
 			{/if}
-			<div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
-				{#each rows as row (row.id)}
-					<button
-						type="button"
-						class="flex flex-col gap-1.5 border-b border-line-soft px-4 py-3 text-left last:border-b-0 hover:bg-hover"
-						onclick={() => {
-							rowId = row.id;
-							rowOpen = true;
-						}}
-					>
-						{#if title !== undefined}
-							<span class="text-[15px] font-semibold"
-								><CellValue field={title} value={valueOf(row, title)} /></span
-							>
-						{/if}
-						{#if show.length > 0}
-							<span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-								{#each show as field (field.id)}
-									<span class="inline-flex items-center gap-1">
-										<span class="text-ink-faint">{field.name}</span>
-										<CellValue {field} value={valueOf(row, field)} />
-									</span>
-								{/each}
-							</span>
-						{/if}
-					</button>
-				{/each}
-			</div>
+			{#each rows as row (row.id)}
+				<button
+					type="button"
+					class="flex min-h-row flex-col gap-1 px-4 py-2 text-left transition-colors motion hover:bg-tint"
+					onclick={() => {
+						rowId = row.id;
+						rowOpen = true;
+					}}
+				>
+					{#if title !== undefined}
+						<span class="font-medium"><CellValue field={title} value={valueOf(row, title)} /></span>
+					{/if}
+					{#if show.length > 0}
+						<span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
+							{#each show as field (field.id)}
+								<span class="inline-flex items-center gap-1">
+									<span class="text-ink-3">{field.name}</span>
+									<CellValue {field} value={valueOf(row, field)} />
+								</span>
+							{/each}
+						</span>
+					{/if}
+				</button>
+			{/each}
 		</section>
 	{:else}
-		<p class="rounded-2xl bg-surface px-4 py-10 text-center text-ink-muted">
-			Aucune ligne pour l’instant.
-		</p>
+		<Empty text="No rows yet." />
 	{/each}
 
 	{#if groups.total > limit}
-		<Button variant="ghost" onclick={() => (limit += PAGE)}>Afficher plus</Button>
+		<div class="p-2">
+			<Button variant="ghost" onclick={() => (limit += PAGE)}>Show more</Button>
+		</div>
 	{/if}
 </div>
 

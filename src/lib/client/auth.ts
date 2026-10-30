@@ -21,7 +21,7 @@ export async function login(email: string, password: string): Promise<void> {
 	if (import.meta.env.APP_BUILD) {
 		const { token } = await request<{ token: string }>('/api/auth/login', {
 			method: 'POST',
-			body: { email, password, client: 'device', label: 'Torsel sur Android' }
+			body: { email, password, client: 'device', label: 'Torsel on Android' }
 		});
 		setDeviceToken(token);
 		return;

@@ -5,10 +5,10 @@
 </script>
 
 <!-- svelte-ignore a11y_label_has_associated_control -->
-<label class="flex flex-col gap-1.5">
-	<span class="text-[13px] font-medium text-ink-muted">{label}</span>
+<label class="flex flex-col gap-1">
+	<span class="text-sm font-medium text-ink-2">{label}</span>
 	{@render children()}
 	{#if hint}
-		<span class="text-xs text-ink-faint">{hint}</span>
+		<span class="text-sm text-ink-3">{hint}</span>
 	{/if}
 </label>

@@ -33,11 +33,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			error(503, thrown.message);
 		}
 		if (thrown instanceof Anthropic.RateLimitError) {
-			error(429, 'l’IA est saturée, réessaie dans un instant');
+			error(429, 'the assistant is busy, try again in a moment');
 		}
 		if (thrown instanceof Anthropic.APIError) {
 			console.error('assistant:', thrown.status, thrown.message);
-			error(502, 'l’IA n’a pas répondu');
+			error(502, 'the assistant did not respond');
 		}
 		throw thrown;
 	}

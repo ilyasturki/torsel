@@ -2,8 +2,9 @@
 	import { goto } from '$app/navigation';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { tableUrl } from '#lib/client/nav.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { createBase } from '#lib/core/actions.ts';
+	import { homeBase } from '#lib/core/actions.ts';
 	import type { ColumnGuess } from '#lib/core/csv.ts';
 	import { guessColumns, importTable, parseCsv } from '#lib/core/csv.ts';
 	import type { FieldType } from '#lib/core/model.ts';
@@ -12,22 +13,20 @@
 	import Sheet from '#lib/ui/Sheet.svelte';
 	import { input, select } from '#lib/ui/styles.ts';
 
-	let { open = $bindable(false), baseId = null }: { open?: boolean; baseId?: string | null } =
-		$props();
+	let { open = $bindable(false) }: { open?: boolean } = $props();
 
 	const TYPES: { id: FieldType; label: string }[] = [
-		{ id: 'text', label: 'Texte' },
-		{ id: 'number', label: 'Nombre' },
+		{ id: 'text', label: 'Text' },
+		{ id: 'number', label: 'Number' },
 		{ id: 'date', label: 'Date' },
-		{ id: 'choice', label: 'Choix' },
-		{ id: 'check', label: 'Case' }
+		{ id: 'choice', label: 'Choice' },
+		{ id: 'check', label: 'Checkbox' }
 	];
 
 	let rows = $state.raw<string[][]>([]);
 	let columns = $state<ColumnGuess[]>([]);
 	let tableName = $state('');
 	let target = $state('');
-	let baseName = $state('');
 	let problem = $state('');
 
 	const bases = $derived.by(() => {
@@ -41,8 +40,7 @@
 			columns = [];
 			tableName = '';
 			problem = '';
-			target = baseId ?? '';
-			baseName = '';
+			target = '';
 		}
 	});
 
@@ -50,24 +48,17 @@
 		problem = '';
 		const parsed = parseCsv(await file.text());
 		if (parsed.length < 2) {
-			problem = 'Ce fichier ne contient pas de lignes à importer.';
+			problem = 'This file has no rows to import.';
 			return;
 		}
 		rows = parsed;
 		columns = guessColumns(parsed);
 		tableName = file.name.replace(/\.(csv|tsv|txt)$/iu, '');
-		if (target === '' && baseName === '') baseName = tableName;
 	}
 
 	function run(): void {
-		let base = target;
 		const label = tableName.trim() || 'Import';
-
-		if (base === '') {
-			const made = createBase(app.ws, baseName.trim() || label);
-			app.apply(made.changes, `Base « ${baseName.trim() || label} » créée`);
-			base = made.id;
-		}
+		const home = target === '' ? homeBase(app.ws) : { id: target, changes: [] };
 
 		const fixed = columns.map((column, index) => ({
 			...column,
@@ -78,25 +69,27 @@
 							.sort((a, b) => a.localeCompare(b))
 					: []
 		}));
-		const { id, changes } = importTable(app.ws, base, label, rows, fixed);
-		const group = app.apply(changes, `Import de ${rows.length - 1} lignes`);
-		showToast(`${rows.length - 1} lignes importées dans « ${label} »`, group?.id ?? null);
+		const { id, changes } = importTable(app.ws, home.id, label, rows, fixed);
+		const count = rows.length - 1;
+		const summary = `${count} ${count === 1 ? 'row' : 'rows'} imported into "${label}"`;
+		const group = app.apply([...home.changes, ...changes], summary);
+		showToast(summary, group?.id ?? null);
 		open = false;
-		void goto(`/app/b/${base}/${id}`);
+		void goto(tableUrl(id));
 	}
 </script>
 
 <Sheet
 	bind:open
-	title="Importer un CSV"
+	title="Import a CSV"
 	description="An export from Google Sheets or Excel. Column types are guessed, and you can change them."
-	wide
+	dirty={columns.length > 0}
 >
-	<div class="flex flex-col gap-4">
+	<div class="flex flex-col gap-3">
 		<input
 			type="file"
 			accept=".csv,.tsv,.txt,text/csv"
-			class="block w-full text-sm file:mr-3 file:h-11 file:rounded-xl file:border-0 file:bg-fill file:px-4 file:font-semibold file:text-on-fill"
+			class="block w-full file:mr-3 file:h-control file:rounded-box file:border-0 file:bg-fill file:px-3 file:font-medium file:text-on-fill"
 			onchange={(event) => {
 				const file = event.currentTarget.files?.[0];
 				if (file) void read(file);
@@ -104,43 +97,37 @@
 		/>
 
 		{#if columns.length > 0}
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<Field label="Base">
-					<select class={select} bind:value={target}>
-						<option value="">Nouvelle base…</option>
-						{#each bases as base (base.id)}
-							<option value={base.id}>{base.name}</option>
-						{/each}
-					</select>
-				</Field>
-				{#if target === ''}
-					<Field label="Nom de la nouvelle base">
-						<input class={input} bind:value={baseName} />
+			<div class="flex flex-col gap-3">
+				{#if bases.length > 1}
+					<Field label="Base">
+						<select class={select} bind:value={target}>
+							{#each bases as base (base.id)}
+								<option value={base.id}>{base.name}</option>
+							{/each}
+						</select>
 					</Field>
 				{/if}
-				<Field label="Nom de la table">
+				<Field label="Table name">
 					<input class={input} bind:value={tableName} />
 				</Field>
 			</div>
 
 			<div class="flex flex-col gap-2">
-				<span class="text-[13px] font-medium text-ink-muted"
-					>{columns.length} colonnes, {rows.length - 1} lignes</span
+				<span class="text-sm font-medium text-ink-2"
+					>{columns.length} columns, {rows.length - 1} rows</span
 				>
-				<div class="overflow-hidden rounded-2xl border border-line-soft">
+				<div class="flex flex-col gap-1">
 					{#each columns as column, index (index)}
-						<div
-							class="flex items-center gap-3 border-b border-line-soft px-3 py-2 last:border-b-0"
-						>
+						<div class="flex items-center gap-2">
 							<input
-								class="h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-[15px] outline-none focus:border-ink"
+								class="{input} flex-1"
 								bind:value={column.name}
-								aria-label="Nom de la colonne {index + 1}"
+								aria-label="Name of column {index + 1}"
 							/>
 							<select
-								class="h-10 w-32 shrink-0 rounded-xl border border-line bg-surface px-3 text-[15px] outline-none focus:border-ink"
+								class="{select} w-28 shrink-0"
 								bind:value={column.type}
-								aria-label="Type de {column.name}"
+								aria-label="Type of {column.name}"
 							>
 								{#each TYPES as option (option.id)}
 									<option value={option.id}>{option.label}</option>
@@ -153,12 +140,12 @@
 		{/if}
 
 		{#if problem}
-			<p class="rounded-xl bg-surface-2 px-3 py-2 text-sm" role="alert">{problem}</p>
+			<p class="rounded-box bg-tint p-2" role="alert">{problem}</p>
 		{/if}
 	</div>
 
 	{#snippet footer()}
 		<div class="flex-1"></div>
-		<Button variant="primary" disabled={columns.length === 0} onclick={run}>Importer</Button>
+		<Button variant="primary" disabled={columns.length === 0} onclick={run}>Import</Button>
 	{/snippet}
 </Sheet>

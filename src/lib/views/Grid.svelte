@@ -1,8 +1,4 @@
 <script lang="ts">
-	import ArrowDown from '@lucide/svelte/icons/arrow-down';
-	import ArrowUp from '@lucide/svelte/icons/arrow-up';
-	import Plus from '@lucide/svelte/icons/plus';
-
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatNumber } from '#lib/client/format.ts';
 	import { updateRecord, updateRow } from '#lib/core/actions.ts';
@@ -10,6 +6,7 @@
 	import { parseNumber } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 
 	import CellValue from './CellValue.svelte';
 	import FieldSheet from './FieldSheet.svelte';
@@ -44,7 +41,7 @@
 
 	function compare(a: Value | undefined, b: Value | undefined): number {
 		if (typeof a === 'number' && typeof b === 'number') return a - b;
-		return String(a).localeCompare(String(b), 'fr', { numeric: true });
+		return String(a).localeCompare(String(b), undefined, { numeric: true });
 	}
 
 	function valueOf(row: Rec, field: FieldDef): Value | undefined {
@@ -93,7 +90,7 @@
 		if (field.type === 'check') {
 			app.apply(
 				updateRow(app.ws, row.id, { [field.id]: row.data[field.id] !== true }),
-				`${field.name} modifié`
+				`${field.name} changed`
 			);
 			return;
 		}
@@ -120,14 +117,14 @@
 					? null
 					: value;
 		if (JSON.stringify(next ?? null) !== JSON.stringify(row.data[field.id] ?? null)) {
-			app.apply(updateRow(app.ws, row.id, { [field.id]: next }), `${field.name} modifié`);
+			app.apply(updateRow(app.ws, row.id, { [field.id]: next }), `${field.name} changed`);
 		}
 	}
 
 	function sortBy(field: FieldDef, dir: 'asc' | 'desc'): void {
 		app.apply(
 			updateRecord(app.ws, view.id, { config: { ...view.config, sort: { field: field.id, dir } } }),
-			'Tri modifié'
+			'Sort changed'
 		);
 	}
 
@@ -144,58 +141,64 @@
 					.map((row) => ({ id: row.id, title: app.ws.rowTitle(row.id) || row.id }));
 </script>
 
-<div class="overflow-x-auto rounded-2xl bg-surface">
-	<table class="w-full table-fixed border-collapse text-[14px]">
+<div class="min-h-full pb-tabs-clear">
+	<table class="w-full table-fixed border-separate border-spacing-0">
 		<thead>
-			<tr class="border-b border-line text-left text-[13px] text-ink-muted">
-				<th class="sticky left-0 z-10 w-11 bg-surface px-2 py-2 font-medium"></th>
+			<tr>
+				<th class="sticky top-0 left-0 z-20 w-11 border-b border-hair bg-raised max-sm:bg-canvas"
+				></th>
 				{#each fields as field (field.id)}
-					<th class="px-1 py-1 font-medium {width(field)}">
+					<th
+						class="sticky top-0 z-10 h-row border-b border-hair bg-raised text-sm font-medium text-ink-3 max-sm:bg-canvas {width(
+							field
+						)}"
+					>
 						<button
 							type="button"
-							class="flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left whitespace-nowrap hover:bg-hover {field.type ===
-							'formula'
-								? 'text-ink'
-								: ''} {field.type === 'number' || field.type === 'formula' ? 'justify-end' : ''}"
+							class="flex h-row w-full items-center gap-1 px-3 whitespace-nowrap transition-colors motion hover:text-ink {field.type ===
+								'number' || field.type === 'formula'
+								? 'justify-end'
+								: ''}"
 							onclick={() => {
 								fieldId = field.id;
 								fieldOpen = true;
 							}}
 						>
-							{#if field.type === 'formula'}<i class="font-serif">ƒ</i>{/if}
+							{#if field.type === 'formula'}<span>ƒ</span>{/if}
 							<span class="min-w-0 truncate">{field.name}</span>
 							{#if view.config.sort?.field === field.id}
-								{#if view.config.sort.dir === 'asc'}<ArrowUp class="size-3.5" />{:else}<ArrowDown
-										class="size-3.5"
-									/>{/if}
+								<Icon
+									name={view.config.sort.dir === 'asc' ? 'arrow-up' : 'arrow-down'}
+									class="size-3"
+								/>
 							{/if}
 						</button>
 					</th>
 				{/each}
-				<th class="w-11 px-1 py-1">
+				<th class="sticky top-0 z-10 w-11 border-b border-hair bg-raised max-sm:bg-canvas">
 					<button
 						type="button"
-						class="flex size-8 items-center justify-center rounded-lg hover:bg-hover"
-						aria-label="Ajouter un champ"
+						class="flex h-row w-full items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
+						aria-label="Add a field"
 						onclick={() => {
 							fieldId = null;
 							fieldOpen = true;
 						}}
 					>
-						<Plus class="size-4" />
+						<Icon name="plus" />
 					</button>
 				</th>
-				<th></th>
+				<th class="sticky top-0 z-10 border-b border-hair bg-raised max-sm:bg-canvas"></th>
 			</tr>
 		</thead>
 		<tbody>
 			{#each shown as row, index (row.id)}
-				<tr class="border-b border-line-soft">
-					<td class="sticky left-0 z-10 bg-surface px-1">
+				<tr class="transition-colors motion hover:bg-tint">
+					<td class="sticky left-0 z-10 border-b border-hair bg-raised p-0 max-sm:bg-canvas">
 						<button
 							type="button"
-							class="flex h-9 w-9 items-center justify-center rounded-lg text-xs text-ink-faint hover:bg-hover"
-							aria-label="Ouvrir la ligne"
+							class="flex h-row w-full items-center justify-end pr-2 text-xs text-ink-3 transition-colors motion hover:text-ink"
+							aria-label="Open row"
 							onclick={() => {
 								rowId = row.id;
 								rowOpen = true;
@@ -204,7 +207,8 @@
 					</td>
 					{#each fields as field (field.id)}
 						<td
-							class="h-10 px-1 {field.type === 'number' || field.type === 'formula'
+							class="h-row border-b border-hair p-0 {field.type === 'number' ||
+							field.type === 'formula'
 								? 'text-right'
 								: ''}"
 						>
@@ -212,12 +216,12 @@
 								{#if field.type === 'choice'}
 									<select
 										use:focus
-										class="h-9 w-full rounded-lg border border-ink bg-surface px-2"
+										class="h-row w-full rounded-box bg-raised px-2 ring-2 ring-ink outline-none ring-inset"
 										value={typeof row.data[field.id] === 'string' ? row.data[field.id] : ''}
 										onchange={(event) => commit(field, event.currentTarget.value)}
 										onblur={() => (editing = null)}
 									>
-										<option value="">—</option>
+										<option value=""></option>
 										{#each field.choices as choice (choice.name)}
 											<option value={choice.name}>{choice.name}</option>
 										{/each}
@@ -225,12 +229,12 @@
 								{:else if field.type === 'link'}
 									<select
 										use:focus
-										class="h-9 w-full rounded-lg border border-ink bg-surface px-2"
+										class="h-row w-full rounded-box bg-raised px-2 ring-2 ring-ink outline-none ring-inset"
 										value={typeof row.data[field.id] === 'string' ? row.data[field.id] : ''}
 										onchange={(event) => commit(field, event.currentTarget.value)}
 										onblur={() => (editing = null)}
 									>
-										<option value="">—</option>
+										<option value=""></option>
 										{#each linkTargets(field) as target (target.id)}
 											<option value={target.id}>{target.title}</option>
 										{/each}
@@ -238,7 +242,7 @@
 								{:else}
 									<input
 										use:focus
-										class="h-9 w-full rounded-lg border border-ink bg-surface px-2 {field.type ===
+										class="h-row w-full rounded-box bg-raised px-3 ring-2 ring-ink outline-none ring-inset {field.type ===
 										'number'
 											? 'text-right'
 											: ''}"
@@ -255,10 +259,12 @@
 							{:else}
 								<button
 									type="button"
-									class="flex h-9 w-full items-center rounded-lg px-2 text-left hover:bg-hover {field.type ===
+									class="flex h-row w-full items-center rounded-box px-3 text-left transition-shadow motion {field.type ===
 										'number' || field.type === 'formula'
-										? 'justify-end font-medium'
-										: ''} {field.type === 'formula' ? 'cursor-default bg-surface-2/60' : ''}"
+										? 'justify-end'
+										: ''} {field.type === 'formula'
+										? 'cursor-default'
+										: 'ring-edge ring-inset hover:ring-1'}"
 									onclick={() => begin(row, field)}
 								>
 									<CellValue {field} value={valueOf(row, field)} />
@@ -266,34 +272,29 @@
 							{/if}
 						</td>
 					{/each}
-					<td></td>
-					<td></td>
+					<td class="border-b border-hair"></td>
+					<td class="border-b border-hair"></td>
 				</tr>
 			{/each}
 		</tbody>
 	</table>
-	{#if rows.length === 0}
-		<p class="px-4 py-10 text-center text-ink-muted">Aucune ligne pour l’instant.</p>
-	{/if}
-</div>
-
-<div class="mt-3 flex flex-wrap items-center gap-2">
-	<Button
+	<button
+		type="button"
+		class="flex h-row w-full items-center gap-3 px-4 text-ink-3 transition-colors motion hover:bg-tint hover:text-ink"
 		onclick={() => {
 			rowId = null;
 			rowOpen = true;
 		}}
 	>
-		<Plus class="size-4" /> Nouvelle ligne
-	</Button>
+		<Icon name="plus" /> Add row
+	</button>
 	{#if rows.length > limit}
-		<Button variant="ghost" onclick={() => (limit += PAGE)}
-			>Afficher {Math.min(PAGE, rows.length - limit)} de plus</Button
-		>
+		<div class="p-2">
+			<Button variant="ghost" onclick={() => (limit += PAGE)}
+				>Show {Math.min(PAGE, rows.length - limit)} more</Button
+			>
+		</div>
 	{/if}
-	<span class="ml-auto text-[13px] text-ink-muted"
-		>{rows.length} ligne{rows.length > 1 ? 's' : ''}</span
-	>
 </div>
 
 <RowSheet bind:open={rowOpen} {tableId} {rowId} />

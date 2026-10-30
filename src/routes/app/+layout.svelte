@@ -1,53 +1,99 @@
 <script lang="ts">
-	import Plus from '@lucide/svelte/icons/plus';
-	import Settings from '@lucide/svelte/icons/settings';
-
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { sync } from '#lib/client/sync.svelte.ts';
+	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
+	import { me } from '#lib/client/session.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import AssistantLayer from '#lib/views/AssistantLayer.svelte';
-	import CommandBar from '#lib/views/CommandBar.svelte';
+	import { blankTable, updateRecord } from '#lib/core/actions.ts';
+	import Button from '#lib/ui/Button.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
+	import Logo from '#lib/ui/Logo.svelte';
+	import Segmented from '#lib/ui/Segmented.svelte';
+	import AskPanel from '#lib/views/AskPanel.svelte';
+	import NameSheet from '#lib/views/NameSheet.svelte';
+	import RowSheet from '#lib/views/RowSheet.svelte';
+	import SyncStatus from '#lib/views/SyncStatus.svelte';
+	import TableMenu from '#lib/views/TableMenu.svelte';
+	import Toast from '#lib/views/Toast.svelte';
+	import ViewSheet from '#lib/views/ViewSheet.svelte';
 
 	let { children } = $props();
 
-	const bare = $derived(page.url.pathname === '/app/login');
+	const bare = $derived(page.url.pathname === LOGIN);
+	const onSettings = $derived(page.url.pathname === SETTINGS);
+	const tableId = $derived(page.params.table ?? null);
 
-	const title = $derived.by(() => {
+	const table = $derived.by(() => {
 		void app.version;
-		const table = page.params.table ? app.ws.table(page.params.table) : undefined;
-		const base = page.params.base ? app.ws.base(page.params.base) : undefined;
-		const name =
-			table?.name ?? base?.name ?? (page.url.pathname === '/app/settings' ? 'Réglages' : null);
-		return name === null ? 'Torsel' : `${name} · Torsel`;
+		return tableId === null ? undefined : app.ws.table(tableId);
 	});
 
-	const bases = $derived.by(() => {
+	const views = $derived.by(() => {
 		void app.version;
-		return app.ws.bases().map((base) => ({ ...base, tables: app.ws.tables(base.id) }));
+		return table === undefined ? [] : app.ws.views(table.id);
 	});
+
+	const view = $derived(
+		views.find((item) => item.id === page.url.searchParams.get('v')) ?? views[0]
+	);
+
+	const tables = $derived.by(() => {
+		void app.version;
+		return app.ws.bases().flatMap((base) => app.ws.tables(base.id));
+	});
+
+	const rowCount = $derived.by(() => {
+		void app.version;
+		return table === undefined ? 0 : app.ws.rows(table.id).length;
+	});
+
+	const heading = $derived(table?.name ?? (onSettings ? 'Settings' : 'Tables'));
+
+	let asking = $state(false);
+	let menuOpen = $state(false);
+	let viewSettings = $state(false);
+	let viewCreating = $state(false);
+	let renaming = $state(false);
+	let rowOpen = $state(false);
+
+	function undo(): void {
+		const group = app.undo();
+		showToast(group === undefined ? 'Nothing to undo' : `Undid: ${group.label}`);
+	}
+
+	function newTable(): void {
+		const made = blankTable(app.ws);
+		app.apply(made.changes, `Table "${made.name}" created`);
+		void goto(tableUrl(made.id));
+	}
 
 	function onkeydown(event: KeyboardEvent): void {
 		const target = event.target as HTMLElement | null;
 		const typing =
 			target !== null &&
 			(target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-		if (
-			!typing &&
-			(event.metaKey || event.ctrlKey) &&
-			event.key.toLowerCase() === 'z' &&
-			!event.shiftKey
-		) {
+		const command = event.metaKey || event.ctrlKey;
+
+		if (command && event.key.toLowerCase() === 'k') {
 			event.preventDefault();
-			const group = app.undo();
-			showToast(group === undefined ? 'Rien à annuler' : `Annulé : ${group.label}`);
+			asking = !asking;
+		} else if (!typing && command && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+			event.preventDefault();
+			undo();
+		} else if (event.altKey && !command && /^[1-9]$/u.test(event.key) && table !== undefined) {
+			const next = views[Number(event.key) - 1];
+			if (next !== undefined) {
+				event.preventDefault();
+				void goto(tableUrl(table.id, next.id));
+			}
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>{title}</title>
+	<title>{heading === 'Tables' ? 'Torsel' : `${heading} · Torsel`}</title>
 </svelte:head>
 
 <svelte:window {onkeydown} />
@@ -55,63 +101,150 @@
 {#if bare}
 	{@render children()}
 {:else}
-	<div class="flex min-h-dvh">
-		<nav
-			aria-label="Bases"
-			class="fixed inset-y-0 left-0 hidden w-64 flex-col gap-4 overflow-y-auto border-r border-line-soft px-3 py-5 lg:flex"
-		>
-			<a href="/app" class="flex items-center gap-2.5 px-2 text-[17px] font-bold tracking-tight">
-				<img src="/favicon.svg" alt="" class="size-6" />
-				Torsel
+	<div class="relative flex h-dvh flex-col overflow-hidden pt-safe">
+		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5">
+			<a href={HOME} class="mr-1 shrink-0 text-ink-2 hover:text-ink">
+				<Logo wordmark class="h-4 max-sm:hidden" />
+				<Logo class="h-5 sm:hidden" />
 			</a>
-			<div class="flex flex-col gap-0.5">
-				{#each bases as base (base.id)}
-					<a
-						href="/app/b/{base.id}"
-						class="flex min-h-9 items-center rounded-lg px-2 text-[14px] font-semibold hover:bg-hover {page
-							.params.base === base.id && !page.params.table
-							? 'bg-surface'
-							: ''}">{base.name}</a
+			<h1 class="min-w-0 truncate text-xl font-semibold tight">{heading}</h1>
+			{#if table !== undefined}
+				<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
+			{/if}
+			<SyncStatus />
+			<div class="ml-auto flex shrink-0 items-center gap-1">
+				<Button
+					variant="ghost"
+					class="max-sm:hidden"
+					disabled={app.history.length === 0}
+					onclick={undo}>Undo</Button
+				>
+				{#if me.account}
+					<Button
+						variant="ghost"
+						class={asking ? 'bg-tint-2 text-ink' : ''}
+						aria-pressed={asking}
+						onclick={() => (asking = !asking)}
+						>Ask <span class="text-sm text-ink-3 max-sm:hidden">Ctrl K</span></Button
 					>
-					{#each base.tables as table (table.id)}
-						<a
-							href="/app/b/{base.id}/{table.id}"
-							class="flex min-h-8 items-center rounded-lg pr-2 pl-5 text-[14px] text-ink-muted hover:bg-hover {page
-								.params.table === table.id
-								? 'bg-surface font-medium text-ink'
-								: ''}">{table.name}</a
-						>
-					{/each}
-				{/each}
+				{/if}
 				<a
-					href="/app?new=1"
-					class="mt-1 flex min-h-9 items-center gap-2 rounded-lg px-2 text-[14px] text-ink-muted hover:bg-hover"
-					><Plus class="size-4" /> Nouvelle base</a
+					href={SETTINGS}
+					class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink max-sm:hidden"
+					>Settings</a
 				>
+				{#if table !== undefined}
+					<Button
+						variant="ghost"
+						class="sm:hidden"
+						aria-label="More"
+						onclick={() => (menuOpen = true)}><Icon name="more" /></Button
+					>
+				{/if}
 			</div>
-			<div class="mt-auto flex flex-col gap-1">
-				<a
-					href="/app/settings"
-					class="flex min-h-9 items-center gap-2 rounded-lg px-2 text-[14px] text-ink-muted hover:bg-hover"
-					><Settings class="size-4" /> Réglages</a
-				>
-				<p class="px-2 text-xs text-ink-faint">
-					{#if sync.status === 'syncing'}Synchronisation…{:else if app.pending > 0}{app.pending} modification{app.pending >
-						1
-							? 's'
-							: ''} à envoyer{:else if sync.status === 'offline'}Hors ligne{:else if sync.status === 'idle' && sync.last}À
-						jour{/if}
-				</p>
-			</div>
-		</nav>
+		</header>
 
-		<main
-			class="min-w-0 flex-1 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-36 lg:ml-64 lg:px-8 lg:pt-6"
+		{#if table !== undefined}
+			<div class="flex shrink-0 items-center gap-2 px-gutter pt-3">
+				<Segmented
+					label="Views"
+					class="max-sm:flex-1"
+					items={views.map((item) => ({
+						id: item.id,
+						label: item.name,
+						href: tableUrl(table.id, item.id),
+						active: item.id === view?.id
+					}))}
+				/>
+				<Button
+					variant="ghost"
+					class="w-control px-0 max-sm:hidden"
+					aria-label="New view"
+					onclick={() => (viewCreating = true)}><Icon name="plus" /></Button
+				>
+				<Button
+					variant="ghost"
+					class="w-control px-0 max-sm:hidden"
+					aria-label="More"
+					onclick={() => (menuOpen = true)}><Icon name="more" /></Button
+				>
+				{#if view?.type !== 'entry'}
+					<Button variant="primary" class="ml-auto max-sm:hidden" onclick={() => (rowOpen = true)}
+						>New row</Button
+					>
+				{/if}
+			</div>
+		{/if}
+
+		<div class="relative flex min-h-0 flex-1 px-gutter pt-3 pb-5 max-sm:px-0 max-sm:pb-0">
+			<main
+				class="min-w-0 flex-1 overflow-auto rounded-panel bg-raised shadow-raised transition-[margin] motion-slow max-sm:rounded-none max-sm:bg-transparent max-sm:shadow-none {asking
+					? 'lg:mr-ask-clear'
+					: ''}"
+			>
+				{@render children()}
+			</main>
+			{#if me.account}
+				<AskPanel bind:open={asking} table={table ?? null} view={view ?? null} />
+			{/if}
+		</div>
+
+		<div
+			class="pointer-events-none absolute inset-x-gutter bottom-8 flex justify-center transition-[right] motion-slow max-sm:bottom-3 {asking
+				? 'lg:right-tabs-ask'
+				: ''}"
 		>
-			{@render children()}
-		</main>
+			<Segmented
+				label="Tables"
+				tone="float"
+				class="pointer-events-auto"
+				items={[
+					{ id: 'all', label: 'All', href: HOME, active: page.url.pathname === HOME },
+					...tables.map((item) => ({
+						id: item.id,
+						label: item.name,
+						href: tableUrl(item.id),
+						active: item.id === tableId
+					}))
+				]}
+			>
+				{#snippet after()}
+					<button
+						type="button"
+						class="relative flex size-control shrink-0 items-center justify-center text-ink-2 transition-colors motion hover:text-ink"
+						aria-label="New table"
+						onclick={newTable}><Icon name="plus" /></button
+					>
+				{/snippet}
+			</Segmented>
+		</div>
+
+		<Toast />
 	</div>
 
-	<CommandBar />
-	<AssistantLayer />
+	{#if table !== undefined}
+		<TableMenu
+			bind:open={menuOpen}
+			{table}
+			onrename={() => (renaming = true)}
+			onviewsettings={() => (viewSettings = true)}
+			onnewview={() => (viewCreating = true)}
+			onnewrow={() => (rowOpen = true)}
+			onundo={undo}
+			canUndo={app.history.length > 0}
+		/>
+		<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
+		<ViewSheet bind:open={viewCreating} tableId={table.id} />
+		<RowSheet bind:open={rowOpen} tableId={table.id} />
+		<NameSheet
+			bind:open={renaming}
+			title="Rename table"
+			initial={table.name}
+			action="Rename"
+			onsave={(name) => {
+				if (table !== undefined)
+					app.apply(updateRecord(app.ws, table.id, { name }), 'Table renamed');
+			}}
+		/>
+	{/if}
 {/if}

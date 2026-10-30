@@ -3,6 +3,7 @@
 	import { formatDate, formatMonth, formatNumber } from '#lib/client/format.ts';
 	import type { ViewDef } from '#lib/core/model.ts';
 	import { strongColor } from '#lib/ui/colors.ts';
+	import Empty from '#lib/ui/Empty.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
 
@@ -94,7 +95,7 @@
 				y: top,
 				h: yPos(base) - top,
 				color: series.find((item) => item.name === point.series)?.color ?? 'var(--ink)',
-				label: `${label(point.x)} : ${formatNumber(point.y)}`
+				label: `${label(point.x)}: ${formatNumber(point.y)}`
 			});
 		}
 		return out;
@@ -119,12 +120,13 @@
 
 	const per = $derived(
 		xField?.type === 'date' && config.bucket === 'week'
-			? 'par semaine'
+			? 'per week'
 			: xField?.type === 'date' && config.bucket === 'month'
-				? 'par mois'
-				: `par ${(data?.xLabel ?? '').toLowerCase()}`
+				? 'per month'
+				: xField?.type === 'date'
+					? ''
+					: `per ${(data?.xLabel ?? '').toLowerCase()}`
 	);
-
 	const ticks = $derived([yMin, (yMin + yMax.max) / 2, yMax.max]);
 	const xTicks = $derived(
 		xs.length <= 3
@@ -145,106 +147,100 @@
 	});
 </script>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-3">
+<div class="flex min-h-full flex-col gap-1 p-6 pb-tabs-clear max-sm:p-4 max-sm:pb-tabs-clear">
 	{#if data === null}
-		<p class="rounded-2xl bg-surface px-4 py-10 text-center text-ink-muted">
-			Règle l’axe et l’agrégat de ce graphique avec le bouton Réglages.
-		</p>
+		<Empty text="Pick an axis and a calculation for this chart in View settings." />
 	{:else}
-		<section class="rounded-3xl bg-surface p-4">
-			<div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
-				<div>
-					<h2 class="text-[15px] font-semibold">{data.yLabel}</h2>
-					<p class="text-[13px] text-ink-muted">
-						{per}{config.rolling ? `, moyenne glissante sur ${config.rolling} jours` : ''}
-					</p>
-				</div>
-				{#if latest !== null}
-					<p class="text-right">
-						<span class="text-2xl font-semibold">{formatNumber(latest.y)}</span>
-						<span class="block text-[13px] text-ink-muted">{label(latest.x)}</span>
-					</p>
-				{/if}
+		<span class="font-medium text-ink-3">{data.yLabel}</span>
+		{#if latest !== null}
+			<p class="text-hero-lg leading-none font-semibold tighter">{formatNumber(latest.y)}</p>
+		{/if}
+		<p class="mb-3 text-ink-2">
+			{[
+				latest === null ? '' : label(latest.x),
+				per,
+				config.rolling ? `${config.rolling}-day rolling average` : ''
+			]
+				.filter((part) => part !== '')
+				.join(', ')}
+		</p>
+
+		{#if xs.length === 0}
+			<Empty text="No data yet. Add a row and it shows up here." />
+		{:else}
+			<div bind:clientWidth={width}>
+				<svg
+					viewBox="0 0 {W} {H}"
+					width={W}
+					height={H}
+					class="block w-full"
+					role="img"
+					aria-label="{data.yLabel} per {data.xLabel}"
+				>
+					{#each ticks as tick (tick)}
+						<line
+							x1={PAD.left}
+							x2={W - PAD.right}
+							y1={yPos(tick)}
+							y2={yPos(tick)}
+							stroke="var(--hair)"
+						/>
+						<text
+							x={PAD.left - 8}
+							y={yPos(tick) + 4}
+							text-anchor="end"
+							font-size="11.5"
+							fill="var(--ink-3)">{formatNumber(Math.round(tick * 10) / 10)}</text
+						>
+					{/each}
+
+					{#if config.kind === 'bar'}
+						{#each bars as bar, index (index)}
+							<rect
+								x={bar.x}
+								y={bar.y}
+								width={Math.max(1, band * 0.7)}
+								height={Math.max(0, bar.h)}
+								fill={bar.color}
+							>
+								<title>{bar.label}</title>
+							</rect>
+						{/each}
+					{:else}
+						{#each lines as line (line.name)}
+							<polyline
+								points={line.points}
+								fill="none"
+								stroke={line.color}
+								stroke-width="2"
+								stroke-linejoin="round"
+								stroke-linecap="round"
+							/>
+						{/each}
+					{/if}
+
+					{#each xTicks as index (index)}
+						<text
+							x={config.kind === 'bar' ? PAD.left + index * band + band / 2 : xPos(index)}
+							y={H - 8}
+							text-anchor={index === 0 ? 'start' : index === xs.length - 1 ? 'end' : 'middle'}
+							font-size="11.5"
+							fill="var(--ink-3)">{label(xs[index])}</text
+						>
+					{/each}
+				</svg>
 			</div>
 
-			{#if xs.length === 0}
-				<p class="px-1 py-10 text-center text-ink-muted">Pas encore de données.</p>
-			{:else}
-				<div class="mt-3" bind:clientWidth={width}>
-					<svg
-						viewBox="0 0 {W} {H}"
-						width={W}
-						height={H}
-						class="block w-full"
-						role="img"
-						aria-label="{data.yLabel} par {data.xLabel}"
-					>
-						{#each ticks as tick (tick)}
-							<line
-								x1={PAD.left}
-								x2={W - PAD.right}
-								y1={yPos(tick)}
-								y2={yPos(tick)}
-								stroke="var(--line-soft)"
-							/>
-							<text
-								x={PAD.left - 8}
-								y={yPos(tick) + 4}
-								text-anchor="end"
-								font-size="11"
-								fill="var(--ink-faint)">{formatNumber(Math.round(tick * 10) / 10)}</text
-							>
-						{/each}
-
-						{#if config.kind === 'bar'}
-							{#each bars as bar, index (index)}
-								<rect
-									x={bar.x}
-									y={bar.y}
-									width={Math.max(1, band * 0.7)}
-									height={Math.max(0, bar.h)}
-									rx={Math.min(3, band * 0.2)}
-									fill={bar.color}
-								>
-									<title>{bar.label}</title>
-								</rect>
-							{/each}
-						{:else}
-							{#each lines as line (line.name)}
-								<polyline
-									points={line.points}
-									fill="none"
-									stroke={line.color}
-									stroke-width="2.25"
-									stroke-linejoin="round"
-									stroke-linecap="round"
-								/>
-							{/each}
-						{/if}
-
-						{#each xTicks as index (index)}
-							<text
-								x={config.kind === 'bar' ? PAD.left + index * band + band / 2 : xPos(index)}
-								y={H - 8}
-								text-anchor={index === 0 ? 'start' : index === xs.length - 1 ? 'end' : 'middle'}
-								font-size="11"
-								fill="var(--ink-faint)">{label(xs[index])}</text
-							>
-						{/each}
-					</svg>
+			{#if series.length > 1}
+				<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
+					{#each series as item (item.name)}
+						<span class="inline-flex items-center gap-2">
+							<span class="size-mark rounded-box" style="background: {item.color}"></span>
+							{item.name || 'No value'}
+						</span>
+					{/each}
 				</div>
-
-				{#if series.length > 1}
-					<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-[13px] text-ink-muted">
-						{#each series as item (item.name)}
-							<span class="inline-flex items-center gap-1.5">
-								<span class="size-2.5 rounded-sm" style="background: {item.color}"></span>
-								{item.name || 'Sans valeur'}
-							</span>
-						{/each}
-					</div>
-				{/if}
 			{/if}
-		</section>
+		{/if}
 	{/if}
 </div>

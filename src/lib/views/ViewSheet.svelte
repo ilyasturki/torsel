@@ -2,13 +2,14 @@
 	import { goto } from '$app/navigation';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { tableUrl } from '#lib/client/nav.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { createView, defaultMatch, deleteRecords, updateRecord } from '#lib/core/actions.ts';
 	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
-	import { input, select } from '#lib/ui/styles.ts';
+	import { checkbox, input, legend, select } from '#lib/ui/styles.ts';
 
 	let {
 		open = $bindable(false),
@@ -17,15 +18,19 @@
 	}: { open?: boolean; tableId: string; viewId?: string | null } = $props();
 
 	const TYPES: { id: ViewType; label: string; hint: string }[] = [
-		{ id: 'grid', label: 'Grille', hint: 'Le tableur, toutes les lignes' },
-		{ id: 'entry', label: 'Saisie', hint: 'Ajouter vite, pré-rempli depuis la dernière fois' },
-		{ id: 'list', label: 'Liste', hint: 'Des cartes regroupées' },
-		{ id: 'chart', label: 'Graphique', hint: 'Barres ou courbe d’un agrégat' }
+		{ id: 'grid', label: 'Grid', hint: 'Every row, as a sheet' },
+		{ id: 'entry', label: 'Entry', hint: 'Add rows fast, filled in from last time' },
+		{ id: 'list', label: 'List', hint: 'Rows grouped under headings' },
+		{ id: 'chart', label: 'Chart', hint: 'Bars or a line of one value' }
 	];
 
 	let name = $state('');
 	let type = $state<ViewType>('grid');
 	let config = $state<ViewConfig>({});
+	let start = $state('');
+
+	const snapshot = (): string => JSON.stringify({ name, type, config });
+	const dirty = $derived(open && snapshot() !== start);
 
 	const existing = $derived(viewId === null ? undefined : app.ws.view(viewId));
 
@@ -40,6 +45,7 @@
 			name = view?.name ?? '';
 			type = view?.type ?? 'grid';
 			config = structuredClone($state.snapshot(view?.config ?? {}));
+			start = snapshot();
 		}
 	});
 
@@ -70,7 +76,7 @@
 	}
 
 	function save(): void {
-		const label = name.trim() || (TYPES.find((option) => option.id === type)?.label ?? 'Vue');
+		const label = name.trim() || (TYPES.find((option) => option.id === type)?.label ?? 'View');
 		const clean = JSON.parse(JSON.stringify(config)) as Value;
 
 		if (existing === undefined) {
@@ -79,13 +85,12 @@
 				type,
 				config: clean as ViewConfig
 			});
-			app.apply(changes, `Vue « ${label} » ajoutée`);
-			const table = app.ws.table(tableId);
-			if (table) void goto(`/app/b/${table.base}/${tableId}?v=${id}`);
+			app.apply(changes, `View "${label}" added`);
+			void goto(tableUrl(tableId, id));
 		} else {
 			app.apply(
 				updateRecord(app.ws, existing.id, { name: label, config: clean }),
-				`Vue « ${label} » modifiée`
+				`View "${label}" changed`
 			);
 		}
 		open = false;
@@ -95,12 +100,11 @@
 		if (existing === undefined) return;
 		const group = app.apply(
 			deleteRecords(app.ws, [existing.id]),
-			`Vue « ${existing.name} » supprimée`
+			`View "${existing.name}" deleted`
 		);
-		showToast(`Vue « ${existing.name} » supprimée`, group?.id ?? null);
+		showToast(`View "${existing.name}" deleted`, group?.id ?? null);
 		open = false;
-		const table = app.ws.table(tableId);
-		if (table) void goto(`/app/b/${table.base}/${tableId}`);
+		void goto(tableUrl(tableId));
 	}
 
 	const checked = (
@@ -110,27 +114,28 @@
 	): boolean => (config[key] ?? fallback).includes(field.id);
 </script>
 
-<Sheet bind:open title={existing === undefined ? 'Nouvelle vue' : 'Réglages de la vue'}>
-	<div class="flex flex-col gap-4">
+<Sheet bind:open title={existing === undefined ? 'New view' : 'View settings'} {dirty}>
+	<div class="flex flex-col gap-3">
 		{#if existing === undefined}
-			<div class="grid grid-cols-2 gap-2">
+			<div class="grid grid-cols-2 gap-1">
 				{#each TYPES as option (option.id)}
 					<button
 						type="button"
-						class="flex flex-col gap-0.5 rounded-2xl border p-3 text-left {type === option.id
-							? 'border-ink'
-							: 'border-line'}"
+						class="flex flex-col gap-1 rounded-box p-3 text-left transition-colors motion {type ===
+						option.id
+							? 'bg-fill text-on-fill'
+							: 'bg-tint hover:bg-tint-2'}"
 						aria-pressed={type === option.id}
 						onclick={() => (type = option.id)}
 					>
-						<span class="text-[15px] font-semibold">{option.label}</span>
-						<span class="text-xs text-ink-muted">{option.hint}</span>
+						<span class="font-semibold">{option.label}</span>
+						<span class="text-sm opacity-70">{option.hint}</span>
 					</button>
 				{/each}
 			</div>
 		{/if}
 
-		<Field label="Nom">
+		<Field label="Name">
 			<input
 				class={input}
 				bind:value={name}
@@ -140,12 +145,12 @@
 
 		{#if type === 'grid'}
 			<fieldset class="flex flex-col gap-1">
-				<legend class="mb-1 text-[13px] font-medium text-ink-muted">Champs affichés</legend>
+				<legend class={legend}>Fields shown</legend>
 				{#each fields as field (field.id)}
-					<label class="flex min-h-10 items-center gap-3">
+					<label class="flex min-h-control items-center gap-2">
 						<input
 							type="checkbox"
-							class="size-5 accent-current"
+							class={checkbox}
 							checked={!checked('hidden', field, [])}
 							onchange={() => toggle('hidden', field.id, [])}
 						/>
@@ -155,12 +160,12 @@
 			</fieldset>
 		{:else if type === 'entry'}
 			<fieldset class="flex flex-col gap-1">
-				<legend class="mb-1 text-[13px] font-medium text-ink-muted">Champs à saisir</legend>
+				<legend class={legend}>Fields to fill in</legend>
 				{#each entryFields as field (field.id)}
-					<label class="flex min-h-10 items-center gap-3">
+					<label class="flex min-h-control items-center gap-2">
 						<input
 							type="checkbox"
-							class="size-5"
+							class={checkbox}
 							checked={checked(
 								'fields',
 								field,
@@ -178,18 +183,16 @@
 				{/each}
 			</fieldset>
 			<fieldset class="flex flex-col gap-1">
-				<legend class="mb-1 text-[13px] font-medium text-ink-muted"
-					>« La dernière fois » se lit sur…</legend
-				>
-				<p class="mb-1 text-xs text-ink-faint">
-					La saisie se pré-remplit depuis la dernière ligne qui a les mêmes valeurs pour ces champs,
-					par exemple le même exercice.
+				<legend class={legend}>"Last time" looks at</legend>
+				<p class="mb-1 text-sm text-ink-3">
+					Entry fills in from the latest row with the same values in these fields, for example the
+					same exercise.
 				</p>
 				{#each keyCandidates as field (field.id)}
-					<label class="flex min-h-10 items-center gap-3">
+					<label class="flex min-h-control items-center gap-2">
 						<input
 							type="checkbox"
-							class="size-5"
+							class={checkbox}
 							checked={checked('match', field, fallbackMatch)}
 							onchange={() => toggle('match', field.id, fallbackMatch)}
 						/>
@@ -198,37 +201,37 @@
 				{/each}
 			</fieldset>
 		{:else if type === 'list'}
-			<Field label="Regrouper par">
+			<Field label="Group by">
 				<select
 					class={select}
 					value={config.group ?? ''}
 					onchange={(event) => (config.group = event.currentTarget.value || null)}
 				>
-					<option value="">Rien</option>
+					<option value="">Nothing</option>
 					{#each fields as field (field.id)}
 						<option value={field.id}>{field.name}</option>
 					{/each}
 				</select>
 			</Field>
-			<Field label="Titre des cartes">
+			<Field label="Title">
 				<select
 					class={select}
 					value={config.title ?? ''}
 					onchange={(event) => (config.title = event.currentTarget.value || null)}
 				>
-					<option value="">Automatique</option>
+					<option value="">Automatic</option>
 					{#each fields as field (field.id)}
 						<option value={field.id}>{field.name}</option>
 					{/each}
 				</select>
 			</Field>
 			<fieldset class="flex flex-col gap-1">
-				<legend class="mb-1 text-[13px] font-medium text-ink-muted">Champs sous le titre</legend>
+				<legend class={legend}>Fields under the title</legend>
 				{#each fields as field (field.id)}
-					<label class="flex min-h-10 items-center gap-3">
+					<label class="flex min-h-control items-center gap-2">
 						<input
 							type="checkbox"
-							class="size-5"
+							class={checkbox}
 							checked={checked('show', field, [])}
 							onchange={() => toggle('show', field.id, [])}
 						/>
@@ -237,79 +240,79 @@
 				{/each}
 			</fieldset>
 		{:else}
-			<div class="grid grid-cols-2 gap-2">
-				{#each [{ id: 'bar', label: 'Barres' }, { id: 'line', label: 'Courbe' }] as option (option.id)}
+			<div class="grid grid-cols-2 gap-1">
+				{#each [{ id: 'bar', label: 'Bars' }, { id: 'line', label: 'Line' }] as option (option.id)}
 					<button
 						type="button"
-						class="h-11 rounded-xl border text-[15px] font-medium {(config.kind ?? 'bar') ===
-						option.id
-							? 'border-ink'
-							: 'border-line'}"
+						class="h-control rounded-box font-medium transition-colors motion {(config.kind ??
+							'bar') === option.id
+							? 'bg-fill text-on-fill'
+							: 'bg-tint hover:bg-tint-2'}"
 						onclick={() => setChart('kind', option.id as 'bar' | 'line')}>{option.label}</button
 					>
 				{/each}
 			</div>
-			<Field label="Axe horizontal">
+			<Field label="Horizontal axis">
 				<select
 					class={select}
 					value={config.x ?? ''}
 					onchange={(event) => setChart('x', event.currentTarget.value || null)}
 				>
-					<option value="">—</option>
+					<option value=""></option>
 					{#each fields as field (field.id)}
 						<option value={field.id}>{field.name}</option>
 					{/each}
 				</select>
 			</Field>
 			{#if xField?.type === 'date'}
-				<Field label="Regrouper les dates par">
+				<Field label="Group dates by">
 					<select
 						class={select}
 						value={config.bucket ?? 'day'}
 						onchange={(event) =>
 							setChart('bucket', event.currentTarget.value as ChartConfig['bucket'])}
 					>
-						<option value="day">Jour</option>
-						<option value="week">Semaine</option>
-						<option value="month">Mois</option>
+						<option value="day">Day</option>
+						<option value="week">Week</option>
+						<option value="month">Month</option>
 					</select>
 				</Field>
 			{/if}
 			<div class="grid grid-cols-2 gap-3">
-				<Field label="Calcul">
+				<Field label="Calculation">
 					<select
 						class={select}
 						value={config.agg ?? 'count'}
 						onchange={(event) => setChart('agg', event.currentTarget.value as ChartConfig['agg'])}
 					>
-						<option value="count">Nombre de lignes</option>
-						<option value="sum">Somme</option>
-						<option value="avg">Moyenne</option>
-						<option value="max">Maximum</option>
-						<option value="min">Minimum</option>
+						<option value="count">Row count</option>
+						<option value="sum">Sum</option>
+						<option value="avg">Average</option>
+						<option value="max">Highest</option>
+						<option value="min">Lowest</option>
 					</select>
 				</Field>
-				<Field label="De">
+				<Field label="Of">
 					<select
 						class={select}
 						value={config.y ?? ''}
 						disabled={(config.agg ?? 'count') === 'count'}
 						onchange={(event) => setChart('y', event.currentTarget.value || null)}
 					>
-						<option value="">—</option>
+						<option value=""></option>
 						{#each numeric as field (field.id)}
 							<option value={field.id}>{field.name}</option>
 						{/each}
 					</select>
 				</Field>
 			</div>
-			<Field label="Couleur par">
+			<Field label="Colour by">
 				<select
 					class={select}
 					value={config.color ?? ''}
 					onchange={(event) => setChart('color', event.currentTarget.value || null)}
 				>
-					<option value="">Une seule série</option>
+					<option value="">One series</option>
 					{#each choices as field (field.id)}
 						<option value={field.id}>{field.name}</option>
 					{/each}
@@ -317,8 +320,8 @@
 			</Field>
 			{#if (config.kind ?? 'bar') === 'line' && xField?.type === 'date'}
 				<Field
-					label="Moyenne glissante (jours)"
-					hint="Vide pour la courbe brute. 7 lisse une pesée quotidienne."
+					label="Rolling average (days)"
+					hint="Empty for the raw line. 7 smooths a daily weigh-in."
 				>
 					<input
 						class={input}
@@ -336,11 +339,9 @@
 
 	{#snippet footer()}
 		{#if existing !== undefined}
-			<Button variant="ghost" onclick={remove}>Supprimer</Button>
+			<Button variant="ghost" onclick={remove}>Delete</Button>
 		{/if}
 		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}
-			>{existing === undefined ? 'Créer' : 'Enregistrer'}</Button
-		>
+		<Button variant="primary" onclick={save}>{existing === undefined ? 'Create' : 'Save'}</Button>
 	{/snippet}
 </Sheet>

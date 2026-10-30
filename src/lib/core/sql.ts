@@ -56,7 +56,7 @@ export function formulaColumns(ws: Workspace, tableId: string): Map<string, stri
 			return known;
 		}
 		if (visiting.has(field.id)) {
-			throw new FormulaError(`« ${field.name} » dépend d'elle-même`);
+			throw new FormulaError(`"${field.name}" depends on itself`);
 		}
 
 		visiting.add(field.id);
@@ -258,7 +258,7 @@ export function readQuery(engine: Engine, sql: string, limit = 200): SqlRow[] {
 	const statement = sql.trim().replace(/;\s*$/u, '');
 
 	if (statement.includes(';')) {
-		throw new QueryError('une seule requête à la fois');
+		throw new QueryError('one query at a time');
 	}
 
 	try {

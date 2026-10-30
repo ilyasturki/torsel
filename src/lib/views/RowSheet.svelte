@@ -27,7 +27,19 @@
 		return rowId === null ? undefined : app.computed(tableId).get(rowId);
 	});
 
-	$effect(() => {
+	const changed = $derived.by(() => {
+		const out: Record<string, Value> = {};
+		for (const field of fields) {
+			if (JSON.stringify(values[field.id] ?? null) !== JSON.stringify(original[field.id] ?? null)) {
+				out[field.id] = values[field.id];
+			}
+		}
+		return out;
+	});
+
+	const dirty = $derived(Object.keys(changed).length > 0);
+
+	$effect.pre(() => {
 		if (open) {
 			const row = rowId === null ? undefined : app.ws.live(rowId);
 			const start: Record<string, Value> = {};
@@ -42,18 +54,10 @@
 	function save(): void {
 		if (rowId === null) {
 			const { changes } = insertRows(app.ws, tableId, [values]);
-			const group = app.apply(changes, 'Ligne ajoutée');
-			showToast('Ligne ajoutée', group?.id ?? null);
-		} else {
-			const changed: Record<string, Value> = {};
-			for (const field of fields) {
-				if (JSON.stringify(values[field.id]) !== JSON.stringify(original[field.id])) {
-					changed[field.id] = values[field.id];
-				}
-			}
-			if (Object.keys(changed).length > 0) {
-				app.apply(updateRow(app.ws, rowId, changed), 'Ligne modifiée');
-			}
+			const group = app.apply(changes, 'Row added');
+			showToast('Row added', group?.id ?? null);
+		} else if (dirty) {
+			app.apply(updateRow(app.ws, rowId, changed), 'Row changed');
 		}
 		open = false;
 	}
@@ -62,25 +66,23 @@
 		if (rowId === null) {
 			return;
 		}
-		const group = app.apply(deleteRecords(app.ws, [rowId]), 'Ligne supprimée');
-		showToast('Ligne supprimée', group?.id ?? null);
+		const group = app.apply(deleteRecords(app.ws, [rowId]), 'Row deleted');
+		showToast('Row deleted', group?.id ?? null);
 		open = false;
 	}
 </script>
 
-<Sheet bind:open title={rowId === null ? 'Nouvelle ligne' : 'Ligne'}>
+<Sheet bind:open title={rowId === null ? 'New row' : 'Row'} {dirty}>
 	<form
-		class="flex flex-col gap-4"
+		class="flex flex-col gap-3"
 		onsubmit={(event) => {
 			event.preventDefault();
 			save();
 		}}
 	>
 		{#each fields as field (field.id)}
-			<div class="flex flex-col gap-1.5">
-				<label for="row-{field.id}" class="text-[13px] font-medium text-ink-muted"
-					>{field.name}</label
-				>
+			<div class="flex flex-col gap-1">
+				<label for="row-{field.id}" class="text-sm font-medium text-ink-2">{field.name}</label>
 				<FieldInput
 					id="row-{field.id}"
 					{field}
@@ -88,18 +90,18 @@
 					computed={computed?.[field.id] ?? null}
 				/>
 				{#if field.type === 'formula' && field.description}
-					<span class="text-xs text-ink-faint">{field.description}</span>
+					<span class="text-sm text-ink-3">{field.description}</span>
 				{/if}
 			</div>
 		{/each}
-		<button type="submit" class="hidden">Enregistrer</button>
+		<button type="submit" class="hidden">Save</button>
 	</form>
 
 	{#snippet footer()}
 		{#if rowId !== null}
-			<Button variant="ghost" onclick={remove}>Supprimer</Button>
+			<Button variant="ghost" onclick={remove}>Delete</Button>
 		{/if}
 		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>Enregistrer</Button>
+		<Button variant="primary" onclick={save}>Save</Button>
 	{/snippet}
 </Sheet>

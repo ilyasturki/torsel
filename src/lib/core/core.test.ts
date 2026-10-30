@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	addField,
+	blankTable,
 	createBase,
 	createTable,
 	deleteRecords,
@@ -160,6 +161,20 @@ describe('home base', () => {
 		apply(ws, new Hlc('a'), made.changes);
 
 		expect(homeBase(ws)).toEqual({ id: made.id, changes: [] });
+	});
+
+	it('names a blank table with the first free number', () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+
+		const first = blankTable(ws);
+		apply(ws, hlc, first.changes);
+		const second = blankTable(ws);
+		apply(ws, hlc, second.changes);
+
+		expect([first.name, second.name]).toEqual(['Table 1', 'Table 2']);
+		expect(ws.bases()).toHaveLength(1);
+		expect(ws.fields(first.id).map((field) => field.name)).toEqual(['Name']);
 	});
 
 	it('leaves the tables of a deleted home deleted', () => {

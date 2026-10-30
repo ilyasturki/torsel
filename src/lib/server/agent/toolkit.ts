@@ -518,7 +518,7 @@ export const TOOLS: Tool[] = [
 		name: 'create_table',
 		title: 'Créer une table',
 		description:
-			'Crée une table avec ses champs, et ses vues Grille et Saisie. Les formules se créent ensuite avec add_field, une fois les champs qu’elles lisent en place. Proposé à la personne avant d’être appliqué.',
+			'Crée une table avec ses champs, et ses vues Grid et Entry. Les formules se créent ensuite avec add_field, une fois les champs qu’elles lisent en place. Proposé à la personne avant d’être appliqué.',
 		input: z.object({
 			base: BASE.optional().describe(
 				'nom ou id de la base ; à omettre pour la base par défaut, sauf si la personne en nomme une'

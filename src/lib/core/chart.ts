@@ -7,11 +7,11 @@ export type ChartPoint = { x: string; series: string; y: number };
 export type ChartData = { points: ChartPoint[]; xLabel: string; yLabel: string; series: string[] };
 
 const AGG_LABELS: Record<NonNullable<ChartConfig['agg']>, string> = {
-	count: 'Nombre',
-	sum: 'Somme',
-	avg: 'Moyenne',
-	max: 'Maximum',
-	min: 'Minimum'
+	count: 'Row count',
+	sum: 'Total',
+	avg: 'Average',
+	max: 'Highest',
+	min: 'Lowest'
 };
 
 function bucketSql(field: FieldDef, bucket: ChartConfig['bucket']): string {
@@ -97,7 +97,8 @@ export function chartData(
 	return {
 		points,
 		xLabel: x?.name ?? '',
-		yLabel: agg === 'count' ? AGG_LABELS.count : `${AGG_LABELS[agg]} de ${y?.name ?? ''}`,
+		yLabel:
+			agg === 'count' ? AGG_LABELS.count : `${AGG_LABELS[agg]} ${(y?.name ?? '').toLowerCase()}`,
 		series: [...series]
 	};
 }

@@ -64,14 +64,14 @@ function byOrder<T extends { order: number; name: string }>(a: T, b: T): number 
 }
 
 export function baseDef(rec: Rec): BaseDef {
-	return { id: rec.id, name: text(rec.data.name, 'Sans nom'), order: num(rec.data.order, 0) };
+	return { id: rec.id, name: text(rec.data.name, 'Untitled'), order: num(rec.data.order, 0) };
 }
 
 export function tableDef(rec: Rec): TableDef {
 	return {
 		id: rec.id,
 		base: rec.base,
-		name: text(rec.data.name, 'Sans nom'),
+		name: text(rec.data.name, 'Untitled'),
 		order: num(rec.data.order, 0)
 	};
 }
@@ -81,7 +81,7 @@ export function fieldDef(rec: Rec): FieldDef {
 		id: rec.id,
 		base: rec.base,
 		table: rec.parent,
-		name: text(rec.data.name, 'Champ'),
+		name: text(rec.data.name, 'Field'),
 		type: fieldType(rec.data.type),
 		order: num(rec.data.order, 0),
 		choices: choicesOf(rec.data.choices),
@@ -97,7 +97,7 @@ export function viewDef(rec: Rec): ViewDef {
 		id: rec.id,
 		base: rec.base,
 		table: rec.parent,
-		name: text(rec.data.name, 'Vue'),
+		name: text(rec.data.name, 'View'),
 		type: viewType(rec.data.type),
 		order: num(rec.data.order, 0),
 		config: configOf(rec.data.config)

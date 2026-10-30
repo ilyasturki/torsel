@@ -1,7 +1,4 @@
 <script lang="ts">
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import Copy from '@lucide/svelte/icons/copy';
-
 	import { goto } from '$app/navigation';
 
 	import { ApiError, DEFAULT_SERVER, apiBase, checkServer, setApiBase } from '#lib/client/api.ts';
@@ -9,6 +6,7 @@
 	import type { PublicToken } from '#lib/client/auth.ts';
 	import { createToken, listTokens, logout, revokeToken } from '#lib/client/auth.ts';
 	import { formatDate } from '#lib/client/format.ts';
+	import { LOGIN, SETTINGS } from '#lib/client/nav.ts';
 	import { forgetAccount, me } from '#lib/client/session.svelte.ts';
 	import { sync } from '#lib/client/sync.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -51,7 +49,7 @@
 		forgetAccount();
 		me.account = null;
 		sync.status = 'idle';
-		if (!import.meta.env.APP_BUILD) void goto('/app/login');
+		if (!import.meta.env.APP_BUILD) void goto(LOGIN);
 	}
 
 	async function mint(): Promise<void> {
@@ -100,21 +98,12 @@
 	);
 </script>
 
-<div class="mx-auto flex max-w-2xl flex-col gap-6 pt-1">
-	<header class="flex flex-col gap-1">
-		<a
-			href="/app"
-			class="-ml-2 flex h-11 items-center gap-1 self-start rounded-lg pr-2 text-ink-muted lg:hidden"
-			><ChevronLeft class="size-5" /> Bases</a
-		>
-		<h1 class="px-1 text-[30px] leading-9 font-bold tracking-tight">Settings</h1>
-	</header>
-
+<div class="flex max-w-prose flex-col gap-6 p-4 pb-tabs-clear">
 	{#if import.meta.env.APP_BUILD}
-		<details class="rounded-2xl bg-surface p-4" open={!base}>
+		<details open={!base}>
 			<summary class="font-semibold">Server{base ? `: ${base}` : ''}</summary>
 			<div class="mt-3 flex flex-col gap-3">
-				<p class="text-sm text-ink-muted">
+				<p class="text-ink-2">
 					Without a server, everything stays on this phone. Connect one to sync and use the
 					assistant.
 				</p>
@@ -128,32 +117,34 @@
 					<input class={input} bind:value={server} inputmode="url" aria-label="Server address" />
 					<Button type="submit">Connect</Button>
 				</form>
-				{#if serverProblem}<p class="text-sm" role="alert">{serverProblem}</p>{/if}
+				{#if serverProblem}<p role="alert">{serverProblem}</p>{/if}
 			</div>
 		</details>
 	{/if}
 
 	{#if base}
-		<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
+		<section class="flex flex-col gap-3">
 			<h2 class="font-semibold">Account</h2>
 			{#if me.account}
 				<div class="flex items-center justify-between gap-3">
-					<span>{me.account.email}</span>
-					<Button size="sm" onclick={signOut}>Sign out</Button>
+					<span class="min-w-0 truncate">{me.account.email}</span>
+					<Button onclick={signOut}>Sign out</Button>
 				</div>
 			{:else if me.account === null}
-				<a class="self-start font-semibold underline" href="/app/login?to=%2Fapp%2Fsettings">Sign in</a>
+				<a class="self-start font-medium underline" href="{LOGIN}?to={encodeURIComponent(SETTINGS)}"
+					>Sign in</a
+				>
 			{:else}
-				<p class="text-sm text-ink-muted">Can’t reach the server right now.</p>
+				<p class="text-ink-2">Can’t reach the server right now.</p>
 			{/if}
 		</section>
 	{/if}
 
 	{#if me.account}
-		<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
+		<section class="flex flex-col gap-3">
 			<h2 class="font-semibold">Agents (MCP)</h2>
-			<p class="text-sm text-ink-muted">
-				A token lets Claude Code, Claude.ai or another MCP client read and change your bases at {mcpUrl}.
+			<p class="text-ink-2">
+				A token lets Claude Code, Claude.ai or another MCP client read and change your tables at {mcpUrl}.
 			</p>
 			<form
 				class="flex gap-2"
@@ -165,37 +156,39 @@
 				<input class={input} bind:value={label} aria-label="Token name" />
 				<Button type="submit">Create token</Button>
 			</form>
-			{#if tokenProblem}<p class="text-sm" role="alert">{tokenProblem}</p>{/if}
+			{#if tokenProblem}<p role="alert">{tokenProblem}</p>{/if}
 			{#if minted}
-				<div class="flex flex-col gap-2 rounded-xl bg-surface-2 p-3">
-					<p class="text-sm font-medium">Copy it now. It won’t be shown again.</p>
-					<code class="font-mono text-xs break-all">{command}</code>
-					<Button size="sm" onclick={() => void navigator.clipboard.writeText(command)}
-						><Copy class="size-4" /> Copy command</Button
-					>
+				<div class="flex flex-col items-start gap-2 rounded-box bg-tint p-3">
+					<p class="font-medium">Copy it now. It won’t be shown again.</p>
+					<code class="font-mono text-sm break-all">{command}</code>
+					<Button onclick={() => void navigator.clipboard.writeText(command)}>Copy command</Button>
 				</div>
 			{/if}
-			{#each tokens as token (token.id)}
-				<div class="flex items-center justify-between gap-3 border-t border-line-soft pt-3">
-					<span class="flex flex-col">
-						<span class="text-[15px]">{token.label}</span>
-						<span class="text-xs text-ink-faint"
-							>{token.prefix}… · created {formatDate(
-								new Date(token.createdAt).toISOString().slice(0, 10),
-								true
-							)}</span
-						>
-					</span>
-					<Button size="sm" variant="ghost" onclick={() => revoke(token.id)}>Revoke</Button>
+			{#if tokens.length > 0}
+				<div class="flex flex-col">
+					{#each tokens as token (token.id)}
+						<div class="flex min-h-row items-center justify-between gap-3">
+							<span class="flex min-w-0 flex-col">
+								<span class="truncate">{token.label}</span>
+								<span class="truncate text-sm text-ink-3"
+									>{token.prefix}…, created {formatDate(
+										new Date(token.createdAt).toISOString().slice(0, 10),
+										true
+									)}</span
+								>
+							</span>
+							<Button variant="ghost" onclick={() => revoke(token.id)}>Revoke</Button>
+						</div>
+					{/each}
 				</div>
-			{/each}
+			{/if}
 		</section>
 	{/if}
 
-	<section class="flex items-center justify-between gap-3 rounded-2xl bg-surface p-4">
+	<section class="flex items-center justify-between gap-3">
 		<span>All data on this device</span>
-		<Button size="sm" onclick={exportJson}>Export as JSON</Button>
+		<Button onclick={exportJson}>Export as JSON</Button>
 	</section>
 
-	<p class="px-1 text-xs text-ink-faint">Torsel {import.meta.env.APP_VERSION}</p>
+	<p class="text-sm text-ink-3">Torsel {import.meta.env.APP_VERSION}</p>
 </div>

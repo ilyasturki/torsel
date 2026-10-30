@@ -1,103 +1,239 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/geist';
-@import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/funnel-sans';
 
 /* The interface is monochrome; colour only ever comes from a person's own data (`--d-*`). */
 :root {
 	color-scheme: light dark;
 
-	--canvas: oklch(96.7% 0.001 286);
-	--surface: oklch(100% 0 0);
-	--surface-2: oklch(96.7% 0.001 286);
-	--sunken: oklch(92% 0.004 286);
-	--ink: oklch(21% 0.006 286);
-	--ink-muted: oklch(44% 0.017 286);
-	--ink-faint: oklch(55% 0.014 286);
-	--line: oklch(87% 0.006 286);
-	--line-soft: oklch(93% 0.004 286);
-	--hover: oklch(95% 0.003 286);
-	--fill: oklch(21% 0.006 286);
-	--on-fill: oklch(100% 0 0);
-	--scrim: rgb(0 0 0 / 0.4);
+	--canvas: #f6f6f8;
+	--raised: #ffffff;
+	--float: #ffffff;
+	--tint: rgb(17 18 22 / 0.04);
+	--tint-2: rgb(17 18 22 / 0.07);
+	--ink: #16171b;
+	--ink-2: #5f6269;
+	--ink-3: #8d9097;
+	--hair: rgb(17 18 22 / 0.045);
+	--edge: rgb(17 18 22 / 0.16);
+	--fill: #16171b;
+	--on-fill: #ffffff;
+	--scrim: rgb(0 0 0 / 0.3);
+	--elevation-1: 0 0 0 1px rgb(17 18 22 / 0.05), 0 1px 2px rgb(17 18 22 / 0.04);
+	--elevation-2:
+		0 0 0 1px rgb(17 18 22 / 0.06), 0 2px 4px rgb(17 18 22 / 0.05), 0 12px 32px rgb(17 18 22 / 0.12);
 
-	--d-gray-fg: oklch(37% 0.013 286);
-	--d-gray-bg: oklch(92% 0.004 286);
-	--d-gray: oklch(55% 0.014 286);
-	--d-orange-fg: oklch(47% 0.137 46);
-	--d-orange-bg: oklch(95.4% 0.038 75);
-	--d-orange: oklch(64.6% 0.222 41);
-	--d-amber-fg: oklch(47.3% 0.137 46);
-	--d-amber-bg: oklch(96.2% 0.059 95);
-	--d-amber: oklch(76.9% 0.188 70);
-	--d-green-fg: oklch(44.8% 0.119 151);
-	--d-green-bg: oklch(96.2% 0.044 157);
-	--d-green: oklch(62.7% 0.194 149);
-	--d-teal-fg: oklch(43.7% 0.078 189);
-	--d-teal-bg: oklch(95.3% 0.051 181);
-	--d-teal: oklch(51.1% 0.096 186);
-	--d-blue-fg: oklch(42.4% 0.199 266);
-	--d-blue-bg: oklch(93.2% 0.032 256);
-	--d-blue: oklch(54.6% 0.245 263);
-	--d-violet-fg: oklch(43.2% 0.232 293);
-	--d-violet-bg: oklch(94.3% 0.029 295);
-	--d-violet: oklch(54.1% 0.281 293);
-	--d-pink-fg: oklch(45.9% 0.187 4);
-	--d-pink-bg: oklch(94.8% 0.028 342);
-	--d-pink: oklch(59.2% 0.249 0.6);
+	--corner: 2px;
+	--row: 34px;
+	--control: 32px;
+	--cta: 44px;
+	--size-xs: 12px;
+	--size-sm: 12.5px;
+	--size-base: 13.5px;
+	--gutter: 28px;
+	--tabs-clear: 64px;
+
+	--ease: cubic-bezier(0.2, 0, 0, 1);
+	--fast: 120ms;
+	--mid: 160ms;
+	--slow: 180ms;
+
+	--d-gray-fg: #3f3f46;
+	--d-gray-bg: #e4e4e7;
+	--d-gray: #8a8c94;
+	--d-orange-fg: #9a3412;
+	--d-orange-bg: #ffedd5;
+	--d-orange: #f0702a;
+	--d-amber-fg: #92400e;
+	--d-amber-bg: #fef3c7;
+	--d-amber: #e0a020;
+	--d-green-fg: #166534;
+	--d-green-bg: #dcfce7;
+	--d-green: #2fae5c;
+	--d-teal-fg: #115e59;
+	--d-teal-bg: #ccfbf1;
+	--d-teal: #14a39a;
+	--d-blue-fg: #1e40af;
+	--d-blue-bg: #dbeafe;
+	--d-blue: #3b74f0;
+	--d-violet-fg: #5b21b6;
+	--d-violet-bg: #ede9fe;
+	--d-violet: #8b5cf6;
+	--d-pink-fg: #9d174d;
+	--d-pink-bg: #fce7f3;
+	--d-pink: #e0458c;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--canvas: oklch(14.1% 0.005 286);
-		--surface: oklch(21% 0.006 286);
-		--surface-2: oklch(25% 0.006 286);
-		--sunken: oklch(17% 0.005 286);
-		--ink: oklch(98.5% 0 0);
-		--ink-muted: oklch(78% 0.01 286);
-		--ink-faint: oklch(68% 0.013 286);
-		--line: oklch(32% 0.008 286);
-		--line-soft: oklch(27% 0.006 286);
-		--hover: oklch(25% 0.006 286);
-		--fill: oklch(98.5% 0 0);
-		--on-fill: oklch(21% 0.006 286);
-		--scrim: rgb(0 0 0 / 0.6);
+		--canvas: #0d0e10;
+		--raised: #16171b;
+		--float: #1f2025;
+		--tint: rgb(255 255 255 / 0.05);
+		--tint-2: rgb(255 255 255 / 0.09);
+		--ink: #ededf0;
+		--ink-2: #a3a5ad;
+		--ink-3: #74767e;
+		--hair: rgb(255 255 255 / 0.05);
+		--edge: rgb(255 255 255 / 0.22);
+		--fill: #ededf0;
+		--on-fill: #0d0e10;
+		--scrim: rgb(0 0 0 / 0.5);
+		--elevation-1: 0 0 0 1px rgb(255 255 255 / 0.05);
+		--elevation-2:
+			0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.55);
 
-		--d-gray-fg: oklch(87% 0.006 286);
-		--d-gray-bg: oklch(32% 0.008 286);
-		--d-orange-fg: oklch(83.7% 0.128 66);
-		--d-orange-bg: oklch(33% 0.08 46);
-		--d-amber-fg: oklch(87.9% 0.169 91);
-		--d-amber-bg: oklch(33% 0.07 70);
-		--d-green-fg: oklch(87.1% 0.15 154);
-		--d-green-bg: oklch(30% 0.06 150);
-		--d-teal-fg: oklch(85.5% 0.138 181);
-		--d-teal-bg: oklch(30% 0.05 186);
-		--d-blue-fg: oklch(80.9% 0.105 251);
-		--d-blue-bg: oklch(30% 0.09 265);
-		--d-violet-fg: oklch(81.1% 0.111 293);
-		--d-violet-bg: oklch(30% 0.1 293);
-		--d-pink-fg: oklch(82.3% 0.12 346);
-		--d-pink-bg: oklch(31% 0.09 0);
+		--d-gray-fg: #d4d4d8;
+		--d-gray-bg: #3f3f46;
+		--d-gray: #a1a1aa;
+		--d-orange-fg: #fdba74;
+		--d-orange-bg: #4a2410;
+		--d-orange: #fb923c;
+		--d-amber-fg: #fcd34d;
+		--d-amber-bg: #45300c;
+		--d-amber: #fbbf24;
+		--d-green-fg: #86efac;
+		--d-green-bg: #123a22;
+		--d-green: #4ade80;
+		--d-teal-fg: #5eead4;
+		--d-teal-bg: #0f3b38;
+		--d-teal: #2dd4bf;
+		--d-blue-fg: #93c5fd;
+		--d-blue-bg: #172f5f;
+		--d-blue: #60a5fa;
+		--d-violet-fg: #c4b5fd;
+		--d-violet-bg: #2e1f63;
+		--d-violet: #a78bfa;
+		--d-pink-fg: #f9a8d4;
+		--d-pink-bg: #4c1433;
+		--d-pink: #f472b6;
 	}
 }
 
+@media (pointer: coarse), (max-width: 40rem) {
+	:root {
+		--row: 44px;
+		--control: 44px;
+		--cta: 56px;
+		--size-xs: 12.5px;
+		--size-sm: 13px;
+		--size-base: 15px;
+		--gutter: 16px;
+		--tabs-clear: 76px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--fast: 0ms;
+		--mid: 0ms;
+		--slow: 0ms;
+	}
+}
+
+@theme {
+	--color-*: initial;
+	--radius-*: initial;
+	--shadow-*: initial;
+	--inset-shadow-*: initial;
+	--drop-shadow-*: initial;
+	--text-shadow-*: initial;
+	--blur-*: initial;
+	--text-*: initial;
+	--font-*: initial;
+
+	--text-lg: 16px;
+	--text-xl: 24px;
+	--text-2xl: 34px;
+	--text-hero: 44px;
+	--text-hero-lg: 64px;
+
+	--spacing-ask: 400px;
+	--spacing-sheet: 420px;
+	--spacing-entry: 420px;
+	--spacing-prose: 640px;
+	--spacing-mark: 8px;
+	--spacing-sheet-max: 92dvh;
+	--spacing-ask-clear: 416px;
+	--spacing-tabs-ask: 444px;
+}
+
 @theme inline {
-	--font-sans: 'Geist Variable', system-ui, sans-serif;
-	--font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+	--font-sans: 'Funnel Sans Variable', system-ui, sans-serif;
+	--font-mono: ui-monospace, monospace;
+
+	--text-xs: var(--size-xs);
+	--text-sm: var(--size-sm);
+	--text-base: var(--size-base);
+
+	--radius-box: var(--corner);
+	--radius-panel: calc(var(--corner) * 1.5);
+	--shadow-raised: var(--elevation-1);
+	--shadow-float: var(--elevation-2);
+
+	--spacing-row: var(--row);
+	--spacing-control: var(--control);
+	--spacing-cta: var(--cta);
+	--spacing-gutter: var(--gutter);
+	--spacing-tabs-clear: var(--tabs-clear);
 
 	--color-canvas: var(--canvas);
-	--color-surface: var(--surface);
-	--color-surface-2: var(--surface-2);
-	--color-sunken: var(--sunken);
+	--color-raised: var(--raised);
+	--color-float: var(--float);
+	--color-tint: var(--tint);
+	--color-tint-2: var(--tint-2);
 	--color-ink: var(--ink);
-	--color-ink-muted: var(--ink-muted);
-	--color-ink-faint: var(--ink-faint);
-	--color-line: var(--line);
-	--color-line-soft: var(--line-soft);
-	--color-hover: var(--hover);
+	--color-ink-2: var(--ink-2);
+	--color-ink-3: var(--ink-3);
+	--color-hair: var(--hair);
+	--color-edge: var(--edge);
 	--color-fill: var(--fill);
 	--color-on-fill: var(--on-fill);
 	--color-scrim: var(--scrim);
+}
+
+@utility pt-safe {
+	padding-top: env(safe-area-inset-top);
+}
+
+@utility pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility hide-scrollbar {
+	scrollbar-width: none;
+}
+
+@utility motion {
+	transition-duration: var(--fast);
+	transition-timing-function: var(--ease);
+}
+
+@utility motion-slow {
+	transition-duration: var(--slow);
+	transition-timing-function: var(--ease);
+}
+
+@keyframes enter {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+}
+
+@utility enter {
+	animation: enter var(--mid) var(--ease);
+}
+
+@utility translate-x-ask-out {
+	translate: calc(100% + 40px) 0;
+}
+
+@utility tight {
+	letter-spacing: -0.022em;
+}
+
+@utility tighter {
+	letter-spacing: -0.035em;
 }
 
 html,
@@ -105,6 +241,8 @@ body {
 	background: var(--canvas);
 	color: var(--ink);
 	font-family: var(--font-sans);
+	font-size: var(--size-base);
+	line-height: 1.35;
 	font-variant-numeric: tabular-nums;
 	-webkit-tap-highlight-color: transparent;
 }
@@ -116,4 +254,9 @@ body {
 
 button {
 	cursor: pointer;
+}
+
+:focus-visible {
+	outline: 2px solid var(--ink);
+	outline-offset: 1px;
 }

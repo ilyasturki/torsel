@@ -1,56 +1,96 @@
 <script lang="ts">
-	import X from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import type { Snippet } from 'svelte';
+
+	import Button from './Button.svelte';
+	import Icon from './Icon.svelte';
 
 	let {
 		open = $bindable(false),
 		title,
 		description,
-		wide = false,
+		dirty = false,
 		children,
 		footer
 	}: {
 		open?: boolean;
 		title: string;
 		description?: string;
-		wide?: boolean;
+		dirty?: boolean;
 		children: Snippet;
 		footer?: Snippet;
 	} = $props();
+
+	let body: HTMLElement | undefined = $state();
+	let confirming = $state(false);
+
+	$effect(() => {
+		if (open) confirming = false;
+	});
+
+	function focusFirstControl(event: Event): void {
+		event.preventDefault();
+		body
+			?.querySelector<HTMLElement>('[data-autofocus], input:not([type="file"]), select, textarea')
+			?.focus();
+	}
+
+	function guard(event: Event): void {
+		if (dirty) {
+			event.preventDefault();
+			confirming = true;
+		}
+	}
+
+	function close(): void {
+		if (dirty) {
+			confirming = true;
+		} else {
+			open = false;
+		}
+	}
 </script>
 
 <Dialog.Root bind:open>
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
 		<Dialog.Content
-			class="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-3xl bg-surface shadow-2xl outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[85dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl {wide
-				? 'sm:max-w-2xl'
-				: 'sm:max-w-lg'}"
+			class="fixed inset-x-0 bottom-0 z-50 flex max-h-sheet-max flex-col rounded-panel bg-float shadow-float outline-none sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-4 sm:max-h-none sm:w-sheet"
+			onOpenAutoFocus={focusFirstControl}
+			onEscapeKeydown={guard}
+			onInteractOutside={guard}
 		>
-			<div class="flex items-start gap-3 px-5 pt-5 pb-3">
-				<div class="min-w-0 flex-1">
-					<Dialog.Title class="text-lg leading-6 font-semibold">{title}</Dialog.Title>
-					{#if description}
-						<Dialog.Description class="mt-1 text-sm text-ink-muted"
-							>{description}</Dialog.Description
-						>
-					{/if}
-				</div>
-				<Dialog.Close
-					class="-mt-1.5 -mr-2 flex size-10 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-hover"
-					aria-label="Fermer"
+			<div class="flex shrink-0 items-center gap-3 p-4 pb-2">
+				<Dialog.Title class="min-w-0 flex-1 truncate text-lg font-semibold tight"
+					>{title}</Dialog.Title
 				>
-					<X class="size-5" />
-				</Dialog.Close>
+				<button
+					type="button"
+					class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-2 transition-colors motion hover:bg-tint hover:text-ink"
+					aria-label="Close"
+					onclick={close}
+				>
+					<Icon name="x" />
+				</button>
 			</div>
-			<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+			<div bind:this={body} class="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
+				{#if description}
+					<Dialog.Description class="mb-3 text-ink-2">{description}</Dialog.Description>
+				{/if}
 				{@render children()}
 			</div>
-			{#if footer}
+			{#if confirming}
 				<div
-					class="flex gap-2 border-t border-line-soft px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+					class="flex shrink-0 items-center gap-2 p-4 pt-2 pb-safe"
+					role="alertdialog"
+					aria-label="Discard changes"
 				>
+					<span class="min-w-0 flex-1 font-medium">Discard your changes?</span>
+					<Button onclick={() => (confirming = false)}>Keep editing</Button>
+					<Button variant="primary" onclick={() => (open = false)}>Discard</Button>
+				</div>
+			{:else if footer}
+				<div class="flex shrink-0 gap-2 p-4 pt-2 pb-safe">
 					{@render footer()}
 				</div>
 			{/if}

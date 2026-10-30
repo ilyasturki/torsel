@@ -8,8 +8,9 @@
 		title,
 		placeholder = '',
 		initial = '',
-		action = 'Créer',
-		onsave
+		action = 'Create',
+		onsave,
+		onclose
 	}: {
 		open?: boolean;
 		title: string;
@@ -17,12 +18,17 @@
 		initial?: string;
 		action?: string;
 		onsave: (name: string) => void;
+		onclose?: () => void;
 	} = $props();
 
 	let name = $state('');
 
 	$effect(() => {
 		if (open) name = initial;
+	});
+
+	$effect(() => {
+		if (!open) onclose?.();
 	});
 
 	function save(): void {
@@ -32,15 +38,14 @@
 	}
 </script>
 
-<Sheet bind:open {title}>
+<Sheet bind:open {title} dirty={name !== initial}>
 	<form
 		onsubmit={(event) => {
 			event.preventDefault();
 			save();
 		}}
 	>
-		<!-- svelte-ignore a11y_autofocus -->
-		<input class={input} bind:value={name} {placeholder} aria-label={title} autofocus />
+		<input class={input} bind:value={name} {placeholder} aria-label={title} />
 	</form>
 
 	{#snippet footer()}

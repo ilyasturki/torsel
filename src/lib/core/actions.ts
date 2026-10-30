@@ -72,6 +72,23 @@ export function homeBase(ws: Workspace): { id: string; changes: Change[] } {
 		: createBase(ws, 'Tables');
 }
 
+/** A new table named "Table N", in the home base unless a base is given. */
+export function blankTable(
+	ws: Workspace,
+	baseId?: string
+): { id: string; name: string; changes: Change[] } {
+	const home = baseId === undefined ? homeBase(ws) : { id: baseId, changes: [] };
+	const taken = new Set(
+		ws.bases().flatMap((base) => ws.tables(base.id).map((table) => table.name))
+	);
+	let number = 1;
+	while (taken.has(`Table ${number}`)) number += 1;
+	const name = `Table ${number}`;
+	const made = createTable(ws, home.id, name, [{ name: 'Name', type: 'text' }]);
+
+	return { id: made.id, name, changes: [...home.changes, ...made.changes] };
+}
+
 /** The field "the last time" is read on when a view does not say: the choice with the most values. */
 export function defaultMatch(fields: FieldDef[]): string[] {
 	const keys = fields.filter((field) => field.type === 'choice' || field.type === 'link');
@@ -81,8 +98,8 @@ export function defaultMatch(fields: FieldDef[]): string[] {
 
 export function defaultViews(): ViewSpec[] {
 	return [
-		{ name: 'Grille', type: 'grid', config: {} },
-		{ name: 'Saisie', type: 'entry', config: {} }
+		{ name: 'Grid', type: 'grid', config: {} },
+		{ name: 'Entry', type: 'entry', config: {} }
 	];
 }
 
@@ -149,7 +166,7 @@ export function addField(
 ): { id: string; changes: Change[] } {
 	const table = ws.table(tableId);
 	if (table === undefined) {
-		throw new Error('table introuvable');
+		throw new Error('table not found');
 	}
 
 	const id = newId('f');
@@ -171,7 +188,7 @@ export function addField(
 export function updateRecord(ws: Workspace, id: string, set: Record<string, Value>): Change[] {
 	const rec = ws.live(id);
 	if (rec === undefined) {
-		throw new Error('élément introuvable');
+		throw new Error('item not found');
 	}
 
 	return [{ id, kind: rec.kind, base: rec.base, parent: rec.parent, set }];
@@ -205,7 +222,7 @@ export function insertRows(
 ): { ids: string[]; changes: Change[] } {
 	const table = ws.table(tableId);
 	if (table === undefined) {
-		throw new Error('table introuvable');
+		throw new Error('table not found');
 	}
 
 	const fields = ws.fields(tableId);
@@ -231,7 +248,7 @@ export function insertRows(
 export function updateRow(ws: Workspace, rowId: string, values: Record<string, unknown>): Change[] {
 	const rec = ws.live(rowId);
 	if (rec === undefined || rec.kind !== 'row') {
-		throw new Error('ligne introuvable');
+		throw new Error('row not found');
 	}
 
 	return updateRecord(ws, rowId, rowValues(ws.fields(rec.parent), values));
@@ -244,7 +261,7 @@ export function createView(
 ): { id: string; changes: Change[] } {
 	const table = ws.table(tableId);
 	if (table === undefined) {
-		throw new Error('table introuvable');
+		throw new Error('table not found');
 	}
 
 	const id = newId('v');

@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import type { Change } from '../core/model.ts';
 import { ApiError, request } from './api.ts';
 import { app } from './app.svelte.ts';
+import { HOME, tableUrl } from './nav.ts';
 import { syncNow } from './sync.svelte.ts';
 import { showToast } from './toast.svelte.ts';
 
@@ -27,14 +28,13 @@ function destination(changes: Change[], existed: Set<string>): string | null {
 	const fresh = changes.filter((change) => !existed.has(change.id));
 	const view = fresh.find((change) => change.kind === 'view');
 	if (view !== undefined) {
-		return `/b/${view.base}/${view.parent}?v=${view.id}`;
+		return tableUrl(view.parent, view.id);
 	}
 	const table = fresh.find((change) => change.kind === 'table');
 	if (table !== undefined) {
-		return `/b/${table.base}/${table.id}`;
+		return tableUrl(table.id);
 	}
-	const base = fresh.find((change) => change.kind === 'base');
-	return base === undefined ? null : `/b/${base.id}`;
+	return fresh.some((change) => change.kind === 'base') ? HOME : null;
 }
 
 export function applyPending(): void {
@@ -48,7 +48,7 @@ export function applyPending(): void {
 	const existed = new Set(
 		changes.map((change) => change.id).filter((id) => app.ws.get(id) !== undefined)
 	);
-	const group = app.apply(changes, `IA : ${pending.prompt}`, 'ai');
+	const group = app.apply(changes, `Assistant: ${pending.prompt}`, 'ai');
 
 	showToast(
 		pending.reply || pending.actions.map((action) => action.summary).join(' · '),
@@ -96,9 +96,9 @@ export async function ask(prompt: string, context: AssistantContext): Promise<vo
 		assistant.error =
 			error instanceof ApiError
 				? error.status <= 0
-					? 'L’IA a besoin d’une connexion au serveur.'
+					? 'The assistant needs a connection to the server.'
 					: error.message
-				: 'Une erreur est survenue.';
+				: 'Something went wrong. Try again.';
 	} finally {
 		assistant.busy = false;
 	}

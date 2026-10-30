@@ -4,6 +4,7 @@
 
 	import { ApiError } from '#lib/client/api.ts';
 	import { login } from '#lib/client/auth.ts';
+	import { HOME } from '#lib/client/nav.ts';
 	import { forgetAccount } from '#lib/client/session.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
@@ -16,8 +17,8 @@
 	let busy = $state(false);
 
 	function destination(): string {
-		const to = page.url.searchParams.get('to') ?? '/app';
-		return to === '/app' || to.startsWith('/app/') || to.startsWith('/app?') ? to : '/app';
+		const to = page.url.searchParams.get('to') ?? HOME;
+		return to === HOME || to.startsWith(`${HOME}/`) || to.startsWith(`${HOME}?`) ? to : HOME;
 	}
 
 	async function submit(): Promise<void> {
@@ -31,9 +32,9 @@
 			problem =
 				error instanceof ApiError
 					? error.status === 401
-						? 'E-mail ou mot de passe incorrect.'
+						? 'Wrong email or password.'
 						: error.message
-					: 'Connexion impossible.';
+					: "Couldn't sign in. Check your connection and try again.";
 		} finally {
 			busy = false;
 		}
@@ -41,19 +42,19 @@
 </script>
 
 <svelte:head>
-	<title>Connexion · Torsel</title>
+	<title>Sign in · Torsel</title>
 </svelte:head>
 
 <main class="flex min-h-dvh items-center justify-center px-4">
 	<form
-		class="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-surface p-6"
+		class="flex w-full max-w-sm flex-col gap-3 rounded-panel bg-raised p-6 shadow-raised"
 		onsubmit={(event) => {
 			event.preventDefault();
 			void submit();
 		}}
 	>
-		<h1><Logo wordmark class="h-6" /></h1>
-		<Field label="E-mail"
+		<h1 class="mb-1"><Logo wordmark class="h-6" /></h1>
+		<Field label="Email"
 			><input
 				class={input}
 				type="email"
@@ -62,7 +63,7 @@
 				required
 			/></Field
 		>
-		<Field label="Mot de passe"
+		<Field label="Password"
 			><input
 				class={input}
 				type="password"
@@ -71,7 +72,7 @@
 				required
 			/></Field
 		>
-		<Button type="submit" variant="primary" size="lg" disabled={busy}>Se connecter</Button>
-		{#if problem}<p class="text-sm" role="alert">{problem}</p>{/if}
+		<Button type="submit" variant="primary" disabled={busy}>Sign in</Button>
+		{#if problem}<p role="alert">{problem}</p>{/if}
 	</form>
 </main>
