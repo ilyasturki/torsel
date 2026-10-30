@@ -193,6 +193,25 @@ test('a sheet focuses its first field and never drops a half-filled row', async 
 	await expect(dialog).toHaveCount(0);
 });
 
+test('the closed assistant gives the shell no room to slide sideways', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(`/app/t/${lifts}`);
+	const heading = page.getByRole('heading', { name: 'Lifts' });
+	await expect(heading).toBeVisible();
+	const before = await heading.boundingBox();
+
+	await page
+		.locator('aside[aria-label="Ask"]')
+		.evaluate((panel) => panel.scrollIntoView({ inline: 'end' }));
+
+	expect(await heading.boundingBox()).toEqual(before);
+});
+
 test('a sheet and the assistant keep room under their buttons', async ({
 	page,
 	context,

@@ -101,7 +101,7 @@
 {#if bare}
 	{@render children()}
 {:else}
-	<div class="relative flex h-dvh flex-col overflow-hidden pt-safe">
+	<div class="relative flex h-dvh flex-col overflow-clip pt-safe">
 		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5">
 			<a href={HOME} class="mr-1 shrink-0 text-ink-2 hover:text-ink">
 				<Logo wordmark class="h-4 max-sm:hidden" />
