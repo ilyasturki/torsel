@@ -89,7 +89,7 @@
 <Sheet
 	bind:open
 	title="Importer un CSV"
-	description="Un export Google Sheets, Excel ou kilorep : les types sont devinés, tu peux les corriger."
+	description="An export from Google Sheets or Excel. Column types are guessed, and you can change them."
 	wide
 >
 	<div class="flex flex-col gap-4">

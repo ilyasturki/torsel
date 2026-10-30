@@ -2,7 +2,7 @@
 
 Torsel keeps your data in tables and shows each table the way the moment needs it, as a grid on the desk, a one-thumb entry screen at the gym, cards to browse or a chart to see where it is going. Claude builds the tables and views from a sentence, and any MCP client can read and write them.
 
-It works offline. Every device keeps a full copy of your data and syncs with a server when one is around. MIT licensed. My instance runs at [torsel.ilyasturki.com](https://torsel.ilyasturki.com).
+It works offline. Every device keeps a full copy of your data and syncs with a server when one is around. MIT licensed.
 
 ## How it works
 
