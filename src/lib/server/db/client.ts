@@ -11,19 +11,22 @@ export type Database = NodeSQLiteDatabase & { $client: DatabaseSync };
 // Deferred, a transaction that reads first fails outright (SQLITE_BUSY_SNAPSHOT, no busy wait) once another connection commits before its first write.
 export const WRITER = { behavior: 'immediate' } as const;
 
+// node:sqlite is synchronous, so a wait blocks the event loop; 5s still lost writes on a loaded machine.
+const BUSY_TIMEOUT_MS = 30_000;
+
 export function createDatabase(file: string = databasePath): Database {
 	if (file !== ':memory:') {
 		mkdirSync(path.dirname(file), { recursive: true });
 	}
 
-	const sqlite = new DatabaseSync(file);
+	// At open rather than by pragma: `journal_mode = wal` below already needs the lock.
+	const sqlite = new DatabaseSync(file, { timeout: BUSY_TIMEOUT_MS });
 
 	sqlite.exec('pragma foreign_keys = on');
 
 	if (file !== ':memory:') {
 		sqlite.exec('pragma journal_mode = wal');
 		sqlite.exec('pragma synchronous = normal');
-		sqlite.exec('pragma busy_timeout = 5000');
 	}
 
 	return drizzle({ client: sqlite });
