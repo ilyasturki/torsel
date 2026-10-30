@@ -98,6 +98,24 @@ describe('assistant tools', () => {
 		closeEngines(ctx.ws);
 	});
 
+	it('creates a table without naming a base', async () => {
+		const { call, actions, ctx } = session();
+
+		const first = (await call('create_table', {
+			name: 'Weight',
+			fields: [{ name: 'Kg', type: 'number' }]
+		})) as { id: string; base: string };
+		const second = (await call('create_table', {
+			name: 'Expenses',
+			fields: [{ name: 'Amount', type: 'number' }]
+		})) as { id: string; base: string };
+
+		expect(actions.map((action) => action.tier)).toEqual(['propose', 'propose']);
+		expect(second.base).toBe(first.base);
+		expect(ctx.ws.tables(first.base).map((table) => table.name)).toEqual(['Weight', 'Expenses']);
+		closeEngines(ctx.ws);
+	});
+
 	it('answers a bad name with the way to find the right one', async () => {
 		const { call } = session();
 

@@ -6,6 +6,7 @@ import {
 	createTable,
 	deleteRecords,
 	entryFields,
+	homeBase,
 	insertRows,
 	updateRecord
 } from './actions.ts';
@@ -135,6 +136,45 @@ describe('workspace', () => {
 		apply(ws, hlc, deleteRecords(ws, [base.id]));
 
 		expect(ws.bases()).toHaveLength(0);
+		expect(ws.table(table.id)).toBeUndefined();
+	});
+});
+
+describe('home base', () => {
+	it('is made once, by the first table, and two devices land on the same one', () => {
+		const phone = new Workspace();
+		const desk = new Workspace();
+		const home = homeBase(phone);
+
+		expect(home.changes).toHaveLength(1);
+		expect(homeBase(desk).id).toBe(home.id);
+
+		const hlc = new Hlc('a');
+		apply(phone, hlc, home.changes);
+		expect(homeBase(phone)).toEqual({ id: home.id, changes: [] });
+	});
+
+	it('reuses a base that already exists', () => {
+		const ws = new Workspace();
+		const made = createBase(ws, 'Gym');
+		apply(ws, new Hlc('a'), made.changes);
+
+		expect(homeBase(ws)).toEqual({ id: made.id, changes: [] });
+	});
+
+	it('leaves the tables of a deleted home deleted', () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const home = homeBase(ws);
+		apply(ws, hlc, home.changes);
+		const table = createTable(ws, home.id, 'Weight', [{ name: 'Kg', type: 'number' }]);
+		apply(ws, hlc, table.changes);
+		apply(ws, hlc, deleteRecords(ws, [home.id]));
+
+		const next = homeBase(ws);
+		apply(ws, hlc, next.changes);
+
+		expect(next.id).not.toBe(home.id);
 		expect(ws.table(table.id)).toBeUndefined();
 	});
 });

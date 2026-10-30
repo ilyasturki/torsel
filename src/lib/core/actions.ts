@@ -41,21 +41,35 @@ function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {
 	return set;
 }
 
+function baseChange(ws: Workspace, id: string, name: string): Change {
+	return {
+		id,
+		kind: 'base',
+		base: id,
+		parent: '',
+		set: { name: name.trim(), order: ws.nextOrder('', 'base') }
+	};
+}
+
 export function createBase(ws: Workspace, name: string): { id: string; changes: Change[] } {
 	const id = newId('b');
 
-	return {
-		id,
-		changes: [
-			{
-				id,
-				kind: 'base',
-				base: id,
-				parent: '',
-				set: { name: name.trim(), order: ws.nextOrder('', 'base') }
-			}
-		]
-	};
+	return { id, changes: [baseChange(ws, id, name)] };
+}
+
+// Fixed id: two offline devices making their first table converge on one base.
+const HOME_BASE = 'b_home';
+
+export function homeBase(ws: Workspace): { id: string; changes: Change[] } {
+	const existing = ws.base(HOME_BASE) ?? ws.bases()[0];
+	if (existing !== undefined) {
+		return { id: existing.id, changes: [] };
+	}
+
+	// Reviving a deleted home would bring back the tables hidden with it.
+	return ws.get(HOME_BASE) === undefined
+		? { id: HOME_BASE, changes: [baseChange(ws, HOME_BASE, 'Tables')] }
+		: createBase(ws, 'Tables');
 }
 
 /** The field "the last time" is read on when a view does not say: the choice with the most values. */

@@ -7,6 +7,7 @@ import {
 	createTable,
 	createView,
 	deleteRecords,
+	homeBase,
 	insertRows,
 	updateRecord,
 	updateRow
@@ -519,7 +520,9 @@ export const TOOLS: Tool[] = [
 		description:
 			'Crée une table avec ses champs, et ses vues Grille et Saisie. Les formules se créent ensuite avec add_field, une fois les champs qu’elles lisent en place. Proposé à la personne avant d’être appliqué.',
 		input: z.object({
-			base: BASE,
+			base: BASE.optional().describe(
+				'nom ou id de la base ; à omettre pour la base par défaut, sauf si la personne en nomme une'
+			),
 			name: z.string().min(1),
 			fields: z
 				.array(
@@ -529,16 +532,19 @@ export const TOOLS: Tool[] = [
 				)
 				.min(1)
 		}),
-		run: (ctx, input: { base: string; name: string; fields: FieldInput[] }) => {
-			const base = findBase(ctx.ws, input.base);
+		run: (ctx, input: { base?: string; name: string; fields: FieldInput[] }) => {
+			const base =
+				input.base === undefined
+					? homeBase(ctx.ws)
+					: { id: findBase(ctx.ws, input.base).id, changes: [] };
 			const specs = input.fields.map((field) => fieldSpec(ctx.ws, base.id, field));
 			const made = createTable(ctx.ws, base.id, input.name, specs);
 			commit(ctx, {
 				tier: 'propose',
-				summary: `Nouvelle table « ${input.name} » dans ${base.name}`,
-				changes: made.changes
+				summary: `Nouvelle table « ${input.name} »`,
+				changes: [...base.changes, ...made.changes]
 			});
-			return { id: made.id };
+			return { id: made.id, base: base.id };
 		}
 	},
 	{
