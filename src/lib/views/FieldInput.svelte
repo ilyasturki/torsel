@@ -38,8 +38,11 @@
 		{id}
 		class={input}
 		inputmode="decimal"
-		bind:value={numberText}
-		oninput={() => (value = parseNumber(numberText))}
+		value={numberText}
+		oninput={(event) => {
+			numberText = event.currentTarget.value;
+			value = parseNumber(numberText);
+		}}
 	/>
 {:else if field.type === 'date'}
 	<input
