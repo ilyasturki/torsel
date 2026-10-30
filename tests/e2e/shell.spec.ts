@@ -332,10 +332,13 @@ test('a number typed in a sheet stays and is saved', async ({ page, context, acc
 test('entry steps a value and adds the row', async ({ page, context, account }) => {
 	void account;
 	const { lifts, entry } = await seedTwoTables(context.request);
+	await page.clock.install();
 	await page.goto(`/app/t/${lifts}?v=${entry}`);
 
 	await page.getByRole('button', { name: 'Reps plus' }).click();
 	await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('9');
+	// The toast lasts 6s, which a loaded machine can spend before the assertions below run.
+	await page.clock.pauseAt(Date.now() + 1000);
 	await page.getByRole('button', { name: 'Add row' }).click();
 
 	await expect(page.getByText('2 rows')).toBeVisible();
