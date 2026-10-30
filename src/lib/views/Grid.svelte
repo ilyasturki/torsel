@@ -76,13 +76,13 @@
 		switch (field.type) {
 			case 'number':
 			case 'formula':
-				return 'min-w-24';
+				return 'w-28';
 			case 'check':
-				return 'min-w-16';
+				return 'w-16';
 			case 'date':
-				return 'min-w-28';
+				return 'w-36';
 			default:
-				return 'min-w-40';
+				return 'w-48';
 		}
 	}
 
@@ -145,10 +145,10 @@
 </script>
 
 <div class="overflow-x-auto rounded-2xl bg-surface">
-	<table class="w-full border-collapse text-[14px]">
+	<table class="w-full table-fixed border-collapse text-[14px]">
 		<thead>
 			<tr class="border-b border-line text-left text-[13px] text-ink-muted">
-				<th class="sticky left-0 z-10 w-10 bg-surface px-2 py-2 font-medium"></th>
+				<th class="sticky left-0 z-10 w-11 bg-surface px-2 py-2 font-medium"></th>
 				{#each fields as field (field.id)}
 					<th class="px-1 py-1 font-medium {width(field)}">
 						<button
@@ -163,7 +163,7 @@
 							}}
 						>
 							{#if field.type === 'formula'}<i class="font-serif">ƒ</i>{/if}
-							{field.name}
+							<span class="min-w-0 truncate">{field.name}</span>
 							{#if view.config.sort?.field === field.id}
 								{#if view.config.sort.dir === 'asc'}<ArrowUp class="size-3.5" />{:else}<ArrowDown
 										class="size-3.5"
@@ -172,7 +172,7 @@
 						</button>
 					</th>
 				{/each}
-				<th class="w-12 px-1 py-1">
+				<th class="px-1 py-1">
 					<button
 						type="button"
 						class="flex size-8 items-center justify-center rounded-lg hover:bg-hover"
