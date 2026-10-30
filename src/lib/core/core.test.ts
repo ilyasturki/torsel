@@ -5,6 +5,7 @@ import {
 	createBase,
 	createTable,
 	deleteRecords,
+	entryFields,
 	insertRows,
 	updateRecord
 } from './actions.ts';
@@ -26,6 +27,43 @@ function apply(ws: Workspace, hlc: Hlc, changes: Change[]): Change[] {
 function rec(id: string, data: Rec['data'], clocks: Rec['clocks']): Rec {
 	return { id, kind: 'row', base: 'b_x', parent: 't_x', data, clocks };
 }
+
+describe('default entry view', () => {
+	it('follows the fields added after the table was created', () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const base = createBase(ws, 'Gym');
+		apply(ws, hlc, base.changes);
+		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }]);
+		apply(ws, hlc, table.changes);
+
+		const later = addField(ws, table.id, { name: 'Weight', type: 'number' });
+		apply(ws, hlc, later.changes);
+		const formula = addField(ws, table.id, { name: 'Double', type: 'formula', expr: '1' });
+		apply(ws, hlc, formula.changes);
+
+		const entry = ws.views(table.id).find((view) => view.type === 'entry');
+		const names = entryFields(ws.fields(table.id), entry?.config ?? {}).map((field) => field.name);
+
+		expect(names).toEqual(['Name', 'Weight']);
+	});
+
+	it('keeps the list a view chose for itself', () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const base = createBase(ws, 'Gym');
+		apply(ws, hlc, base.changes);
+		const table = createTable(ws, base.id, 'Lifts', [
+			{ name: 'Name', type: 'text' },
+			{ name: 'Weight', type: 'number' }
+		]);
+		apply(ws, hlc, table.changes);
+
+		const chosen = entryFields(ws.fields(table.id), { fields: [table.fieldIds[1]] });
+
+		expect(chosen.map((field) => field.name)).toEqual(['Weight']);
+	});
+});
 
 describe('clocks', () => {
 	it('orders as strings the way they happened', () => {

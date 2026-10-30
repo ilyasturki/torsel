@@ -6,7 +6,7 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { defaultMatch, insertRows, updateRecord } from '#lib/core/actions.ts';
+	import { defaultMatch, entryFields, insertRows, updateRecord } from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { parseNumber, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
@@ -22,16 +22,7 @@
 		return app.ws.fields(tableId);
 	});
 
-	const fields = $derived.by(() => {
-		const configured = view.config.fields;
-		const list =
-			configured === undefined
-				? all.filter((field) => field.type !== 'formula')
-				: configured
-						.map((id) => all.find((field) => field.id === id))
-						.filter((field) => field !== undefined);
-		return list.filter((field) => field.type !== 'formula');
-	});
+	const fields = $derived(entryFields(all, view.config));
 
 	const keyIds = $derived.by(() => {
 		const configured = view.config.match;

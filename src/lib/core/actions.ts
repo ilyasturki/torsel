@@ -65,17 +65,22 @@ export function defaultMatch(fields: FieldDef[]): string[] {
 	return best === undefined ? [] : [best.id];
 }
 
-export function defaultViews(fields: { id: string; type: FieldType }[]): ViewSpec[] {
+export function defaultViews(): ViewSpec[] {
 	return [
 		{ name: 'Grille', type: 'grid', config: {} },
-		{
-			name: 'Saisie',
-			type: 'entry',
-			config: {
-				fields: fields.filter((field) => field.type !== 'formula').map((field) => field.id)
-			}
-		}
+		{ name: 'Saisie', type: 'entry', config: {} }
 	];
+}
+
+/** With no field list of its own, an entry view follows the table's fields. */
+export function entryFields(all: FieldDef[], config: ViewConfig): FieldDef[] {
+	const list =
+		config.fields === undefined
+			? all
+			: config.fields
+					.map((id) => all.find((field) => field.id === id))
+					.filter((field) => field !== undefined);
+	return list.filter((field) => field.type !== 'formula');
 }
 
 export function createTable(
