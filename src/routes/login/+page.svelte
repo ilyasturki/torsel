@@ -7,6 +7,7 @@
 	import { forgetAccount } from '#lib/client/session.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
+	import Logo from '#lib/ui/Logo.svelte';
 	import { input } from '#lib/ui/styles.ts';
 
 	let email = $state('');
@@ -51,10 +52,7 @@
 			void submit();
 		}}
 	>
-		<div class="flex items-center gap-2.5">
-			<img src="/favicon.svg" alt="" class="size-7" />
-			<h1 class="text-xl font-bold tracking-tight">Torsel</h1>
-		</div>
+		<h1><Logo wordmark class="h-6" /></h1>
 		<Field label="E-mail"
 			><input
 				class={input}

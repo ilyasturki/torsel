@@ -8,6 +8,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
+	import Logo from '#lib/ui/Logo.svelte';
 	import AssistantLayer from '#lib/views/AssistantLayer.svelte';
 	import CommandBar from '#lib/views/CommandBar.svelte';
 	import SyncStatus from '#lib/views/SyncStatus.svelte';
@@ -62,9 +63,8 @@
 			aria-label="Bases"
 			class="fixed inset-y-0 left-0 hidden w-64 flex-col gap-4 overflow-y-auto border-r border-line-soft px-3 py-5 lg:flex"
 		>
-			<a href="/" class="flex items-center gap-2.5 px-2 text-[17px] font-bold tracking-tight">
-				<img src="/favicon.svg" alt="" class="size-6" />
-				Torsel
+			<a href="/" class="px-2">
+				<Logo wordmark class="h-5" />
 			</a>
 			<div class="flex flex-col gap-0.5">
 				{#each bases as base (base.id)}
