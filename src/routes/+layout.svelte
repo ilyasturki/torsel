@@ -7,10 +7,10 @@
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { sync } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import AssistantLayer from '#lib/views/AssistantLayer.svelte';
 	import CommandBar from '#lib/views/CommandBar.svelte';
+	import SyncStatus from '#lib/views/SyncStatus.svelte';
 
 	let { children } = $props();
 
@@ -97,23 +97,19 @@
 					class="flex min-h-9 items-center gap-2 rounded-lg px-2 text-[14px] text-ink-muted hover:bg-hover"
 					><Settings class="size-4" /> Réglages</a
 				>
-				<p class="px-2 text-xs text-ink-faint">
-					{#if sync.status === 'syncing'}Synchronisation…{:else if app.pending > 0}{app.pending} modification{app.pending >
-						1
-							? 's'
-							: ''} à envoyer{:else if sync.status === 'offline'}Hors ligne{:else if sync.status === 'idle' && sync.last}À
-						jour{/if}
-				</p>
 			</div>
 		</nav>
 
 		<main
 			class="min-w-0 flex-1 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-36 lg:ml-64 lg:px-8 lg:pt-6"
 		>
+			<SyncStatus />
 			{@render children()}
 		</main>
 	</div>
 
-	<CommandBar />
+	{#if page.url.pathname !== '/settings'}
+		<CommandBar />
+	{/if}
 	<AssistantLayer />
 {/if}

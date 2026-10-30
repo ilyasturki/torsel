@@ -1,16 +1,12 @@
 import { MAX_PUSH } from '../core/protocol.ts';
 import type { SyncResponse } from '../core/protocol.ts';
-import { ApiError, NO_SERVER, OFFLINE, apiBase, request } from './api.ts';
+import { ApiError, OFFLINE, request } from './api.ts';
 import { app } from './app.svelte.ts';
+import { me } from './session.svelte.ts';
 
-export type SyncStatus =
-	'idle' | 'syncing' | 'offline' | 'signed-out' | 'no-server' | 'other-account' | 'error';
+export type SyncStatus = 'idle' | 'offline' | 'signed-out' | 'other-account' | 'error';
 
-export const sync = $state({
-	status: 'idle' as SyncStatus,
-	last: null as number | null,
-	message: ''
-});
+export const sync = $state({ status: 'idle' as SyncStatus });
 
 const DEBOUNCE_MS = 1500;
 const ROUNDS = 10;
@@ -45,11 +41,7 @@ async function exchange(): Promise<void> {
 }
 
 export async function syncNow(): Promise<void> {
-	if (blocked) {
-		return;
-	}
-	if (apiBase() === null) {
-		sync.status = 'no-server';
+	if (blocked || !me.account) {
 		return;
 	}
 	if (running !== undefined) {
@@ -61,25 +53,19 @@ export async function syncNow(): Promise<void> {
 		await app.load();
 		do {
 			again = false;
-			sync.status = 'syncing';
 			try {
 				await exchange();
 				sync.status = 'idle';
-				sync.last = Date.now();
-				sync.message = '';
 			} catch (error) {
 				if (!(error instanceof ApiError)) {
+					sync.status = 'error';
 					throw error;
 				}
+				if (error.status === 401) {
+					me.account = null;
+				}
 				sync.status =
-					error.status === OFFLINE
-						? 'offline'
-						: error.status === 401
-							? 'signed-out'
-							: error.status === NO_SERVER
-								? 'no-server'
-								: 'error';
-				sync.message = error.message;
+					error.status === OFFLINE ? 'offline' : error.status === 401 ? 'signed-out' : 'error';
 				again = false;
 			}
 		} while (again);
@@ -118,6 +104,7 @@ let started = false;
 
 export function startSync(): void {
 	if (started) {
+		void syncNow();
 		return;
 	}
 	started = true;

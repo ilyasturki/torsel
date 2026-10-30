@@ -7,44 +7,20 @@
 	import { ApiError, DEFAULT_SERVER, apiBase, checkServer, setApiBase } from '#lib/client/api.ts';
 	import { app } from '#lib/client/app.svelte.ts';
 	import type { PublicToken } from '#lib/client/auth.ts';
-	import {
-		createToken,
-		listTokens,
-		login,
-		logout,
-		revokeToken,
-		session
-	} from '#lib/client/auth.ts';
+	import { createToken, listTokens, logout, revokeToken } from '#lib/client/auth.ts';
 	import { formatDate } from '#lib/client/format.ts';
 	import { forgetAccount, me } from '#lib/client/session.svelte.ts';
-	import { claimOwner, startSync, sync, syncNow } from '#lib/client/sync.svelte.ts';
+	import { sync } from '#lib/client/sync.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import Field from '#lib/ui/Field.svelte';
 	import { input } from '#lib/ui/styles.ts';
 
+	let base = $state(apiBase());
 	let server = $state(apiBase() ?? DEFAULT_SERVER);
 	let serverProblem = $state('');
-	let email = $state('');
-	let password = $state('');
-	let loginProblem = $state('');
 	let tokens = $state<PublicToken[]>([]);
 	let label = $state('Claude Code');
 	let minted = $state<string | null>(null);
-
-	const base = $derived(apiBase());
-	const statusText = $derived(
-		{
-			idle: sync.last
-				? `À jour, ${new Date(sync.last).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-				: 'En attente',
-			syncing: 'Synchronisation…',
-			offline: 'Hors ligne : les modifications partiront au retour du réseau',
-			'signed-out': 'Déconnecté du serveur',
-			'no-server': 'Aucun serveur : les données restent sur cet appareil',
-			'other-account': 'Les données de cet appareil appartiennent à un autre compte',
-			error: sync.message || 'Erreur de synchronisation'
-		}[sync.status]
-	);
+	let tokenProblem = $state('');
 
 	async function refreshTokens(): Promise<void> {
 		try {
@@ -64,21 +40,9 @@
 		try {
 			await checkServer(address);
 			setApiBase(address);
+			base = address;
 		} catch (error) {
-			serverProblem = error instanceof ApiError ? error.message : 'Adresse invalide';
-		}
-	}
-
-	async function signIn(): Promise<void> {
-		loginProblem = '';
-		try {
-			await login(email, password);
-			const account = await session();
-			me.account = account;
-			password = '';
-			if (await claimOwner(account.id)) startSync();
-		} catch (error) {
-			loginProblem = error instanceof ApiError ? error.message : 'Connexion impossible';
+			serverProblem = error instanceof ApiError ? error.message : 'That address doesn’t work.';
 		}
 	}
 
@@ -86,13 +50,29 @@
 		await logout().catch(() => undefined);
 		forgetAccount();
 		me.account = null;
+		sync.status = 'idle';
 		if (!import.meta.env.APP_BUILD) void goto('/login');
 	}
 
 	async function mint(): Promise<void> {
-		const { token } = await createToken(label.trim() || 'MCP');
-		minted = token;
-		await refreshTokens();
+		tokenProblem = '';
+		try {
+			const { token } = await createToken(label.trim() || 'MCP');
+			minted = token;
+			await refreshTokens();
+		} catch {
+			tokenProblem = 'Couldn’t create the token. Try again.';
+		}
+	}
+
+	async function revoke(id: string): Promise<void> {
+		tokenProblem = '';
+		try {
+			await revokeToken(id);
+			await refreshTokens();
+		} catch {
+			tokenProblem = 'Couldn’t revoke the token. Try again.';
+		}
 	}
 
 	function exportJson(): void {
@@ -127,87 +107,53 @@
 			class="-ml-2 flex h-11 items-center gap-1 self-start rounded-lg pr-2 text-ink-muted lg:hidden"
 			><ChevronLeft class="size-5" /> Bases</a
 		>
-		<h1 class="px-1 text-[30px] leading-9 font-bold tracking-tight">Réglages</h1>
+		<h1 class="px-1 text-[30px] leading-9 font-bold tracking-tight">Settings</h1>
 	</header>
 
 	{#if import.meta.env.APP_BUILD}
-		<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
-			<h2 class="font-semibold">Serveur</h2>
-			<p class="text-sm text-ink-muted">
-				Sans serveur, tout reste sur ce téléphone. Avec, tes données se synchronisent et l’IA
-				devient disponible.
-			</p>
-			<form
-				class="flex gap-2"
-				onsubmit={(event) => {
-					event.preventDefault();
-					void connect();
-				}}
-			>
-				<input class={input} bind:value={server} inputmode="url" aria-label="Adresse du serveur" />
-				<Button type="submit">Connecter</Button>
-			</form>
-			{#if base}<p class="text-sm">Connecté à {base}</p>{/if}
-			{#if serverProblem}<p class="text-sm" role="alert">{serverProblem}</p>{/if}
-		</section>
+		<details class="rounded-2xl bg-surface p-4" open={!base}>
+			<summary class="font-semibold">Server{base ? `: ${base}` : ''}</summary>
+			<div class="mt-3 flex flex-col gap-3">
+				<p class="text-sm text-ink-muted">
+					Without a server, everything stays on this phone. Connect one to sync and use the
+					assistant.
+				</p>
+				<form
+					class="flex gap-2"
+					onsubmit={(event) => {
+						event.preventDefault();
+						void connect();
+					}}
+				>
+					<input class={input} bind:value={server} inputmode="url" aria-label="Server address" />
+					<Button type="submit">Connect</Button>
+				</form>
+				{#if serverProblem}<p class="text-sm" role="alert">{serverProblem}</p>{/if}
+			</div>
+		</details>
 	{/if}
 
-	<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
-		<h2 class="font-semibold">Compte</h2>
-		{#if me.account}
-			<div class="flex items-center justify-between gap-3">
-				<span>{me.account.email}</span>
-				<Button size="sm" onclick={signOut}>Se déconnecter</Button>
-			</div>
-		{:else if import.meta.env.APP_BUILD && base}
-			<form
-				class="flex flex-col gap-3"
-				onsubmit={(event) => {
-					event.preventDefault();
-					void signIn();
-				}}
-			>
-				<Field label="E-mail"
-					><input class={input} type="email" bind:value={email} autocomplete="username" /></Field
-				>
-				<Field label="Mot de passe"
-					><input
-						class={input}
-						type="password"
-						bind:value={password}
-						autocomplete="current-password"
-					/></Field
-				>
-				<Button type="submit" variant="primary">Se connecter</Button>
-				{#if loginProblem}<p class="text-sm" role="alert">{loginProblem}</p>{/if}
-			</form>
-		{:else}
-			<p class="text-sm text-ink-muted">Non connecté.</p>
-		{/if}
-	</section>
-
-	<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
-		<div class="flex items-center justify-between gap-3">
-			<h2 class="font-semibold">Synchronisation</h2>
-			<Button size="sm" onclick={() => void syncNow()} disabled={!me.account}>Synchroniser</Button>
-		</div>
-		<p class="text-sm text-ink-muted">{statusText}</p>
-		{#if app.pending > 0}
-			<p class="text-sm">
-				{app.pending} modification{app.pending > 1 ? 's' : ''} seulement sur cet appareil
-			</p>
-		{/if}
-		{#if sync.status === 'other-account'}
-			<Button size="sm" onclick={() => void app.reset()}>Effacer les données de cet appareil</Button
-			>
-		{/if}
-	</section>
+	{#if base}
+		<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
+			<h2 class="font-semibold">Account</h2>
+			{#if me.account}
+				<div class="flex items-center justify-between gap-3">
+					<span>{me.account.email}</span>
+					<Button size="sm" onclick={signOut}>Sign out</Button>
+				</div>
+			{:else if me.account === null}
+				<a class="self-start font-semibold underline" href="/login?to=%2Fsettings">Sign in</a>
+			{:else}
+				<p class="text-sm text-ink-muted">Can’t reach the server right now.</p>
+			{/if}
+		</section>
+	{/if}
 
 	{#if me.account}
 		<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
 			<h2 class="font-semibold">Agents (MCP)</h2>
 			<p class="text-sm text-ink-muted">
-				Un jeton laisse Claude Code, Claude.ai ou un autre client MCP lire et modifier tes bases sur {mcpUrl}.
+				A token lets Claude Code, Claude.ai or another MCP client read and change your bases at {mcpUrl}.
 			</p>
 			<form
 				class="flex gap-2"
@@ -216,15 +162,16 @@
 					void mint();
 				}}
 			>
-				<input class={input} bind:value={label} aria-label="Nom du jeton" />
-				<Button type="submit">Créer un jeton</Button>
+				<input class={input} bind:value={label} aria-label="Token name" />
+				<Button type="submit">Create token</Button>
 			</form>
+			{#if tokenProblem}<p class="text-sm" role="alert">{tokenProblem}</p>{/if}
 			{#if minted}
 				<div class="flex flex-col gap-2 rounded-xl bg-surface-2 p-3">
-					<p class="text-sm font-medium">Copie-le maintenant : il ne sera plus affiché.</p>
+					<p class="text-sm font-medium">Copy it now. It won’t be shown again.</p>
 					<code class="font-mono text-xs break-all">{command}</code>
 					<Button size="sm" onclick={() => void navigator.clipboard.writeText(command)}
-						><Copy class="size-4" /> Copier la commande</Button
+						><Copy class="size-4" /> Copy command</Button
 					>
 				</div>
 			{/if}
@@ -233,35 +180,22 @@
 					<span class="flex flex-col">
 						<span class="text-[15px]">{token.label}</span>
 						<span class="text-xs text-ink-faint"
-							>{token.prefix}… · créé le {formatDate(
+							>{token.prefix}… · created {formatDate(
 								new Date(token.createdAt).toISOString().slice(0, 10),
 								true
 							)}</span
 						>
 					</span>
-					<Button
-						size="sm"
-						variant="ghost"
-						onclick={async () => {
-							await revokeToken(token.id);
-							await refreshTokens();
-						}}>Révoquer</Button
-					>
+					<Button size="sm" variant="ghost" onclick={() => revoke(token.id)}>Revoke</Button>
 				</div>
 			{/each}
 		</section>
 	{/if}
 
-	<section class="flex flex-col gap-3 rounded-2xl bg-surface p-4">
-		<h2 class="font-semibold">Données</h2>
-		<p class="text-sm text-ink-muted">
-			Tout ce que contient cet appareil, en JSON. Pour reprendre des données ailleurs, importe un
-			CSV depuis l’accueil.
-		</p>
-		<div><Button size="sm" onclick={exportJson}>Exporter en JSON</Button></div>
+	<section class="flex items-center justify-between gap-3 rounded-2xl bg-surface p-4">
+		<span>All data on this device</span>
+		<Button size="sm" onclick={exportJson}>Export as JSON</Button>
 	</section>
 
-	<p class="px-1 text-xs text-ink-faint">
-		Torsel {import.meta.env.APP_VERSION} · logiciel libre (MIT)
-	</p>
+	<p class="px-1 text-xs text-ink-faint">Torsel {import.meta.env.APP_VERSION}</p>
 </div>

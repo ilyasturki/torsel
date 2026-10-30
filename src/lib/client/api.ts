@@ -81,7 +81,7 @@ export async function checkServer(base: string): Promise<void> {
 	try {
 		response = await fetch(new URL('/api/health', base));
 	} catch {
-		throw new ApiError(OFFLINE, 'serveur injoignable');
+		throw new ApiError(OFFLINE, 'Can’t reach this server.');
 	}
 
 	let payload: unknown;
@@ -92,11 +92,11 @@ export async function checkServer(base: string): Promise<void> {
 	}
 
 	if (typeof payload !== 'object' || payload === null || !('ok' in payload)) {
-		throw new ApiError(response.status, 'cette adresse n’est pas un serveur Torsel');
+		throw new ApiError(response.status, 'This address isn’t a Torsel server.');
 	}
 
 	if (!response.ok) {
-		throw new ApiError(response.status, 'le serveur répond mais se dit en panne');
+		throw new ApiError(response.status, 'This server is up but reports a problem.');
 	}
 }
 
@@ -123,7 +123,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 	const base = apiBase();
 
 	if (base === null) {
-		throw new ApiError(NO_SERVER, 'aucun serveur connecté');
+		throw new ApiError(NO_SERVER, 'No server connected.');
 	}
 
 	const headers = new Headers();
@@ -145,7 +145,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 			body: body === undefined ? undefined : JSON.stringify(body)
 		});
 	} catch {
-		throw new ApiError(OFFLINE, 'serveur injoignable');
+		throw new ApiError(OFFLINE, 'Can’t reach this server.');
 	}
 
 	let payload: unknown;
