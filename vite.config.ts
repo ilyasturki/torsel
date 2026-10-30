@@ -17,9 +17,7 @@ export default defineConfig({
 	cacheDir: isAppBuild ? 'node_modules/.vite-app' : undefined,
 	define: {
 		'import.meta.env.APP_BUILD': JSON.stringify(isAppBuild),
-		'import.meta.env.DEFAULT_SERVER': JSON.stringify(
-			process.env.DEFAULT_SERVER ?? 'https://torsel.ilyasturki.com'
-		),
+		'import.meta.env.DEFAULT_SERVER': JSON.stringify(process.env.DEFAULT_SERVER ?? ''),
 		'import.meta.env.APP_VERSION': JSON.stringify(pkg.version)
 	},
 	optimizeDeps: {
