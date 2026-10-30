@@ -15,6 +15,9 @@ const PASSWORD = 'e2e-suite-password-not-secret';
 
 const ROOT = join(import.meta.dirname, '../..');
 
+// Node drops a connection idle for 5s and a loaded machine can reuse it just then; maxRetries only retries that ECONNRESET.
+export const RETRY_RESET = { maxRetries: 3 };
+
 export function newAccount(): Account {
 	const account = { email: `${randomUUID()}@e2e.test`, password: PASSWORD };
 	const created = spawnSync('node', ['scripts/account.ts', 'create', account.email], {
@@ -32,6 +35,7 @@ export function newAccount(): Account {
 /** `context.request` shares its cookies with the context's pages. */
 export async function signIn(context: BrowserContext, account: Account): Promise<void> {
 	const response = await context.request.post('/api/auth/login', {
+		...RETRY_RESET,
 		data: { email: account.email, password: account.password, client: 'web' }
 	});
 	expect(response.status(), 'sign-in through the API').toBe(204);
@@ -51,6 +55,7 @@ export async function seed<T>(
 		}
 	});
 	const response = await request.post('/api/sync', {
+		...RETRY_RESET,
 		data: { watermark: 0, push: [...push.values()] }
 	});
 	expect(response.ok(), 'seeding through /api/sync').toBe(true);

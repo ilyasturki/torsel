@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, seed, signIn, test } from './harness.ts';
+import { expect, newAccount, RETRY_RESET, seed, signIn, test } from './harness.ts';
 
 function seedRow(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -80,6 +80,7 @@ test('an expired session asks to sign in again and shows no e-mail', async ({
 	await expect
 		.poll(async () => {
 			const response = await context.request.post('/api/sync', {
+				...RETRY_RESET,
 				data: { watermark: 0, push: [] }
 			});
 			return JSON.stringify(await response.json());

@@ -1,4 +1,4 @@
-import { expect, newAccount, test } from './harness.ts';
+import { expect, newAccount, RETRY_RESET, test } from './harness.ts';
 
 test('signs in through the form and lands where it was going', async ({ page }) => {
 	const { email, password } = newAccount();
@@ -37,6 +37,7 @@ test('creates a table, adds a row and edits its cell', async ({ page, context, a
 	await expect
 		.poll(async () => {
 			const response = await context.request.post('/api/sync', {
+				...RETRY_RESET,
 				data: { watermark: 0, push: [] }
 			});
 			return JSON.stringify(await response.json());

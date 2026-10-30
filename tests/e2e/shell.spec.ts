@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, seed, test } from './harness.ts';
+import { expect, RETRY_RESET, seed, test } from './harness.ts';
 
 function seedTwoTables(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -47,12 +47,12 @@ test('the app shows the logo and serves its manifest and icons', async ({
 
 	for (const rel of ['manifest', 'apple-touch-icon']) {
 		const href = await page.locator(`link[rel="${rel}"]`).getAttribute('href');
-		const response = await context.request.get(href ?? '');
+		const response = await context.request.get(href ?? '', RETRY_RESET);
 		expect(response.status(), rel).toBe(200);
 	}
 
 	const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href');
-	const manifest = await (await context.request.get(manifestHref ?? '')).json();
+	const manifest = await (await context.request.get(manifestHref ?? '', RETRY_RESET)).json();
 	await page.goto(manifest.start_url);
 	await expect(page.getByRole('heading', { name: 'Tables' })).toBeVisible();
 });

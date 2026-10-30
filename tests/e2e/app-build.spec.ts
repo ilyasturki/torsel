@@ -1,7 +1,7 @@
 import type { BrowserContext, Page } from '@playwright/test';
 
 import type { Account } from './harness.ts';
-import { expect, newAccount, test } from './harness.ts';
+import { expect, newAccount, RETRY_RESET, test } from './harness.ts';
 
 const SERVER = process.env.TORSEL_TEST_BASE ?? '';
 
@@ -24,10 +24,14 @@ function deviceHeaders(page: Page): Promise<{ authorization: string }> {
 
 async function revokeDevice(page: Page, context: BrowserContext): Promise<void> {
 	const headers = await deviceHeaders(page);
-	const listed = await context.request.get(`${SERVER}/api/auth/tokens`, { headers });
+	const listed = await context.request.get(`${SERVER}/api/auth/tokens`, {
+		...RETRY_RESET,
+		headers
+	});
 	const tokens: { id: string; kind: string }[] = await listed.json();
 	const device = tokens.find((token) => token.kind === 'device');
 	const revoked = await context.request.delete(`${SERVER}/api/auth/tokens/${device?.id}`, {
+		...RETRY_RESET,
 		headers
 	});
 	expect(revoked.ok()).toBe(true);
@@ -76,6 +80,7 @@ test('the server section collapses once connected, and data reaches the server',
 	await expect
 		.poll(async () => {
 			const response = await context.request.post(`${SERVER}/api/sync`, {
+				...RETRY_RESET,
 				headers,
 				data: { watermark: 0, push: [] }
 			});
