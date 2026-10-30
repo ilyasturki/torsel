@@ -191,12 +191,10 @@
 			.map((row) => {
 				const value = dateField ? row.data[dateField.id] : null;
 				const date = typeof value === 'string' ? value.slice(0, 10) : '';
-				const changed = date !== previous;
+				const day =
+					date === previous || date === '' ? '' : date === today ? 'Today' : formatDate(date);
 				previous = date;
-				return {
-					row,
-					day: !changed || date === '' ? null : date === today ? 'Today' : formatDate(date)
-				};
+				return { row, day };
 			});
 	});
 
@@ -214,22 +212,13 @@
 		<div class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden lg:pb-tabs-clear">
 			<ul class="flex flex-col">
 				{#each recent as { row, day } (row.id)}
-					{#if day !== null}
-						<li class="flex h-8 shrink-0 items-center gap-3 px-4 text-sm font-medium text-ink-3">
-							<span class="min-w-0 flex-1 truncate">{day}</span>
-							{#each numbers as field (field.id)}
-								<span class="w-14 shrink-0 truncate text-right">{field.name}</span>
-							{/each}
-						</li>
-					{/if}
 					<li
 						class="flex h-9 shrink-0 items-center gap-3 px-4 transition-colors motion hover:bg-tint"
 					>
+						<span class="w-16 shrink-0 truncate text-ink-2">{day}</span>
 						<span class="min-w-0 flex-1 truncate">
 							{#if keys[0] !== undefined}
 								<CellValue field={keys[0]} value={row.data[keys[0].id]} />
-							{:else}
-								{summary(row)}
 							{/if}
 						</span>
 						{#each numbers as field (field.id)}
@@ -334,7 +323,6 @@
 					<Stepper
 						label={field.name}
 						size={stepperSize}
-						ghost={!touched[field.id]}
 						text={texts[field.id] ?? (typeof value === 'number' ? formatNumber(value) : '')}
 						oninput={(text) => {
 							texts[field.id] = text;

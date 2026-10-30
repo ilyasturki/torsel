@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatNumber } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
@@ -69,7 +71,7 @@
 			step = field?.step ? formatNumber(field.step) : '';
 			newChoice = '';
 			problem = '';
-			start = snapshot();
+			start = untrack(snapshot);
 		}
 	});
 

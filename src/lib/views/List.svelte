@@ -132,10 +132,13 @@
 					{#if show.length > 0}
 						<span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
 							{#each show as field (field.id)}
-								<span class="inline-flex items-center gap-1">
-									<span class="text-ink-3">{field.name}</span>
-									<CellValue {field} value={valueOf(row, field)} />
-								</span>
+								{@const value = valueOf(row, field)}
+								{#if value !== null && value !== undefined && value !== ''}
+									<span class="inline-flex items-center gap-1">
+										<span class="text-ink-3">{field.name}</span>
+										<CellValue {field} {value} />
+									</span>
+								{/if}
 							{/each}
 						</span>
 					{/if}

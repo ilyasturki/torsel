@@ -34,6 +34,7 @@
 			if (on !== null) {
 				indicator.style.width = `${on.offsetWidth}px`;
 				indicator.style.transform = `translateX(${on.offsetLeft}px)`;
+				node.scrollTo({ left: on.offsetLeft - (node.clientWidth - on.offsetWidth) / 2 });
 			}
 		};
 		const mutations = new MutationObserver(move);
@@ -61,40 +62,37 @@
 	const thumb = { inset: 'bg-float shadow-raised', float: 'bg-tint-2' };
 </script>
 
-<div
-	class="relative inline-flex max-w-full hide-scrollbar overflow-x-auto {shell[tone]} {extra}"
-	role="group"
-	aria-label={label}
-	use:slide
->
-	<i
-		data-indicator
-		class="pointer-events-none absolute top-0 left-0 h-control rounded-box transition-[transform,width] motion-slow {thumb[
-			tone
-		]} {tone === 'inset' ? 'mt-0.5' : 'mt-1'}"
-	></i>
-	{#each items as item (item.id)}
-		{#if item.href !== undefined}
-			<a
-				href={item.href}
-				class="relative flex h-control shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
-					? 'text-ink'
-					: 'text-ink-2'}"
-				data-on={item.active === true}
-				aria-current={item.active ? 'page' : undefined}
-				onclick={item.onclick}>{item.label}</a
-			>
-		{:else}
-			<button
-				type="button"
-				class="relative flex h-control shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
-					? 'text-ink'
-					: 'text-ink-2'}"
-				data-on={item.active === true}
-				aria-pressed={item.active === true}
-				onclick={item.onclick}>{item.label}</button
-			>
-		{/if}
-	{/each}
+<div class="inline-flex max-w-full {shell[tone]} {extra}" role="group" aria-label={label}>
+	<div class="relative flex min-w-0 hide-scrollbar overflow-x-auto" use:slide>
+		<i
+			data-indicator
+			class="pointer-events-none absolute top-0 left-0 h-control rounded-box transition-[transform,width] motion-slow {thumb[
+				tone
+			]}"
+		></i>
+		{#each items as item (item.id)}
+			{#if item.href !== undefined}
+				<a
+					href={item.href}
+					class="relative flex h-control shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
+						? 'text-ink'
+						: 'text-ink-2'}"
+					data-on={item.active === true}
+					aria-current={item.active ? 'page' : undefined}
+					onclick={item.onclick}>{item.label}</a
+				>
+			{:else}
+				<button
+					type="button"
+					class="relative flex h-control shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
+						? 'text-ink'
+						: 'text-ink-2'}"
+					data-on={item.active === true}
+					aria-pressed={item.active === true}
+					onclick={item.onclick}>{item.label}</button
+				>
+			{/if}
+		{/each}
+	</div>
 	{#if after}{@render after()}{/if}
 </div>

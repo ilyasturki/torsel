@@ -4,14 +4,12 @@
 	let {
 		label,
 		text,
-		ghost = false,
 		size = 'md',
 		oninput,
 		onstep
 	}: {
 		label: string;
 		text: string;
-		ghost?: boolean;
 		size?: 'sm' | 'md' | 'lg';
 		oninput: (text: string) => void;
 		onstep: (direction: 1 | -1) => void;
@@ -33,9 +31,7 @@
 	<label class="relative flex min-w-0 flex-1 items-center justify-center">
 		<span class="absolute inset-x-0 top-2 text-center text-sm font-medium text-ink-3">{label}</span>
 		<input
-			class="w-full min-w-0 bg-transparent pt-3 text-center leading-none font-semibold tighter outline-none {ghost
-				? 'text-ink-2'
-				: 'text-ink'}"
+			class="w-full min-w-0 bg-transparent pt-3 text-center leading-none font-semibold tighter text-ink outline-none"
 			inputmode="decimal"
 			aria-label={label}
 			value={text}

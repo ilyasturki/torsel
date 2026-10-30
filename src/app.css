@@ -241,7 +241,6 @@ body {
 	background: var(--canvas);
 	color: var(--ink);
 	font-family: var(--font-sans);
-	font-size: var(--size-base);
 	line-height: 1.35;
 	font-variant-numeric: tabular-nums;
 	-webkit-tap-highlight-color: transparent;
@@ -250,6 +249,7 @@ body {
 body {
 	margin: 0;
 	min-height: 100dvh;
+	font-size: var(--size-base);
 }
 
 button {
@@ -258,5 +258,5 @@ button {
 
 :focus-visible {
 	outline: 2px solid var(--ink);
-	outline-offset: 1px;
+	outline-offset: -2px;
 }

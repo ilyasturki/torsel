@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	import { goto } from '$app/navigation';
 
 	import { app } from '#lib/client/app.svelte.ts';
@@ -45,7 +47,7 @@
 			name = view?.name ?? '';
 			type = view?.type ?? 'grid';
 			config = structuredClone($state.snapshot(view?.config ?? {}));
-			start = snapshot();
+			start = untrack(snapshot);
 		}
 	});
 
