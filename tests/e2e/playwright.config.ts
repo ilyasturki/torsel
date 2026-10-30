@@ -14,9 +14,10 @@ export default defineConfig({
 	globalSetup: './global-setup.ts',
 	forbidOnly: true,
 	reporter: [['list']],
-	// Dev mode compiles each route on its first visit, which can take seconds.
-	timeout: 60_000,
-	expect: { timeout: 10_000 },
+	workers: 4,
+	// Each context refetches the dev server's unbundled modules, which takes seconds and more on a busy machine.
+	timeout: 180_000,
+	expect: { timeout: 45_000 },
 	outputDir: process.env.TORSEL_TEST_OUTPUT,
 	use: {
 		baseURL: base,

@@ -15,7 +15,6 @@ const PASSWORD = 'e2e-suite-password-not-secret';
 
 const ROOT = join(import.meta.dirname, '../..');
 
-/** Accounts only exist through the CLI, so a spec's account is made the way an operator makes one. */
 export function newAccount(): Account {
 	const account = { email: `${randomUUID()}@e2e.test`, password: PASSWORD };
 	const created = spawnSync('node', ['scripts/account.ts', 'create', account.email], {
@@ -38,7 +37,6 @@ export async function signIn(context: BrowserContext, account: Account): Promise
 	expect(response.status(), 'sign-in through the API').toBe(204);
 }
 
-/** Lays data down on the server as a client's sync would, for what a spec does not itself exercise. */
 export async function seed<T>(
 	request: APIRequestContext,
 	build: (ws: Workspace, commit: (changes: Change[]) => void) => T
@@ -67,7 +65,6 @@ const IGNORED_CONSOLE = [
 	/Failed to load resource: net::ERR_INTERNET_DISCONNECTED/u
 ];
 
-/** Fails the test on a runtime error, a console error or a server 5xx. */
 export function watchErrors(page: Page, errors: string[]): void {
 	page.on('pageerror', (error) => errors.push(error.message));
 	page.on('response', (response) => {
@@ -84,7 +81,6 @@ export function watchErrors(page: Page, errors: string[]): void {
 }
 
 type Fixtures = {
-	/** A fresh account, signed in on this test's context. */
 	account: Account;
 	pageErrors: string[];
 };
