@@ -10,7 +10,7 @@ function seedRow(request: APIRequestContext) {
 		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }]);
 		commit(table.changes);
 		commit(insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat' }]).changes);
-		return `/b/${base.id}/${table.id}`;
+		return `/app/t/${table.id}`;
 	});
 }
 
@@ -26,7 +26,7 @@ test('holds the strict minimum, and says nothing about a sync that works', async
 	page,
 	account
 }) => {
-	await page.goto('/settings');
+	await page.goto('/app/settings');
 
 	await expect(page.getByText(account.email)).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
@@ -35,7 +35,7 @@ test('holds the strict minimum, and says nothing about a sync that works', async
 	await expect(page.getByText('Torsel 0.0.0')).toBeVisible();
 
 	await expect(page.getByLabel('Server address')).toHaveCount(0);
-	await expect(page.getByPlaceholder(/Que veux-tu/u)).toHaveCount(0);
+	await expect(page.getByPlaceholder('Ask about your tables')).toBeHidden();
 	await expect(page.getByRole('status')).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /sync/iu })).toHaveCount(0);
 });
@@ -70,10 +70,10 @@ test('an expired session asks to sign in again and shows no e-mail', async ({
 	await expect(page.getByRole('status')).toContainText('Session expired, sign in again');
 
 	await page.getByRole('link', { name: 'sign in again' }).click();
-	await expect(page).toHaveURL(/\/login\?to=/u);
-	await page.getByLabel('E-mail').fill(account.email);
-	await page.getByLabel('Mot de passe').fill(account.password);
-	await page.getByRole('button', { name: 'Se connecter' }).click();
+	await expect(page).toHaveURL(/\/app\/login\?to=/u);
+	await page.getByLabel('Email').fill(account.email);
+	await page.getByLabel('Password').fill(account.password);
+	await page.getByRole('button', { name: 'Sign in' }).click();
 
 	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
 	await expect(page.getByRole('status')).toHaveCount(0);
@@ -92,7 +92,7 @@ test('after a 401 the settings offer a sign-in link instead of the e-mail', asyn
 	context,
 	account
 }) => {
-	await page.goto('/settings');
+	await page.goto('/app/settings');
 	await expect(page.getByText(account.email)).toBeVisible();
 
 	await context.clearCookies();
@@ -136,13 +136,13 @@ test('another account’s unsynced data can be erased', async ({ page, context, 
 	await expect(page.getByRole('status')).toContainText('another account’s data');
 	await page.getByRole('button', { name: 'erase it' }).click();
 	await expect(page.getByRole('status')).toHaveCount(0);
-	await page.goto('/');
-	await expect(page.getByText('Gym')).toHaveCount(0);
+	await page.goto('/app');
+	await expect(page.getByText('Lifts')).toHaveCount(0);
 });
 
 test('token errors are shown, and a token can be minted and revoked', async ({ page, account }) => {
 	void account;
-	await page.goto('/settings');
+	await page.goto('/app/settings');
 	await expect(page.getByRole('button', { name: 'Create token' })).toBeVisible();
 
 	await page.route('**/api/auth/tokens', (route) =>

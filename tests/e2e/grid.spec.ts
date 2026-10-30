@@ -42,7 +42,7 @@ function seedEveryType(request: APIRequestContext) {
 			]).changes
 		);
 
-		return { path: `/b/${base.id}/${table.id}` };
+		return { path: `/app/t/${table.id}` };
 	});
 }
 
@@ -98,7 +98,7 @@ test('the add-field column stays reachable when the fields outgrow the screen', 
 	const { path } = await seedEveryType(context.request);
 	await page.goto(path);
 
-	const add = page.getByRole('button', { name: 'Ajouter un champ' });
+	const add = page.getByRole('button', { name: 'Add a field' });
 	const column = await page.locator('thead th').filter({ has: add }).boundingBox();
 	expect(column?.width).toBe(44);
 

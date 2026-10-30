@@ -3,7 +3,7 @@ import { chromium } from '@playwright/test';
 
 import { newAccount } from './harness.ts';
 
-const ROUTES = ['/', '/settings', '/b/warm/up'];
+const ROUTES = ['/', '/app', '/app/settings', '/app/t/warm'];
 
 // Vite's dependency discovery reloads a first visit mid-navigation: pay it once per server here.
 export default async function globalSetup(): Promise<void> {
@@ -15,7 +15,7 @@ export default async function globalSetup(): Promise<void> {
 	await signedIn.request.post('/api/auth/login', {
 		data: { email: account.email, password: account.password, client: 'web' }
 	});
-	await visit(await signedIn.newPage(), ['/login', ...ROUTES]);
+	await visit(await signedIn.newPage(), ['/app/login', ...ROUTES]);
 
 	const app = await browser.newContext({ baseURL: process.env.TORSEL_TEST_APP_BASE });
 	await visit(await app.newPage(), ROUTES);
