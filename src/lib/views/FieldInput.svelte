@@ -7,7 +7,7 @@
 
 	let {
 		field,
-		value = $bindable(null),
+		value = $bindable(),
 		computed = null,
 		id
 	}: { field: FieldDef; value?: Value; computed?: Value; id?: string } = $props();
