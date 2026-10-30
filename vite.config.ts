@@ -13,6 +13,8 @@ const adapter = isAppBuild
 	: node({ out: 'build/server' });
 
 export default defineConfig({
+	// Both targets' dev servers run side by side in the e2e suite, and a shared dependency cache has them clobber each other.
+	cacheDir: isAppBuild ? 'node_modules/.vite-app' : undefined,
 	define: {
 		'import.meta.env.APP_BUILD': JSON.stringify(isAppBuild),
 		'import.meta.env.DEFAULT_SERVER': JSON.stringify(
