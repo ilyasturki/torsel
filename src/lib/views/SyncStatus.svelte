@@ -14,7 +14,10 @@
 </script>
 
 {#if sync.status !== 'idle' && (sync.status !== 'offline' || app.pending > 0)}
-	<p role="status" class="flex shrink-0 items-center gap-1 pt-1 font-medium">
+	<p
+		role="status"
+		class="flex shrink-0 items-center gap-1 pt-1 font-medium max-lg:order-last max-lg:basis-full max-lg:flex-wrap"
+	>
 		{#if sync.status === 'offline'}
 			Offline, {app.pending} change{app.pending === 1 ? '' : 's'} waiting
 		{:else if sync.status === 'signed-out'}

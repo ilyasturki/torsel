@@ -102,15 +102,17 @@
 	{@render children()}
 {:else}
 	<div class="relative flex h-dvh flex-col overflow-clip pt-safe">
-		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5">
+		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5 max-lg:flex-wrap">
 			<a href={HOME} class="mr-1 shrink-0 text-ink-2 hover:text-ink">
 				<Logo wordmark class="h-4 max-sm:hidden" />
 				<Logo class="h-5 sm:hidden" />
 			</a>
-			<h1 class="min-w-0 truncate text-xl font-semibold tight">{heading}</h1>
-			{#if table !== undefined}
-				<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
-			{/if}
+			<div class="flex min-w-0 items-center gap-3 max-lg:flex-1">
+				<h1 class="min-w-0 truncate text-xl font-semibold tight">{heading}</h1>
+				{#if table !== undefined}
+					<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
+				{/if}
+			</div>
 			<SyncStatus />
 			<div class="ml-auto flex shrink-0 items-center gap-1">
 				<Button
