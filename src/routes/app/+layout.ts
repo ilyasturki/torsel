@@ -17,7 +17,7 @@ export const prerender = false;
 export const load: LayoutLoad = async ({ url }) => {
 	await app.load();
 
-	if (url.pathname === '/login') {
+	if (url.pathname === '/app/login') {
 		return { account: null };
 	}
 
@@ -32,7 +32,7 @@ export const load: LayoutLoad = async ({ url }) => {
 				}
 				if (error.status === 401) {
 					if (!import.meta.env.APP_BUILD) {
-						redirect(307, `/login?to=${encodeURIComponent(url.pathname + url.search)}`);
+						redirect(307, `/app/login?to=${encodeURIComponent(url.pathname + url.search)}`);
 					}
 					sync.status = 'signed-out';
 				} else if (error.status !== NO_SERVER) {

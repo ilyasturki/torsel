@@ -19,7 +19,7 @@
 			Offline, {app.pending} change{app.pending === 1 ? '' : 's'} waiting
 		{:else if sync.status === 'signed-out'}
 			Session expired,
-			<a class={action} href="/login?to={encodeURIComponent(page.url.pathname + page.url.search)}"
+			<a class={action} href="/app/login?to={encodeURIComponent(page.url.pathname + page.url.search)}"
 				>sign in again</a
 			>
 		{:else if sync.status === 'error'}

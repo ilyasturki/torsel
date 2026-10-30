@@ -38,26 +38,26 @@
 	function create(name: string): void {
 		const { id, changes } = createTable(app.ws, baseId, name, [{ name: 'Nom', type: 'text' }]);
 		app.apply(changes, `Table « ${name} » créée`);
-		void goto(`/b/${baseId}/${id}`);
+		void goto(`/app/b/${baseId}/${id}`);
 	}
 
 	function remove(): void {
 		if (base === undefined) return;
 		const group = app.apply(deleteRecords(app.ws, [base.id]), `Base « ${base.name} » supprimée`);
 		showToast(`Base « ${base.name} » supprimée`, group?.id ?? null);
-		void goto('/');
+		void goto('/app');
 	}
 </script>
 
 {#if base === undefined}
 	<p class="pt-10 text-center text-ink-muted">
-		Cette base n’existe pas, ou plus. <a class="underline" href="/">Retour</a>
+		Cette base n’existe pas, ou plus. <a class="underline" href="/app">Retour</a>
 	</p>
 {:else}
 	<div class="mx-auto flex max-w-2xl flex-col gap-5 pt-1">
 		<header class="flex flex-col gap-1">
 			<a
-				href="/"
+				href="/app"
 				class="-ml-2 flex h-11 items-center gap-1 self-start rounded-lg pr-2 text-ink-muted lg:hidden"
 				><ChevronLeft class="size-5" /> Bases</a
 			>
@@ -78,7 +78,7 @@
 			<div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
 				{#each tables as table (table.id)}
 					<a
-						href="/b/{baseId}/{table.id}"
+						href="/app/b/{baseId}/{table.id}"
 						class="flex min-h-16 items-center gap-3 border-b border-line-soft px-4 py-3 last:border-b-0 hover:bg-hover"
 					>
 						<span class="flex flex-1 flex-col">

@@ -62,19 +62,19 @@
 		if (table === undefined) return;
 		const group = app.apply(deleteRecords(app.ws, [table.id]), `Table « ${table.name} » supprimée`);
 		showToast(`Table « ${table.name} » supprimée`, group?.id ?? null);
-		void goto(`/b/${baseId}`);
+		void goto(`/app/b/${baseId}`);
 	}
 </script>
 
 {#if table === undefined || base === undefined}
 	<p class="pt-10 text-center text-ink-muted">
-		Cette table n’existe pas, ou plus. <a class="underline" href="/">Retour</a>
+		Cette table n’existe pas, ou plus. <a class="underline" href="/app">Retour</a>
 	</p>
 {:else}
 	<div class="flex flex-col gap-3">
 		<header class="flex flex-col gap-1">
 			<a
-				href="/b/{baseId}"
+				href="/app/b/{baseId}"
 				class="-ml-2 flex h-11 items-center gap-1 self-start rounded-lg pr-2 text-ink-muted lg:hidden"
 				><ChevronLeft class="size-5" /> {base.name}</a
 			>
@@ -100,7 +100,7 @@
 		>
 			{#each views as item (item.id)}
 				<a
-					href="/b/{baseId}/{tableId}?v={item.id}"
+					href="/app/b/{baseId}/{tableId}?v={item.id}"
 					class="flex h-11 shrink-0 items-center px-3 text-[15px] whitespace-nowrap {item.id ===
 					view?.id
 						? 'font-semibold text-ink shadow-[inset_0_-2px_0_var(--ink)]'

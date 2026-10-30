@@ -16,8 +16,8 @@
 	let busy = $state(false);
 
 	function destination(): string {
-		const to = page.url.searchParams.get('to') ?? '/';
-		return to.startsWith('/') && !to.startsWith('//') ? to : '/';
+		const to = page.url.searchParams.get('to') ?? '/app';
+		return to === '/app' || to.startsWith('/app/') || to.startsWith('/app?') ? to : '/app';
 	}
 
 	async function submit(): Promise<void> {

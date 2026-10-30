@@ -82,7 +82,7 @@
 		const group = app.apply(changes, `Import de ${rows.length - 1} lignes`);
 		showToast(`${rows.length - 1} lignes importées dans « ${label} »`, group?.id ?? null);
 		open = false;
-		void goto(`/b/${base}/${id}`);
+		void goto(`/app/b/${base}/${id}`);
 	}
 </script>
 

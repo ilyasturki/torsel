@@ -81,7 +81,7 @@
 			});
 			app.apply(changes, `Vue « ${label} » ajoutée`);
 			const table = app.ws.table(tableId);
-			if (table) void goto(`/b/${table.base}/${tableId}?v=${id}`);
+			if (table) void goto(`/app/b/${table.base}/${tableId}?v=${id}`);
 		} else {
 			app.apply(
 				updateRecord(app.ws, existing.id, { name: label, config: clean }),
@@ -100,7 +100,7 @@
 		showToast(`Vue « ${existing.name} » supprimée`, group?.id ?? null);
 		open = false;
 		const table = app.ws.table(tableId);
-		if (table) void goto(`/b/${table.base}/${tableId}`);
+		if (table) void goto(`/app/b/${table.base}/${tableId}`);
 	}
 
 	const checked = (

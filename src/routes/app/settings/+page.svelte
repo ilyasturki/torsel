@@ -51,7 +51,7 @@
 		forgetAccount();
 		me.account = null;
 		sync.status = 'idle';
-		if (!import.meta.env.APP_BUILD) void goto('/login');
+		if (!import.meta.env.APP_BUILD) void goto('/app/login');
 	}
 
 	async function mint(): Promise<void> {
@@ -103,7 +103,7 @@
 <div class="mx-auto flex max-w-2xl flex-col gap-6 pt-1">
 	<header class="flex flex-col gap-1">
 		<a
-			href="/"
+			href="/app"
 			class="-ml-2 flex h-11 items-center gap-1 self-start rounded-lg pr-2 text-ink-muted lg:hidden"
 			><ChevronLeft class="size-5" /> Bases</a
 		>
@@ -142,7 +142,7 @@
 					<Button size="sm" onclick={signOut}>Sign out</Button>
 				</div>
 			{:else if me.account === null}
-				<a class="self-start font-semibold underline" href="/login?to=%2Fsettings">Sign in</a>
+				<a class="self-start font-semibold underline" href="/app/login?to=%2Fapp%2Fsettings">Sign in</a>
 			{:else}
 				<p class="text-sm text-ink-muted">Can’t reach the server right now.</p>
 			{/if}
