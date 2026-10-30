@@ -42,7 +42,8 @@ afterEach(() => {
 	for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-describe('createDatabase beside another process', () => {
+// A spawned process and a real lock took 7s at load 40, past vitest's 5s default.
+describe('createDatabase beside another process', { timeout: 60_000 }, () => {
 	it('waits for the lock while opening, not only once it is open', async () => {
 		const file = tempFile();
 		const setup = new DatabaseSync(file);
