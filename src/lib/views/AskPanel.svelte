@@ -52,7 +52,7 @@
 <svelte:window {onkeydown} />
 
 <aside
-	class="absolute top-3 right-gutter bottom-5 z-20 flex w-ask flex-col rounded-panel bg-float shadow-float transition-[transform,visibility] motion-slow max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:w-auto max-lg:rounded-none max-lg:pt-safe {open
+	class="absolute top-3 right-gutter bottom-5 z-20 flex w-ask flex-col rounded-panel bg-float shadow-float transition-[transform,visibility] motion-slow max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:w-auto max-lg:rounded-none max-lg:pt-safe max-lg:pb-safe {open
 		? 'visible translate-x-0'
 		: 'invisible translate-x-ask-out'}"
 	aria-label="Ask"
@@ -87,7 +87,7 @@
 	</div>
 
 	<form
-		class="m-2 mt-0 flex shrink-0 items-end gap-2 rounded-box bg-tint p-2 pb-safe"
+		class="m-2 mt-0 flex shrink-0 items-end gap-2 rounded-box bg-tint p-2"
 		onsubmit={(event) => {
 			event.preventDefault();
 			void submit();

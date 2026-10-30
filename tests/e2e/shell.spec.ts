@@ -1,4 +1,4 @@
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import { expect, seed, test } from './harness.ts';
@@ -191,6 +191,37 @@ test('a sheet focuses its first field and never drops a half-filled row', async 
 
 	await page.getByRole('button', { name: 'Discard' }).click();
 	await expect(dialog).toHaveCount(0);
+});
+
+test('a sheet and the assistant keep room under their buttons', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(`/app/t/${lifts}`);
+
+	const gapBelow = async (outer: Locator, inner: Locator): Promise<number> => {
+		await expect(inner).toBeVisible();
+		const [outerBox, innerBox] = await Promise.all([outer.boundingBox(), inner.boundingBox()]);
+		return (
+			(outerBox?.y ?? 0) + (outerBox?.height ?? 0) - (innerBox?.y ?? 0) - (innerBox?.height ?? 0)
+		);
+	};
+
+	await page.getByRole('button', { name: /^Ask/u }).click();
+	const composer = page
+		.locator('form')
+		.filter({ has: page.getByPlaceholder('Ask about your tables') });
+	expect(await gapBelow(composer, composer.getByRole('button', { name: 'Send' }))).toBeGreaterThan(
+		0
+	);
+	await page.keyboard.press('Escape');
+
+	await page.getByRole('button', { name: 'Add row' }).click();
+	const sheet = page.getByRole('dialog');
+	expect(await gapBelow(sheet, sheet.getByRole('button', { name: 'Save' }))).toBeGreaterThan(0);
 });
 
 test('the table menu renames the table, opens view settings and adds a view', async ({

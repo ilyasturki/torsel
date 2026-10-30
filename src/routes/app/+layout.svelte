@@ -192,7 +192,7 @@
 		</div>
 
 		<div
-			class="pointer-events-none absolute inset-x-gutter bottom-8 flex justify-center transition-[right] motion-slow max-sm:bottom-3 {asking
+			class="pointer-events-none absolute inset-x-gutter bottom-8 flex justify-center pb-safe transition-[right] motion-slow max-sm:bottom-3 {asking
 				? 'lg:right-tabs-ask'
 				: ''}"
 		>

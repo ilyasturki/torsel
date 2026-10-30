@@ -5,7 +5,7 @@
 {#if toast.text}
 	{#key toast.seq}
 		<div
-			class="pointer-events-none absolute inset-x-gutter bottom-20 z-30 flex enter justify-center max-sm:bottom-16"
+			class="pointer-events-none absolute inset-x-gutter bottom-20 z-30 flex enter justify-center pb-safe max-sm:bottom-16"
 			role="status"
 		>
 			<div

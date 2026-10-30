@@ -55,7 +55,7 @@
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
 		<Dialog.Content
-			class="fixed inset-x-0 bottom-0 z-50 flex max-h-sheet-max flex-col rounded-panel bg-float shadow-float outline-none sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-4 sm:max-h-none sm:w-sheet"
+			class="fixed inset-x-0 bottom-0 z-50 flex max-h-sheet-max flex-col rounded-panel bg-float pb-safe shadow-float outline-none sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-4 sm:max-h-none sm:w-sheet"
 			onOpenAutoFocus={focusFirstControl}
 			onEscapeKeydown={guard}
 			onInteractOutside={guard}
@@ -81,7 +81,7 @@
 			</div>
 			{#if confirming}
 				<div
-					class="flex shrink-0 items-center gap-2 p-4 pt-2 pb-safe"
+					class="flex shrink-0 items-center gap-2 p-4 pt-2"
 					role="alertdialog"
 					aria-label="Discard changes"
 				>
@@ -90,7 +90,7 @@
 					<Button variant="primary" onclick={() => (open = false)}>Discard</Button>
 				</div>
 			{:else if footer}
-				<div class="flex shrink-0 gap-2 p-4 pt-2 pb-safe">
+				<div class="flex shrink-0 gap-2 p-4 pt-2">
 					{@render footer()}
 				</div>
 			{/if}

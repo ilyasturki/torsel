@@ -174,7 +174,7 @@
 	--spacing-control: var(--control);
 	--spacing-cta: var(--cta);
 	--spacing-gutter: var(--gutter);
-	--spacing-tabs-clear: var(--tabs-clear);
+	--spacing-tabs-clear: calc(var(--tabs-clear) + env(safe-area-inset-bottom));
 
 	--color-canvas: var(--canvas);
 	--color-raised: var(--raised);
