@@ -320,6 +320,13 @@ test('entry steps a value and adds the row', async ({ page, context, account }) 
 	await page.getByRole('button', { name: 'Add row' }).click();
 
 	await expect(page.getByText('2 rows')).toBeVisible();
+	await expect(page.getByRole('status')).toContainText('Row added');
+	const free = await page.getByRole('button', { name: 'Add row' }).evaluate((button) => {
+		const { left, top, width, height } = button.getBoundingClientRect();
+		return button.contains(document.elementFromPoint(left + width / 2, top + height / 2));
+	});
+	expect(free, 'the toast leaves Add row free for the next set').toBe(true);
+
 	await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });
