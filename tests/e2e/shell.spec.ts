@@ -115,6 +115,27 @@ test('bases group the home only once there is more than one', async ({
 	await expect(page.getByRole('heading', { name: 'Money', level: 2 })).toBeVisible();
 });
 
+test('the floating tabs stay above a long table', async ({ page, context, account }) => {
+	void account;
+	const { lifts } = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Tables');
+		commit(base.changes);
+		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Reps', type: 'number' }]);
+		commit(table.changes);
+		const rows = Array.from({ length: 40 }, (_, reps) => ({ [table.fieldIds[0]]: reps }));
+		commit(insertRows(ws, table.id, rows).changes);
+		for (const name of ['Body weight', 'Expenses', 'Reading list']) {
+			commit(createTable(ws, base.id, name, [{ name: 'Value', type: 'text' }]).changes);
+		}
+		return { lifts: table.id };
+	});
+	await page.goto(`/app/t/${lifts}`);
+	await expect(page.locator('tbody tr').nth(39)).toBeAttached();
+
+	await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'All' }).click();
+	await expect(page).toHaveURL(/\/app$/u);
+});
+
 test('the assistant stays out of the way until it is opened', async ({
 	page,
 	context,

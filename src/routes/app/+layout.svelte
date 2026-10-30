@@ -180,7 +180,7 @@
 
 		<div class="relative flex min-h-0 flex-1 px-gutter pt-3 pb-5 max-sm:px-0 max-sm:pb-0">
 			<main
-				class="min-w-0 flex-1 overflow-auto rounded-panel bg-raised shadow-raised transition-[margin] motion-slow max-sm:rounded-none max-sm:bg-transparent max-sm:shadow-none {asking
+				class="isolate min-w-0 flex-1 overflow-auto rounded-panel bg-raised shadow-raised transition-[margin] motion-slow max-sm:rounded-none max-sm:bg-transparent max-sm:shadow-none {asking
 					? 'lg:mr-ask-clear'
 					: ''}"
 			>
