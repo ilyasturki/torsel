@@ -3,7 +3,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 import type { Account } from './harness.ts';
 import { expect, newAccount, RETRY_RESET, test } from './harness.ts';
 
-const SERVER = process.env.TORSEL_TEST_BASE ?? '';
+const SERVER = process.env.TORSEL_TEST_APP_SERVER ?? '';
 
 async function connectAndSignIn(page: Page, account: Account): Promise<void> {
 	await page.goto('/app/settings');

@@ -18,11 +18,11 @@ const ROOT = join(import.meta.dirname, '../..');
 // Node drops a connection idle for 5s and a loaded machine can reuse it just then; maxRetries only retries that ECONNRESET.
 export const RETRY_RESET = { maxRetries: 3 };
 
-export function newAccount(): Account {
+export function newAccount(database: string = base.info().project.metadata.database): Account {
 	const account = { email: `${randomUUID()}@e2e.test`, password: PASSWORD };
 	const created = spawnSync('node', ['scripts/account.ts', 'create', account.email], {
 		cwd: ROOT,
-		env: { ...process.env, DATABASE_PATH: process.env.TORSEL_TEST_DB },
+		env: { ...process.env, DATABASE_PATH: database },
 		input: account.password,
 		encoding: 'utf8'
 	});

@@ -6,11 +6,23 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+const args = process.argv.slice(2);
+const dev = args.includes('--dev');
 const root = process.cwd();
 const suite = join(root, 'tests/e2e');
 // Outside the root: Vite reloads every page when an HTML file appears under it, and Playwright's traces hold some.
 const runDir = mkdtempSync(join(tmpdir(), 'torsel-e2e-'));
 const bin = join(root, 'node_modules/.bin');
+
+type Target = { base: string; database: string };
+type Stack = {
+	desktop: Target;
+	phone: Target;
+	app: Target;
+	appServer: string;
+	// What must answer before the suite starts.
+	probes: string[];
+};
 
 function freePort(): Promise<number> {
 	return new Promise((resolve, reject) => {
@@ -29,37 +41,119 @@ function freePort(): Promise<number> {
 	});
 }
 
-function run(command: string, args: string[], cwd: string): void {
-	const { status } = spawnSync(command, args, { cwd, stdio: 'inherit' });
+function run(command: string, commandArgs: string[], cwd: string): void {
+	const { status } = spawnSync(command, commandArgs, { cwd, stdio: 'inherit' });
 	if (status !== 0) {
-		throw new Error(`${command} ${args.join(' ')} exited ${status}`);
+		throw new Error(`${command} ${commandArgs.join(' ')} exited ${status}`);
 	}
 }
 
 const servers: ChildProcess[] = [];
 
-function boot(name: string, port: number, env: Record<string, string>): void {
+function boot(
+	name: string,
+	command: string,
+	commandArgs: string[],
+	env: Record<string, string> = {}
+): void {
 	const log = openSync(join(runDir, `${name}.log`), 'a');
-	const server = spawn(
+	const server = spawn(command, commandArgs, {
+		cwd: root,
+		// Blank, not absent: `.env` only fills what the environment leaves unset.
+		env: {
+			...process.env,
+			ANTHROPIC_API_KEY: '',
+			TORSEL_AI_MODEL: '',
+			ORIGIN: '',
+			MIGRATIONS_DIR: '',
+			...env
+		},
+		stdio: ['ignore', log, log],
+		// Its own process group: shutdown reaches what it spawned.
+		detached: true
+	});
+	servers.push(server);
+}
+
+function bootBuiltServer(name: string, port: number, env: Record<string, string>): Target {
+	const base = `http://127.0.0.1:${port}`;
+	const database = join(runDir, `${name}.sqlite3`);
+	boot(name, 'node', ['build/server/index.js'], {
+		HOST: '127.0.0.1',
+		PORT: String(port),
+		// Unset, adapter-node assumes https and the session cookie turns Secure.
+		ORIGIN: base,
+		DATABASE_PATH: database,
+		...env
+	});
+	return { base, database };
+}
+
+async function builtStack(): Promise<Stack> {
+	run('bun', ['run', 'build:server'], root);
+	run('bun', ['run', 'build:app'], root);
+
+	const [desktopPort, phonePort, appServerPort, appPort] = [
+		await freePort(),
+		await freePort(),
+		await freePort(),
+		await freePort()
+	];
+	const appBase = `http://127.0.0.1:${appPort}`;
+
+	const desktop = bootBuiltServer('desktop', desktopPort, { CORS_ORIGINS: '' });
+	const phone = bootBuiltServer('phone', phonePort, { CORS_ORIGINS: '' });
+	const appServer = bootBuiltServer('app-server', appServerPort, { CORS_ORIGINS: appBase });
+	boot('app', join(suite, 'node_modules/.bin/sirv'), [
+		'build/app',
+		'--single',
+		'--host',
+		'127.0.0.1',
+		'--port',
+		String(appPort),
+		'--quiet'
+	]);
+
+	return {
+		desktop,
+		phone,
+		app: { base: appBase, database: appServer.database },
+		appServer: appServer.base,
+		probes: [desktop, phone, appServer].map(({ base }) => `${base}/api/health`).concat(appBase)
+	};
+}
+
+function bootDevServer(name: string, port: number, env: Record<string, string>): void {
+	boot(
+		name,
 		join(bin, 'vite'),
 		['dev', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-		{
-			cwd: root,
-			// Blank, not absent: `.env` only fills what the environment leaves unset.
-			env: {
-				...process.env,
-				ANTHROPIC_API_KEY: '',
-				TORSEL_AI_MODEL: '',
-				ORIGIN: '',
-				MIGRATIONS_DIR: '',
-				...env
-			},
-			stdio: ['ignore', log, log],
-			// Its own process group: shutdown reaches what vite spawned.
-			detached: true
-		}
+		env
 	);
-	servers.push(server);
+}
+
+// Both web projects share one dev server: more would clobber each other's dependency cache.
+async function devStack(): Promise<Stack> {
+	const [webPort, appPort] = [await freePort(), await freePort()];
+	const base = `http://127.0.0.1:${webPort}`;
+	const appBase = `http://127.0.0.1:${appPort}`;
+	const database = join(runDir, 'web.sqlite3');
+
+	bootDevServer('web', webPort, { DATABASE_PATH: database, CORS_ORIGINS: appBase });
+	bootDevServer('app', appPort, {
+		BUILD_TARGET: 'app',
+		DATABASE_PATH: join(runDir, 'app.sqlite3'),
+		CORS_ORIGINS: ''
+	});
+
+	const web = { base, database };
+	return {
+		desktop: web,
+		phone: web,
+		app: { base: appBase, database },
+		appServer: base,
+		probes: [`${base}/api/health`, `${appBase}/api/health`]
+	};
 }
 
 async function ready(url: string): Promise<void> {
@@ -101,33 +195,27 @@ process.on('SIGTERM', () => {
 
 let exitCode = 1;
 try {
+	run('bun', ['install', '--frozen-lockfile'], root);
 	run('bun', ['install', '--frozen-lockfile'], suite);
 	run(join(bin, 'tsc'), ['-p', 'tests/e2e'], root);
 
-	const [webPort, appPort] = [await freePort(), await freePort()];
-	const web = `http://127.0.0.1:${webPort}`;
-	const appBuild = `http://127.0.0.1:${appPort}`;
-	const database = join(runDir, 'db.sqlite3');
-
-	boot('web', webPort, { DATABASE_PATH: database, CORS_ORIGINS: appBuild });
-	boot('app', appPort, {
-		BUILD_TARGET: 'app',
-		DATABASE_PATH: join(runDir, 'app-build.sqlite3'),
-		CORS_ORIGINS: ''
-	});
-	await ready(`${web}/api/health`);
-	await ready(`${appBuild}/api/health`);
+	const stack = dev ? await devStack() : await builtStack();
+	await Promise.all(stack.probes.map(ready));
 
 	const playwright = spawn(
 		join(suite, 'node_modules/.bin/playwright'),
-		['test', ...process.argv.slice(2)],
+		['test', ...args.filter((arg) => arg !== '--dev')],
 		{
 			cwd: suite,
 			env: {
 				...process.env,
-				TORSEL_TEST_BASE: web,
-				TORSEL_TEST_APP_BASE: appBuild,
-				TORSEL_TEST_DB: database,
+				TORSEL_TEST_TARGETS: JSON.stringify({
+					desktop: stack.desktop,
+					phone: stack.phone,
+					app: stack.app
+				}),
+				TORSEL_TEST_APP_SERVER: stack.appServer,
+				TORSEL_TEST_DEV: dev ? '1' : '',
 				TORSEL_TEST_OUTPUT: join(runDir, 'results')
 			},
 			stdio: 'inherit'

@@ -7,17 +7,17 @@ const ROUTES = ['/', '/app', '/app/settings', '/app/t/warm'];
 
 // Vite's dependency discovery reloads a first visit mid-navigation: pay it once per server here.
 export default async function globalSetup(): Promise<void> {
+	const { desktop, app: appTarget } = JSON.parse(process.env.TORSEL_TEST_TARGETS ?? '{}');
 	const browser = await chromium.launch();
 
-	const web = process.env.TORSEL_TEST_BASE ?? '';
-	const signedIn = await browser.newContext({ baseURL: web });
-	const account = newAccount();
+	const signedIn = await browser.newContext({ baseURL: desktop.base });
+	const account = newAccount(desktop.database);
 	await signedIn.request.post('/api/auth/login', {
 		data: { email: account.email, password: account.password, client: 'web' }
 	});
 	await visit(await signedIn.newPage(), ['/app/login', ...ROUTES]);
 
-	const app = await browser.newContext({ baseURL: process.env.TORSEL_TEST_APP_BASE });
+	const app = await browser.newContext({ baseURL: appTarget.base });
 	await visit(await app.newPage(), ROUTES);
 
 	await browser.close();
