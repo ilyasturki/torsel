@@ -13,7 +13,8 @@ import {
 	RETRY_RESET,
 	seed,
 	signIn,
-	test
+	test,
+	watchErrors
 } from './harness.ts';
 
 const GOOGLE = process.env.TORSEL_TEST_GOOGLE ?? '';
@@ -474,6 +475,44 @@ test.describe('local data at sign-in', () => {
 		await page.getByRole('link', { name: 'Sign in', exact: true }).click();
 		await passwordSignIn(page, account);
 		await expect(other.getByText(account.email)).toBeVisible();
+		await other.close();
+	});
+
+	test('a sign-out landing while another tab signs in holds', async ({
+		page,
+		context,
+		account,
+		pageErrors
+	}) => {
+		await page.goto('/app/settings');
+		await expect(page.getByText(account.email)).toBeVisible();
+
+		const other = await context.newPage();
+		watchErrors(other, pageErrors);
+		let release = (): void => undefined;
+		const released = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		await other.route('**/api/auth/session', async (route) => {
+			const answered = await route.fetch();
+			await released;
+			await route.fulfill({ response: answered });
+		});
+		await other.goto('/app/settings');
+		await expect(other.getByRole('heading', { name: 'Settings' })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Sign out' }).click();
+		await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+		const answered = other.waitForResponse('**/api/auth/session');
+		release();
+		await answered;
+
+		await expect(other.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+		await expect(other.getByText(account.email)).toHaveCount(0);
+		await other.unroute('**/api/auth/session');
+		await other.reload();
+		await expect(other.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+		await expect(other.getByRole('status')).toHaveCount(0);
 		await other.close();
 	});
 });

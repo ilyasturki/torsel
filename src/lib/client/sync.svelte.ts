@@ -168,6 +168,7 @@ async function findAccount(): Promise<Account | null | undefined> {
 async function settleSession(): Promise<void> {
 	await app.load();
 
+	const signOuts = signedOutElsewhere;
 	const account = await findAccount();
 	if (account === undefined) {
 		return;
@@ -182,6 +183,11 @@ async function settleSession(): Promise<void> {
 	}
 
 	await app.setMeta(SIGNED_IN, true);
+	// That account's session ended while this tab was still asking about it.
+	if (signOuts !== signedOutElsewhere) {
+		await app.setMeta(SIGNED_IN, false);
+		return;
+	}
 	me.account = account;
 	sync.status = 'idle';
 	if (await claimOwner(account.id)) {
@@ -190,6 +196,8 @@ async function settleSession(): Promise<void> {
 }
 
 let settling: Promise<void> | undefined;
+
+let signedOutElsewhere = 0;
 
 export function resolveSession(): Promise<void> {
 	settling ??= settleSession().finally(() => {
@@ -210,6 +218,7 @@ function tabs(): BroadcastChannel {
 export function followOtherTabs(): () => void {
 	const listener = ({ data }: MessageEvent<'signed-in' | 'signed-out'>): void => {
 		if (data === 'signed-out') {
+			signedOutElsewhere += 1;
 			me.account = null;
 			sync.status = 'idle';
 		} else {
