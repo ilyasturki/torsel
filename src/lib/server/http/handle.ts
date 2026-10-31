@@ -50,7 +50,11 @@ export function createHandle(database: () => Database): Handle {
 
 		if (!api) {
 			event.locals.credential = null;
-			return resolve(event);
+			const response = await resolve(event);
+			if (pathname === '/app' || pathname.startsWith('/app/')) {
+				response.headers.set('x-robots-tag', 'noindex');
+			}
+			return response;
 		}
 
 		const origin = event.request.headers.get('origin');

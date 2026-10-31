@@ -196,6 +196,7 @@
 
 <svelte:head>
 	<title>{heading === 'Tables' ? 'Torsel' : `${heading} · Torsel`}</title>
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <svelte:window

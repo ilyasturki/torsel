@@ -1,13 +1,14 @@
 <script lang="ts">
+	import { structuredDataTag } from '#lib/site/seo.ts';
+	import Seo from '#lib/site/Seo.svelte';
+	import { SITE_DESCRIPTION, SITE_NAME } from '#lib/site/site.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 </script>
 
+<Seo title={SITE_NAME} description={SITE_DESCRIPTION} path="/" />
+
 <svelte:head>
-	<title>Torsel</title>
-	<meta
-		name="description"
-		content="Tables for what you track: workouts, body weight, expenses. Log from your phone, fix from your desk."
-	/>
+	{@html structuredDataTag()}
 </svelte:head>
 
 <main class="flex min-h-dvh flex-col justify-center gap-4 px-gutter">
