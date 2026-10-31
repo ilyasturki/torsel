@@ -27,6 +27,7 @@ class TorselApp {
 	public ready = $state(false);
 	public pending = $state(0);
 	public history = $state.raw<Group[]>([]);
+	public undone = $state.raw<Group[]>([]);
 	public onChange: (() => void) | null = null;
 	public onUndo: ((group: Group) => void) | null = null;
 
@@ -63,6 +64,13 @@ class TorselApp {
 			}
 		}
 
+		const saved = await readMeta<{ undo: Group[]; redo: Group[] }>(db, 'history');
+		if (saved !== undefined) {
+			this.history = saved.undo;
+			this.undone = saved.redo;
+			this.seq = Math.max(0, ...[...saved.undo, ...saved.redo].map((group) => group.id));
+		}
+
 		this.engine = await openEngine();
 		this.ready = true;
 		this.bump(false);
@@ -82,11 +90,8 @@ class TorselApp {
 		}
 	}
 
-	public apply(changes: Change[], label: string, by: Group['by'] = 'user'): Group | null {
-		if (changes.length === 0) {
-			return null;
-		}
-
+	/** Stamps changes in order; what takes them back, in the order to stamp it. */
+	private write(changes: Change[]): Change[] {
 		const inverse: Change[] = [];
 		const entries: Stored[] = [];
 
@@ -99,9 +104,25 @@ class TorselApp {
 
 		this.persist(entries);
 
-		const group: Group = { id: (this.seq += 1), label, by, inverse };
-		this.history = [...this.history.slice(1 - HISTORY), group];
+		return inverse;
+	}
+
+	private moved(): void {
 		this.bump();
+		if (this.db !== undefined) {
+			void writeMeta(this.db, 'history', { undo: this.history, redo: this.undone });
+		}
+	}
+
+	public apply(changes: Change[], label: string, by: Group['by'] = 'user'): Group | null {
+		if (changes.length === 0) {
+			return null;
+		}
+
+		const group: Group = { id: (this.seq += 1), label, by, inverse: this.write(changes) };
+		this.history = [...this.history.slice(1 - HISTORY), group];
+		this.undone = [];
+		this.moved();
 
 		return group;
 	}
@@ -114,15 +135,22 @@ class TorselApp {
 		}
 
 		this.history = this.history.filter((item) => item.id !== group.id);
-		const entries: Stored[] = [];
-		for (const change of group.inverse) {
-			const { rec } = this.ws.stamp(change, this.hlc.tick());
-			entries.push({ id: rec.id, rec, dirty: true });
-			this.dirty.add(rec.id);
-		}
-		this.persist(entries);
-		this.bump();
+		this.undone = [...this.undone, { ...group, inverse: this.write(group.inverse) }];
+		this.moved();
 		this.onUndo?.(group);
+
+		return group;
+	}
+
+	public redo(): Group | undefined {
+		const group = this.undone.at(-1);
+		if (group === undefined) {
+			return undefined;
+		}
+
+		this.undone = this.undone.slice(0, -1);
+		this.history = [...this.history, { ...group, inverse: this.write(group.inverse) }];
+		this.moved();
 
 		return group;
 	}
@@ -180,6 +208,7 @@ class TorselApp {
 		const db = this.db as LocalDb;
 		await db.clear('records');
 		await db.delete('meta', 'watermark');
+		await db.delete('meta', 'history');
 		this.ws.records.clear();
 		window.location.reload();
 	}
