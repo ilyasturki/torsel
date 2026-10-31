@@ -158,9 +158,9 @@
 	--spacing-page-gapped: 1196px;
 	--spacing-headline: 20ch;
 	--spacing-stage: 500px;
-	--spacing-stage-narrow: 640px;
+	--spacing-stage-narrow: 688px;
 	--spacing-stage-real: 680px;
-	--spacing-stage-real-narrow: 820px;
+	--spacing-stage-real-narrow: 868px;
 	--spacing-band: clamp(250px, 26vw, 320px);
 
 	--spacing-ask: 400px;

@@ -39,7 +39,7 @@ export const EXAMPLES: Example[] = [
 		label: 'Budget',
 		table: 'Budget',
 		sentence:
-			'Make me a budget: item, amount, category. Rent 640, groceries 210, train 90, dinner 120, power 110, books 60.',
+			'Make me a budget: item, amount, category. Rent 640 Home, groceries 210 Food, train 90 Transport, dinner 120 Food, power 110 Home, books 60 Fun.',
 		fields: [
 			{ name: 'Item', type: 'text' },
 			{ name: 'Amount', type: 'number' },
@@ -84,7 +84,7 @@ export const EXAMPLES: Example[] = [
 		label: 'Clients',
 		table: 'Clients',
 		sentence:
-			'Keep my clients: name, stage, value. Acme won 12000, Birch talking 4000, Cedar lead 8000, Delta talking 20000, Fern lead 6000.',
+			'Keep my clients: name, stage, value. Acme Won 12000, Birch Talking 4000, Cedar Lead 8000, Delta Talking 20000, Fern Lead 6000.',
 		fields: [
 			{ name: 'Name', type: 'text' },
 			{
@@ -157,7 +157,7 @@ export const EXAMPLES: Example[] = [
 		},
 		first: { sentence: 'Group the tasks by status.', name: 'By status', view: 'list', group: 2 },
 		second: {
-			sentence: 'How many does each person have?',
+			sentence: 'Chart how many each person has.',
 			name: 'By owner',
 			view: 'chart',
 			group: 1,
@@ -171,7 +171,7 @@ export const EXAMPLES: Example[] = [
 		label: 'Job search',
 		table: 'Applications',
 		sentence:
-			'Log my applications: company, role, status. Northwind designer applied, Lumen PM interview, Orbit designer offer, Vega PM no.',
+			'Log my applications: company, role, status. Northwind Designer Applied, Lumen PM Interview, Orbit Designer Offer, Vega PM Rejected.',
 		fields: [
 			{ name: 'Company', type: 'text' },
 			{ name: 'Role', type: 'text' },
@@ -182,7 +182,7 @@ export const EXAMPLES: Example[] = [
 					{ name: 'Applied', color: 'blue' },
 					{ name: 'Interview', color: 'amber' },
 					{ name: 'Offer', color: 'green' },
-					{ name: 'No', color: 'gray' }
+					{ name: 'Rejected', color: 'gray' }
 				]
 			}
 		],
@@ -190,10 +190,10 @@ export const EXAMPLES: Example[] = [
 			['Northwind', 'Designer', 'Applied'],
 			['Lumen', 'PM', 'Interview'],
 			['Orbit', 'Designer', 'Offer'],
-			['Vega', 'PM', 'No']
+			['Vega', 'PM', 'Rejected']
 		],
 		column: {
-			sentence: 'Add what my next step is for each one.',
+			sentence: 'Add my next step: applied follow up, interview prepare, offer decide.',
 			name: 'Next step',
 			expr: `CASE "Status" WHEN 'Applied' THEN 'Follow up' WHEN 'Interview' THEN 'Prepare' WHEN 'Offer' THEN 'Decide' ELSE '' END`,
 			value: (row) =>
@@ -215,7 +215,7 @@ export const EXAMPLES: Example[] = [
 		label: 'Trip',
 		table: 'Japan',
 		sentence:
-			'Plan my trip to Japan: place, kind, cost. Kyoto hotel stay 420, Shinkansen train 130, ramen food 40, Fushimi visit 20, ryokan stay 280.',
+			'Plan my trip to Japan: place, kind, cost. Kyoto hotel Stay 420, Shinkansen Train 130, Ramen Food 40, Fushimi Visit 20, Ryokan Stay 280.',
 		fields: [
 			{ name: 'Place', type: 'text' },
 			{
@@ -249,7 +249,7 @@ export const EXAMPLES: Example[] = [
 			view: 'entry'
 		},
 		second: {
-			sentence: 'What is it costing, by kind?',
+			sentence: 'Chart the cost by kind.',
 			name: 'By kind',
 			view: 'chart',
 			group: 1,
@@ -263,7 +263,7 @@ export const EXAMPLES: Example[] = [
 		label: 'Reading',
 		table: 'To read',
 		sentence:
-			'Things to read: title, status, pages. Dune read 612, Piranesi reading 272, Kindred to read 264, Solaris read 204, Stoner to read 278.',
+			'Things to read: title, status, pages. Dune Read 612, Piranesi Reading 272, Kindred To read 264, Solaris Read 204, Stoner To read 278.',
 		fields: [
 			{ name: 'Title', type: 'text' },
 			{
@@ -292,7 +292,7 @@ export const EXAMPLES: Example[] = [
 		},
 		first: { sentence: 'Show them as cards by status.', name: 'By status', view: 'list', group: 1 },
 		second: {
-			sentence: 'How many pages are in each pile?',
+			sentence: 'Chart the pages by status.',
 			name: 'By status',
 			view: 'chart',
 			group: 1,

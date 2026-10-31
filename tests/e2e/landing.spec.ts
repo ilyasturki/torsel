@@ -1,8 +1,16 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './harness.ts';
 
 const STAGE = '[data-testid="stage"]';
+
+// A prerendered button ignores clicks until the page hydrates.
+async function press(button: Locator): Promise<void> {
+	await expect(async () => {
+		await button.click();
+		await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 500 });
+	}).toPass();
+}
 
 function wasmRequests(page: Page): string[] {
 	const seen: string[] = [];
@@ -108,8 +116,7 @@ test.describe('with reduced motion', () => {
 		await page.goto('/');
 		const stage = page.locator(STAGE);
 		const clients = stage.getByRole('button', { name: 'Clients', exact: true });
-		await clients.click();
-		await expect(clients).toHaveAttribute('aria-pressed', 'true');
+		await press(clients);
 		await expect(stage.getByRole('button', { name: 'Budget' })).toHaveAttribute(
 			'aria-pressed',
 			'false'
@@ -120,6 +127,20 @@ test.describe('with reduced motion', () => {
 		await stage.getByRole('button', { name: 'Step 2' }).click();
 		await expect(stage.getByTestId('sentence')).toHaveText(/expected value/u);
 		await expect(stage.getByRole('columnheader', { name: /Expected/u })).toBeVisible();
+	});
+
+	test('every first sentence fits its strip with the steps showing', async ({ page }) => {
+		await page.goto('/');
+		const stage = page.locator(STAGE);
+		for (const label of ['Budget', 'Clients', 'Projects', 'Job search', 'Trip', 'Reading']) {
+			await press(stage.getByRole('button', { name: label, exact: true }));
+			await press(stage.getByRole('button', { name: 'Step 1' }));
+			const clipped = await stage
+				.getByTestId('sentence')
+				.locator('..')
+				.evaluate((strip) => strip.scrollHeight - strip.clientHeight);
+			expect(clipped, label).toBeLessThanOrEqual(0);
+		}
 	});
 });
 
@@ -217,8 +238,7 @@ test('the year of cells sorts by table', async ({ page }) => {
 	const tables = page.getByRole('group', { name: 'Tables' });
 	await tables.scrollIntoViewIfNeeded();
 	const trip = tables.getByRole('button', { name: 'Trip' });
-	await trip.click();
-	await expect(trip).toHaveAttribute('aria-pressed', 'true');
+	await press(trip);
 	await expect(tables.getByRole('button', { name: 'All' })).toHaveAttribute(
 		'aria-pressed',
 		'false'

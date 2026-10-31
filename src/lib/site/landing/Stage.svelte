@@ -218,7 +218,7 @@
 	</div>
 
 	<div
-		class="m-2 flex h-15 shrink-0 items-center gap-3 overflow-hidden rounded-panel bg-tint py-2 pr-2 pl-3 text-lg leading-snug max-lg:h-24 max-lg:flex-col max-lg:items-start max-lg:gap-1 max-lg:px-2.5"
+		class="m-2 flex h-15 shrink-0 items-center gap-3 overflow-hidden rounded-panel bg-tint py-2 pr-2 pl-3 text-lg leading-snug max-lg:h-36 max-lg:flex-col max-lg:items-start max-lg:gap-1 max-lg:px-2.5"
 	>
 		<p class="min-w-0 flex-1" data-testid="sentence">
 			{realOn ? 'Your turn. This table works.' : sentences(example)[step]}
