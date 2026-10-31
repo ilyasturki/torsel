@@ -179,29 +179,24 @@ test.beforeEach(async ({ page, context, account }) => {
 
 for (const kind of KINDS) {
 	for (const [name, leave] of Object.entries(LEAVES)) {
-		test.describe(() => {
-			// With a worker, the next tab's navigation never completes after the spinning page closes.
-			test.use({ serviceWorkers: name === 'a frozen page killed' ? 'block' : 'allow' });
+		test(`${kind.name} survives ${name}, with its undo step and queued for sync`, async ({
+			page,
+			context,
+			pageErrors
+		}) => {
+			const path = new URL(page.url()).pathname;
+			await kind.prepare(page, context.request);
 
-			test(`${kind.name} survives ${name}, with its undo step and queued for sync`, async ({
-				page,
-				context,
-				pageErrors
-			}) => {
-				const path = new URL(page.url()).pathname;
-				await kind.prepare(page, context.request);
+			const next = await leave(page, () => kind.change(page));
+			if (next !== page) {
+				watchErrors(next, pageErrors);
+			}
 
-				const next = await leave(page, () => kind.change(page));
-				if (next !== page) {
-					watchErrors(next, pageErrors);
-				}
-
-				await next.goto(path);
-				await kind.reopened(next);
-				await serverHolds(context.request, kind.serverHolds);
-				await undoButton(next).first().click();
-				await kind.undone(next);
-			});
+			await next.goto(path);
+			await kind.reopened(next);
+			await serverHolds(context.request, kind.serverHolds);
+			await undoButton(next).first().click();
+			await kind.undone(next);
 		});
 	}
 }

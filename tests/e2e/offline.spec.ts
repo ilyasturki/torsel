@@ -15,6 +15,8 @@ const ROOT = join(import.meta.dirname, '../..');
 const PREVIOUS_BUILD = join(ROOT, process.env.TORSEL_TEST_PREVIOUS_BUILD ?? '');
 const CURRENT_BUILD = join(ROOT, 'build/server');
 
+test.use({ serviceWorkers: 'allow' });
+
 function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
