@@ -10,7 +10,7 @@
 
 	const CLAIMS = [
 		{ claim: 'No account to start', check: 'Open the app.' },
-		{ claim: 'It works offline', check: 'Turn off your network and keep adding rows.' },
+		{ claim: 'It works offline', check: 'Turn off your network. Add a row. Reload.' },
 		{ claim: 'Same numbers everywhere', check: 'SQLite on every device and on the server.' },
 		{ claim: 'Your data is yours', check: 'Settings exports all of it as JSON.' }
 	];

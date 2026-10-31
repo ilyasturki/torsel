@@ -33,20 +33,21 @@ test('the call to action reaches a working app with no account', async ({ page }
 });
 
 test('what the page says about going offline holds', async ({ page, context }) => {
+	test.skip(process.env.TORSEL_TEST_DEV === '1', 'the worker is only registered in a build');
 	await page.goto('/');
-	await expect(page.getByText('Turn off your network and keep adding rows.')).toBeVisible();
+	await expect(page.getByText('Turn off your network. Add a row. Reload.')).toBeVisible();
 
 	await page.goto('/app');
 	await page.getByRole('button', { name: 'New table' }).first().click();
 	await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
 	await page.getByRole('link', { name: 'Entry' }).click();
+	await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
 
 	await context.setOffline(true);
 	await page.getByRole('textbox', { name: 'Name' }).fill('Added offline');
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await expect(page.getByRole('status')).toContainText('Row added');
 
-	await context.setOffline(false);
 	await page.reload();
 	await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Added offline');
 });

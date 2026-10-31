@@ -29,6 +29,10 @@
 			is sent to a server. The Android app works the same way until you connect it to one.
 		</p>
 		<p>
+			The browser also keeps the app's own files, so it opens with no connection. Those files hold
+			none of your data.
+		</p>
+		<p>
 			Clearing the browser's site data deletes those tables, so export them from Settings if you
 			want a copy.
 		</p>
