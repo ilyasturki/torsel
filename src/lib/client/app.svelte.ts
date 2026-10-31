@@ -192,7 +192,7 @@ class TorselApp {
 	}
 
 	public formulaProblems(tableId: string): FormulaProblems {
-		if (!this.ready) {
+		if (!this.ready || !this.ws.fields(tableId).some((field) => field.type === 'formula')) {
 			return new Map();
 		}
 		this.built_(tableId);

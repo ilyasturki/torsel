@@ -126,10 +126,11 @@ export class Workspace {
 	}
 
 	private index(rec: Rec): void {
-		let siblings = this.children.get(rec.parent);
+		const family = `${rec.parent}/${rec.kind}`;
+		let siblings = this.children.get(family);
 		if (siblings === undefined) {
 			siblings = new Set();
-			this.children.set(rec.parent, siblings);
+			this.children.set(family, siblings);
 		}
 		siblings.add(rec.id);
 
@@ -199,9 +200,9 @@ export class Workspace {
 	private liveChildren(parent: string, kind: Rec['kind']): Rec[] {
 		const out: Rec[] = [];
 
-		for (const id of this.children.get(parent) ?? []) {
+		for (const id of this.children.get(`${parent}/${kind}`) ?? []) {
 			const rec = this.records.get(id);
-			if (rec !== undefined && rec.kind === kind && !isDeleted(rec)) {
+			if (rec !== undefined && !isDeleted(rec)) {
 				out.push(rec);
 			}
 		}
