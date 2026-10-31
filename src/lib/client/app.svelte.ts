@@ -98,6 +98,26 @@ class TorselApp {
 		this.bump(false);
 	}
 
+	/**
+	 * The landing's working table: with no local database open, `persist` writes nothing and no
+	 * sync starts. The page holding it must leave by a full navigation, or /app inherits the sample.
+	 */
+	public openSample(
+		build: (ws: Workspace, commit: (changes: Change[]) => void) => void
+	): Promise<void> {
+		this.loading ??= (async () => {
+			build(this.ws, (changes) => {
+				for (const change of changes) {
+					this.ws.stamp(change, this.hlc.tick());
+				}
+			});
+			this.engine = await openEngine();
+			this.ready = true;
+			this.bump(false);
+		})();
+		return this.loading;
+	}
+
 	private bump(changed = true): void {
 		this.version += 1;
 		this.pending = this.dirty.size;
