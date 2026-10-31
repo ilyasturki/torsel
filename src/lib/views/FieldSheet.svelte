@@ -4,9 +4,10 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatNumber } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { addField, deleteRecords, updateRecord } from '#lib/core/actions.ts';
+	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
 	import { FormulaError, toDisplay, toStored } from '#lib/core/formula.ts';
-	import type { Choice, FieldType, Value } from '#lib/core/model.ts';
+	import type { Change, Choice, FieldType, Value } from '#lib/core/model.ts';
+	import { retypeField } from '#lib/core/retype.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
@@ -18,12 +19,12 @@
 		open = $bindable(false),
 		tableId,
 		fieldId = null,
-		onsort
+		preset = null
 	}: {
 		open?: boolean;
 		tableId: string;
 		fieldId?: string | null;
-		onsort?: (dir: 'asc' | 'desc') => void;
+		preset?: { name: string; type: FieldType } | null;
 	} = $props();
 
 	const TYPES: { id: FieldType; label: string }[] = [
@@ -51,7 +52,10 @@
 		JSON.stringify({ name, type, choices, target, formula, description, step, newChoice });
 	const dirty = $derived(open && snapshot() !== start);
 
-	const existing = $derived(fieldId === null ? undefined : app.ws.field(fieldId));
+	const existing = $derived.by(() => {
+		void app.version;
+		return fieldId === null ? undefined : app.ws.field(fieldId);
+	});
 
 	const tables = $derived.by(() => {
 		void app.version;
@@ -59,11 +63,39 @@
 		return table === undefined ? [] : app.ws.tables(table.base);
 	});
 
+	const siblings = $derived.by(() => {
+		void app.version;
+		return app.ws.fields(tableId).map((field) => field.id);
+	});
+
+	function conversion(expr: string | null = null): { changes: Change[]; lost: number } | null {
+		return existing === undefined || type === existing.type
+			? null
+			: retypeField(
+					app.ws,
+					existing.id,
+					{ type, target: target || null, expr, choices: $state.snapshot(choices) },
+					existing.type === 'formula' ? app.computed(tableId) : undefined
+				);
+	}
+
+	const retypeHint = $derived.by(() => {
+		const result = open ? conversion() : null;
+		if (result === null) return undefined;
+		if (type === 'formula') return 'The values here give way to the formula.';
+		if (type === 'link' && target === '') return 'Pick the table to link to.';
+		const label = TYPES.find((option) => option.id === type)?.label ?? type;
+		return result.lost === 0
+			? 'Every value carries over.'
+			: `${result.lost} ${result.lost === 1 ? 'value' : 'values'} can't become ${label} and will be cleared.`;
+	});
+
 	$effect(() => {
 		if (open) {
 			const field = fieldId === null ? undefined : app.ws.field(fieldId);
-			name = field?.name ?? '';
-			type = field?.type ?? 'text';
+			const wanted = untrack(() => preset);
+			name = field?.name ?? wanted?.name ?? '';
+			type = field?.type ?? wanted?.type ?? 'text';
 			choices = field?.choices.map((choice) => ({ ...choice })) ?? [];
 			target = field?.target ?? '';
 			formula = field?.expr ? toDisplay(field.expr, app.ws.fields(tableId)) : '';
@@ -74,6 +106,14 @@
 			start = untrack(snapshot);
 		}
 	});
+
+	function pickType(next: FieldType): void {
+		type = next;
+		if (next === 'choice' && existing !== undefined && existing.type !== 'choice') {
+			const found = conversion()?.changes[0].set.choices;
+			choices = Array.isArray(found) ? (found as Choice[]) : [];
+		}
+	}
 
 	function addChoice(): void {
 		const value = newChoice.trim();
@@ -94,6 +134,10 @@
 		problem = '';
 		if (name.trim() === '') {
 			problem = 'Give this field a name.';
+			return;
+		}
+		if (type === 'link' && target === '') {
+			problem = 'Pick the table to link to.';
 			return;
 		}
 
@@ -121,10 +165,13 @@
 			description: description.trim() === '' ? null : description.trim(),
 			step: Number.isFinite(stepValue) && stepValue > 0 ? stepValue : null
 		};
-		if (type === 'choice')
-			set.choices = choices.map((choice) => ({ name: choice.name, color: choice.color }));
-		if (type === 'link') set.target = target || null;
-		if (type === 'formula') set.expr = expr;
+		const retyped = conversion(expr);
+		if (retyped === null) {
+			if (type === 'choice')
+				set.choices = choices.map((choice) => ({ name: choice.name, color: choice.color }));
+			if (type === 'link') set.target = target || null;
+			if (type === 'formula') set.expr = expr;
+		}
 
 		if (existing === undefined) {
 			const { changes } = addField(app.ws, tableId, { name: name.trim(), type });
@@ -133,7 +180,10 @@
 				`Field "${name.trim()}" added`
 			);
 		} else {
-			app.apply(updateRecord(app.ws, existing.id, set), `Field "${name.trim()}" changed`);
+			app.apply(
+				[...(retyped?.changes ?? []), ...updateRecord(app.ws, existing.id, set)],
+				`Field "${name.trim()}" changed`
+			);
 		}
 		open = false;
 	}
@@ -142,26 +192,34 @@
 		if (existing === undefined) {
 			return;
 		}
-		const group = app.apply(
-			deleteRecords(app.ws, [existing.id]),
-			`Field "${existing.name}" deleted`
-		);
-		showToast(`Field "${existing.name}" deleted`, group?.id ?? null);
+		const label = `Field "${existing.name}" deleted`;
+		const group = app.apply(deleteRecords(app.ws, [existing.id]), label);
+		showToast(label, group?.id ?? null);
 		open = false;
+	}
+
+	function move(by: number): void {
+		if (existing !== undefined) {
+			app.apply(
+				reorder(app.ws, shifted(siblings, existing.id, by)),
+				`Field "${existing.name}" moved`
+			);
+		}
 	}
 </script>
 
-<Sheet bind:open title={existing === undefined ? 'New field' : 'Field'} {dirty}>
+<Sheet bind:open title={existing === undefined ? 'New field' : 'Field'} {dirty} onsubmit={save}>
 	<div class="flex flex-col gap-3">
 		<Field label="Name">
 			<input class={input} bind:value={name} placeholder="Weight, Exercise, Amount" />
 		</Field>
 
-		<Field
-			label="Type"
-			hint={existing === undefined ? undefined : "A field's type can't change once it exists."}
-		>
-			<select class={select} bind:value={type} disabled={existing !== undefined}>
+		<Field label="Type" hint={retypeHint}>
+			<select
+				class={select}
+				value={type}
+				onchange={(event) => pickType(event.currentTarget.value as FieldType)}
+			>
 				{#each TYPES as option (option.id)}
 					<option value={option.id}>{option.label}</option>
 				{/each}
@@ -193,22 +251,27 @@
 						</span>
 					{/each}
 				</div>
-				<form
-					class="flex gap-2"
-					onsubmit={(event) => {
-						event.preventDefault();
-						addChoice();
-					}}
-				>
-					<input class={input} bind:value={newChoice} placeholder="Add a choice" />
-					<Button type="submit" aria-label="Add this choice"><Icon name="plus" /></Button>
-				</form>
+				<div class="flex gap-2">
+					<input
+						class={input}
+						bind:value={newChoice}
+						placeholder="Add a choice"
+						aria-label="Add a choice"
+						onkeydown={(event) => {
+							if (event.key === 'Enter' && newChoice.trim() !== '') {
+								event.preventDefault();
+								addChoice();
+							}
+						}}
+					/>
+					<Button aria-label="Add this choice" onclick={addChoice}><Icon name="plus" /></Button>
+				</div>
 			</div>
 		{/if}
 
 		{#if type === 'link'}
 			<Field label="Linked table">
-				<select class={select} bind:value={target} disabled={existing !== undefined}>
+				<select class={select} bind:value={target} disabled={existing?.type === 'link'}>
 					<option value=""></option>
 					{#each tables as table (table.id)}
 						<option value={table.id}>{table.name}</option>
@@ -240,23 +303,6 @@
 			/>
 		</Field>
 
-		{#if existing !== undefined && onsort}
-			<div class="flex gap-2">
-				<Button
-					onclick={() => {
-						onsort?.('asc');
-						open = false;
-					}}>Sort ascending</Button
-				>
-				<Button
-					onclick={() => {
-						onsort?.('desc');
-						open = false;
-					}}>Sort descending</Button
-				>
-			</div>
-		{/if}
-
 		{#if problem}
 			<p class="rounded-box bg-tint p-2" role="alert">{problem}</p>
 		{/if}
@@ -265,6 +311,20 @@
 	{#snippet footer()}
 		{#if existing !== undefined}
 			<Button variant="ghost" onclick={remove}>Delete</Button>
+			<Button
+				variant="ghost"
+				class="w-control px-0"
+				aria-label="Move left"
+				disabled={siblings[0] === existing.id}
+				onclick={() => move(-1)}><Icon name="arrow-left" /></Button
+			>
+			<Button
+				variant="ghost"
+				class="w-control px-0"
+				aria-label="Move right"
+				disabled={siblings.at(-1) === existing.id}
+				onclick={() => move(1)}><Icon name="arrow-right" /></Button
+			>
 		{/if}
 		<div class="flex-1"></div>
 		<Button variant="primary" onclick={save}>Save</Button>

@@ -6,10 +6,21 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { createView, defaultMatch, deleteRecords, updateRecord } from '#lib/core/actions.ts';
+	import {
+		chartAxis,
+		createView,
+		defaultMatch,
+		deleteRecords,
+		entryFields,
+		listLayout,
+		reorder,
+		shifted,
+		updateRecord
+	} from '#lib/core/actions.ts';
 	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
 	import { checkbox, input, legend, select } from '#lib/ui/styles.ts';
 
@@ -34,11 +45,19 @@
 	const snapshot = (): string => JSON.stringify({ name, type, config });
 	const dirty = $derived(open && snapshot() !== start);
 
-	const existing = $derived(viewId === null ? undefined : app.ws.view(viewId));
+	const existing = $derived.by(() => {
+		void app.version;
+		return viewId === null ? undefined : app.ws.view(viewId);
+	});
 
 	const fields = $derived.by(() => {
 		void app.version;
 		return app.ws.fields(tableId);
+	});
+
+	const siblings = $derived.by(() => {
+		void app.version;
+		return app.ws.views(tableId);
 	});
 
 	$effect(() => {
@@ -51,6 +70,14 @@
 		}
 	});
 
+	const labelOf = (id: ViewType): string =>
+		TYPES.find((option) => option.id === id)?.label ?? 'View';
+
+	function pickType(next: ViewType): void {
+		if (name === labelOf(type)) name = labelOf(next);
+		type = next;
+	}
+
 	function toggle(
 		key: 'hidden' | 'fields' | 'match' | 'show',
 		id: string,
@@ -60,28 +87,51 @@
 		config[key] = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
 	}
 
-	const entryFields = $derived(fields.filter((field) => field.type !== 'formula'));
+	const fillable = $derived(fields.filter((field) => field.type !== 'formula'));
+	const fillIn = $derived(entryFields(fields, config).map((field) => field.id));
 	const keyCandidates = $derived(
-		entryFields.filter(
+		fillable.filter(
 			(field) => field.type === 'choice' || field.type === 'link' || field.type === 'text'
 		)
 	);
-	const fallbackMatch = $derived(defaultMatch(entryFields));
+	const fallbackMatch = $derived(defaultMatch(entryFields(fields, config)));
 	const numeric = $derived(
 		fields.filter((field) => field.type === 'number' || field.type === 'formula')
 	);
 	const choices = $derived(fields.filter((field) => field.type === 'choice'));
-	const xField = $derived(config.x ? fields.find((field) => field.id === config.x) : undefined);
+	const layout = $derived(listLayout(fields, config));
+	const autoLayout = $derived(
+		listLayout(fields, { ...config, group: undefined, title: undefined })
+	);
+	const axis = $derived(chartAxis(fields, config));
+	const xField = $derived(fields.find((field) => field.id === axis));
 
 	function setChart<K extends keyof ChartConfig>(key: K, value: ChartConfig[K]): void {
 		config[key] = value as ViewConfig[K];
 	}
 
+	function setAgg(agg: ChartConfig['agg']): void {
+		setChart('agg', agg);
+		if (agg !== 'count' && !config.y) setChart('y', numeric[0]?.id ?? null);
+	}
+
+	function setGroup(value: string): void {
+		if (value === 'auto') delete config.group;
+		else config.group = value || null;
+	}
+
+	function unusedName(label: string): string {
+		const taken = new Set(siblings.map((view) => view.name));
+		let unused = label;
+		for (let n = 2; taken.has(unused); n += 1) unused = `${label} ${n}`;
+		return unused;
+	}
+
 	function save(): void {
-		const label = name.trim() || (TYPES.find((option) => option.id === type)?.label ?? 'View');
 		const clean = JSON.parse(JSON.stringify(config)) as Value;
 
 		if (existing === undefined) {
+			const label = name.trim() || unusedName(labelOf(type));
 			const { id, changes } = createView(app.ws, tableId, {
 				name: label,
 				type,
@@ -90,8 +140,9 @@
 			app.apply(changes, `View "${label}" added`);
 			void goto(tableUrl(tableId, id));
 		} else {
+			const label = name.trim() || labelOf(type);
 			app.apply(
-				updateRecord(app.ws, existing.id, { name: label, config: clean }),
+				updateRecord(app.ws, existing.id, { name: label, type, config: clean }),
 				`View "${label}" changed`
 			);
 		}
@@ -100,13 +151,18 @@
 
 	function remove(): void {
 		if (existing === undefined) return;
-		const group = app.apply(
-			deleteRecords(app.ws, [existing.id]),
-			`View "${existing.name}" deleted`
-		);
-		showToast(`View "${existing.name}" deleted`, group?.id ?? null);
+		const label = `View "${existing.name}" deleted`;
+		const group = app.apply(deleteRecords(app.ws, [existing.id]), label);
+		showToast(label, group?.id ?? null);
 		open = false;
 		void goto(tableUrl(tableId));
+	}
+
+	function move(by: number): void {
+		if (existing !== undefined) {
+			const ids = siblings.map((view) => view.id);
+			app.apply(reorder(app.ws, shifted(ids, existing.id, by)), `View "${existing.name}" moved`);
+		}
 	}
 
 	const checked = (
@@ -116,36 +172,65 @@
 	): boolean => (config[key] ?? fallback).includes(field.id);
 </script>
 
-<Sheet bind:open title={existing === undefined ? 'New view' : 'View settings'} {dirty}>
+<Sheet
+	bind:open
+	title={existing === undefined ? 'New view' : 'View settings'}
+	{dirty}
+	onsubmit={save}
+>
 	<div class="flex flex-col gap-3">
-		{#if existing === undefined}
-			<div class="grid grid-cols-2 gap-1">
-				{#each TYPES as option (option.id)}
-					<button
-						type="button"
-						class="flex flex-col gap-1 rounded-box p-3 text-left transition-colors motion {type ===
-						option.id
-							? 'bg-fill text-on-fill'
-							: 'bg-tint hover:bg-tint-2'}"
-						aria-pressed={type === option.id}
-						onclick={() => (type = option.id)}
-					>
-						<span class="font-semibold">{option.label}</span>
-						<span class="text-sm opacity-70">{option.hint}</span>
-					</button>
-				{/each}
-			</div>
-		{/if}
+		<div class="grid grid-cols-2 gap-1" role="group" aria-label="View type">
+			{#each TYPES as option (option.id)}
+				<button
+					type="button"
+					class="flex flex-col gap-1 rounded-box p-3 text-left transition-colors motion {type ===
+					option.id
+						? 'bg-fill text-on-fill'
+						: 'bg-tint hover:bg-tint-2'}"
+					aria-pressed={type === option.id}
+					onclick={() => pickType(option.id)}
+				>
+					<span class="font-semibold">{option.label}</span>
+					<span class="text-sm opacity-70">{option.hint}</span>
+				</button>
+			{/each}
+		</div>
 
 		<Field label="Name">
-			<input
-				class={input}
-				bind:value={name}
-				placeholder={TYPES.find((option) => option.id === type)?.label}
-			/>
+			<input class={input} bind:value={name} placeholder={labelOf(type)} />
 		</Field>
 
 		{#if type === 'grid'}
+			<div class="grid grid-cols-2 gap-3">
+				<Field label="Sort by">
+					<select
+						class={select}
+						value={config.sort?.field ?? ''}
+						onchange={(event) => {
+							const field = event.currentTarget.value;
+							config.sort = field ? { field, dir: config.sort?.dir ?? 'asc' } : null;
+						}}
+					>
+						<option value="">None</option>
+						{#each fields as field (field.id)}
+							<option value={field.id}>{field.name}</option>
+						{/each}
+					</select>
+				</Field>
+				<Field label="Order">
+					<select
+						class={select}
+						disabled={!config.sort}
+						value={config.sort?.dir ?? 'asc'}
+						onchange={(event) => {
+							if (config.sort) config.sort.dir = event.currentTarget.value as 'asc' | 'desc';
+						}}
+					>
+						<option value="asc">Ascending</option>
+						<option value="desc">Descending</option>
+					</select>
+				</Field>
+			</div>
 			<fieldset class="flex flex-col gap-1">
 				<legend class={legend}>Fields shown</legend>
 				{#each fields as field (field.id)}
@@ -163,22 +248,13 @@
 		{:else if type === 'entry'}
 			<fieldset class="flex flex-col gap-1">
 				<legend class={legend}>Fields to fill in</legend>
-				{#each entryFields as field (field.id)}
+				{#each fillable as field (field.id)}
 					<label class="flex min-h-control items-center gap-2">
 						<input
 							type="checkbox"
 							class={checkbox}
-							checked={checked(
-								'fields',
-								field,
-								entryFields.map((item) => item.id)
-							)}
-							onchange={() =>
-								toggle(
-									'fields',
-									field.id,
-									entryFields.map((item) => item.id)
-								)}
+							checked={checked('fields', field, fillIn)}
+							onchange={() => toggle('fields', field.id, fillIn)}
 						/>
 						{field.name}
 					</label>
@@ -206,9 +282,10 @@
 			<Field label="Group by">
 				<select
 					class={select}
-					value={config.group ?? ''}
-					onchange={(event) => (config.group = event.currentTarget.value || null)}
+					value={config.group === undefined ? 'auto' : (config.group ?? '')}
+					onchange={(event) => setGroup(event.currentTarget.value)}
 				>
+					<option value="auto">Automatic ({autoLayout.group?.name ?? 'nothing'})</option>
 					<option value="">Nothing</option>
 					{#each fields as field (field.id)}
 						<option value={field.id}>{field.name}</option>
@@ -221,7 +298,10 @@
 					value={config.title ?? ''}
 					onchange={(event) => (config.title = event.currentTarget.value || null)}
 				>
-					<option value="">Automatic</option>
+					<option value=""
+						>Automatic ({listLayout(fields, { ...config, title: undefined }).title?.name ??
+							'none'})</option
+					>
 					{#each fields as field (field.id)}
 						<option value={field.id}>{field.name}</option>
 					{/each}
@@ -234,8 +314,13 @@
 						<input
 							type="checkbox"
 							class={checkbox}
-							checked={checked('show', field, [])}
-							onchange={() => toggle('show', field.id, [])}
+							checked={layout.show.some((item) => item.id === field.id)}
+							onchange={() =>
+								toggle(
+									'show',
+									field.id,
+									layout.show.map((item) => item.id)
+								)}
 						/>
 						{field.name}
 					</label>
@@ -257,10 +342,9 @@
 			<Field label="Horizontal axis">
 				<select
 					class={select}
-					value={config.x ?? ''}
+					value={axis ?? ''}
 					onchange={(event) => setChart('x', event.currentTarget.value || null)}
 				>
-					<option value=""></option>
 					{#each fields as field (field.id)}
 						<option value={field.id}>{field.name}</option>
 					{/each}
@@ -285,7 +369,7 @@
 					<select
 						class={select}
 						value={config.agg ?? 'count'}
-						onchange={(event) => setChart('agg', event.currentTarget.value as ChartConfig['agg'])}
+						onchange={(event) => setAgg(event.currentTarget.value as ChartConfig['agg'])}
 					>
 						<option value="count">Row count</option>
 						<option value="sum">Sum</option>
@@ -342,6 +426,20 @@
 	{#snippet footer()}
 		{#if existing !== undefined}
 			<Button variant="ghost" onclick={remove}>Delete</Button>
+			<Button
+				variant="ghost"
+				class="w-control px-0"
+				aria-label="Move left"
+				disabled={siblings[0]?.id === existing.id}
+				onclick={() => move(-1)}><Icon name="arrow-left" /></Button
+			>
+			<Button
+				variant="ghost"
+				class="w-control px-0"
+				aria-label="Move right"
+				disabled={siblings.at(-1)?.id === existing.id}
+				onclick={() => move(1)}><Icon name="arrow-right" /></Button
+			>
 		{/if}
 		<div class="flex-1"></div>
 		<Button variant="primary" onclick={save}>{existing === undefined ? 'Create' : 'Save'}</Button>

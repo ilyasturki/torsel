@@ -38,15 +38,8 @@
 	}
 </script>
 
-<Sheet bind:open {title} dirty={name !== initial}>
-	<form
-		onsubmit={(event) => {
-			event.preventDefault();
-			save();
-		}}
-	>
-		<input class={input} bind:value={name} {placeholder} aria-label={title} />
-	</form>
+<Sheet bind:open {title} dirty={name !== initial} onsubmit={save}>
+	<input class={input} bind:value={name} {placeholder} aria-label={title} />
 
 	{#snippet footer()}
 		<div class="flex-1"></div>

@@ -10,6 +10,7 @@
 		title,
 		description,
 		dirty = false,
+		onsubmit,
 		children,
 		footer
 	}: {
@@ -17,6 +18,7 @@
 		title: string;
 		description?: string;
 		dirty?: boolean;
+		onsubmit?: () => void;
 		children: Snippet;
 		footer?: Snippet;
 	} = $props();
@@ -49,6 +51,30 @@
 			open = false;
 		}
 	}
+
+	function onkeydown(event: KeyboardEvent): void {
+		if (
+			onsubmit === undefined ||
+			confirming ||
+			event.key !== 'Enter' ||
+			event.isComposing ||
+			event.defaultPrevented
+		) {
+			return;
+		}
+
+		const target = event.target as HTMLElement;
+		const submits =
+			target === event.currentTarget ||
+			target.tagName === 'SELECT' ||
+			(target instanceof HTMLInputElement && target.type !== 'file') ||
+			(target.tagName === 'TEXTAREA' && (event.ctrlKey || event.metaKey));
+
+		if (submits) {
+			event.preventDefault();
+			onsubmit();
+		}
+	}
 </script>
 
 <Dialog.Root bind:open>
@@ -59,6 +85,7 @@
 			onOpenAutoFocus={focusFirstControl}
 			onEscapeKeydown={guard}
 			onInteractOutside={guard}
+			{onkeydown}
 		>
 			<div class="flex shrink-0 items-center gap-3 p-4 pb-2">
 				<Dialog.Title class="min-w-0 flex-1 truncate text-lg font-semibold tight"

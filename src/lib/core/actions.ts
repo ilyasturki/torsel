@@ -118,15 +118,47 @@ export function defaultViews(): ViewSpec[] {
 	];
 }
 
-/** With no field list of its own, an entry view follows the table's fields. */
+/** With no field list of its own, an entry view follows the table's fields, less the hidden ones. */
 export function entryFields(all: FieldDef[], config: ViewConfig): FieldDef[] {
 	const list =
 		config.fields === undefined
-			? all
+			? all.filter((field) => !config.hidden?.includes(field.id))
 			: config.fields
 					.map((id) => all.find((field) => field.id === id))
 					.filter((field) => field !== undefined);
 	return list.filter((field) => field.type !== 'formula');
+}
+
+export type ListLayout = {
+	group: FieldDef | undefined;
+	title: FieldDef | undefined;
+	show: FieldDef[];
+};
+
+export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
+	const byId = new Map(fields.map((field) => [field.id, field]));
+	const group =
+		config.group === null
+			? undefined
+			: config.group === undefined
+				? (fields.find((field) => field.type === 'date') ??
+					fields.find((field) => field.type === 'choice'))
+				: byId.get(config.group);
+	const title = config.title
+		? byId.get(config.title)
+		: fields.find(
+				(field) => (field.type === 'text' || field.type === 'choice') && field.id !== group?.id
+			);
+	const show =
+		config.show === undefined
+			? fields.filter((field) => field.id !== group?.id && field.id !== title?.id).slice(0, 4)
+			: config.show.map((id) => byId.get(id)).filter((field) => field !== undefined);
+
+	return { group, title, show };
+}
+
+export function chartAxis(fields: FieldDef[], config: ViewConfig): string | null {
+	return config.x ?? fields.find((field) => field.type === 'date')?.id ?? fields[0]?.id ?? null;
 }
 
 export function createTable(
@@ -218,6 +250,24 @@ export function reorder(ws: Workspace, ids: string[]): Change[] {
 
 export function deleteRecords(ws: Workspace, ids: string[]): Change[] {
 	return ids.flatMap((id) => updateRecord(ws, id, { [DELETED]: true }));
+}
+
+export function reorder(ws: Workspace, ids: string[]): Change[] {
+	return ids.flatMap((id, order) =>
+		ws.live(id)?.data.order === order ? [] : updateRecord(ws, id, { order })
+	);
+}
+
+export function shifted(ids: string[], id: string, by: number): string[] {
+	const from = ids.indexOf(id);
+	const to = from + by;
+	if (from < 0 || to < 0 || to >= ids.length) {
+		return ids;
+	}
+
+	const out = ids.filter((item) => item !== id);
+	out.splice(to, 0, id);
+	return out;
 }
 
 /** Values keyed by field id, coerced to each field's type; unknown and computed fields dropped. */
