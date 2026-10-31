@@ -1,7 +1,17 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, RETRY_RESET, script, seed, test } from './harness.ts';
+import {
+	cell,
+	expect,
+	redoButton,
+	RETRY_RESET,
+	script,
+	seed,
+	test,
+	undoButton,
+	watchErrors
+} from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -18,14 +28,6 @@ function seedLifts(request: APIRequestContext) {
 		return `/app/t/${lifts.id}`;
 	});
 }
-
-const cell = (page: Page, name: string): Locator =>
-	page.getByRole('gridcell', { name, exact: true });
-
-const undoButton = (page: Page): Locator =>
-	page.getByRole('button', { name: 'Undo', exact: true }).first();
-
-const redoButton = (page: Page): Locator => page.getByRole('button', { name: 'Redo', exact: true });
 
 const askButton = (page: Page): Locator => page.getByRole('button', { name: /^Ask/u });
 
@@ -192,17 +194,21 @@ for (const kind of KINDS) {
 	for (const [name, leave] of Object.entries(LEAVES)) {
 		test(`${kind.name} survives ${name}, with its undo step and queued for sync`, async ({
 			page,
-			context
+			context,
+			pageErrors
 		}) => {
 			const path = new URL(page.url()).pathname;
 			await kind.prepare(page, context.request);
 
 			const next = await leave(page, () => kind.change(page));
+			if (next !== page) {
+				watchErrors(next, pageErrors);
+			}
 
 			await next.goto(path);
 			await kind.reopened(next);
 			await serverHolds(context.request, kind.serverHolds);
-			await undoButton(next).click();
+			await undoButton(next).first().click();
 			await kind.undone(next);
 		});
 	}
@@ -214,14 +220,14 @@ test('an undo survives a reload, and its redo with it', async ({ page }) => {
 	await page.getByRole('gridcell').getByRole('textbox').press('Enter');
 	await expect(cell(page, 'Bench')).toBeVisible();
 
-	await undoButton(page).click();
+	await undoButton(page).first().click();
 	await page.reload();
 	await expect(cell(page, 'Squat')).toBeVisible();
 
 	await redoButton(page).click();
 	await page.reload();
 	await expect(cell(page, 'Bench')).toBeVisible();
-	await expect(undoButton(page)).toBeEnabled();
+	await expect(undoButton(page).first()).toBeEnabled();
 });
 
 test('an undone action stays undone when its decision never reached the server', async ({
@@ -250,7 +256,7 @@ test('an undone action stays undone when its decision never reached the server',
 	await askPanel(page).getByRole('button', { name: 'Close' }).click();
 	await expect(page.getByText('2 rows')).toBeVisible();
 
-	await undoButton(page).click();
+	await undoButton(page).first().click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await page.unroute('**/decisions');
 	await page.reload();
@@ -260,6 +266,43 @@ test('an undone action stays undone when its decision never reached the server',
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await askPanel(page).getByRole('button', { name: 'Close' }).click();
 	await expect(cell(page, 'Deadlift')).toHaveCount(0);
+});
+
+test('a record whose save failed still lands, before the watermark passes it', async ({
+	page,
+	context,
+	pageErrors
+}) => {
+	await page.evaluate(() => {
+		const { put } = IDBObjectStore.prototype;
+		let failed = false;
+		IDBObjectStore.prototype.put = function (...args) {
+			if (!failed && JSON.stringify(args[0])?.includes('Deadlift')) {
+				failed = true;
+				throw new DOMException('no room', 'QuotaExceededError');
+			}
+			return put.apply(this, args);
+		};
+	});
+	const path = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Other');
+		commit(base.changes);
+		const made = createTable(ws, base.id, 'More', [{ name: 'Exercise', type: 'text' }]);
+		commit(made.changes);
+		commit(insertRows(ws, made.id, [{ [made.fieldIds[0]]: 'Deadlift' }]).changes);
+		return `/app/t/${made.id}`;
+	});
+	const status = page.getByRole('status');
+
+	await page.evaluate(() => window.dispatchEvent(new Event('online')));
+	await expect(status.getByText('Sync failed')).toBeVisible();
+	expect(pageErrors.splice(0)).toEqual(['no room']);
+	await status.getByRole('button', { name: 'retry' }).click();
+	await expect(status).toHaveCount(0);
+
+	await page.route('**/api/sync', (route) => route.fulfill({ status: 400, json: {} }));
+	await page.goto(path);
+	await expect(cell(page, 'Deadlift')).toBeVisible();
 });
 
 test('10,000 pasted rows land in one transaction, straight before a reload', async ({
@@ -290,6 +333,6 @@ test('10,000 pasted rows land in one transaction, straight before a reload', asy
 
 	await page.reload();
 	await expect(page.getByText('10000 rows', { exact: true })).toBeVisible();
-	await undoButton(page).click();
+	await undoButton(page).first().click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });

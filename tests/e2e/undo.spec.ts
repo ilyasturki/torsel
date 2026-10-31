@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, test } from './harness.ts';
+import { expect, redoButton, script, seed, test, undoButton } from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -22,9 +22,6 @@ function seedLifts(request: APIRequestContext) {
 		return `/app/t/${lifts.id}`;
 	});
 }
-
-const undoButton = (page: Page): Locator => page.getByRole('button', { name: 'Undo', exact: true });
-const redoButton = (page: Page): Locator => page.getByRole('button', { name: 'Redo', exact: true });
 
 /** Undo puts `before` back and redo brings `after` back, through the header both viewports share. */
 async function undoAndRedo(page: Page, before: Locator, after: Locator): Promise<void> {

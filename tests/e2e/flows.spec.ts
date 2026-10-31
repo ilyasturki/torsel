@@ -1,10 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, RETRY_RESET, script, seed, signIn, test } from './harness.ts';
-
-const cell = (page: Page, name: string): Locator =>
-	page.getByRole('gridcell', { name, exact: true });
+import { cell, expect, newAccount, RETRY_RESET, script, seed, signIn, test } from './harness.ts';
 
 const header = (page: Page, name: string): Locator =>
 	page.getByRole('columnheader', { name, exact: true });

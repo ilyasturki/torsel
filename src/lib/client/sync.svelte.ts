@@ -82,6 +82,7 @@ export async function syncNow(): Promise<void> {
 
 /** A store filled under another account never syncs into this one; a store with no owner joins it. */
 export async function claimOwner(userId: string): Promise<boolean> {
+	blocked = true;
 	const owner = await app.meta<string>('owner');
 
 	if (owner === undefined || owner === userId) {
@@ -94,7 +95,6 @@ export async function claimOwner(userId: string): Promise<boolean> {
 		return false;
 	}
 
-	blocked = true;
 	sync.status = 'other-account';
 	return false;
 }
@@ -250,5 +250,5 @@ export async function signOut(): Promise<boolean> {
 }
 
 export function eraseDevice(): Promise<void> {
-	return app.reset(['owner', SIGNED_IN]);
+	return app.reset(['owner', SIGNED_IN, 'thread']);
 }

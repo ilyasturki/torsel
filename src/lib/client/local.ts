@@ -36,13 +36,15 @@ export async function save(
 	meta: Record<string, unknown> = {}
 ): Promise<void> {
 	const tx = db.transaction(BOTH, 'readwrite');
+	const records = tx.objectStore('records');
+	const metaStore = tx.objectStore('meta');
 	const writes: Promise<unknown>[] = [tx.done];
 	try {
 		for (const entry of entries) {
-			writes.push(tx.objectStore('records').put(entry));
+			writes.push(records.put(entry));
 		}
 		for (const [key, value] of Object.entries(meta)) {
-			writes.push(tx.objectStore('meta').put(value, key));
+			writes.push(metaStore.put(value, key));
 		}
 		tx.commit();
 	} catch (error) {
@@ -62,12 +64,13 @@ function wipe(
 	drop: string[],
 	owner?: string
 ): Promise<unknown[]> {
+	const meta = tx.objectStore('meta');
 	const writes: Promise<unknown>[] = [tx.objectStore('records').clear(), tx.done];
 	for (const key of ['watermark', 'history', ...drop]) {
-		writes.push(tx.objectStore('meta').delete(key));
+		writes.push(meta.delete(key));
 	}
 	if (owner !== undefined) {
-		writes.push(tx.objectStore('meta').put(owner, 'owner'));
+		writes.push(meta.put(owner, 'owner'));
 	}
 	tx.commit();
 	return Promise.all(writes);

@@ -64,6 +64,15 @@ export async function passwordSignIn(page: Page, account: Account): Promise<void
 	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 }
 
+export const cell = (page: Page, name: string): Locator =>
+	page.getByRole('gridcell', { name, exact: true });
+
+export const undoButton = (page: Page): Locator =>
+	page.getByRole('button', { name: 'Undo', exact: true });
+
+export const redoButton = (page: Page): Locator =>
+	page.getByRole('button', { name: 'Redo', exact: true });
+
 export type SignInMail = { link: string | null; code: string };
 
 /** The newest mail the server logged instead of sending to this address. */

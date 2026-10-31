@@ -56,6 +56,8 @@ class TorselApp {
 	private engine: MemoryEngine | undefined;
 	private loading: Promise<void> | undefined;
 	private readonly dirty = new Set<string>();
+	// Settled in memory but not on disk: the next watermark passes them, and `put` won't report them again.
+	private readonly unsaved = new Set<string>();
 	private readonly built = new Map<string, number>();
 	private readonly problems = new Map<string, FormulaProblems>();
 	private seq = 0;
@@ -188,13 +190,11 @@ class TorselApp {
 	}
 
 	public async settle(pushed: Rec[], received: Rec[], watermark: number): Promise<void> {
-		const entries = new Map<string, Stored>();
-
 		for (const rec of pushed) {
 			const current = this.ws.get(rec.id);
 			if (current !== undefined && sameRec(current, rec)) {
 				this.dirty.delete(rec.id);
-				entries.set(rec.id, { id: rec.id, rec: current, dirty: false });
+				this.unsaved.add(rec.id);
 			}
 		}
 
@@ -203,15 +203,23 @@ class TorselApp {
 			this.hlc.observe(latestClock(rec));
 			if (this.ws.put(rec)) {
 				changed = true;
-				const merged = this.ws.get(rec.id) as Rec;
-				entries.set(rec.id, { id: rec.id, rec: merged, dirty: this.dirty.has(rec.id) });
+				this.unsaved.add(rec.id);
 			}
 		}
 
-		const saved = save(this.db as LocalDb, [...entries.values()], { watermark });
+		const ids = [...this.unsaved];
+		const entries = ids.map((id) => ({
+			id,
+			rec: this.ws.get(id) as Rec,
+			dirty: this.dirty.has(id)
+		}));
+		const saved = save(this.db as LocalDb, entries, { watermark });
 		this.version += changed ? 1 : 0;
 		this.pending = this.dirty.size;
 		await saved;
+		for (const id of ids) {
+			this.unsaved.delete(id);
+		}
 	}
 
 	public async meta<T>(key: string): Promise<T | undefined> {
@@ -227,8 +235,7 @@ class TorselApp {
 	public async reset(drop: string[] = []): Promise<void> {
 		await this.load();
 		await erase(this.db as LocalDb, drop);
-		this.ws.records.clear();
-		window.location.reload();
+		this.restart();
 	}
 
 	/** Drops every local record for another account, unless one still has to reach the server. */
@@ -237,9 +244,13 @@ class TorselApp {
 		if (!(await handOver(this.db as LocalDb, owner))) {
 			return false;
 		}
+		this.restart();
+		return true;
+	}
+
+	private restart(): void {
 		this.ws.records.clear();
 		window.location.reload();
-		return true;
 	}
 
 	private built_(tableId: string): MemoryEngine {
