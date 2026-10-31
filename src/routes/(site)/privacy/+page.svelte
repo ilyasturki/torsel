@@ -18,7 +18,7 @@
 		<p class="text-ink-3">Last updated {LEGAL_UPDATED}</p>
 	</header>
 
-	<p class="text-lg text-ink-2">
+	<p class="max-w-prose text-lg text-ink-2">
 		This page covers torsel.ilyasturki.com, run by {LEGAL_NAME}. A server you host yourself is yours
 		to run, and this page does not apply to it.
 	</p>

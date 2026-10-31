@@ -24,7 +24,7 @@
 		<p class="text-ink-3">Last updated {LEGAL_UPDATED}</p>
 	</header>
 
-	<p class="text-lg text-ink-2">
+	<p class="max-w-prose text-lg text-ink-2">
 		These terms cover the service at torsel.ilyasturki.com. The code is a separate matter: it is
 		<a class={link} href={REPOSITORY}>open source under the MIT license</a>, and you can run your
 		own server under that license alone.
