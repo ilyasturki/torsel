@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, RETRY_RESET, seed, signIn, test } from './harness.ts';
+import { expect, newAccount, RETRY_RESET, script, seed, signIn, test } from './harness.ts';
 
 const cell = (page: Page, name: string): Locator =>
 	page.getByRole('gridcell', { name, exact: true });
@@ -97,15 +97,17 @@ async function pasteText(page: Page, text: string): Promise<void> {
 /** Pointer activations on the page from now on, the audit's count of taps and clicks. */
 async function countTaps(page: Page): Promise<() => Promise<number>> {
 	await page.evaluate(() => {
-		const scope = window as unknown as { taps: number };
+		const scope = window as unknown as { taps?: number };
+		if (scope.taps === undefined) {
+			window.addEventListener(
+				'click',
+				(event) => {
+					if (event.detail > 0) scope.taps = (scope.taps ?? 0) + 1;
+				},
+				true
+			);
+		}
 		scope.taps = 0;
-		window.addEventListener(
-			'click',
-			(event) => {
-				if (event.detail > 0) scope.taps += 1;
-			},
-			true
-		);
 	});
 	return () => page.evaluate(() => (window as unknown as { taps: number }).taps);
 }
@@ -1084,6 +1086,21 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		await page.getByRole('dialog').getByRole('button', { name: 'Import' }).click();
 		await expect(page.getByRole('heading', { name: 'weigh-ins' })).toBeVisible();
 		expect(await taps()).toBeLessThanOrEqual(5);
+	});
+
+	test('ask the assistant: was 2', async ({ page, context, account }) => {
+		void account;
+		const { path } = await seedGym(context.request);
+		const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Two sets.' }] }]);
+		await page.goto(path);
+		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
+		const taps = await countTaps(page);
+
+		await page.getByRole('button', { name: /^Ask/u }).click();
+		await page.getByPlaceholder('Ask about your tables').fill(`${key} how many sets`);
+		await page.getByRole('button', { name: 'Send' }).click();
+		await expect(page.getByTestId('thread').getByText('Two sets.')).toBeVisible();
+		expect(await taps()).toBeLessThanOrEqual(2);
 	});
 
 	test('undo: was the toast within 6s on a phone', async ({ page, context, account }) => {
