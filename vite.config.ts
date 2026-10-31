@@ -31,6 +31,10 @@ export default defineConfig({
 					filename.split(/[/\\]/u).includes('node_modules') ? undefined : true
 			},
 			adapter,
+			// The worker answers every address under /app with one cached page, so its asset URLs can't depend on the address.
+			paths: { relative: false },
+			// Registered from /app's layout: the landing must not pay for the precache.
+			serviceWorker: { register: false },
 			// Not on the app build: its meta tag would pin connect-src to the webview, away from the chosen server.
 			...(isAppBuild
 				? {}

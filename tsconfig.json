@@ -8,5 +8,6 @@
 		"sourceMap": true,
 		"strict": true
 	},
-	"include": ["src", "scripts", "*.config.ts"]
+	"include": ["src", "scripts", "*.config.ts"],
+	"exclude": ["src/service-worker"]
 }

@@ -48,6 +48,12 @@ test('a phone with no server stays silent and keeps its data', async ({ page }) 
 	await page.goto('/app');
 	await page.getByRole('button', { name: 'New table' }).first().click();
 	await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
+	expect(
+		await page.evaluate(() =>
+			navigator.serviceWorker.getRegistrations().then((found) => found.length)
+		),
+		'its files are already local: no worker'
+	).toBe(0);
 
 	await page.goto('/app/settings');
 	await expect(page.getByLabel('Server address')).toBeVisible();

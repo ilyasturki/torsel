@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
+	import { dev } from '$app/env';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -35,6 +36,15 @@
 	let { children } = $props();
 
 	onMount(followOtherTabs);
+
+	onMount(() => {
+		if (!dev && !import.meta.env.APP_BUILD && 'serviceWorker' in navigator) {
+			// Scope `/app`, no trailing slash: it covers `/app` itself and leaves `/` uncontrolled.
+			navigator.serviceWorker
+				.register('/service-worker.js', { type: 'module', scope: '/app' })
+				.catch((error: unknown) => console.warn('no offline shell:', error));
+		}
+	});
 
 	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
 	const onSettings = $derived(page.url.pathname === SETTINGS);

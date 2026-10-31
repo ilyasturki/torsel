@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, openSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, openSync, rmSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:net';
@@ -44,8 +44,17 @@ function freePort(): Promise<number> {
 	});
 }
 
-function run(command: string, commandArgs: string[], cwd: string): void {
-	const { status } = spawnSync(command, commandArgs, { cwd, stdio: 'inherit' });
+function run(
+	command: string,
+	commandArgs: string[],
+	cwd: string,
+	env: Record<string, string> = {}
+): void {
+	const { status } = spawnSync(command, commandArgs, {
+		cwd,
+		stdio: 'inherit',
+		env: { ...process.env, ...env }
+	});
 	if (status !== 0) {
 		throw new Error(`${command} ${commandArgs.join(' ')} exited ${status}`);
 	}
@@ -148,7 +157,14 @@ function bootBuiltServer(name: string, port: number, env: Record<string, string>
 	return { base, database, log: join(runDir, `${name}.log`) };
 }
 
+// Under `build/`, not the run dir: the server resolves its dependencies from `node_modules` above it.
+const PREVIOUS_BUILD = 'build/server-previous';
+
 async function builtStack(assistant: Record<string, string>): Promise<Stack> {
+	// A rebuild of the same source hashes every asset the same: this define gives the deploy spec files that really differ.
+	run('bun', ['run', 'build:server'], root, { DEFAULT_SERVER: 'https://previous-build.test' });
+	rmSync(join(root, PREVIOUS_BUILD), { recursive: true, force: true });
+	cpSync(join(root, 'build/server'), join(root, PREVIOUS_BUILD), { recursive: true });
 	run('bun', ['run', 'build:server'], root);
 	run('bun', ['run', 'build:app'], root);
 
@@ -284,6 +300,7 @@ try {
 					app: stack.app
 				}),
 				TORSEL_TEST_APP_SERVER: stack.appServer,
+				TORSEL_TEST_PREVIOUS_BUILD: PREVIOUS_BUILD,
 				TORSEL_TEST_GOOGLE: google.url,
 				TORSEL_TEST_DEV: dev ? '1' : '',
 				TORSEL_TEST_FAKE: fake.url,
