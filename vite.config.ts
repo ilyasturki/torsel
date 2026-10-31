@@ -30,7 +30,26 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/u).includes('node_modules') ? undefined : true
 			},
-			adapter
+			adapter,
+			// Not on the app build: its meta tag would pin connect-src to the webview, away from the chosen server.
+			...(isAppBuild
+				? {}
+				: {
+						csp: {
+							mode: 'auto',
+							directives: {
+								'default-src': ['self'],
+								'script-src': ['self', 'wasm-unsafe-eval'],
+								'style-src': ['self', 'unsafe-inline'],
+								'img-src': ['self', 'data:', 'blob:'],
+								'connect-src': ['self'],
+								'object-src': ['none'],
+								'base-uri': ['self'],
+								'form-action': ['self'],
+								'frame-ancestors': ['none']
+							}
+						}
+					})
 		})
 	]
 });
