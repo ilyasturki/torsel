@@ -23,7 +23,7 @@
 		table: TableDef;
 		canUndo: boolean;
 		onrename: () => void;
-		onviewsettings: () => void;
+		onviewsettings?: () => void;
 		onnewview: () => void;
 		onnewrow: () => void;
 		onundo: () => void;
@@ -50,9 +50,11 @@
 		>
 		<Button variant="ghost" class="justify-start" onclick={() => run(onrename)}>Rename table</Button
 		>
-		<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
-			>View settings</Button
-		>
+		{#if onviewsettings !== undefined}
+			<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
+				>View settings</Button
+			>
+		{/if}
 		<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
 		<Button
 			variant="ghost"

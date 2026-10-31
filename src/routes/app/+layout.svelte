@@ -3,9 +3,16 @@
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import {
+		assistant,
+		checkAvailability,
+		ghostViews,
+		resumeThread
+	} from '#lib/client/assistant.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { me } from '#lib/client/session.svelte.ts';
+	import { sync } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { blankTable, updateRecord } from '#lib/core/actions.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -36,9 +43,27 @@
 		return table === undefined ? [] : app.ws.views(table.id);
 	});
 
+	const ghosts = $derived.by(() => {
+		void app.version;
+		return table === undefined ? [] : ghostViews(table.id).map((ghost) => ghost.view);
+	});
+
 	const view = $derived(
-		views.find((item) => item.id === page.url.searchParams.get('v')) ?? views[0]
+		[...ghosts, ...views].find((item) => item.id === page.url.searchParams.get('v')) ?? views[0]
 	);
+
+	const proposedView = $derived(view !== undefined && ghosts.some((item) => item.id === view.id));
+
+	$effect(() => {
+		void me.account;
+		void checkAvailability();
+	});
+
+	$effect(() => {
+		if (assistant.available === true && me.account) {
+			void resumeThread();
+		}
+	});
 
 	const tables = $derived.by(() => {
 		void app.version;
@@ -122,7 +147,7 @@
 					disabled={app.history.length === 0}
 					onclick={undo}>Undo</Button
 				>
-				{#if me.account}
+				{#if assistant.available && sync.status !== 'offline'}
 					<Button
 						variant="ghost"
 						class={asking ? 'bg-tint-2 text-ink' : ''}
@@ -154,12 +179,20 @@
 				<Segmented
 					label="Views"
 					class="max-sm:flex-1"
-					items={views.map((item) => ({
-						id: item.id,
-						label: item.name,
-						href: tableUrl(table.id, item.id),
-						active: item.id === view?.id
-					}))}
+					items={[
+						...views.map((item) => ({
+							id: item.id,
+							label: item.name,
+							href: tableUrl(table.id, item.id),
+							active: item.id === view?.id
+						})),
+						...ghosts.map((item) => ({
+							id: item.id,
+							label: `${item.name} (proposed)`,
+							href: tableUrl(table.id, item.id),
+							active: item.id === view?.id
+						}))
+					]}
 				/>
 				<Button
 					variant="ghost"
@@ -194,7 +227,7 @@
 			>
 				{@render children()}
 			</main>
-			{#if me.account}
+			{#if assistant.available}
 				<AskPanel bind:open={asking} table={table ?? null} view={view ?? null} />
 			{/if}
 		</div>
@@ -237,13 +270,15 @@
 			bind:open={menuOpen}
 			{table}
 			onrename={() => (renaming = true)}
-			onviewsettings={() => (viewSettings = true)}
+			onviewsettings={proposedView ? undefined : () => (viewSettings = true)}
 			onnewview={() => (viewCreating = true)}
 			onnewrow={() => (rowOpen = true)}
 			onundo={undo}
 			canUndo={app.history.length > 0}
 		/>
-		<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
+		{#if !proposedView}
+			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
+		{/if}
 		<ViewSheet bind:open={viewCreating} tableId={table.id} />
 		<RowSheet bind:open={rowOpen} tableId={table.id} />
 		<NameSheet

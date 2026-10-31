@@ -1,9 +1,18 @@
 <script lang="ts">
-	import { flushSync, onMount, untrack } from 'svelte';
+	import { flushSync, onDestroy, onMount, tick, untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import {
+		accept,
+		fresh,
+		ghostFields,
+		ghostValue,
+		isDoomed,
+		reject
+	} from '#lib/client/assistant.svelte.ts';
 	import { formatDate, plainNumber } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
+	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { insertRows, reorder, updateRecord, updateRow } from '#lib/core/actions.ts';
 	import type { Change, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
@@ -38,6 +47,7 @@
 	// Matches the row-number column's `w-11`.
 	const NUMBER_WIDTH = 44;
 	const ADD_WIDTH = 44;
+	const GHOST_WIDTH = 192;
 	// Small tables stay whole in the DOM, so the browser's own find still reaches every row.
 	const VIRTUAL_ABOVE = 100;
 	const OVERSCAN = 16;
@@ -98,6 +108,29 @@
 	const computed = $derived.by(() => {
 		void app.version;
 		return app.computed(tableId);
+	});
+
+	const ghosts = $derived.by(() => {
+		void app.version;
+		return ghostFields(tableId).map((ghost) => ({
+			...ghost,
+			values:
+				ghost.field.type === 'formula' && ghost.field.expr !== null
+					? app.formulaPreview(tableId, ghost.field.expr)
+					: new Map<string, Value>()
+		}));
+	});
+
+	const ghostIds = $derived(ghosts.map((ghost) => ghost.field.id).join());
+
+	$effect(() => {
+		if (ghostIds !== '') {
+			void tick().then(() =>
+				document
+					.querySelector('[data-testid="proposed-field"]')
+					?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+			);
+		}
 	});
 
 	const config = $derived.by((): GridConfig => {
@@ -234,6 +267,22 @@
 
 	$effect(() => {
 		if (!menuOpen) untrack(settleFilter);
+	});
+
+	$effect(() => {
+		const ids =
+			head === null ? [] : rows.slice(Math.max(0, top), bottom + 1).map((row) => row.id);
+		untrack(() => {
+			selection.table = tableId;
+			selection.rows = ids;
+		});
+	});
+
+	onDestroy(clearSelection);
+
+	$effect(() => {
+		const id = [...fresh].find((candidate) => rowIndex.has(candidate));
+		if (id !== undefined) untrack(() => reveal(rowIndex.get(id) as number, 0));
 	});
 
 	function onscroll(): void {
@@ -935,11 +984,14 @@
 			: 'relative'}"
 	>
 		<div
-			class="absolute inset-0 flex items-center overflow-hidden px-3 group-hover:bg-tint {numeric
+			class="absolute inset-0 flex items-center overflow-hidden px-3 transition-colors motion-slow group-hover:bg-tint {numeric
 				? 'justify-end'
-				: ''} {field.type === 'check' ? 'justify-center' : ''} {inRange && isRange
+				: ''} {field.type === 'check' ? 'justify-center' : ''} {(inRange && isRange) ||
+			(row !== null && fresh.has(row.id))
 				? 'bg-tint-2'
-				: ''} {isActive ? `ring-2 ring-inset ${focused ? 'ring-ink' : 'ring-edge'}` : ''}"
+				: ''} {row !== null && isDoomed(row.id) ? 'text-ink-3 line-through' : ''} {isActive
+				? `ring-2 ring-inset ${focused ? 'ring-ink' : 'ring-edge'}`
+				: ''}"
 		>
 			{#if field.type === 'check'}
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
@@ -989,6 +1041,24 @@
 	</td>
 {/snippet}
 
+{#snippet ghostCells(row: Rec | null)}
+	{#each ghosts as ghost (ghost.field.id)}
+		<td
+			class="relative h-row border-b border-hair bg-tint px-3 {ghost.field.type === 'number' ||
+			ghost.field.type === 'formula'
+				? 'text-right'
+				: ''}"
+		>
+			{#if row !== null}
+				<CellValue
+					field={ghost.field}
+					value={ghost.values.get(row.id) ?? ghostValue(row.id, ghost.field.id)}
+				/>
+			{/if}
+		</td>
+	{/each}
+{/snippet}
+
 <div class="flex h-full flex-col">
 	<textarea
 		bind:this={catcher}
@@ -1022,7 +1092,7 @@
 				role="grid"
 				tabindex="0"
 				aria-rowcount={rows.length + 2}
-				aria-colcount={fields.length + 1}
+				aria-colcount={fields.length + ghosts.length + 1}
 				aria-activedescendant={head !== null && headRow >= start && headRow < end
 					? cellId(headRow, headCol)
 					: undefined}
@@ -1042,6 +1112,9 @@
 					<col style="width: {NUMBER_WIDTH}px" />
 					{#each fields as field, index (field.id)}
 						<col style="width: {widths[index]}px" />
+					{/each}
+					{#each ghosts as ghost (ghost.field.id)}
+						<col style="width: {GHOST_WIDTH}px" />
 					{/each}
 					<col style="width: {ADD_WIDTH}px" />
 					<col />
@@ -1092,6 +1165,30 @@
 								></div>
 							</th>
 						{/each}
+						{#each ghosts as ghost (ghost.field.id)}
+							<th
+								scope="col"
+								class="sticky top-0 z-20 h-row border-b border-edge bg-raised p-0 text-sm font-medium text-ink max-sm:bg-canvas"
+								data-testid="proposed-field"
+							>
+								<div class="flex h-row items-center bg-tint-2 pl-3">
+									{#if ghost.field.type === 'formula'}<span class="mr-1">ƒ</span>{/if}
+									<span class="min-w-0 flex-1 truncate text-left">{ghost.field.name}</span>
+									<button
+										type="button"
+										class="flex size-control shrink-0 items-center justify-center rounded-box transition-colors motion hover:bg-tint-2"
+										aria-label="Accept {ghost.field.name}"
+										onclick={() => accept(ghost.action.id)}><Icon name="check" /></button
+									>
+									<button
+										type="button"
+										class="flex size-control shrink-0 items-center justify-center rounded-box transition-colors motion hover:bg-tint-2"
+										aria-label="Reject {ghost.field.name}"
+										onclick={() => reject(ghost.action.id)}><Icon name="x" /></button
+									>
+								</div>
+							</th>
+						{/each}
 						<th class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas">
 							<button
 								type="button"
@@ -1114,12 +1211,17 @@
 				<tbody>
 					{#if start > 0}
 						<tr aria-hidden="true" style="height: {start * rowHeight}px">
-							<td colspan={fields.length + 3} class="p-0"></td>
+							<td colspan={fields.length + ghosts.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
 					{#each visible as row, offset (row.id)}
 						{@const r = start + offset}
-						<tr class="group" aria-rowindex={r + 2}>
+						<tr
+							class="group"
+							aria-rowindex={r + 2}
+							data-fresh={fresh.has(row.id) || undefined}
+							data-doomed={isDoomed(row.id) || undefined}
+						>
 							<td
 								role="rowheader"
 								class="sticky left-0 z-10 h-row border-b border-hair bg-raised p-0 max-sm:bg-canvas"
@@ -1137,13 +1239,14 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(row, r, field, c)}
 							{/each}
+							{@render ghostCells(row)}
 							<td class="border-b border-hair" aria-hidden="true"></td>
 							<td class="border-b border-hair" aria-hidden="true"></td>
 						</tr>
 					{/each}
 					{#if end < total}
 						<tr aria-hidden="true" style="height: {(total - end) * rowHeight}px">
-							<td colspan={fields.length + 3} class="p-0"></td>
+							<td colspan={fields.length + ghosts.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
 					{#if showBlank}
@@ -1165,6 +1268,7 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(null, rows.length, field, c)}
 							{/each}
+							{@render ghostCells(null)}
 							<td class="border-b border-hair" aria-hidden="true"></td>
 							<td class="border-b border-hair" aria-hidden="true"></td>
 						</tr>

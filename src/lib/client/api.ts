@@ -117,6 +117,68 @@ function messageFrom(payload: unknown, fallback: string): string {
 	return fallback;
 }
 
+/** A POST whose answer arrives as one JSON object per line. `EventSource` can't POST or send a bearer token. */
+export async function streamLines<T>(
+	path: string,
+	options: { body: unknown; signal: AbortSignal },
+	onLine: (line: T) => void
+): Promise<void> {
+	const base = apiBase();
+	if (base === null) {
+		throw new ApiError(NO_SERVER, 'No server connected.');
+	}
+
+	const headers = new Headers({ 'content-type': 'application/json' });
+	const token = deviceToken();
+	if (token !== null) {
+		headers.set('authorization', `Bearer ${token}`);
+	}
+
+	let response: Response;
+	try {
+		response = await fetch(`${base}${path}`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(options.body),
+			signal: options.signal
+		});
+	} catch (error) {
+		if (options.signal.aborted) {
+			throw error;
+		}
+		throw new ApiError(OFFLINE, 'Can’t reach this server.');
+	}
+
+	if (!response.ok || response.body === null) {
+		const payload: unknown = await response.json().catch(() => undefined);
+		if (response.status === 401 && token !== null) {
+			setDeviceToken(null);
+		}
+		throw new ApiError(
+			response.status,
+			messageFrom(payload, `request failed (${response.status})`)
+		);
+	}
+
+	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+	let buffer = '';
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) {
+			return;
+		}
+		buffer += value;
+		const lines = buffer.split('\n');
+		buffer = lines.pop() ?? '';
+		for (const line of lines) {
+			if (line !== '') {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+				onLine(JSON.parse(line) as T);
+			}
+		}
+	}
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
 	const { method = 'GET', body, fetch = globalThis.fetch } = options;
 

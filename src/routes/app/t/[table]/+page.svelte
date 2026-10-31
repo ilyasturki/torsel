@@ -2,7 +2,9 @@
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { accept, ghostViews, reject } from '#lib/client/assistant.svelte.ts';
 	import { HOME } from '#lib/client/nav.ts';
+	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Chart from '#lib/views/Chart.svelte';
 	import Entry from '#lib/views/Entry.svelte';
@@ -21,9 +23,16 @@
 		return app.ws.views(tableId);
 	});
 
-	const view = $derived(
-		views.find((item) => item.id === page.url.searchParams.get('v')) ?? views[0]
-	);
+	const ghosts = $derived.by(() => {
+		void app.version;
+		return ghostViews(tableId);
+	});
+
+	const requested = $derived(page.url.searchParams.get('v'));
+
+	const ghost = $derived(ghosts.find((item) => item.view.id === requested));
+
+	const view = $derived(ghost?.view ?? views.find((item) => item.id === requested) ?? views[0]);
 
 	const problems = $derived.by(() => {
 		void app.version;
@@ -48,8 +57,23 @@
 			</div>
 		{/if}
 
+		{#if ghost !== undefined}
+			<div
+				class="flex shrink-0 flex-wrap items-center gap-2 bg-tint-2 p-2 pl-3"
+				data-testid="proposed-view"
+			>
+				<span class="min-w-0 flex-1 font-medium">Proposed view: {ghost.view.name}</span>
+				<Button variant="primary" onclick={() => accept(ghost.action.id)}>Accept</Button>
+				<Button onclick={() => reject(ghost.action.id)}>Reject</Button>
+			</div>
+		{/if}
+
 		{#if view === undefined}
 			<Empty text="This table has no view yet. Add one with the plus above." />
+		{:else if ghost !== undefined && ghost.action.after.length > 0}
+			<Empty
+				text="This view is built on a field still waiting for your answer. Accept to see it."
+			/>
 		{:else}
 			{#key view.id}
 				<div class="min-h-0 flex-1 enter">

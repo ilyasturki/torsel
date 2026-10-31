@@ -5,8 +5,8 @@ import type { MemoryEngine } from '../core/engine.ts';
 import { openEngine } from '../core/engine.ts';
 import { latestClock, sameRec } from '../core/merge.ts';
 import type { Change, ChartConfig, Rec } from '../core/model.ts';
-import type { FormulaProblems, SqlRow } from '../core/sql.ts';
-import { formulaProblem, materializeTable } from '../core/sql.ts';
+import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
+import { formulaProblem, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
 import type { LocalDb, Stored } from './local.ts';
 import { openLocal, putRecords, readMeta, writeMeta } from './local.ts';
@@ -28,6 +28,7 @@ class TorselApp {
 	public pending = $state(0);
 	public history = $state.raw<Group[]>([]);
 	public onChange: (() => void) | null = null;
+	public onUndo: ((group: Group) => void) | null = null;
 
 	private db: LocalDb | undefined;
 	private hlc = new Hlc('local');
@@ -121,6 +122,7 @@ class TorselApp {
 		}
 		this.persist(entries);
 		this.bump();
+		this.onUndo?.(group);
 
 		return group;
 	}
@@ -222,6 +224,10 @@ class TorselApp {
 
 	public checkFormula(tableId: string, stored: string): string | null {
 		return this.ready ? formulaProblem(this.built_(tableId), this.ws, tableId, stored) : null;
+	}
+
+	public formulaPreview(tableId: string, stored: string): Map<string, SqlValue> {
+		return this.ready ? formulaValues(this.built_(tableId), this.ws, tableId, stored) : new Map();
 	}
 
 	public sql(tableId: string, sql: string): SqlRow[] {

@@ -3,6 +3,7 @@
 
 	import { ApiError, DEFAULT_SERVER, apiBase, checkServer, setApiBase } from '#lib/client/api.ts';
 	import { app } from '#lib/client/app.svelte.ts';
+	import { checkAvailability } from '#lib/client/assistant.svelte.ts';
 	import type { PublicToken } from '#lib/client/auth.ts';
 	import { createToken, listTokens, logout, revokeToken } from '#lib/client/auth.ts';
 	import { formatDate } from '#lib/client/format.ts';
@@ -39,6 +40,7 @@
 			await checkServer(address);
 			setApiBase(address);
 			base = address;
+			void checkAvailability();
 		} catch (error) {
 			serverProblem = error instanceof ApiError ? error.message : 'That address doesn’t work.';
 		}

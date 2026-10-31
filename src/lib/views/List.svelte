@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
+	import { fresh } from '#lib/client/assistant.svelte.ts';
 	import { formatDate, formatMonth } from '#lib/client/format.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
@@ -120,7 +121,12 @@
 			{#each rows as row (row.id)}
 				<button
 					type="button"
-					class="flex min-h-row flex-col gap-1 px-4 py-2 text-left transition-colors motion hover:bg-tint"
+					class="flex min-h-row flex-col gap-1 px-4 py-2 text-left transition-colors motion-slow {fresh.has(
+						row.id
+					)
+						? 'bg-tint-2'
+						: 'hover:bg-tint'}"
+					data-fresh={fresh.has(row.id) || undefined}
 					onclick={() => {
 						rowId = row.id;
 						rowOpen = true;
