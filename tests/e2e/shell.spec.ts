@@ -262,7 +262,10 @@ test('the table menu renames the table, opens view settings and adds a view', as
 	await page.getByRole('button', { name: 'More' }).click();
 	await dialog.getByRole('button', { name: 'View settings' }).click();
 	await expect(dialog.getByRole('heading', { name: 'View settings' })).toBeVisible();
-	await dialog.getByRole('button', { name: 'Close' }).click();
+	await page
+		.getByRole('dialog', { name: 'View settings' })
+		.getByRole('button', { name: 'Close' })
+		.click();
 	await expect(dialog).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'More' }).click();
