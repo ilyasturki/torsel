@@ -16,9 +16,9 @@ export default defineConfig({
 	forbidOnly: true,
 	reporter: [['list']],
 	workers: 4,
-	// Each context refetches the dev server's unbundled modules: first paint took a minute at load 45, and a test can load three pages.
-	timeout: 300_000,
-	expect: { timeout: 90_000 },
+	// The slowest test takes 5s, and 16s pinned to one core. Each context refetches the dev server's unbundled modules: first paint took a minute at load 45, and a test can load three pages.
+	timeout: dev ? 300_000 : 60_000,
+	expect: { timeout: dev ? 90_000 : 20_000 },
 	outputDir: process.env.TORSEL_TEST_OUTPUT,
 	use: {
 		locale: 'en-US',
