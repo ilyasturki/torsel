@@ -31,7 +31,12 @@
 	}
 
 	function onInput(index: number, event: Event & { currentTarget: HTMLInputElement }): void {
-		const raw = event.currentTarget.value.replace(/\D/gu, '');
+		const typed = event.currentTarget.value.replace(/\D/gu, '');
+		// A tap collapses the select-on-focus on a phone, so typing into a filled box arrives as two digits.
+		const raw =
+			typed.length === 2 && digits[index] !== ''
+				? typed.replace(digits[index], '') || digits[index]
+				: typed;
 
 		// Autofill hands a one-time code to the first box as one input event, not a paste.
 		if (raw.length > 1) {

@@ -33,10 +33,13 @@ export async function sendSignInMail(
 	url: URL,
 	user: { id: string; email: string },
 	purpose: EmailTokenPurpose,
-	to: unknown
+	to: unknown,
+	client: Client['kind']
 ): Promise<void> {
 	const { token, code } = issueEmailToken(db, user.id, purpose);
-	const delivery = await deliver(signInMail(user.email, purpose, signInLink(url, token, to), code));
+	// A link opens in the browser, signing that in rather than the device and spending the device's code.
+	const link = client === 'web' ? signInLink(url, token, to) : null;
+	const delivery = await deliver(signInMail(user.email, purpose, link, code));
 
 	if (delivery === 'failed') {
 		error(502, 'the email could not be sent');

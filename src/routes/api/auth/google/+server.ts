@@ -63,8 +63,8 @@ async function callback(event: RequestEvent, code: string): Promise<never> {
 
 	const db = getDatabase();
 	const result = googleAccount(db, normalizeEmail(profile.email), profile.sub, signUpOpen());
-	if (result.outcome === 'closed') {
-		failed(path, 'google-closed');
+	if (result.outcome !== 'signed-in') {
+		failed(path, result.outcome === 'closed' ? 'google-closed' : 'google');
 	}
 
 	if (result.droppedPassword) {

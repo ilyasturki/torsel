@@ -27,10 +27,10 @@
 	import ServerForm from '#lib/views/ServerForm.svelte';
 
 	const inApp = import.meta.env.APP_BUILD;
-	const OAUTH_REFUSALS: Record<string, string> = {
-		google: 'Google sign-in didn’t go through. Try again, or use your email.',
-		'google-closed': 'This server doesn’t take new accounts, and this Google address has none.'
-	};
+	const OAUTH_REFUSALS = new Map([
+		['google', 'Google sign-in didn’t go through. Try again, or use your email.'],
+		['google-closed', 'This server doesn’t take new accounts, and this Google address has none.']
+	]);
 
 	const rawTo = page.url.searchParams.get('to');
 	const to = returnPath(rawTo);
@@ -48,7 +48,7 @@
 	let password = $state('');
 	let code = $state('');
 	let claim = $state<string | null>(null);
-	let problem = $state(OAUTH_REFUSALS[page.url.searchParams.get('error') ?? ''] ?? '');
+	let problem = $state(OAUTH_REFUSALS.get(page.url.searchParams.get('error') ?? '') ?? '');
 	let busy = $state(false);
 	let sentAgain = $state(false);
 
@@ -100,6 +100,7 @@
 
 	function submitEmail(): Promise<void> {
 		return attempt(async () => {
+			config ??= await authConfig();
 			found = await lookup(email);
 			password = '';
 			step = 'methods';

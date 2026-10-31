@@ -35,8 +35,18 @@ export function slidingWindow(limit: number, windowMs: number): Window {
 	};
 }
 
+const TOO_MANY = 'Too many tries. Wait a moment and try again.';
+
+// By address alone: every sign-in starts here, so a window per email would let anyone lock its owner out.
+const lookups = slidingWindow(30, 15 * MINUTE);
+
+export function enforceLookup(address: string): void {
+	if (lookups.hit(address)) {
+		error(429, TOO_MANY);
+	}
+}
+
 export const LIMITS = {
-	lookup: { ip: slidingWindow(30, 15 * MINUTE), email: slidingWindow(60, 15 * MINUTE) },
 	signUp: { ip: slidingWindow(10, HOUR), email: slidingWindow(3, HOUR) },
 	link: { ip: slidingWindow(10, HOUR), email: slidingWindow(3, HOUR) },
 	code: { ip: slidingWindow(30, 15 * MINUTE), email: slidingWindow(30, 15 * MINUTE) }
@@ -52,11 +62,12 @@ export function enforce(
 	const byEmail = limit.email.hit(email);
 
 	if (byIp || byEmail) {
-		error(429, 'too many attempts, try again later');
+		error(429, TOO_MANY);
 	}
 }
 
 export function resetRateLimits(): void {
+	lookups.reset();
 	for (const limit of Object.values(LIMITS)) {
 		limit.ip.reset();
 		limit.email.reset();

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
@@ -31,7 +31,7 @@
 
 	let { children } = $props();
 
-	onMount(() => followOtherTabs(() => void invalidateAll()));
+	onMount(followOtherTabs);
 
 	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
 	const onSettings = $derived(page.url.pathname === SETTINGS);

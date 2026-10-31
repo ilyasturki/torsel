@@ -23,7 +23,8 @@ export const POST: RequestHandler = async ({ request, url, getClientAddress }) =
 			url,
 			user,
 			user.emailVerifiedAt === null ? 'verify' : 'login',
-			body.to
+			body.to,
+			body.client === 'device' ? 'device' : 'web'
 		);
 	}
 

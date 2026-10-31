@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request, cookies, url, getClientAdd
 		if (client.kind === 'web') {
 			setClaimCookie(cookies, url, claim.nonce);
 		}
-		await sendSignInMail(db, url, { id: claim.userId, email }, 'verify', body.to);
+		await sendSignInMail(db, url, { id: claim.userId, email }, 'verify', body.to, client.kind);
 	}
 
 	// An owned address gets the same answer with nothing sent or changed.

@@ -327,7 +327,7 @@ test.describe('sign-in', () => {
 				data: { email: account.email }
 			});
 		}
-		await page.getByRole('button', { name: 'send it again' }).click();
+		await page.getByRole('button', { name: 'Send a new one' }).click();
 
 		await expect(page.getByRole('alert')).toHaveText(
 			'Too many tries. Wait a moment and try again.'

@@ -51,6 +51,7 @@
 			await setPassword(newPassword);
 			newPassword = '';
 			if (me.account) me.account.hasPassword = true;
+			await refreshTokens();
 			showToast('Password saved.');
 		} catch (error) {
 			passwordProblem =
@@ -151,7 +152,7 @@
 					<Field
 						label={me.account.hasPassword ? 'New password' : 'Password'}
 						hint={me.account.hasPassword
-							? undefined
+							? 'Changing it signs out your other devices and revokes your MCP tokens.'
 							: 'You sign in with an emailed code. A password makes it one step.'}
 					>
 						<PasswordInput

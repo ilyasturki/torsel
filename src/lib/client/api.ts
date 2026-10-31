@@ -126,9 +126,6 @@ function refusal(status: number, payload: unknown): string {
 	if (status === 401) {
 		return 'Your session has ended. Sign in again.';
 	}
-	if (status === 429) {
-		return 'Too many tries. Wait a moment and try again.';
-	}
 	return sentence(messageFrom(payload, `Request failed (${status})`));
 }
 

@@ -144,6 +144,15 @@ describe('googleAccount', () => {
 		expect(await verifyLogin(db, EMAIL, PASSWORD)).toBeNull();
 	});
 
+	it('refuses a second Google identity on an address already linked to another', () => {
+		const first = googleAccount(db, EMAIL, 'g1', true);
+		const second = googleAccount(db, EMAIL, 'g2', true);
+
+		expect(second).toEqual({ outcome: 'conflict' });
+		expect(first).toMatchObject({ outcome: 'signed-in' });
+		expect(findUserByEmail(db, EMAIL)?.googleSub).toBe('g1');
+	});
+
 	it('finds a linked account by its sub after the address changed', () => {
 		const first = googleAccount(db, EMAIL, 'g1', true);
 		const again = googleAccount(db, 'renamed@example.com', 'g1', false);

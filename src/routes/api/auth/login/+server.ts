@@ -27,7 +27,7 @@ export const POST: RequestHandler = async (event) => {
 	const account = normalizeEmail(email);
 
 	if (loginBlocked(address, account)) {
-		error(429, 'too many failed attempts, try again later');
+		error(429, 'Too many tries. Wait a moment and try again.');
 	}
 	if (saturated()) {
 		error(503, 'too many sign-in attempts in flight, try again');

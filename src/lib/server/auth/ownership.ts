@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
 
@@ -7,14 +7,11 @@ import { WRITER } from '../db/client.ts';
 import type { User } from '../db/schema.ts';
 import { users } from '../db/schema.ts';
 import { findUserByEmail, insertUser, normalizeEmail } from './accounts.ts';
+import { hashToken } from './tokens.ts';
 
 export type Claim =
 	| { outcome: 'owned'; nonce: string }
 	| { outcome: 'created' | 'reclaimed'; nonce: string; userId: string };
-
-function claimHash(nonce: string): string {
-	return createHash('sha256').update(nonce).digest('base64url');
-}
 
 /** The nonce goes back to the claimant alone: a cookie on the web, the response body on a device, which has no cookie jar. */
 export function claimAddress(db: Database, email: string, passwordHash: string | null): Claim {
@@ -27,7 +24,7 @@ export function claimAddress(db: Database, email: string, passwordHash: string |
 			const user = insertUser(tx, {
 				email: normalizeEmail(email),
 				passwordHash,
-				claimNonceHash: claimHash(nonce)
+				claimNonceHash: hashToken(nonce)
 			});
 			return { outcome: 'created', nonce, userId: user.id };
 		}
@@ -37,7 +34,7 @@ export function claimAddress(db: Database, email: string, passwordHash: string |
 		}
 
 		tx.update(users)
-			.set({ passwordHash, claimNonceHash: claimHash(nonce) })
+			.set({ passwordHash, claimNonceHash: hashToken(nonce) })
 			.where(eq(users.id, found.id))
 			.run();
 
@@ -59,7 +56,7 @@ export function proveAddress(db: Database, userId: string, nonce: string | null)
 		}
 
 		const vouched =
-			nonce !== null && row.claimNonceHash !== null && claimHash(nonce) === row.claimNonceHash;
+			nonce !== null && row.claimNonceHash !== null && hashToken(nonce) === row.claimNonceHash;
 		const droppedPassword = !vouched && row.passwordHash !== null;
 
 		const user = tx
@@ -78,7 +75,8 @@ export function proveAddress(db: Database, userId: string, nonce: string | null)
 }
 
 export type GoogleOutcome =
-	{ outcome: 'signed-in'; user: User; droppedPassword: boolean } | { outcome: 'closed' };
+	| { outcome: 'signed-in'; user: User; droppedPassword: boolean }
+	| { outcome: 'closed' | 'conflict' };
 
 /** Google has verified the address, which is what makes linking it to an existing row safe. */
 export function googleAccount(
@@ -96,6 +94,10 @@ export function googleAccount(
 		const found = findUserByEmail(tx, email);
 
 		if (found !== undefined) {
+			if (found.googleSub !== null) {
+				return { outcome: 'conflict' };
+			}
+
 			const droppedPassword = found.emailVerifiedAt === null && found.passwordHash !== null;
 			const user = tx
 				.update(users)

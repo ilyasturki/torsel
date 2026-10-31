@@ -184,6 +184,13 @@ class TorselApp {
 		window.location.reload();
 	}
 
+	/** Unlike `pending`, counts what other tabs left dirty too: they share the store, not this memory. */
+	public async storedPending(): Promise<number> {
+		await this.load();
+		const stored = await (this.db as LocalDb).getAll('records');
+		return stored.filter((entry) => entry.dirty).length;
+	}
+
 	public async forgetOwner(): Promise<void> {
 		await this.load();
 		await (this.db as LocalDb).delete('meta', 'owner');

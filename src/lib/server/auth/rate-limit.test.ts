@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LIMITS, enforce, resetRateLimits, slidingWindow } from './rate-limit.ts';
+import { LIMITS, enforce, enforceLookup, resetRateLimits, slidingWindow } from './rate-limit.ts';
 
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -61,5 +61,16 @@ describe('enforce', () => {
 			expect(() => enforce(LIMITS.link, '10.0.3.1', 'flood@example.com')).toThrow();
 		}
 		expect(() => enforce(LIMITS.link, '10.0.3.1', 'calm@example.com')).toThrow();
+	});
+});
+
+describe('enforceLookup', () => {
+	it('refuses per address, leaving every other address free', () => {
+		for (let sent = 0; sent < 30; sent += 1) {
+			enforceLookup('10.0.4.1');
+		}
+
+		expect(() => enforceLookup('10.0.4.1')).toThrow(expect.objectContaining({ status: 429 }));
+		expect(() => enforceLookup('10.0.4.2')).not.toThrow();
 	});
 });

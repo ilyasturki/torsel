@@ -75,7 +75,10 @@ export async function signUp(
 }
 
 export async function requestSignInMail(email: string, to: string | null): Promise<void> {
-	await request<unknown>('/api/auth/login-link', { method: 'POST', body: { email, to } });
+	await request<unknown>('/api/auth/login-link', {
+		method: 'POST',
+		body: { email, to, ...clientFields() }
+	});
 }
 
 export async function verifyCode(

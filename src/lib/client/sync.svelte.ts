@@ -91,7 +91,7 @@ export async function claimOwner(userId: string): Promise<boolean> {
 		return true;
 	}
 
-	if (app.pending === 0) {
+	if ((await app.storedPending()) === 0) {
 		await app.setMeta('owner', userId);
 		await app.reset();
 		return false;
@@ -185,14 +185,14 @@ function tabs(): BroadcastChannel {
 	return channel;
 }
 
-export function followOtherTabs(refresh: () => void): () => void {
+export function followOtherTabs(): () => void {
 	const listener = ({ data }: MessageEvent<'signed-in' | 'signed-out'>): void => {
 		if (data === 'signed-out') {
 			me.account = null;
 			sync.status = 'idle';
 		} else {
-			forgetAccount();
-			refresh();
+			// This tab's memory may hold another account's records, which a sync would push into this one.
+			window.location.reload();
 		}
 	};
 
