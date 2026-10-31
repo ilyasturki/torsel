@@ -1,6 +1,9 @@
 export const input =
 	'motion h-control w-full min-w-0 rounded-box bg-tint px-2 text-ink outline-none transition-colors placeholder:text-ink-3 hover:bg-tint-2 focus:bg-tint-2';
 
+export const linkButton =
+	'motion inline-flex h-control items-center justify-center rounded-box bg-tint px-3 font-medium text-ink transition-colors hover:bg-tint-2';
+
 export const select = input;
 
 export const textarea =

@@ -1,21 +1,25 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-
-	import { ApiError, DEFAULT_SERVER, apiBase, checkServer, setApiBase } from '#lib/client/api.ts';
+	import { ApiError, DEFAULT_SERVER, apiBase } from '#lib/client/api.ts';
 	import { app } from '#lib/client/app.svelte.ts';
 	import { checkAvailability } from '#lib/client/assistant.svelte.ts';
 	import type { PublicToken } from '#lib/client/auth.ts';
-	import { createToken, listTokens, logout, revokeToken } from '#lib/client/auth.ts';
+	import { createToken, listTokens, revokeToken, setPassword } from '#lib/client/auth.ts';
 	import { formatDate } from '#lib/client/format.ts';
-	import { LOGIN, SETTINGS } from '#lib/client/nav.ts';
-	import { forgetAccount, me } from '#lib/client/session.svelte.ts';
-	import { sync } from '#lib/client/sync.svelte.ts';
+	import { SETTINGS } from '#lib/client/nav.ts';
+	import { me } from '#lib/client/session.svelte.ts';
+	import { eraseDevice, signOut } from '#lib/client/sync.svelte.ts';
+	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { signInPath } from '#lib/core/return-path.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import Field from '#lib/ui/Field.svelte';
+	import PasswordInput from '#lib/ui/PasswordInput.svelte';
 	import { input } from '#lib/ui/styles.ts';
+	import ServerForm from '#lib/views/ServerForm.svelte';
 
 	let base = $state(apiBase());
-	let server = $state(apiBase() ?? DEFAULT_SERVER);
-	let serverProblem = $state('');
+	let newPassword = $state('');
+	let passwordProblem = $state('');
+	let erasing = $state(false);
 	let tokens = $state<PublicToken[]>([]);
 	let label = $state('Claude Code');
 	let minted = $state<string | null>(null);
@@ -33,25 +37,25 @@
 		if (me.account) void refreshTokens();
 	});
 
-	async function connect(): Promise<void> {
-		serverProblem = '';
-		const address = server.trim().replace(/\/+$/u, '');
-		try {
-			await checkServer(address);
-			setApiBase(address);
-			base = address;
-			void checkAvailability();
-		} catch (error) {
-			serverProblem = error instanceof ApiError ? error.message : 'That address doesn’t work.';
-		}
+	async function leave(): Promise<void> {
+		showToast(
+			(await signOut())
+				? 'Signed out. Your data stays on this device.'
+				: 'Couldn’t reach the server, so you’re still signed in.'
+		);
 	}
 
-	async function signOut(): Promise<void> {
-		await logout().catch(() => undefined);
-		forgetAccount();
-		me.account = null;
-		sync.status = 'idle';
-		if (!import.meta.env.APP_BUILD) void goto(LOGIN);
+	async function savePassword(): Promise<void> {
+		passwordProblem = '';
+		try {
+			await setPassword(newPassword);
+			newPassword = '';
+			if (me.account) me.account.hasPassword = true;
+			showToast('Password saved.');
+		} catch (error) {
+			passwordProblem =
+				error instanceof ApiError ? error.message : 'Couldn’t save the password. Try again.';
+		}
 	}
 
 	async function mint(): Promise<void> {
@@ -109,17 +113,12 @@
 					Without a server, everything stays on this phone. Connect one to sync and use the
 					assistant.
 				</p>
-				<form
-					class="flex gap-2"
-					onsubmit={(event) => {
-						event.preventDefault();
-						void connect();
+				<ServerForm
+					onconnected={(address) => {
+						base = address;
+						void checkAvailability();
 					}}
-				>
-					<input class={input} bind:value={server} inputmode="url" aria-label="Server address" />
-					<Button type="submit">Connect</Button>
-				</form>
-				{#if serverProblem}<p role="alert">{serverProblem}</p>{/if}
+				/>
 			</div>
 		</details>
 	{/if}
@@ -130,12 +129,49 @@
 			{#if me.account}
 				<div class="flex items-center justify-between gap-3">
 					<span class="min-w-0 truncate">{me.account.email}</span>
-					<Button onclick={signOut}>Sign out</Button>
+					<Button onclick={leave}>Sign out</Button>
 				</div>
-			{:else if me.account === null}
-				<a class="self-start font-medium underline" href="{LOGIN}?to={encodeURIComponent(SETTINGS)}"
-					>Sign in</a
+				<form
+					class="flex flex-col gap-2"
+					onsubmit={(event) => {
+						event.preventDefault();
+						void savePassword();
+					}}
 				>
+					<input
+						class="sr-only"
+						type="text"
+						name="email"
+						autocomplete="username"
+						value={me.account.email}
+						readonly
+						tabindex="-1"
+						aria-hidden="true"
+					/>
+					<Field
+						label={me.account.hasPassword ? 'New password' : 'Password'}
+						hint={me.account.hasPassword
+							? undefined
+							: 'You sign in with an emailed code. A password makes it one step.'}
+					>
+						<PasswordInput
+							bind:value={newPassword}
+							autocomplete="new-password"
+							minlength={8}
+							required
+						/>
+					</Field>
+					<Button type="submit" class="self-start">
+						{me.account.hasPassword ? 'Change password' : 'Set password'}
+					</Button>
+					{#if passwordProblem}<p role="alert">{passwordProblem}</p>{/if}
+				</form>
+			{:else if me.account === null}
+				<p class="text-ink-2">
+					Everything here works without an account. Sign in to sync across devices and use the
+					assistant.
+				</p>
+				<a class="self-start font-medium underline" href={signInPath(SETTINGS)}>Sign in</a>
 			{:else}
 				<p class="text-ink-2">Can’t reach the server right now.</p>
 			{/if}
@@ -191,6 +227,17 @@
 		<span>All data on this device</span>
 		<Button onclick={exportJson}>Export as JSON</Button>
 	</section>
+
+	{#if me.account === null}
+		<section class="flex items-center justify-between gap-3">
+			<span>{erasing ? 'This can’t be undone.' : 'Leaving this browser for good?'}</span>
+			{#if erasing}
+				<Button onclick={() => void eraseDevice()}>Erase for good</Button>
+			{:else}
+				<Button onclick={() => (erasing = true)}>Erase this device</Button>
+			{/if}
+		</section>
+	{/if}
 
 	<p class="text-sm text-ink-3">Torsel {import.meta.env.APP_VERSION}</p>
 </div>

@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
@@ -12,7 +14,7 @@
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { me } from '#lib/client/session.svelte.ts';
-	import { sync } from '#lib/client/sync.svelte.ts';
+	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { blankTable, updateRecord } from '#lib/core/actions.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -29,7 +31,9 @@
 
 	let { children } = $props();
 
-	const bare = $derived(page.url.pathname === LOGIN);
+	onMount(() => followOtherTabs(() => void invalidateAll()));
+
+	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
 	const onSettings = $derived(page.url.pathname === SETTINGS);
 	const tableId = $derived(page.params.table ?? null);
 

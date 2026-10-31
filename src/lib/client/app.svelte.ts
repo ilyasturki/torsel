@@ -184,6 +184,11 @@ class TorselApp {
 		window.location.reload();
 	}
 
+	public async forgetOwner(): Promise<void> {
+		await this.load();
+		await (this.db as LocalDb).delete('meta', 'owner');
+	}
+
 	private built_(tableId: string): MemoryEngine {
 		const engine = this.engine as MemoryEngine;
 		if (this.built.get(tableId) !== this.version) {

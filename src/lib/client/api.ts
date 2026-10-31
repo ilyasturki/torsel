@@ -117,6 +117,21 @@ function messageFrom(payload: unknown, fallback: string): string {
 	return fallback;
 }
 
+function sentence(text: string): string {
+	const capital = text.charAt(0).toUpperCase() + text.slice(1);
+	return /[.!?…]$/u.test(capital) ? capital : `${capital}.`;
+}
+
+function refusal(status: number, payload: unknown): string {
+	if (status === 401) {
+		return 'Your session has ended. Sign in again.';
+	}
+	if (status === 429) {
+		return 'Too many tries. Wait a moment and try again.';
+	}
+	return sentence(messageFrom(payload, `Request failed (${status})`));
+}
+
 /** A POST whose answer arrives as one JSON object per line. `EventSource` can't POST or send a bearer token. */
 export async function streamLines<T>(
 	path: string,
@@ -154,10 +169,7 @@ export async function streamLines<T>(
 		if (response.status === 401 && token !== null) {
 			setDeviceToken(null);
 		}
-		throw new ApiError(
-			response.status,
-			messageFrom(payload, `request failed (${response.status})`)
-		);
+		throw new ApiError(response.status, refusal(response.status, payload));
 	}
 
 	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -226,10 +238,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 			setDeviceToken(null);
 		}
 
-		throw new ApiError(
-			response.status,
-			messageFrom(payload, `request failed (${response.status})`)
-		);
+		throw new ApiError(response.status, refusal(response.status, payload));
 	}
 
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
