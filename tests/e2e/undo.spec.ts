@@ -57,6 +57,7 @@ function stored(page: Page, stack: 'undo' | 'redo'): Promise<number> {
 
 async function openField(page: Page, name: string): Promise<Locator> {
 	await page.getByRole('columnheader', { name }).getByRole('button').click();
+	await page.getByRole('button', { name: 'Field settings' }).click();
 	return page.getByRole('dialog');
 }
 
@@ -68,18 +69,18 @@ async function openMenu(page: Page): Promise<Locator> {
 test.beforeEach(async ({ page, context, account }) => {
 	void account;
 	await page.goto(await seedLifts(context.request));
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 });
 
 test('a cell edit', async ({ page }) => {
-	await page.getByRole('cell', { name: 'Squat' }).getByRole('button').click();
-	const editor = page.getByRole('cell').getByRole('textbox');
+	await page.getByRole('gridcell', { name: 'Squat' }).dblclick();
+	const editor = page.getByRole('gridcell').getByRole('textbox');
 	await editor.fill('Bench');
 	await editor.press('Enter');
 	await undoAndRedo(
 		page,
-		page.getByRole('cell', { name: 'Squat' }),
-		page.getByRole('cell', { name: 'Bench' })
+		page.getByRole('gridcell', { name: 'Squat' }),
+		page.getByRole('gridcell', { name: 'Bench' })
 	);
 });
 
@@ -90,27 +91,27 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 	await sheet.getByRole('button', { name: 'Save' }).click();
 	await undoAndRedo(
 		page,
-		page.getByRole('cell', { name: '100' }),
-		page.getByRole('cell', { name: '120' })
+		page.getByRole('gridcell', { name: '100' }),
+		page.getByRole('gridcell', { name: '120' })
 	);
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await sheet.getByLabel('Exercise').fill('Deadlift');
 	await sheet.getByRole('button', { name: 'Save' }).click();
-	await expect(page.getByRole('cell', { name: 'Deadlift' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Deadlift' })).toBeVisible();
 	await undoButton(page).first().click();
-	await expect(page.getByRole('cell', { name: 'Deadlift' })).toHaveCount(0);
+	await expect(page.getByRole('gridcell', { name: 'Deadlift' })).toHaveCount(0);
 });
 
 test('a deleted row, with no question asked', async ({ page }) => {
 	await page.getByRole('button', { name: 'Open row' }).first().click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
 	await expect(page.getByRole('dialog')).toHaveCount(0);
-	await expect(page.getByRole('cell', { name: 'Squat' })).toHaveCount(0);
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toHaveCount(0);
 	await undoButton(page).first().click();
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await redoButton(page).click();
-	await expect(page.getByRole('cell', { name: 'Squat' })).toHaveCount(0);
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toHaveCount(0);
 });
 
 test('a field renamed, then deleted', async ({ page }) => {
@@ -191,20 +192,20 @@ test('a table deleted, and a base deleted', async ({ page }) => {
 test('a fresh change clears redo, and the keyboard reaches both', async ({ page }) => {
 	test.skip(test.info().project.name === 'phone', 'a phone has no keyboard shortcut');
 
-	await page.getByRole('cell', { name: 'Squat' }).getByRole('button').click();
-	const editor = page.getByRole('cell').getByRole('textbox');
+	await page.getByRole('gridcell', { name: 'Squat' }).dblclick();
+	const editor = page.getByRole('gridcell').getByRole('textbox');
 	await editor.fill('Bench');
 	await editor.press('Enter');
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 
 	await page.keyboard.press('Control+z');
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await page.keyboard.press('Control+Shift+z');
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await page.keyboard.press('Control+z');
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await page.keyboard.press('Control+y');
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 
 	await page.keyboard.press('Control+z');
 	await expect(redoButton(page)).toBeEnabled();
@@ -215,21 +216,21 @@ test('a fresh change clears redo, and the keyboard reaches both', async ({ page 
 });
 
 test('the history survives a reload', async ({ page }) => {
-	await page.getByRole('cell', { name: 'Squat' }).getByRole('button').click();
-	const editor = page.getByRole('cell').getByRole('textbox');
+	await page.getByRole('gridcell', { name: 'Squat' }).dblclick();
+	const editor = page.getByRole('gridcell').getByRole('textbox');
 	await editor.fill('Bench');
 	await editor.press('Enter');
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 
 	await expect.poll(() => stored(page, 'undo')).toBe(1);
 
 	await page.reload();
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await undoButton(page).first().click();
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await expect.poll(() => stored(page, 'redo')).toBe(1);
 	await page.reload();
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await redoButton(page).click();
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 });

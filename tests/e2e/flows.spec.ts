@@ -3,7 +3,8 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import { expect, newAccount, RETRY_RESET, seed, signIn, test } from './harness.ts';
 
-const cell = (page: Page, name: string): Locator => page.getByRole('cell', { name, exact: true });
+const cell = (page: Page, name: string): Locator =>
+	page.getByRole('gridcell', { name, exact: true });
 
 const header = (page: Page, name: string): Locator =>
 	page.getByRole('columnheader', { name, exact: true });
@@ -14,11 +15,17 @@ const headerButton = (page: Page, name: string): Locator =>
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
 async function editCell(page: Page, from: string, to: string): Promise<void> {
-	await cell(page, from).getByRole('button').click();
-	const editor = page.getByRole('cell').getByRole('textbox');
+	await cell(page, from).dblclick();
+	const editor = page.getByRole('gridcell').getByRole('textbox');
 	await editor.fill(to);
 	await editor.press('Enter');
 	await expect(cell(page, to)).toBeVisible();
+}
+
+async function openField(page: Page, name: string): Promise<Locator> {
+	await header(page, name).getByRole('button').click();
+	await page.getByRole('button', { name: 'Field settings' }).click();
+	return page.getByRole('dialog', { name: 'Field', exact: true });
 }
 
 function seedGym(request: APIRequestContext) {
@@ -126,7 +133,7 @@ test.describe('the first table', () => {
 		await expect(header(page, 'Kg')).toBeVisible();
 		await expect(page.getByText('This table is empty.')).toBeVisible();
 
-		await page.getByRole('button', { name: 'New row' }).click();
+		await page.getByRole('button', { name: 'Add row' }).click();
 		const sheet = page.getByRole('dialog');
 		await sheet.getByLabel('Day').fill('30/10/2026');
 		await sheet.getByLabel('Kg').fill('81,5');
@@ -183,7 +190,7 @@ test.describe('the first table', () => {
 		await sheet.getByRole('textbox', { name: 'Add a choice' }).press('Enter');
 		await expect(header(page, 'Genre')).toBeVisible();
 
-		await page.getByRole('button', { name: 'New row' }).click();
+		await page.getByRole('button', { name: 'Add row' }).click();
 		const row = page.getByRole('dialog', { name: 'New row' });
 		await row.getByLabel('Code').fill('0612');
 		await row.getByLabel('Genre').selectOption('Novel');
@@ -395,10 +402,14 @@ test.describe('adding and correcting rows', () => {
 		const sheet = page.getByRole('dialog', { name: 'New row' });
 		const today = new Date().toISOString().slice(0, 10);
 
-		for (const view of [grid, list, chart]) {
+		for (const [view, button] of [
+			[grid, 'Add row'],
+			[list, 'New row'],
+			[chart, 'New row']
+		]) {
 			await page.goto(`${path}?v=${view}`);
 			const taps = await countTaps(page);
-			await page.getByRole('button', { name: 'New row' }).click();
+			await page.getByRole('button', { name: button }).click();
 			await expect(sheet.getByLabel('Date')).toHaveValue(today);
 			expect(await taps()).toBe(1);
 			await page.keyboard.press('Escape');
@@ -482,7 +493,7 @@ test.describe('fields and views', () => {
 			return { path: `/app/t/${table.id}` };
 		});
 		await page.goto(path);
-		await header(page, 'Value').getByRole('button').click();
+		await openField(page, 'Value');
 
 		const sheet = page.getByRole('dialog');
 		await sheet.getByRole('combobox', { name: 'Type' }).selectOption('number');
@@ -509,7 +520,7 @@ test.describe('fields and views', () => {
 				);
 		await expect.poll(names).toEqual(['Date', 'Exercise', 'Kg', 'Reps']);
 
-		await header(page, 'Kg').getByRole('button').click();
+		await openField(page, 'Kg');
 		const sheet = page.getByRole('dialog');
 		await sheet.getByRole('button', { name: 'Move left' }).click();
 		await sheet.getByRole('button', { name: 'Close' }).click();
@@ -534,7 +545,7 @@ test.describe('fields and views', () => {
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
 
-		await header(page, 'Kg').getByRole('button').click();
+		await openField(page, 'Kg');
 		await expect(page.getByRole('dialog').getByRole('button', { name: /^Sort/u })).toHaveCount(0);
 		await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
@@ -547,9 +558,9 @@ test.describe('fields and views', () => {
 
 		let sheet = await openSettings();
 		await sheet.getByRole('combobox', { name: 'Sort by' }).selectOption({ label: 'Kg' });
-		await sheet.getByRole('combobox', { name: 'Order' }).selectOption('asc');
+		await sheet.getByRole('combobox', { name: 'Order' }).selectOption('desc');
 		await sheet.getByRole('button', { name: 'Save' }).click();
-		await expect(firstRow).toContainText('80');
+		await expect(firstRow).toContainText('100');
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
 
 		await headerButton(page, 'Undo').click();
@@ -559,7 +570,9 @@ test.describe('fields and views', () => {
 
 		sheet = await openSettings();
 		await expect(sheet.getByRole('combobox', { name: 'Sort by' })).toHaveValue(/^f_/u);
-		await sheet.getByRole('combobox', { name: 'Sort by' }).selectOption({ label: 'None' });
+		await sheet
+			.getByRole('combobox', { name: 'Sort by' })
+			.selectOption({ label: 'None, oldest first' });
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(header(page, 'Kg').locator('svg')).toHaveCount(0);
 	});
@@ -615,6 +628,30 @@ test.describe('fields and views', () => {
 		).toHaveText('Date');
 	});
 
+	test('view settings name the filter the header set, and clear it', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const { path } = await seedGym(context.request);
+		await page.goto(path);
+		await expect(cell(page, 'Squat')).toBeVisible();
+
+		await header(page, 'Exercise').getByRole('button').click();
+		await page.getByRole('textbox', { name: 'Filter Exercise' }).fill('squ');
+		await page.keyboard.press('Enter');
+		await expect(cell(page, 'Bench')).toHaveCount(0);
+
+		await page.getByRole('button', { name: 'More' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'View settings' }).click();
+		const sheet = page.getByRole('dialog', { name: 'View settings' });
+		await expect(sheet.getByText('Only rows where Exercise contains "squ"')).toBeVisible();
+		await sheet.getByRole('button', { name: 'Clear filter' }).click();
+		await sheet.getByRole('button', { name: 'Save' }).click();
+		await expect(cell(page, 'Bench')).toBeVisible();
+	});
+
 	test('a new view with no name gets one of its own', async ({ page, context, account }) => {
 		void account;
 		const { path } = await seedGym(context.request);
@@ -637,13 +674,13 @@ test.describe('fields and views', () => {
 		await page.goto(path);
 		const dialog = page.getByRole('dialog');
 
-		await page.getByRole('button', { name: 'New row' }).click();
+		await page.getByRole('button', { name: 'Add row' }).click();
 		await dialog.getByLabel('Reps').fill('9');
 		await dialog.getByLabel('Reps').press('Enter');
 		await expect(dialog).toHaveCount(0);
 		await expect(cell(page, '9')).toBeVisible();
 
-		await header(page, 'Reps').getByRole('button').click();
+		await openField(page, 'Reps');
 		await dialog.getByLabel('Name').fill('Repetitions');
 		await dialog.getByLabel('Name').press('Enter');
 		await expect(dialog).toHaveCount(0);
@@ -803,7 +840,7 @@ test.describe('importing', () => {
 		const tabs = other.getByRole('group', { name: 'Tables' });
 		await tabs.getByRole('link', { name: 'Lifts' }).click();
 		await expect(other.getByText('2 rows')).toBeVisible();
-		await expect(other.getByRole('cell', { name: 'Squat' })).toBeVisible();
+		await expect(other.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 		await device.close();
 	});
 
@@ -904,7 +941,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		await expect(page.getByText('2 rows')).toBeVisible();
 		let taps = await countTaps(page);
 
-		await page.getByRole('button', { name: 'New row' }).click();
+		await page.getByRole('button', { name: 'Add row' }).click();
 		await page.keyboard.press('Enter');
 		await expect(page.getByText('3 rows')).toBeVisible();
 		expect(await taps()).toBe(1);
