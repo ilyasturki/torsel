@@ -118,7 +118,7 @@ SQLite runs as WebAssembly on every device and on the server, so a formula gives
 
 The assistant in the app and the MCP server share one set of tools. In the app, data it enters applies at once with an undo, a new table, field or view is proposed before it lands, and a deletion asks first. The server speaks MCP over Streamable HTTP at \`/api/mcp\`, with a token from Settings.
 
-Common uses are workouts, body weight, expenses, habits and collections. ${SITE_NAME} is MIT licensed and can be self-hosted on NixOS or with Node.
+Common uses are budgets, clients, projects, job searches, trips and reading lists. ${SITE_NAME} is MIT licensed and can be self-hosted on NixOS or with Node.
 
 ## Links
 

@@ -21,9 +21,9 @@
 </script>
 
 <header
-	class="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas px-gutter pt-safe"
+	class="flex items-center justify-between gap-3 rounded-panel bg-raised py-2 pr-2 pl-4 shadow-raised"
 >
-	<a href="/" class="flex h-16 items-center text-ink" aria-label="Torsel home">
+	<a href="/" class="text-ink" aria-label="Torsel home">
 		<Logo wordmark class="h-4.5" />
 	</a>
 	<nav class="flex items-center gap-1" aria-label="Site">

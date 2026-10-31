@@ -12,8 +12,8 @@
 	path="/privacy"
 />
 
-<article class="mx-auto flex w-full max-w-prose flex-col gap-8 px-gutter py-16">
-	<header class="flex flex-col gap-2">
+<article class="flex flex-col gap-8 rounded-panel bg-raised p-5 shadow-raised lg:px-16 lg:py-14">
+	<header class="flex max-w-prose flex-col gap-2">
 		<h1 class="text-hero leading-none font-semibold tighter">Privacy</h1>
 		<p class="text-ink-3">Last updated {LEGAL_UPDATED}</p>
 	</header>

@@ -31,6 +31,8 @@
 	--size-base: 13.5px;
 	--gutter: 28px;
 	--tabs-clear: 64px;
+	--site-cell: 34px;
+	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .09 -.03'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
 
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--fast: 120ms;
@@ -78,6 +80,7 @@
 		--fill: #ededf0;
 		--on-fill: #0d0e10;
 		--scrim: rgb(0 0 0 / 0.5);
+		--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 -.025'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
 		--elevation-1: 0 0 0 1px rgb(255 255 255 / 0.05);
 		--elevation-2:
 			0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.55);
@@ -119,6 +122,7 @@
 		--size-base: 15px;
 		--gutter: 16px;
 		--tabs-clear: 76px;
+		--site-cell: 26px;
 	}
 }
 
@@ -147,6 +151,17 @@
 	--text-hero: 44px;
 	--text-hero-lg: 64px;
 	--text-display: clamp(96px, 16vw, 200px);
+	--text-h1: clamp(32px, 4.5vw, 62px);
+	--text-h2: clamp(24px, 2.7vw, 36px);
+	--text-lede: clamp(14.5px, 1.1vw, 15.5px);
+
+	--spacing-page-gapped: 1196px;
+	--spacing-headline: 20ch;
+	--spacing-stage: 500px;
+	--spacing-stage-narrow: 640px;
+	--spacing-stage-real: 680px;
+	--spacing-stage-real-narrow: 820px;
+	--spacing-band: clamp(250px, 26vw, 320px);
 
 	--spacing-ask: 400px;
 	--spacing-sheet: 420px;
@@ -228,6 +243,17 @@
 
 @utility translate-x-ask-out {
 	translate: calc(100% + 40px) 0;
+}
+
+@utility site-cuts {
+	background-image:
+		linear-gradient(var(--canvas) 1px, transparent 1px),
+		linear-gradient(90deg, var(--canvas) 1px, transparent 1px);
+	background-size: var(--site-cell) var(--site-cell);
+}
+
+@utility site-grain {
+	background-image: var(--grain);
 }
 
 @utility tight {
