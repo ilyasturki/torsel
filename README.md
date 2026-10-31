@@ -26,7 +26,7 @@ bun install
 bun run app:install
 ```
 
-The app starts local. Réglages, Serveur, connects it to an instance.
+The app starts local. Settings, Server, connects it to an instance, and its sign-in screen asks for one too. It signs in with a password or a 6-digit emailed code.
 
 ## Self-host on NixOS
 
@@ -49,6 +49,19 @@ The server listens on `127.0.0.1:3000` with its SQLite database in `/var/lib/tor
 sudo torsel-account create you@example.com
 ```
 
+Or open sign-up to the public, with sign-in mail sent through [Brevo](https://www.brevo.com) and Google sign-in:
+
+```nix
+services.torsel = {
+  origin = "https://torsel.example.com"; # pins emailed links and the Google redirect
+  publicSignup = true;
+  emailFrom = "no-reply@example.com";
+  environmentFile = "/run/secrets/torsel.env"; # BREVO_API_KEY=..., GOOGLE_CLIENT_ID=..., GOOGLE_CLIENT_SECRET=...
+};
+```
+
+Without a Brevo key the mail goes to the journal, code and link included. Google's redirect URI is `<origin>/api/auth/google`.
+
 Every option is documented in [`nix/module.nix`](nix/module.nix).
 
 ## Run without Nix
@@ -65,7 +78,7 @@ bun run start
 
 ## MCP
 
-The server speaks MCP over Streamable HTTP at `/api/mcp`. Create a token in Réglages, Agents (MCP), then:
+The server speaks MCP over Streamable HTTP at `/api/mcp`. Create a token in Settings, Agents (MCP), then:
 
 ```sh
 claude mcp add --transport http torsel https://your-instance/api/mcp \

@@ -75,8 +75,10 @@ in
       description = ''
         The origin this instance is reached at. Required over plain http: the
         server otherwise assumes https and marks the session cookie `Secure`,
-        which browsers drop over http. Behind a TLS proxy, `trustedProxyHops`
-        does the job and this can stay empty.
+        which browsers drop over http. Required too for emailed sign-in links and
+        Google sign-in: a link or redirect is never built from the request's Host
+        header, so without this an email carries its code alone and Google stays
+        hidden.
       '';
     };
 
@@ -93,6 +95,32 @@ in
       '';
     };
 
+    publicSignup = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Let anyone create an account from the sign-in page, or with Google. Off,
+        accounts come from `torsel-account` alone.
+      '';
+    };
+
+    emailFrom = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      example = "no-reply@example.com";
+      description = ''
+        Sender of the sign-in mail, on a domain verified at Brevo. With this and
+        `BREVO_API_KEY` in `environmentFile` the mail goes out; without either it
+        goes to the journal instead, code and link included.
+      '';
+    };
+
+    emailFromName = lib.mkOption {
+      type = lib.types.str;
+      default = "Torsel";
+      description = "Display name of the sign-in mail's sender.";
+    };
+
     environmentFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
@@ -100,7 +128,10 @@ in
       description = ''
         systemd EnvironmentFile, read at start and never copied to the Nix store.
         `ANTHROPIC_API_KEY=...` in it turns on the built-in assistant;
-        `TORSEL_AI_MODEL=...` picks another Claude model.
+        `TORSEL_AI_MODEL=...` picks another Claude model; `BREVO_API_KEY=...`
+        sends the sign-in mail; `GOOGLE_CLIENT_ID=...` and
+        `GOOGLE_CLIENT_SECRET=...` turn on Google sign-in, with
+        `<origin>/api/auth/google` as the redirect URI.
       '';
     };
   };
@@ -128,6 +159,13 @@ in
       }
       // lib.optionalAttrs (cfg.origin != "") {
         ORIGIN = cfg.origin;
+      }
+      // lib.optionalAttrs cfg.publicSignup {
+        TORSEL_PUBLIC_SIGNUP = "1";
+      }
+      // lib.optionalAttrs (cfg.emailFrom != "") {
+        TORSEL_EMAIL_FROM = cfg.emailFrom;
+        TORSEL_EMAIL_FROM_NAME = cfg.emailFromName;
       }
       // lib.optionalAttrs (cfg.trustedProxyHops > 0) {
         ADDRESS_HEADER = "x-forwarded-for";
