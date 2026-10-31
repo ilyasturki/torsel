@@ -91,6 +91,23 @@ export function expireEmailTokens(): void {
 	db.close();
 }
 
+/** Resolves once what the page wrote so far is on disk: IndexedDB runs this read after those writes. */
+export function written(page: Page): Promise<void> {
+	return page.evaluate(
+		() =>
+			new Promise<void>((resolve) => {
+				const open = indexedDB.open('torsel');
+				open.onsuccess = () => {
+					const read = open.result.transaction(['records', 'meta']);
+					read.oncomplete = () => {
+						open.result.close();
+						resolve();
+					};
+				};
+			})
+	);
+}
+
 /** Queues what the fake model answers; a prompt holding the returned key gets these steps. */
 export async function script(request: APIRequestContext, steps: FakeStep[]): Promise<string> {
 	const key = `script-${randomUUID()}`;

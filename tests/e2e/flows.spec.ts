@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, RETRY_RESET, script, seed, signIn, test } from './harness.ts';
+import { expect, newAccount, RETRY_RESET, script, seed, signIn, test, written } from './harness.ts';
 
 const cell = (page: Page, name: string): Locator =>
 	page.getByRole('gridcell', { name, exact: true });
@@ -382,6 +382,7 @@ test.describe('opening where you left off', () => {
 		await page.goto(`/app/t/${table}?v=${entry}`);
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await expect(page.getByText('3 rows')).toBeVisible();
+		await written(page);
 
 		await page.goto(`/app/t/${table}?v=${grid}`);
 		await expect(cell(page, 'Squat').first()).toBeVisible();
@@ -1083,7 +1084,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 			mimeType: 'text/csv',
 			buffer: Buffer.from('date,kg\n2026-10-30,81.5\n')
 		});
-		await page.getByRole('dialog').getByRole('button', { name: 'Import' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Import', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'weigh-ins' })).toBeVisible();
 		expect(await taps()).toBeLessThanOrEqual(5);
 	});
@@ -1157,14 +1158,37 @@ test.describe('a boot the server does not answer', () => {
 	test('recovers from a server error the same way', async ({ page, context, account }) => {
 		void account;
 		const { path } = await seedGym(context.request);
-		await page.route('**/api/auth/session', (route) => route.fulfill({ status: 400, json: {} }));
 		await page.goto(path);
+		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
+		await written(page);
+
+		await page.route('**/api/auth/session', (route) => route.fulfill({ status: 400, json: {} }));
+		await page.reload();
 		await expect(page.getByRole('status')).toContainText('Sync failed');
 
 		await page.unroute('**/api/auth/session');
 		await page.evaluate(() => window.dispatchEvent(new Event('online')));
 		await expect(page.getByRole('status')).toHaveCount(0);
 		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
+	});
+
+	test('with no account the app runs, reopens and stays quiet about the server', async ({
+		page
+	}) => {
+		await page.route('**/api/auth/session', (route) => route.abort('internetdisconnected'));
+		await page.goto('/app');
+		await page.getByRole('textbox', { name: 'Table name' }).fill('Weigh-ins');
+		await page.keyboard.press('Enter');
+		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
+		await expect(page.getByRole('status')).toHaveCount(0);
+		await written(page);
+
+		await page.goto('/app');
+		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
+		await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+		await expect(page.getByRole('status')).toHaveCount(0);
+		await headerButton(page, 'Undo').click();
+		await expect(page.getByText('This table no longer exists.')).toBeVisible();
 	});
 });
 
