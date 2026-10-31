@@ -1,7 +1,9 @@
 import { SvelteSet } from 'svelte/reactivity';
 
-import type { Change, FieldDef, Value, ViewDef } from '../core/model.ts';
+import { Hlc } from '../core/clock.ts';
+import type { BaseDef, Change, FieldDef, Rec, TableDef, Value, ViewDef } from '../core/model.ts';
 import { DELETED } from '../core/model.ts';
+import type { SqlRow } from '../core/sql.ts';
 import type {
 	EventKind,
 	ThreadAction,
@@ -11,10 +13,11 @@ import type {
 	TurnEvent
 } from '../core/thread.ts';
 import { dependents, prerequisites } from '../core/thread.ts';
-import { fieldDef, viewDef } from '../core/workspace.ts';
+import { Workspace, tableDef } from '../core/workspace.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
+import { me } from './session.svelte.ts';
 import { syncNow } from './sync.svelte.ts';
 import { showToast } from './toast.svelte.ts';
 
@@ -28,7 +31,8 @@ export const assistant = $state({
 	actions: [] as ThreadAction[],
 	threads: [] as ThreadSummary[],
 	listing: false,
-	busy: false
+	busy: false,
+	resumed: false
 });
 
 /** Rows the assistant just wrote, standing out in place for a moment. */
@@ -325,11 +329,21 @@ export async function showThreads(): Promise<void> {
 
 /** The last thread comes back with the app, so its proposals keep showing in the tables. */
 export async function resumeThread(): Promise<void> {
-	if (assistant.id !== null) return;
-	const id = await app.meta<string | null>(THREAD_META);
-	if (id) {
-		await openThread(id).catch(() => app.setMeta(THREAD_META, null));
+	if (assistant.id === null) {
+		const id = await app.meta<string | null>(THREAD_META);
+		if (id) {
+			await openThread(id).catch(() => app.setMeta(THREAD_META, null));
+		}
 	}
+	assistant.resumed = true;
+}
+
+/** While a thread may still come back, a table not in the workspace may be one it proposes. */
+export function mayResume(): boolean {
+	return (
+		assistant.available === null ||
+		(assistant.available && (!me.asked || (Boolean(me.account) && !assistant.resumed)))
+	);
 }
 
 /** Whether this server can run the assistant; an unreachable server leaves the last answer standing. */
@@ -350,16 +364,19 @@ export type GhostField = { field: FieldDef; action: ThreadAction };
 
 export type GhostView = { view: ViewDef; action: ThreadAction };
 
-function ghostRec(change: ThreadAction['changes'][number]) {
-	return {
-		id: change.id,
-		kind: change.kind,
-		base: change.base,
-		parent: change.parent,
-		data: change.set,
-		clocks: {}
-	};
-}
+export type GhostTable = {
+	table: TableDef;
+	action: ThreadAction;
+	rows: number;
+	base: BaseDef;
+	baseProposed: boolean;
+};
+
+export type TablePreview = {
+	fields: GhostField[];
+	rows: Rec[];
+	computed: Map<string, SqlRow>;
+};
 
 function waiting(): ThreadAction[] {
 	return assistant.actions.filter(
@@ -367,29 +384,77 @@ function waiting(): ThreadAction[] {
 	);
 }
 
+/** What undecided actions would add, held apart: the workspace is what syncs and reaches undo. */
+function proposal(): Workspace {
+	const held = new Workspace();
+	const hlc = new Hlc('proposal');
+	for (const action of assistant.actions) {
+		if (action.status === 'pending' && action.tier !== 'confirm') {
+			for (const change of action.changes) {
+				if (app.ws.get(change.id) === undefined) {
+					held.stamp(change, hlc.tick());
+				}
+			}
+		}
+	}
+	return held;
+}
+
+function proposerOf(id: string): ThreadAction {
+	return waiting().find((action) =>
+		action.changes.some((change) => change.id === id)
+	) as ThreadAction;
+}
+
 /** Proposed fields of a table, drawn in place: none of them is in the workspace yet. */
 export function ghostFields(tableId: string): GhostField[] {
-	return waiting().flatMap((action) =>
-		action.changes
-			.filter(
-				(change) =>
-					change.kind === 'field' &&
-					change.parent === tableId &&
-					app.ws.get(change.id) === undefined
-			)
-			.map((change) => ({ field: fieldDef(ghostRec(change)), action }))
-	);
+	return proposal()
+		.fields(tableId)
+		.map((field) => ({ field, action: proposerOf(field.id) }));
 }
 
 export function ghostViews(tableId: string): GhostView[] {
+	return proposal()
+		.views(tableId)
+		.map((view) => ({ view, action: proposerOf(view.id) }));
+}
+
+/** Proposed tables whose base is there or proposed too: elsewhere they could not land. */
+export function ghostTables(): GhostTable[] {
+	const held = proposal();
 	return waiting().flatMap((action) =>
-		action.changes
-			.filter(
-				(change) =>
-					change.kind === 'view' && change.parent === tableId && app.ws.get(change.id) === undefined
-			)
-			.map((change) => ({ view: viewDef(ghostRec(change)), action }))
+		action.changes.flatMap((change) => {
+			const rec = change.kind === 'table' ? held.get(change.id) : undefined;
+			if (rec === undefined) return [];
+			const table = tableDef(rec);
+			const proposedBase = held.base(table.base);
+			const base = proposedBase ?? app.ws.base(table.base);
+			return base === undefined
+				? []
+				: [
+						{
+							table,
+							action,
+							rows: held.rows(table.id).length,
+							base,
+							baseProposed: proposedBase !== undefined
+						}
+					];
+		})
 	);
+}
+
+export function ghostTable(id: string): GhostTable | undefined {
+	return ghostTables().find((ghost) => ghost.table.id === id);
+}
+
+export function previewTable(tableId: string): TablePreview {
+	const held = proposal();
+	return {
+		fields: ghostFields(tableId),
+		rows: held.rows(tableId),
+		computed: app.computedIn(held, tableId)
+	};
 }
 
 /** A value held back with a proposed field: data entry built on it waits for the decision. */

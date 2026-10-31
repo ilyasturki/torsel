@@ -4,7 +4,7 @@ import { Hlc } from '../core/clock.ts';
 import type { MemoryEngine } from '../core/engine.ts';
 import { openEngine } from '../core/engine.ts';
 import { latestClock, sameRec } from '../core/merge.ts';
-import type { Change, ChartConfig, Rec } from '../core/model.ts';
+import type { Change, ChartConfig, FieldDef, Rec } from '../core/model.ts';
 import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
 import { formulaProblem, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
@@ -26,6 +26,18 @@ function randomNode(): string {
 	const bytes = new Uint8Array(6);
 	crypto.getRandomValues(bytes);
 	return [...bytes].map((byte) => (byte % 36).toString(36)).join('');
+}
+
+function computedRows(
+	engine: MemoryEngine,
+	tableId: string,
+	formulas: FieldDef[]
+): Map<string, SqlRow> {
+	const rows = engine.all(
+		`select id, ${formulas.map((field) => field.id).join(', ')} from v_${tableId}`
+	);
+
+	return new Map(rows.map((row) => [String(row.id), row]));
 }
 
 class TorselApp {
@@ -263,11 +275,19 @@ class TorselApp {
 			return new Map();
 		}
 
-		const rows = this.built_(tableId).all(
-			`select id, ${formulas.map((field) => field.id).join(', ')} from v_${tableId}`
-		);
+		return computedRows(this.built_(tableId), tableId, formulas);
+	}
 
-		return new Map(rows.map((row) => [String(row.id), row]));
+	/** `computed` for a table `ws` holds instead of this workspace, rebuilt on every call. */
+	public computedIn(ws: Workspace, tableId: string): Map<string, SqlRow> {
+		const formulas = ws.fields(tableId).filter((field) => field.type === 'formula');
+		if (!this.ready || formulas.length === 0) {
+			return new Map();
+		}
+
+		const engine = this.engine as MemoryEngine;
+		materializeTable(engine, ws, tableId);
+		return computedRows(engine, tableId, formulas);
 	}
 
 	public chart(tableId: string, config: ChartConfig): ChartData | null {

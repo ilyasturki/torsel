@@ -197,6 +197,7 @@ let settling: Promise<void> | undefined;
 export function resolveSession(): Promise<void> {
 	settling ??= settleSession().finally(() => {
 		settling = undefined;
+		me.asked = true;
 	});
 	return settling;
 }

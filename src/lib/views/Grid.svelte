@@ -2,14 +2,7 @@
 	import { flushSync, onDestroy, onMount, tick, untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import {
-		accept,
-		fresh,
-		ghostFields,
-		ghostValue,
-		isDoomed,
-		reject
-	} from '#lib/client/assistant.svelte.ts';
+	import { fresh, ghostFields, ghostValue, isDoomed } from '#lib/client/assistant.svelte.ts';
 	import { formatDate, plainNumber } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
@@ -50,6 +43,7 @@
 	} from './grid.ts';
 	import GridColumnMenu from './GridColumnMenu.svelte';
 	import GridPicker from './GridPicker.svelte';
+	import ProposedHeader from './ProposedHeader.svelte';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
@@ -1182,22 +1176,7 @@
 								class="sticky top-0 z-20 h-row border-b border-edge bg-raised p-0 text-sm font-medium text-ink max-sm:bg-canvas"
 								data-testid="proposed-field"
 							>
-								<div class="flex h-row items-center bg-tint-2 pl-3">
-									{#if ghost.field.type === 'formula'}<span class="mr-1">ƒ</span>{/if}
-									<span class="min-w-0 flex-1 truncate text-left">{ghost.field.name}</span>
-									<button
-										type="button"
-										class="flex size-control shrink-0 items-center justify-center rounded-box transition-colors motion hover:bg-tint-2"
-										aria-label="Accept {ghost.field.name}"
-										onclick={() => accept(ghost.action.id)}><Icon name="check" /></button
-									>
-									<button
-										type="button"
-										class="flex size-control shrink-0 items-center justify-center rounded-box transition-colors motion hover:bg-tint-2"
-										aria-label="Reject {ghost.field.name}"
-										onclick={() => reject(ghost.action.id)}><Icon name="x" /></button
-									>
-								</div>
+								<ProposedHeader {ghost} />
 							</th>
 						{/each}
 						<th class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas">

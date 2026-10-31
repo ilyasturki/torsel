@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
+	import { ghostTables } from '#lib/client/assistant.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
@@ -25,8 +26,19 @@
 		}));
 	});
 
-	const empty = $derived(bases.every((base) => base.tables.length === 0));
-	const grouped = $derived(bases.length > 1);
+	const proposals = $derived.by(() => {
+		void app.version;
+		return ghostTables();
+	});
+
+	const proposedBases = $derived([
+		...new Map(
+			proposals.filter((ghost) => ghost.baseProposed).map((ghost) => [ghost.base.id, ghost.base])
+		).values()
+	]);
+
+	const empty = $derived(proposals.length === 0 && bases.every((base) => base.tables.length === 0));
+	const grouped = $derived(bases.length + proposedBases.length > 1);
 
 	function removeBase(base: BaseDef): void {
 		const label = `Base "${base.name}" deleted`;
@@ -47,6 +59,20 @@
 		}
 	}
 </script>
+
+{#snippet proposedRows(baseId: string)}
+	{#each proposals.filter((ghost) => ghost.table.base === baseId) as ghost (ghost.table.id)}
+		<a
+			href={tableUrl(ghost.table.id)}
+			class="flex min-h-row items-center gap-3 bg-tint px-4 transition-colors motion hover:bg-tint-2"
+			data-testid="proposed-row"
+		>
+			<span class="min-w-0 truncate font-medium">{ghost.table.name}</span>
+			<span class="flex-1 text-ink-3">Proposed</span>
+			<span class="shrink-0 text-ink-3">{ghost.rows} {ghost.rows === 1 ? 'row' : 'rows'}</span>
+		</a>
+	{/each}
+{/snippet}
 
 <div class="flex min-h-full flex-col pb-tabs-clear">
 	{#if empty}
@@ -89,6 +115,15 @@
 					<span class="shrink-0 text-ink-3">{table.rows} {table.rows === 1 ? 'row' : 'rows'}</span>
 				</a>
 			{/each}
+			{@render proposedRows(base.id)}
+		{/each}
+		{#each proposedBases as base (base.id)}
+			{#if grouped}
+				<h2 class="truncate pt-4 pr-2 pb-1 pl-4 text-sm font-medium text-ink-3">
+					{base.name} (proposed)
+				</h2>
+			{/if}
+			{@render proposedRows(base.id)}
 		{/each}
 		<div class="flex flex-wrap gap-2 p-4">
 			{#if !grouped}

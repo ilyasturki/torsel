@@ -1,8 +1,15 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { accept, ghostViews, reject } from '#lib/client/assistant.svelte.ts';
+	import {
+		accept,
+		ghostTable,
+		ghostViews,
+		mayResume,
+		reject
+	} from '#lib/client/assistant.svelte.ts';
 	import { HOME } from '#lib/client/nav.ts';
 	import { viewToOpen } from '#lib/client/place.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -12,6 +19,7 @@
 	import Entry from '#lib/views/Entry.svelte';
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
+	import TablePreview from '#lib/views/TablePreview.svelte';
 
 	const tableId = $derived(page.params.table ?? '');
 
@@ -28,6 +36,22 @@
 	const ghosts = $derived.by(() => {
 		void app.version;
 		return ghostViews(tableId);
+	});
+
+	const proposed = $derived.by(() => {
+		void app.version;
+		return ghostTable(tableId);
+	});
+
+	// A rejected table leaves nothing to look at, and this page's URL with it.
+	let previewing = false;
+	$effect(() => {
+		if (proposed !== undefined) {
+			previewing = true;
+		} else if (previewing) {
+			previewing = false;
+			if (table === undefined) void goto(HOME, { replaceState: true });
+		}
 	});
 
 	const requested = $derived(page.url.searchParams.get('v'));
@@ -51,9 +75,13 @@
 </script>
 
 {#if table === undefined}
-	<Empty text="This table no longer exists.">
-		<a href={HOME} class="underline">See your tables</a>
-	</Empty>
+	{#if proposed !== undefined}
+		<TablePreview ghost={proposed} />
+	{:else if !mayResume()}
+		<Empty text="This table no longer exists.">
+			<a href={HOME} class="underline">See your tables</a>
+		</Empty>
+	{/if}
 {:else}
 	<div class="flex h-full flex-col">
 		{#if problems.length > 0}

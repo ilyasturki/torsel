@@ -8,6 +8,7 @@
 	import {
 		assistant,
 		checkAvailability,
+		ghostTables,
 		ghostViews,
 		resumeThread
 	} from '#lib/client/assistant.svelte.ts';
@@ -87,12 +88,22 @@
 		return app.ws.bases().flatMap((base) => app.ws.tables(base.id));
 	});
 
+	const proposals = $derived.by(() => {
+		void app.version;
+		return ghostTables();
+	});
+
+	const proposed = $derived(proposals.find((ghost) => ghost.table.id === tableId));
+	const onTable = $derived(table !== undefined || proposed !== undefined);
+
 	const rowCount = $derived.by(() => {
 		void app.version;
 		return table === undefined ? 0 : app.ws.rows(table.id).length;
 	});
 
-	const heading = $derived(table?.name ?? (onSettings ? 'Settings' : 'Tables'));
+	const heading = $derived(
+		table?.name ?? proposed?.table.name ?? (onSettings ? 'Settings' : 'Tables')
+	);
 
 	let asking = $state(false);
 	let menuOpen = $state(false);
@@ -204,7 +215,7 @@
 		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5 max-lg:flex-wrap">
 			<a
 				href={HOME}
-				class="mr-1 shrink-0 text-ink-2 hover:text-ink {table === undefined ? '' : 'max-sm:hidden'}"
+				class="mr-1 shrink-0 text-ink-2 hover:text-ink {onTable ? 'max-sm:hidden' : ''}"
 			>
 				<Logo wordmark class="h-4 max-sm:hidden" />
 				<Logo class="h-5 sm:hidden" />
@@ -213,6 +224,12 @@
 				{#if table !== undefined}
 					<TableTitle {table} rows={rowCount} />
 					<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
+				{:else if proposed !== undefined}
+					<h1 class="min-w-0 truncate text-xl font-semibold tight max-sm:text-lg">{heading}</h1>
+					<span class="shrink-0 pt-1 text-ink-3"
+						>{proposed.rows}
+						{proposed.rows === 1 ? 'row' : 'rows'}</span
+					>
 				{:else}
 					<h1 class="min-w-0 truncate text-xl font-semibold tight max-sm:text-lg">{heading}</h1>
 				{/if}
@@ -246,10 +263,9 @@
 				{/if}
 				<a
 					href={SETTINGS}
-					class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {table ===
-					undefined
-						? ''
-						: 'max-sm:hidden'}">Settings</a
+					class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {onTable
+						? 'max-sm:hidden'
+						: ''}">Settings</a
 				>
 				{#if table !== undefined}
 					<Button
@@ -320,7 +336,7 @@
 				{@render children()}
 			</main>
 			{#if assistant.available}
-				<AskPanel bind:open={asking} table={table ?? null} view={view ?? null} />
+				<AskPanel bind:open={asking} table={table ?? proposed?.table ?? null} view={view ?? null} />
 			{/if}
 		</div>
 
@@ -338,6 +354,12 @@
 					...tables.map((item) => ({
 						id: item.id,
 						label: item.name,
+						href: tableUrl(item.id),
+						active: item.id === tableId
+					})),
+					...proposals.map(({ table: item }) => ({
+						id: item.id,
+						label: `${item.name} (proposed)`,
 						href: tableUrl(item.id),
 						active: item.id === tableId
 					}))

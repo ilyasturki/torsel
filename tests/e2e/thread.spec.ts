@@ -1,7 +1,7 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, test } from './harness.ts';
+import { expect, script, seed, test, written } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -297,7 +297,363 @@ test('a rejected proposal leaves the table alone and reaches the model', async (
 	expect(told).toContain('nothing it made exists');
 });
 
-test('a proposed table has no page yet, and accepting it brings its rows and a link', async ({
+const SLEEP_STEPS = [
+	{
+		blocks: [
+			{
+				type: 'tool' as const,
+				id: 'toolu_table',
+				name: 'create_table',
+				input: {
+					name: 'Sleep',
+					fields: [
+						{ name: 'Night', type: 'text' },
+						{ name: 'Hours', type: 'number' }
+					]
+				}
+			},
+			{
+				type: 'tool' as const,
+				id: 'toolu_built',
+				name: 'add_rows',
+				input: {
+					base: 'Tables',
+					table: 'Sleep',
+					rows: [
+						{ Night: 'Monday', Hours: 8 },
+						{ Night: 'Tuesday', Hours: 6 }
+					]
+				}
+			}
+		]
+	},
+	{ blocks: [{ type: 'text' as const, text: 'Proposed a table.' }] },
+	{ blocks: [{ type: 'text' as const, text: 'Understood.' }] }
+];
+
+async function proposeSleep(page: Page, context: BrowserContext, start: string): Promise<string> {
+	const key = await script(context.request, SLEEP_STEPS);
+	await page.goto(start);
+	await ask(page, `${key} track my sleep`);
+	await expect(thread(page).getByText('New table "Sleep"')).toBeVisible();
+	await expect(thread(page).getByText('Proposed a table.')).toBeVisible();
+	return key;
+}
+
+async function openPreview(page: Page): Promise<void> {
+	await thread(page).getByRole('link', { name: 'Show in Sleep' }).click();
+	if (isPhone()) {
+		await expect(page.locator('aside[aria-label="Ask"]')).toBeHidden();
+	}
+	await expect(page.getByTestId('proposed-table')).toBeVisible();
+}
+
+async function expectPreview(page: Page): Promise<void> {
+	const preview = page.getByRole('table', { name: 'Preview of Sleep' });
+	await expect(page.getByRole('heading', { name: 'Sleep' })).toBeVisible();
+	await expect(page.locator('header').getByText('2 rows')).toBeVisible();
+	await expect(preview.getByRole('columnheader', { name: 'Night' })).toBeVisible();
+	await expect(preview.getByRole('columnheader', { name: 'Hours' })).toBeVisible();
+	await expect(preview.getByRole('cell', { name: 'Monday', exact: true })).toBeVisible();
+	await expect(preview.getByRole('cell', { name: '6', exact: true })).toBeVisible();
+}
+
+function tablesTabs(page: Page) {
+	return page.getByRole('group', { name: 'Tables' });
+}
+
+/** Everything the server and this browser hold about the workspace, as text. */
+async function everywhere(page: Page, context: BrowserContext): Promise<string> {
+	await written(page);
+	const pull = await context.request.post('/api/sync', { data: { watermark: 0, push: [] } });
+	const local = await page.evaluate(
+		() =>
+			new Promise<unknown[]>((resolve) => {
+				const open = indexedDB.open('torsel');
+				open.onsuccess = () => {
+					const read = open.result.transaction('records').objectStore('records').getAll();
+					read.onsuccess = () => {
+						open.result.close();
+						resolve(read.result);
+					};
+				};
+			})
+	);
+	return JSON.stringify([await pull.json(), local]);
+}
+
+test('a proposed table shows where it will land, previews there, and accepting it makes it real', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	await proposeSleep(page, context, `/app/t/${table}`);
+
+	const rows = thread(page);
+	await expect(rows.getByText('Held until you answer')).toBeVisible();
+	await openPreview(page);
+	await expectPreview(page);
+	await expect(tablesTabs(page).getByRole('link', { name: 'Sleep (proposed)' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(page).toHaveTitle('Sleep · Torsel');
+
+	await tablesTabs(page).getByRole('link', { name: 'All' }).click();
+	const row = page.getByTestId('proposed-row');
+	await expect(row).toContainText('Sleep');
+	await expect(row).toContainText('Proposed');
+	await expect(row).toContainText('2 rows');
+	await row.click();
+	await expectPreview(page);
+
+	const heldBack = await everywhere(page, context);
+	expect(heldBack).not.toContain('Sleep');
+	expect(heldBack).not.toContain('Monday');
+	await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+
+	await page.getByTestId('proposed-table').getByRole('button', { name: 'Accept' }).click();
+
+	await expect(page.getByTestId('proposed-table')).toHaveCount(0);
+	await expect(page.getByRole('gridcell', { name: 'Monday', exact: true })).toBeVisible();
+	await expect(page.locator('tr[data-fresh]')).toHaveCount(2);
+	await expect(page.locator('header').getByText('2 rows')).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Views' })).toBeVisible();
+	await expect(tablesTabs(page).getByRole('link', { name: 'Sleep', exact: true })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeEnabled();
+	await expect
+		.poll(async () => everywhere(page, context), 'the accepted table syncs')
+		.toContain('Monday');
+
+	if (isPhone()) {
+		await page.getByRole('button', { name: /^Ask/u }).click();
+	}
+	await expect(rows.getByText('Accepted', { exact: true })).toBeVisible();
+	await expect(rows.getByRole('link', { name: 'Open Sleep' }).first()).toBeVisible();
+});
+
+test('accepting a proposed table in the thread turns the open preview into the table', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	await proposeSleep(page, context, `/app/t/${table}`);
+	await openPreview(page);
+
+	if (isPhone()) {
+		await page.getByRole('button', { name: /^Ask/u }).click();
+	}
+	await thread(page).getByRole('button', { name: 'Accept', exact: true }).click();
+	await expect(thread(page).getByText('Accepted', { exact: true })).toBeVisible();
+	if (isPhone()) {
+		await closeAsk(page);
+	}
+
+	await expect(page.getByTestId('proposed-table')).toHaveCount(0);
+	await expect(page.getByRole('gridcell', { name: 'Tuesday', exact: true })).toBeVisible();
+	await expect(tablesTabs(page).getByRole('link', { name: 'Sleep', exact: true })).toBeVisible();
+});
+
+test('rejecting a proposed table from its preview leaves no trace and reaches the model', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await proposeSleep(page, context, `/app/t/${table}`);
+	await openPreview(page);
+
+	await page.getByTestId('proposed-table').getByRole('button', { name: 'Reject' }).click();
+
+	await expect(page).toHaveURL(/\/app$/u);
+	await expect(page.getByText('This table no longer exists')).toHaveCount(0);
+	await expect(page.getByTestId('proposed-row')).toHaveCount(0);
+	await expect(tablesTabs(page).getByRole('link', { name: /Sleep/u })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+
+	const left = await everywhere(page, context);
+	expect(left).not.toContain('Sleep');
+	expect(left).not.toContain('Monday');
+
+	await ask(page, `${key} ok`);
+	const rows = thread(page);
+	await expect(rows.getByText('Understood.')).toBeVisible();
+	await expect(rows.getByText('Rejected', { exact: true })).toBeVisible();
+	await expect(rows.getByText('Not applied', { exact: true })).toBeVisible();
+
+	const { requests } = await seen(context.request, key);
+	const told = JSON.stringify(requests.at(-1)?.messages.at(-1));
+	expect(told).toContain('Rejected: New table');
+	expect(told).toContain('nothing it made exists');
+});
+
+test('rejecting a proposed table in the thread leaves its open preview', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	await proposeSleep(page, context, `/app/t/${table}`);
+	await openPreview(page);
+
+	if (isPhone()) {
+		await page.getByRole('button', { name: /^Ask/u }).click();
+	}
+	await thread(page).getByRole('button', { name: 'Reject' }).click();
+	await expect(thread(page).getByText('Rejected', { exact: true })).toBeVisible();
+	if (isPhone()) {
+		await closeAsk(page);
+	}
+
+	await expect(page).toHaveURL(/\/app$/u);
+	await expect(page.getByTestId('proposed-table')).toHaveCount(0);
+	await expect(tablesTabs(page).getByRole('link', { name: /Sleep/u })).toHaveCount(0);
+});
+
+test('a proposed table comes back with a reload on its own page, and can be decided then', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await proposeSleep(page, context, `/app/t/${table}`);
+	await openPreview(page);
+
+	// A count taken in the page: the wrong text shows for an instant, too briefly to poll for.
+	await page.addInitScript(() => {
+		const win = window as unknown as { sawMissing: boolean };
+		win.sawMissing = false;
+		new MutationObserver(() => {
+			win.sawMissing ||= document.body?.textContent?.includes('no longer exists') === true;
+		}).observe(document, { subtree: true, childList: true, characterData: true });
+	});
+	await page.reload();
+
+	await expect(page.getByTestId('proposed-table')).toBeVisible();
+	await expectPreview(page);
+	expect(await page.evaluate(() => (window as unknown as { sawMissing: boolean }).sawMissing)).toBe(
+		false
+	);
+	expect(await everywhere(page, context)).not.toContain('Sleep');
+	await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+
+	await tablesTabs(page).getByRole('link', { name: 'All' }).click();
+	await expect(page.getByTestId('proposed-row')).toContainText('Sleep');
+	await page.getByTestId('proposed-row').click();
+
+	await page.getByTestId('proposed-table').getByRole('button', { name: 'Accept' }).click();
+	await expect(page.getByRole('gridcell', { name: 'Monday', exact: true })).toBeVisible();
+
+	await page.reload();
+	await expect(page.getByRole('gridcell', { name: 'Monday', exact: true })).toBeVisible();
+	await expect(page.getByTestId('proposed-table')).toHaveCount(0);
+
+	await ask(page, `${key} thanks`);
+	await expect(thread(page).getByText('Understood.')).toBeVisible();
+	const { requests } = await seen(context.request, key);
+	expect(JSON.stringify(requests.at(-1)?.messages.at(-1))).toContain('Accepted: New table');
+});
+
+test('a table proposed into an empty workspace lists on the home instead of the empty state', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	await seed(context.request, () => undefined);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_table',
+					name: 'create_table',
+					input: { name: 'Sleep', fields: [{ name: 'Hours', type: 'number' }] }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Proposed a table.' }] }
+	]);
+	await page.goto('/app');
+	await ask(page, `${key} track my sleep`);
+	await expect(thread(page).getByText('Proposed a table.')).toBeVisible();
+	if (isPhone()) {
+		await closeAsk(page);
+	}
+
+	await expect(page.getByTestId('proposed-row')).toContainText('Sleep');
+	await expect(page.getByText('No tables yet')).toHaveCount(0);
+
+	await page.getByTestId('proposed-row').click();
+	await page.getByTestId('proposed-table').getByRole('button', { name: 'Accept' }).click();
+	await expect(page.getByRole('columnheader', { name: 'Hours' })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Views' })).toBeVisible();
+});
+
+test('a table proposed into a proposed base lists under it, and accepting brings both', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{ type: 'tool', id: 'toolu_base', name: 'create_base', input: { name: 'Health' } },
+				{
+					type: 'tool',
+					id: 'toolu_table',
+					name: 'create_table',
+					input: { base: 'Health', name: 'Sleep', fields: [{ name: 'Hours', type: 'number' }] }
+				},
+				{
+					type: 'tool',
+					id: 'toolu_view',
+					name: 'create_view',
+					input: {
+						base: 'Health',
+						table: 'Sleep',
+						name: 'By hours',
+						type: 'chart',
+						config: { kind: 'bar', x: 'Hours', agg: 'count' }
+					}
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Proposed.' }] }
+	]);
+	await page.goto(`/app/t/${table}`);
+	await ask(page, `${key} track my sleep in its own base`);
+	await expect(thread(page).getByText('Proposed.')).toBeVisible();
+	await expect(thread(page).getByRole('link', { name: 'Show in Sleep' })).toHaveCount(2);
+	await thread(page).getByRole('link', { name: 'Show in Sleep' }).last().click();
+	await expect(page.getByTestId('proposed-table')).toBeVisible();
+
+	await tablesTabs(page).getByRole('link', { name: 'All' }).click();
+	await expect(page.getByRole('heading', { name: 'Health (proposed)' })).toBeVisible();
+	await expect(page.getByTestId('proposed-row')).toContainText('Sleep');
+
+	await page.getByTestId('proposed-row').click();
+	await page.getByTestId('proposed-table').getByRole('button', { name: 'Accept' }).click();
+	await expect(page.getByRole('columnheader', { name: 'Hours' })).toBeVisible();
+
+	await tablesTabs(page).getByRole('link', { name: 'All' }).click();
+	await expect(page.getByRole('heading', { name: 'Health', exact: true })).toBeVisible();
+	await expect(page.getByTestId('proposed-row')).toHaveCount(0);
+});
+
+test('a field proposed on a proposed table previews and is decided on its own', async ({
 	page,
 	context,
 	account
@@ -311,30 +667,58 @@ test('a proposed table has no page yet, and accepting it brings its rows and a l
 					type: 'tool',
 					id: 'toolu_table',
 					name: 'create_table',
-					input: { name: 'Sleep', fields: [{ name: 'Hours', type: 'number' }] }
+					input: {
+						name: 'Runs',
+						fields: [
+							{ name: 'Km', type: 'number' },
+							{ name: 'Min', type: 'number' }
+						]
+					}
 				},
 				{
 					type: 'tool',
-					id: 'toolu_built',
+					id: 'toolu_rows',
 					name: 'add_rows',
-					input: { base: 'Tables', table: 'Sleep', rows: [{ Hours: 8 }] }
+					input: { base: 'Tables', table: 'Runs', rows: [{ Km: 10, Min: 50 }] }
+				},
+				{
+					type: 'tool',
+					id: 'toolu_pace',
+					name: 'add_field',
+					input: {
+						base: 'Tables',
+						table: 'Runs',
+						name: 'Pace',
+						type: 'formula',
+						formula: '"Min" / "Km"'
+					}
+				},
+				{
+					type: 'tool',
+					id: 'toolu_note',
+					name: 'add_field',
+					input: { base: 'Tables', table: 'Runs', name: 'Note', type: 'text' }
 				}
 			]
 		},
-		{ blocks: [{ type: 'text', text: 'Proposed a table.' }] }
+		{ blocks: [{ type: 'text', text: 'Proposed.' }] }
 	]);
 	await page.goto(`/app/t/${table}`);
-	await ask(page, `${key} track my sleep`);
+	await ask(page, `${key} track runs`);
+	await expect(thread(page).getByText('Proposed.')).toBeVisible();
+	await thread(page).getByRole('link', { name: 'Show in Runs' }).first().click();
 
-	const rows = thread(page);
-	await expect(rows.getByText('Held until you answer')).toBeVisible();
-	await expect(rows.getByRole('link', { name: /^Show in/u })).toHaveCount(0);
+	const preview = page.getByRole('table', { name: 'Preview of Runs' });
+	await expect(preview.getByRole('cell', { name: '5', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Accept Km' })).toHaveCount(0);
 
-	await rows.getByRole('button', { name: 'Accept', exact: true }).click();
-	await rows.getByRole('link', { name: 'Open Sleep' }).first().click();
+	await page.getByRole('button', { name: 'Reject Note' }).click();
+	await expect(preview.getByRole('columnheader', { name: 'Note' })).toHaveCount(0);
 
-	await expect(page.getByRole('heading', { name: 'Sleep' })).toBeVisible();
-	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Accept Pace' }).click();
+	await expect(page.getByTestId('proposed-table')).toHaveCount(0);
+	await expect(page.getByRole('columnheader', { name: /Pace/u })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: '5', exact: true })).toBeVisible();
 });
 
 test('a proposed view opens as a tab of its own and can be accepted there', async ({

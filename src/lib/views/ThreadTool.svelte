@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { accept, canUndo, markFresh, reject, undoAction } from '#lib/client/assistant.svelte.ts';
+	import {
+		accept,
+		canUndo,
+		ghostTable,
+		markFresh,
+		reject,
+		undoAction
+	} from '#lib/client/assistant.svelte.ts';
 	import { app } from '#lib/client/app.svelte.ts';
 	import { HOME, tableUrl } from '#lib/client/nav.ts';
 	import type { Item, ThreadAction } from '#lib/core/thread.ts';
@@ -57,7 +64,12 @@
 		if (of.status === 'rejected' || of.status === 'undone') return null;
 		const made = of.changes.find((change) => change.kind === 'table');
 		const view = of.changes.find((change) => change.kind === 'view');
-		if (made === undefined && view !== undefined && of.tier !== 'confirm') {
+		if (
+			made === undefined &&
+			view !== undefined &&
+			of.tier !== 'confirm' &&
+			ghostTable(view.parent) === undefined
+		) {
 			const name = view.set.name;
 			return {
 				href: tableUrl(view.parent, view.id),
@@ -67,7 +79,8 @@
 		const change = made ?? of.changes.find((candidate) => candidate.kind !== 'base');
 		const tableId =
 			change === undefined ? null : change.kind === 'table' ? change.id : change.parent;
-		const table = tableId === null ? undefined : app.ws.table(tableId);
+		const table =
+			tableId === null ? undefined : (app.ws.table(tableId) ?? ghostTable(tableId)?.table);
 		if (table !== undefined) {
 			return { href: tableUrl(table.id), name: table.name };
 		}
