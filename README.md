@@ -13,7 +13,7 @@ A base holds tables. A field is text, a number, a date, a choice, a check, a lin
 - **List** groups rows into cards by a field.
 - **Chart** draws bars or a line of an aggregate, by day, week or month, with an optional rolling average.
 
-The assistant in the bottom bar and the MCP server share one set of tools. In the app, data it enters applies at once with an undo, a new table, field or view is proposed before it lands, and a deletion asks first.
+The assistant's thread, opened beside your table, and the MCP server share one set of tools. In the app, data it enters applies at once with an undo, a new table, field or view is proposed before it lands, and a deletion asks first.
 
 SQLite runs as WebAssembly on every device and on the server, so a formula gives the same number everywhere.
 

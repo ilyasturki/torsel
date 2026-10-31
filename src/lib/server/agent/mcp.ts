@@ -38,8 +38,8 @@ export function buildMcpServer(
 				description: tool.description,
 				inputSchema: tool.input,
 				annotations: {
-					readOnlyHint: tool.readOnly === true,
-					destructiveHint: tool.destructive === true
+					readOnlyHint: tool.tier === 'read',
+					destructiveHint: tool.tier === 'confirm'
 				}
 			},
 			async (input: unknown) => {

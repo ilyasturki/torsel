@@ -163,6 +163,30 @@ export function materializeTable(engine: Engine, ws: Workspace, tableId: string)
 	return problems;
 }
 
+function formulaSql(ws: Workspace, tableId: string, stored: string): string {
+	const formulas = formulaColumns(ws, tableId);
+	return toSql(stored, (id) => {
+		const field = ws.field(id);
+		return field?.type === 'formula' ? `(${formulas.get(id) ?? 'NULL'})` : `t.${id}`;
+	});
+}
+
+/** What a formula not yet on the table would give each row; empty if SQLite refuses it. */
+export function formulaValues(
+	engine: Engine,
+	ws: Workspace,
+	tableId: string,
+	stored: string
+): Map<string, SqlValue> {
+	try {
+		const sql = formulaSql(ws, tableId, stored);
+		const rows = engine.all(`select t.id as id, (${sql}) as v from ${tableId} t`);
+		return new Map(rows.map((row) => [String(row.id), row.v]));
+	} catch {
+		return new Map();
+	}
+}
+
 /** Why SQLite refuses a stored formula on this table, or null; the table must be materialized. */
 export function formulaProblem(
 	engine: Engine,
@@ -170,11 +194,7 @@ export function formulaProblem(
 	tableId: string,
 	stored: string
 ): string | null {
-	const formulas = formulaColumns(ws, tableId);
-	const sql = toSql(stored, (id) => {
-		const field = ws.field(id);
-		return field?.type === 'formula' ? `(${formulas.get(id) ?? 'NULL'})` : `t.${id}`;
-	});
+	const sql = formulaSql(ws, tableId, stored);
 
 	try {
 		engine.all(`select (${sql}) as v from ${tableId} t limit 1`);

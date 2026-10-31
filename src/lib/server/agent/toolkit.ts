@@ -18,15 +18,22 @@ import { FormulaError, toDisplay, toStored } from '../../core/formula.ts';
 import type { Change, Choice, FieldDef, TableDef, Value, ViewConfig } from '../../core/model.ts';
 import { FIELD_TYPES, VIEW_TYPES } from '../../core/model.ts';
 import { formulaProblem, materializeBase, readQuery } from '../../core/sql.ts';
+import type { Tier } from '../../core/thread.ts';
+import { TOOL_TITLES } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
 
-export type Tier = 'apply' | 'propose' | 'confirm';
+export type { Tier };
 
-export type Action = { tier: Tier; summary: string; changes: Change[] };
+export type Action = { tier: Tier; summary: string; changes: Change[]; detail?: string[] };
 
 export type ToolContext = {
 	ws: Workspace;
 	commit(action: Action): void;
+};
+
+type RunContext = {
+	ws: Workspace;
+	commit(action: Omit<Action, 'tier'>): void;
 };
 
 export type Tool = {
@@ -34,9 +41,8 @@ export type Tool = {
 	title: string;
 	description: string;
 	input: z.ZodObject;
-	readOnly?: boolean;
-	destructive?: boolean;
-	run(ctx: ToolContext, input: never): Promise<unknown> | unknown;
+	tier: Tier | 'read';
+	run(ctx: RunContext, input: never): Promise<unknown> | unknown;
 };
 
 export class ToolError extends Error {
@@ -53,7 +59,7 @@ function same(a: string, b: string): boolean {
 export function findBase(ws: Workspace, ref: string): { id: string; name: string } {
 	const base = ws.base(ref) ?? ws.bases().find((candidate) => same(candidate.name, ref));
 	if (base === undefined) {
-		throw new ToolError(`aucune base « ${ref} » ; list_bases donne les noms`);
+		throw new ToolError(`no base "${ref}"; list_bases gives the names`);
 	}
 	return base;
 }
@@ -63,7 +69,7 @@ export function findTable(ws: Workspace, baseId: string, ref: string): TableDef 
 		.tables(baseId)
 		.find((candidate) => candidate.id === ref || same(candidate.name, ref));
 	if (table === undefined) {
-		throw new ToolError(`aucune table « ${ref} » dans cette base ; describe_base donne les noms`);
+		throw new ToolError(`no table "${ref}" in this base; describe_base gives the names`);
 	}
 	return table;
 }
@@ -73,7 +79,7 @@ export function findField(ws: Workspace, tableId: string, ref: string): FieldDef
 		.fields(tableId)
 		.find((candidate) => candidate.id === ref || same(candidate.name, ref));
 	if (field === undefined) {
-		throw new ToolError(`aucun champ « ${ref} » dans cette table`);
+		throw new ToolError(`no field "${ref}" in this table`);
 	}
 	return field;
 }
@@ -134,7 +140,7 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	}
 	const problem = formulaProblem(await engineFor(ws, table.base), ws, tableId, stored);
 	if (problem !== null) {
-		throw new ToolError(`SQLite refuse la formule : ${problem}`);
+		throw new ToolError(`SQLite refuses the formula: ${problem}`);
 	}
 }
 
@@ -145,34 +151,31 @@ export function closeEngines(ws: Workspace): void {
 	engines.delete(ws);
 }
 
-function commit(ctx: ToolContext, action: Action): void {
+function commit(ctx: RunContext, action: Omit<Action, 'tier'>): void {
 	ctx.commit(action);
 	bump(ctx.ws);
 }
 
-const BASE = z.string().describe('nom ou id de la base');
-const TABLE = z.string().describe('nom ou id de la table');
+const BASE = z.string().describe('name or id of the base');
+const TABLE = z.string().describe('name or id of the table');
 const ROW_VALUES = z
 	.record(z.string(), z.unknown())
 	.describe(
-		'valeurs par nom de champ ; nombre, texte, date AAAA-MM-JJ, booléen pour une case, texte du choix, texte principal de la ligne liée'
+		'values by field name: a number, text, a YYYY-MM-DD date, a boolean for a check, the choice text, the main text of the linked row'
 	);
 
 const FIELD = z.object({
 	name: z.string().min(1),
 	type: z.enum(FIELD_TYPES),
-	choices: z.array(z.string()).optional().describe('pour un champ choice'),
-	target: z.string().optional().describe('pour un champ link : la table liée'),
+	choices: z.array(z.string()).optional().describe('for a choice field'),
+	target: z.string().optional().describe('for a link field: the linked table'),
 	formula: z
 		.string()
 		.optional()
 		.describe(
-			'pour un champ formula : une expression SQLite sur les champs de la ligne, noms entre guillemets doubles, ex. "Poids" * (1 + "Reps" / 30.0). Divise par 30.0 et non 30 : SQLite fait la division entière.'
+			'for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers.'
 		),
-	description: z
-		.string()
-		.optional()
-		.describe('une phrase en français qui dit ce que le champ contient')
+	description: z.string().optional().describe('one sentence saying what the field holds')
 });
 
 type FieldInput = z.infer<typeof FIELD>;
@@ -189,13 +192,13 @@ function fieldSpec(ws: Workspace, baseId: string, input: FieldInput, tableId?: s
 	}
 	if (input.type === 'link') {
 		if (input.target === undefined) {
-			throw new ToolError('un champ link a besoin de target');
+			throw new ToolError('a link field needs target');
 		}
 		spec.target = findTable(ws, baseId, input.target).id;
 	}
 	if (input.type === 'formula') {
 		if (input.formula === undefined || tableId === undefined) {
-			throw new ToolError('un champ formula a besoin de formula');
+			throw new ToolError('a formula field needs formula');
 		}
 		spec.expr = storedFormula(ws, tableId, input.formula);
 	}
@@ -205,36 +208,34 @@ function fieldSpec(ws: Workspace, baseId: string, input: FieldInput, tableId?: s
 
 const VIEW_CONFIG = z
 	.object({
-		hidden: z.array(z.string()).optional().describe('grid : champs masqués'),
+		hidden: z.array(z.string()).optional().describe('grid: hidden fields'),
 		sort: z
 			.object({ field: z.string(), dir: z.enum(['asc', 'desc']) })
 			.optional()
 			.describe('grid'),
-		fields: z.array(z.string()).optional().describe('entry : champs à saisir, dans l’ordre'),
+		fields: z.array(z.string()).optional().describe('entry: the fields to fill, in order'),
 		match: z
 			.array(z.string())
 			.optional()
-			.describe(
-				'entry : champs qui identifient « la dernière fois » pour pré-remplir, ex. ["Exercice"]'
-			),
-		group: z.string().optional().describe('list : champ de regroupement'),
-		title: z.string().optional().describe('list : champ affiché en titre'),
-		show: z.array(z.string()).optional().describe('list : champs affichés sous le titre'),
+			.describe('entry: the fields that identify "last time" for prefilling, such as ["Exercise"]'),
+		group: z.string().optional().describe('list: the field to group by'),
+		title: z.string().optional().describe('list: the field shown as the title'),
+		show: z.array(z.string()).optional().describe('list: the fields shown under the title'),
 		kind: z.enum(['bar', 'line']).optional().describe('chart'),
-		x: z.string().optional().describe('chart : champ en abscisse, souvent une date'),
-		bucket: z.enum(['day', 'week', 'month']).optional().describe('chart : regroupement des dates'),
+		x: z.string().optional().describe('chart: the x field, often a date'),
+		bucket: z.enum(['day', 'week', 'month']).optional().describe('chart: how dates are grouped'),
 		agg: z.enum(['count', 'sum', 'avg', 'max', 'min']).optional().describe('chart'),
-		y: z.string().optional().describe('chart : champ agrégé, sauf pour count'),
-		color: z.string().optional().describe('chart : un champ choice qui sépare les séries'),
+		y: z.string().optional().describe('chart: the aggregated field, except for count'),
+		color: z.string().optional().describe('chart: a choice field that splits the series'),
 		rolling: z
 			.number()
 			.int()
 			.min(2)
 			.max(90)
 			.optional()
-			.describe('chart line : moyenne glissante sur N jours')
+			.describe('line chart: rolling average over N days')
 	})
-	.describe('réglages de la vue, champs désignés par leur nom');
+	.describe('the view settings, fields given by name');
 
 function viewConfig(
 	ws: Workspace,
@@ -285,7 +286,7 @@ function linkValue(ws: Workspace, field: FieldDef, value: unknown): unknown {
 		);
 
 	if (match === undefined) {
-		throw new ToolError(`aucune ligne « ${value} » dans la table liée de « ${field.name} »`);
+		throw new ToolError(`no row "${value}" in the table "${field.name}" links to`);
 	}
 	return match.id;
 }
@@ -369,13 +370,44 @@ function describeView(
 	return { id: view.id, name: view.name, type: view.type, config };
 }
 
+function plural(count: number, one: string): string {
+	return `${count} ${one}${count === 1 ? '' : 's'}`;
+}
+
+const LISTED = 20;
+
+function rowLabel(ws: Workspace, id: string): string {
+	const row = ws.live(id);
+	if (row === undefined) {
+		return id;
+	}
+	const values = ws
+		.fields(row.parent)
+		.filter((field) => field.type !== 'formula')
+		.map((field) => {
+			const value = row.data[field.id];
+			if (value === undefined || value === null || value === '') return null;
+			return field.type === 'link' && typeof value === 'string'
+				? ws.rowTitle(value)
+				: String(value);
+		})
+		.filter((value) => value !== null);
+	return values.slice(0, 4).join(', ') || id;
+}
+
+function listed(labels: string[]): string[] {
+	return labels.length > LISTED
+		? [...labels.slice(0, LISTED), `and ${labels.length - LISTED} more`]
+		: labels;
+}
+
 export const TOOLS: Tool[] = [
 	{
 		name: 'list_bases',
-		title: 'Lister les bases',
-		description: 'Les bases de la personne, avec leurs tables et le nombre de lignes de chacune.',
+		title: TOOL_TITLES.list_bases,
+		description: 'The bases of the person, with their tables and the row count of each table.',
 		input: z.object({}),
-		readOnly: true,
+		tier: 'read',
 		run: ({ ws }) =>
 			ws.bases().map((base) => ({
 				id: base.id,
@@ -387,11 +419,11 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'describe_base',
-		title: 'Décrire une base',
+		title: TOOL_TITLES.describe_base,
 		description:
-			'Le schéma d’une base : ses tables, leurs champs (type, choix, formule, description) et leurs vues. À lire avant d’écrire une requête ou de modifier quoi que ce soit.',
+			'The schema of a base: its tables, their fields (type, choices, formula, description) and their views. Read it before writing a query or changing anything.',
 		input: z.object({ base: BASE }),
-		readOnly: true,
+		tier: 'read',
 		run: ({ ws }, { base }: { base: string }) => {
 			const found = findBase(ws, base);
 			return {
@@ -409,11 +441,11 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'query',
-		title: 'Lire avec SQL',
+		title: TOOL_TITLES.query,
 		description:
-			'Une requête SELECT SQLite en lecture seule sur une base. Chaque table est une vue nommée comme la table, ses colonnes nommées comme ses champs : select "Exercice", max("Poids") from "Séries" group by 1. Les colonnes "_id" et "_created" (ms) existent aussi. Dates en texte AAAA-MM-JJ, cases en 0/1, un lien se lit comme le texte de la ligne liée. 200 lignes au plus.',
+			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text, checks are 0 or 1, a link reads as the text of the linked row. 200 rows at most.',
 		input: z.object({ base: BASE, sql: z.string().min(1) }),
-		readOnly: true,
+		tier: 'read',
 		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {
 			const found = findBase(ws, base);
 			try {
@@ -426,18 +458,18 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'add_rows',
-		title: 'Ajouter des lignes',
+		title: TOOL_TITLES.add_rows,
 		description:
-			'Ajoute des lignes à une table. Les valeurs se donnent par nom de champ ; un choix encore inconnu est ajouté au champ. S’applique tout de suite, la personne peut annuler.',
+			'Adds rows to a table. Values are given by field name; a choice not seen before is added to its field.',
 		input: z.object({ base: BASE, table: TABLE, rows: z.array(ROW_VALUES).min(1).max(500) }),
+		tier: 'apply',
 		run: (ctx, input: { base: string; table: string; rows: Record<string, unknown>[] }) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			const { rows, fieldChanges } = rowsByName(ctx.ws, table.id, input.rows);
 			const inserted = insertRows(ctx.ws, table.id, rows);
 			commit(ctx, {
-				tier: 'apply',
-				summary: `${rows.length} ligne${rows.length > 1 ? 's' : ''} ajoutée${rows.length > 1 ? 's' : ''} à ${table.name}`,
+				summary: `Add ${plural(rows.length, 'row')} to ${table.name}`,
 				changes: [...fieldChanges, ...inserted.changes]
 			});
 			return { added: inserted.ids };
@@ -445,9 +477,9 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'update_rows',
-		title: 'Modifier des lignes',
-		description:
-			'Modifie des lignes existantes, désignées par leur "_id". Seuls les champs donnés changent. S’applique tout de suite.',
+		title: TOOL_TITLES.update_rows,
+		description: 'Changes existing rows, named by their "_id". Only the fields given change.',
+		tier: 'apply',
 		input: z.object({
 			base: BASE,
 			table: TABLE,
@@ -473,13 +505,12 @@ export const TOOLS: Tool[] = [
 			);
 			const changes = input.updates.flatMap((update, index) => {
 				if (ctx.ws.live(update.id)?.parent !== table.id) {
-					throw new ToolError(`aucune ligne ${update.id} dans ${table.name}`);
+					throw new ToolError(`no row ${update.id} in ${table.name}`);
 				}
 				return updateRow(ctx.ws, update.id, rows[index]);
 			});
 			commit(ctx, {
-				tier: 'apply',
-				summary: `${changes.length} ligne(s) modifiée(s) dans ${table.name}`,
+				summary: `Change ${plural(changes.length, 'row')} in ${table.name}`,
 				changes: [...fieldChanges, ...changes]
 			});
 			return { updated: changes.length };
@@ -487,22 +518,21 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'delete_rows',
-		title: 'Supprimer des lignes',
-		description:
-			'Supprime des lignes désignées par leur "_id". La personne confirme avant que rien ne disparaisse.',
+		title: TOOL_TITLES.delete_rows,
+		description: 'Deletes rows named by their "_id".',
 		input: z.object({ base: BASE, table: TABLE, ids: z.array(z.string()).min(1).max(1000) }),
-		destructive: true,
+		tier: 'confirm',
 		run: (ctx, input: { base: string; table: string; ids: string[] }) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			for (const id of input.ids) {
 				if (ctx.ws.live(id)?.parent !== table.id) {
-					throw new ToolError(`aucune ligne ${id} dans ${table.name}`);
+					throw new ToolError(`no row ${id} in ${table.name}`);
 				}
 			}
 			commit(ctx, {
-				tier: 'confirm',
-				summary: `${input.ids.length} ligne(s) supprimée(s) de ${table.name}`,
+				summary: `Delete ${plural(input.ids.length, 'row')} from ${table.name}`,
+				detail: listed(input.ids.map((id) => rowLabel(ctx.ws, id))),
 				changes: deleteRecords(ctx.ws, input.ids)
 			});
 			return { deleted: input.ids.length };
@@ -510,24 +540,25 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'create_base',
-		title: 'Créer une base',
-		description:
-			'Crée une base vide, à remplir ensuite avec create_table. Proposé à la personne avant d’être appliqué.',
+		title: TOOL_TITLES.create_base,
+		description: 'Creates an empty base, to fill with create_table afterwards.',
 		input: z.object({ name: z.string().min(1) }),
+		tier: 'propose',
 		run: (ctx, { name }: { name: string }) => {
 			const made = createBase(ctx.ws, name);
-			commit(ctx, { tier: 'propose', summary: `Nouvelle base « ${name} »`, changes: made.changes });
+			commit(ctx, { summary: `New base "${name}"`, changes: made.changes });
 			return { id: made.id };
 		}
 	},
 	{
 		name: 'create_table',
-		title: 'Créer une table',
+		title: TOOL_TITLES.create_table,
 		description:
-			'Crée une table avec ses champs, et ses vues Grid et Entry. Les formules se créent ensuite avec add_field, une fois les champs qu’elles lisent en place. Proposé à la personne avant d’être appliqué.',
+			'Creates a table with its fields and its Grid and Entry views. Formulas come afterwards through add_field, once the fields they read are in place.',
+		tier: 'propose',
 		input: z.object({
 			base: BASE.optional().describe(
-				'nom ou id de la base ; à omettre pour la base par défaut, sauf si la personne en nomme une'
+				'name or id of the base; leave it out for the default base, unless the person names one'
 			),
 			name: z.string().min(1),
 			fields: z
@@ -546,8 +577,7 @@ export const TOOLS: Tool[] = [
 			const specs = input.fields.map((field) => fieldSpec(ctx.ws, base.id, field));
 			const made = createTable(ctx.ws, base.id, input.name, specs);
 			commit(ctx, {
-				tier: 'propose',
-				summary: `Nouvelle table « ${input.name} »`,
+				summary: `New table "${input.name}"`,
 				changes: [...base.changes, ...made.changes]
 			});
 			return { id: made.id, base: base.id };
@@ -555,10 +585,11 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'add_field',
-		title: 'Ajouter un champ',
+		title: TOOL_TITLES.add_field,
 		description:
-			'Ajoute un champ à une table, y compris un champ calculé (formula). Une formule est vérifiée par SQLite avant d’être proposée. Proposé à la personne avant d’être appliqué.',
+			'Adds a field to a table, a computed one (formula) included. SQLite checks a formula first.',
 		input: FIELD.extend({ base: BASE, table: TABLE }),
+		tier: 'propose',
 		run: async (ctx, input: FieldInput & { base: string; table: string }) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
@@ -568,8 +599,7 @@ export const TOOLS: Tool[] = [
 			}
 			const made = addField(ctx.ws, table.id, spec);
 			commit(ctx, {
-				tier: 'propose',
-				summary: `Nouveau champ « ${input.name} » dans ${table.name}`,
+				summary: `New field "${input.name}" in ${table.name}`,
 				changes: made.changes
 			});
 			return { id: made.id };
@@ -577,9 +607,9 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'update_field',
-		title: 'Modifier un champ',
-		description:
-			'Renomme un champ, change ses choix, sa formule ou sa description. Proposé à la personne avant d’être appliqué.',
+		title: TOOL_TITLES.update_field,
+		description: 'Renames a field, or changes its choices, formula or description.',
+		tier: 'propose',
 		input: z.object({
 			base: BASE,
 			table: TABLE,
@@ -610,13 +640,12 @@ export const TOOLS: Tool[] = [
 			if (input.description !== undefined) set.description = input.description;
 			if (input.formula !== undefined) {
 				if (field.type !== 'formula')
-					throw new ToolError(`« ${field.name} » n'est pas un champ calculé`);
+					throw new ToolError(`"${field.name}" is not a computed field`);
 				set.expr = storedFormula(ctx.ws, table.id, input.formula);
 				await validateFormula(ctx.ws, table.id, set.expr);
 			}
 			commit(ctx, {
-				tier: 'propose',
-				summary: `Champ « ${field.name} » modifié`,
+				summary: `Change field "${field.name}" in ${table.name}`,
 				changes: updateRecord(ctx.ws, field.id, set)
 			});
 			return { updated: field.id };
@@ -624,9 +653,10 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'create_view',
-		title: 'Créer une vue',
+		title: TOOL_TITLES.create_view,
 		description:
-			'Ajoute une vue à une table : grid (le tableur), entry (saisie rapide sur téléphone, pré-remplie depuis la dernière ligne qui a les mêmes valeurs de match), list (cartes regroupées) ou chart (barres ou courbe d’un agrégat). Proposé à la personne avant d’être appliqué.',
+			'Adds a view to a table: grid (the spreadsheet), entry (fast input on a phone, prefilled from the last row with the same match values), list (grouped cards) or chart (bars or a line of an aggregate).',
+		tier: 'propose',
 		input: z.object({
 			base: BASE,
 			table: TABLE,
@@ -652,8 +682,7 @@ export const TOOLS: Tool[] = [
 				config: viewConfig(ctx.ws, table.id, input.config)
 			});
 			commit(ctx, {
-				tier: 'propose',
-				summary: `Nouvelle vue « ${input.name} » sur ${table.name}`,
+				summary: `New view "${input.name}" on ${table.name}`,
 				changes: made.changes
 			});
 			return { id: made.id };
@@ -661,11 +690,10 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		name: 'delete',
-		title: 'Supprimer une table, un champ ou une vue',
-		description:
-			'Supprime une table, un champ ou une vue par son id (describe_base les donne). La personne confirme avant.',
+		title: TOOL_TITLES.delete,
+		description: 'Deletes a table, a field or a view by its id (describe_base gives them).',
 		input: z.object({ base: BASE, id: z.string() }),
-		destructive: true,
+		tier: 'confirm',
 		run: (ctx, input: { base: string; id: string }) => {
 			const base = findBase(ctx.ws, input.base);
 			const rec = ctx.ws.live(input.id);
@@ -674,14 +702,18 @@ export const TOOLS: Tool[] = [
 				rec.base !== base.id ||
 				!['table', 'field', 'view'].includes(rec.kind)
 			) {
-				throw new ToolError(
-					`aucune table, aucun champ ni aucune vue ${input.id} dans ${base.name}`
-				);
+				throw new ToolError(`no table, field or view ${input.id} in ${base.name}`);
 			}
 			const name = typeof rec.data.name === 'string' ? rec.data.name : rec.id;
+			const rows = rec.kind === 'table' ? ctx.ws.rows(rec.id).length : 0;
 			commit(ctx, {
-				tier: 'confirm',
-				summary: `« ${name} » supprimé`,
+				summary: `Delete ${rec.kind} "${name}"`,
+				detail:
+					rec.kind === 'table'
+						? [`The table and its ${plural(rows, 'row')}`]
+						: rec.kind === 'field'
+							? ['The field and the values of every row in it']
+							: ['The view only, no data'],
 				changes: deleteRecords(ctx.ws, [rec.id])
 			});
 			return { deleted: rec.id };
@@ -703,8 +735,13 @@ export async function runTool(
 		return { ok: false, error: z.prettifyError(parsed.error) };
 	}
 
+	const run: RunContext = {
+		ws: ctx.ws,
+		commit: (action) => ctx.commit({ ...action, tier: tool.tier as Tier })
+	};
+
 	try {
-		return { ok: true, result: await tool.run(ctx, parsed.data as never) };
+		return { ok: true, result: await tool.run(run, parsed.data as never) };
 	} catch (error) {
 		if (error instanceof ToolError) {
 			return { ok: false, error: error.message };
