@@ -2,6 +2,8 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh } from '#lib/client/assistant.svelte.ts';
 	import { formatDate, formatMonth } from '#lib/client/format.ts';
+	import { shell } from '#lib/client/shell.svelte.ts';
+	import { listLayout } from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -24,32 +26,7 @@
 		return app.ws.fields(tableId);
 	});
 
-	const byId = $derived(new Map(fields.map((field) => [field.id, field])));
-
-	const group = $derived.by((): FieldDef | undefined => {
-		const id = view.config.group;
-		if (id === null) return undefined;
-		return id === undefined
-			? (fields.find((field) => field.type === 'date') ??
-					fields.find((field) => field.type === 'choice'))
-			: byId.get(id);
-	});
-
-	const title = $derived.by((): FieldDef | undefined => {
-		const id = view.config.title;
-		return id
-			? byId.get(id)
-			: fields.find(
-					(field) => (field.type === 'text' || field.type === 'choice') && field.id !== group?.id
-				);
-	});
-
-	const show = $derived.by((): FieldDef[] => {
-		const ids = view.config.show;
-		if (ids !== undefined)
-			return ids.map((id) => byId.get(id)).filter((field) => field !== undefined);
-		return fields.filter((field) => field.id !== group?.id && field.id !== title?.id).slice(0, 4);
-	});
+	const { group, title, show } = $derived(listLayout(fields, view.config));
 
 	const computed = $derived.by(() => {
 		void app.version;
@@ -152,7 +129,9 @@
 			{/each}
 		</section>
 	{:else}
-		<Empty text="No rows yet." />
+		<Empty text="No rows yet.">
+			<Button variant="primary" onclick={() => (shell.newRow = true)}>Add a row</Button>
+		</Empty>
 	{/each}
 
 	{#if groups.total > limit}

@@ -3,6 +3,7 @@
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords, insertRows, updateRow } from '#lib/core/actions.ts';
 	import type { Value } from '#lib/core/model.ts';
+	import { todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
 
@@ -44,7 +45,8 @@
 			const row = rowId === null ? undefined : app.ws.live(rowId);
 			const start: Record<string, Value> = {};
 			for (const field of app.ws.fields(tableId)) {
-				start[field.id] = row?.data[field.id] ?? null;
+				start[field.id] =
+					rowId === null && field.type === 'date' ? todayIso() : (row?.data[field.id] ?? null);
 			}
 			values = { ...start };
 			original = start;
@@ -72,14 +74,8 @@
 	}
 </script>
 
-<Sheet bind:open title={rowId === null ? 'New row' : 'Row'} {dirty}>
-	<form
-		class="flex flex-col gap-3"
-		onsubmit={(event) => {
-			event.preventDefault();
-			save();
-		}}
-	>
+<Sheet bind:open title={rowId === null ? 'New row' : 'Row'} {dirty} onsubmit={save}>
+	<div class="flex flex-col gap-3">
 		{#each fields as field (field.id)}
 			<div class="flex flex-col gap-1">
 				<label for="row-{field.id}" class="text-sm font-medium text-ink-2">{field.name}</label>
@@ -94,8 +90,7 @@
 				{/if}
 			</div>
 		{/each}
-		<button type="submit" class="hidden">Save</button>
-	</form>
+	</div>
 
 	{#snippet footer()}
 		{#if rowId !== null}

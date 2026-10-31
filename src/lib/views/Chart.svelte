@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatMonth, formatNumber } from '#lib/client/format.ts';
+	import { shell } from '#lib/client/shell.svelte.ts';
+	import { chartAxis } from '#lib/core/actions.ts';
 	import type { ViewDef } from '#lib/core/model.ts';
+	import Button from '#lib/ui/Button.svelte';
 	import { strongColor } from '#lib/ui/colors.ts';
 	import Empty from '#lib/ui/Empty.svelte';
 
@@ -14,9 +17,7 @@
 
 	const config = $derived.by(() => {
 		void app.version;
-		const fields = app.ws.fields(tableId);
-		const x =
-			view.config.x ?? fields.find((field) => field.type === 'date')?.id ?? fields[0]?.id ?? null;
+		const x = chartAxis(app.ws.fields(tableId), view.config);
 		return { ...view.config, x, kind: view.config.kind ?? 'bar', agg: view.config.agg ?? 'count' };
 	});
 
@@ -166,7 +167,9 @@
 		</p>
 
 		{#if xs.length === 0}
-			<Empty text="No data yet. Add a row and it shows up here." />
+			<Empty text="No data yet. Add a row and it shows up here.">
+				<Button variant="primary" onclick={() => (shell.newRow = true)}>Add a row</Button>
+			</Empty>
 		{:else}
 			<div bind:clientWidth={width}>
 				<svg

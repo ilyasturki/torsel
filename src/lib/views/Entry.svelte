@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatNumber, formatValue } from '#lib/client/format.ts';
+	import { loggedThrough } from '#lib/client/place.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { defaultMatch, entryFields, insertRows, updateRecord } from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
@@ -14,6 +15,7 @@
 	import { checkbox, input, select } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
+	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
 
@@ -39,7 +41,9 @@
 		fields.find((field) => field.type === 'date' && !keyIds.has(field.id))
 	);
 	const others = $derived(
-		fields.filter((field) => !keyIds.has(field.id) && field.id !== dateField?.id)
+		fields
+			.filter((field) => !keyIds.has(field.id) && field.id !== dateField?.id)
+			.sort((a, b) => Number(b.type === 'number') - Number(a.type === 'number'))
 	);
 
 	let values = $state<Record<string, Value>>({});
@@ -49,6 +53,10 @@
 	let adding = $state<string | null>(null);
 	let newChoice = $state('');
 	let started = false;
+	let rowOpen = $state(false);
+	let rowId = $state<string | null>(null);
+
+	const today = todayIso();
 
 	const ordered = $derived.by(() => {
 		void app.version;
@@ -66,14 +74,20 @@
 		return keys.every((field) => (row.data[field.id] ?? null) === (values[field.id] ?? null));
 	}
 
+	function dayOf(row: Rec): string {
+		const value = dateField === undefined ? undefined : row.data[dateField.id];
+		return typeof value === 'string' ? value.slice(0, 10) : todayIso(new Date(createdAt(row)));
+	}
+
 	const history = $derived(ordered.filter(matches));
 	const last = $derived(history[0]);
+	const lastTime = $derived(history.find((row) => dayOf(row) !== today));
 
 	$effect(() => {
 		if (started || !app.ready) return;
 		started = true;
-		const latest = ordered[0];
 		for (const field of keys) {
+			const latest = ordered.find((row) => (row.data[field.id] ?? null) !== null);
 			values[field.id] = latest?.data[field.id] ?? null;
 		}
 		if (dateField !== undefined) {
@@ -166,6 +180,7 @@
 
 		const { changes } = insertRows(app.ws, tableId, [row]);
 		const group = app.apply(changes, 'Row added');
+		loggedThrough(tableId, view.id);
 		for (const field of others) values[field.id] = row[field.id];
 		touched = {};
 		texts = {};
@@ -178,8 +193,6 @@
 			.filter((text) => text !== '')
 			.join(' · ');
 	}
-
-	const today = todayIso();
 
 	const numbers = $derived(others.filter((field) => field.type === 'number'));
 
@@ -212,34 +225,41 @@
 		<div class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden lg:pb-tabs-clear">
 			<ul class="flex flex-col">
 				{#each recent as { row, day } (row.id)}
-					<li
-						class="flex h-9 shrink-0 items-center gap-3 px-4 transition-colors motion hover:bg-tint"
-					>
-						<span class="w-16 shrink-0 truncate text-ink-2">{day}</span>
-						<span class="min-w-0 flex-1 truncate">
-							{#if keys[0] !== undefined}
-								<CellValue field={keys[0]} value={row.data[keys[0].id]} />
-							{/if}
-						</span>
-						{#each numbers as field (field.id)}
-							<span class="w-14 shrink-0 truncate text-right"
-								><CellValue {field} value={row.data[field.id]} /></span
-							>
-						{/each}
+					<li>
+						<button
+							type="button"
+							class="flex min-h-row w-full items-center gap-3 px-4 text-left transition-colors motion hover:bg-tint"
+							onclick={() => {
+								rowId = row.id;
+								rowOpen = true;
+							}}
+						>
+							<span class="w-16 shrink-0 truncate text-ink-2">{day}</span>
+							<span class="min-w-0 flex-1 truncate">
+								{#if keys[0] !== undefined}
+									<CellValue field={keys[0]} value={row.data[keys[0].id]} />
+								{/if}
+							</span>
+							{#each numbers as field (field.id)}
+								<span class="w-14 shrink-0 truncate text-right"
+									><CellValue {field} value={row.data[field.id]} /></span
+								>
+							{/each}
+						</button>
 					</li>
 				{/each}
 			</ul>
 		</div>
 
 		<section class="flex shrink-0 flex-col gap-3 p-4 pb-tabs-clear lg:w-entry">
-			{#if last !== undefined && others.length > 0}
+			{#if lastTime !== undefined && others.length > 0}
 				<p class="flex items-center justify-between gap-3 text-ink-2">
-					<span
-						>Last time{dateField && typeof last.data[dateField.id] === 'string'
-							? `, ${formatDate(String(last.data[dateField.id]))}`
+					<span class="shrink-0"
+						>Last time{dateField && typeof lastTime.data[dateField.id] === 'string'
+							? `, ${formatDate(String(lastTime.data[dateField.id]))}`
 							: ''}</span
 					>
-					<span class="truncate font-medium text-ink">{summary(last)}</span>
+					<span class="truncate font-medium text-ink">{summary(lastTime)}</span>
 				</p>
 			{/if}
 
@@ -403,7 +423,14 @@
 				</label>
 			{/if}
 
-			<Button variant="primary" size="cta" disabled={!ready} onclick={commit}>Add row</Button>
+			<Button
+				variant="primary"
+				size="cta"
+				class="sticky bottom-tabs-clear z-10 shrink-0"
+				disabled={!ready}
+				onclick={commit}>Add row</Button
+			>
 		</section>
 	</div>
+	<RowSheet bind:open={rowOpen} {tableId} {rowId} />
 {/if}
