@@ -255,7 +255,6 @@
 		body: (text: string) => number;
 		header: (text: string) => number;
 	} | null {
-		if (typeof document === 'undefined') return null;
 		fitContext ??= document.createElement('canvas').getContext('2d');
 		const context = fitContext;
 		if (context === null) return null;
@@ -619,7 +618,6 @@
 		return { r, c: (c === -1 ? fields.length : c) - 1 };
 	}
 
-	/** Scrolls while the pointer rests past an edge, so a drag can reach what is off screen. */
 	function scrollWhileDragging(point: { x: number; y: number }, step: () => void): () => void {
 		let frame = requestAnimationFrame(function tick() {
 			if (scroller !== undefined) {

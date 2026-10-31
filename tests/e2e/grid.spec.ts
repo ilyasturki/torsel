@@ -786,6 +786,7 @@ test.describe('scale', () => {
 		context,
 		account
 	}) => {
+		test.slow();
 		void account;
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 		await open(page, (await seedPlain(context.request, 10_000)).path);

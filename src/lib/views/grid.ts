@@ -182,7 +182,6 @@ export type Paste = {
 	cols: number;
 };
 
-/** One value over a wider selection fills it, as a spreadsheet does. */
 export function fillSelection(matrix: string[][], rows: number, cols: number): string[][] {
 	return matrix.length === 1 && matrix[0].length === 1 && rows * cols > 1
 		? Array.from({ length: rows }, () => Array.from({ length: cols }, () => matrix[0][0]))
