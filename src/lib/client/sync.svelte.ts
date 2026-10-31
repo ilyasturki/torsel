@@ -122,6 +122,30 @@ export function startSync(): void {
 	void syncNow();
 }
 
+let retrying = false;
+
+/** A server that didn't answer the boot gets asked again: `online` alone misses a server that is down. */
+function retrySession(): void {
+	if (retrying) {
+		return;
+	}
+	retrying = true;
+
+	const retry = (): void => {
+		if (me.account === undefined) {
+			void resolveSession();
+		}
+	};
+
+	window.addEventListener('online', retry);
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible') {
+			retry();
+		}
+	});
+	setInterval(retry, 60_000);
+}
+
 async function findAccount(): Promise<Account | null | undefined> {
 	if (import.meta.env.APP_BUILD && deviceToken() === null) {
 		return null;
@@ -139,7 +163,7 @@ async function findAccount(): Promise<Account | null | undefined> {
 		if (await app.meta<boolean>(SIGNED_IN)) {
 			sync.status = error.status === OFFLINE ? 'offline' : 'error';
 		}
-		window.addEventListener('online', () => void resolveSession(), { once: true });
+		retrySession();
 		return undefined;
 	}
 }
