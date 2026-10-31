@@ -146,6 +146,7 @@
 	--text-2xl: 34px;
 	--text-hero: 44px;
 	--text-hero-lg: 64px;
+	--text-display: clamp(96px, 16vw, 200px);
 
 	--spacing-ask: 400px;
 	--spacing-sheet: 420px;
