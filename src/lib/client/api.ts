@@ -128,7 +128,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
 	const headers = new Headers();
 
-	if (body !== undefined) {
+	// SvelteKit's built server answers 403 to a cross-origin mutation with no content type, body or not.
+	if (method !== 'GET') {
 		headers.set('content-type', 'application/json');
 	}
 

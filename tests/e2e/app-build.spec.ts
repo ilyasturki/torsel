@@ -32,7 +32,7 @@ async function revokeDevice(page: Page, context: BrowserContext): Promise<void> 
 	const device = tokens.find((token) => token.kind === 'device');
 	const revoked = await context.request.delete(`${SERVER}/api/auth/tokens/${device?.id}`, {
 		...RETRY_RESET,
-		headers
+		headers: { ...headers, 'content-type': 'application/json' }
 	});
 	expect(revoked.ok()).toBe(true);
 }
@@ -106,6 +106,21 @@ test('a revoked device asks to sign in again and shows no e-mail', async ({ page
 	await page.getByRole('button', { name: 'Sign in' }).click();
 	await expect(page.getByText(account.email)).toBeVisible();
 	await expect(page.getByRole('status')).toHaveCount(0);
+});
+
+test('signing out on a phone ends its session on the server', async ({ page, context }) => {
+	const account = newAccount();
+	await connectAndSignIn(page, account);
+	const headers = await deviceHeaders(page);
+
+	await page.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page.getByText(account.email)).toHaveCount(0);
+
+	const session = await context.request.get(`${SERVER}/api/auth/session`, {
+		...RETRY_RESET,
+		headers
+	});
+	expect(session.status()).toBe(401);
 });
 
 test('a boot with the server out of reach retries when the network returns', async ({ page }) => {
