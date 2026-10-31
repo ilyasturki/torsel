@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.ts';
 import type { AuthToken, User } from '../db/schema.ts';
 import { authTokens, users } from '../db/schema.ts';
+import { envText } from '../env.ts';
 import { issueToken, revokeToken } from './accounts.ts';
 import { hashToken } from './tokens.ts';
 
@@ -26,8 +27,9 @@ export type SessionCookieOptions = {
 	maxAge: number;
 };
 
+// adapter-node reads no ORIGIN at runtime and calls a request https unless a proxy header says otherwise.
 export function secureCookies(url: URL): boolean {
-	return url.protocol === 'https:';
+	return envText('ORIGIN', url.origin).startsWith('https:');
 }
 
 export function sessionCookieOptions(url: URL): SessionCookieOptions {
