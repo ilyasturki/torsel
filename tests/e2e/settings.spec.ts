@@ -135,12 +135,13 @@ test('another account’s unsynced data can be erased', async ({ page, context, 
 	await page.reload();
 
 	await expect(page.getByRole('status')).toContainText('another account’s data');
-	const reloaded = page.waitForEvent('load');
 	await page.getByRole('button', { name: 'erase it' }).click();
-	await reloaded;
 	await expect(page.getByRole('status')).toHaveCount(0);
-	await page.goto('/app');
-	await expect(page.getByText('Lifts')).toHaveCount(0);
+	// The erase ends in the app's own reload, which can interrupt this navigation.
+	await expect(async () => {
+		await page.goto('/app');
+		await expect(page.getByText('Lifts')).toHaveCount(0);
+	}).toPass();
 });
 
 test('token errors are shown, and a token can be minted and revoked', async ({ page, account }) => {
