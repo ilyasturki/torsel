@@ -58,7 +58,7 @@
 			};
 		const spec = chart;
 		const amount = (row: Cell[]): number => (spec.value === null ? 1 : Number(row[spec.value]));
-		const keys = [...new Set(example.rows.map((row) => String(row[spec.group])))];
+		const keys = [...new Set(example.rows.map((row) => String(row[spec.group])))].sort();
 		const totals = keys.map((key) =>
 			example.rows
 				.filter((row) => String(row[spec.group]) === key)
@@ -67,15 +67,21 @@
 		const tallest = Math.max(...totals, 1);
 		return {
 			total: totals.reduce((sum, value) => sum + value, 0),
-			list: keys.map((key) => ({
-				key,
-				parts: example.rows
-					.filter((row) => String(row[spec.group]) === key)
-					.map((row) => ({
-						color: swatch(colorOf(example, row[choice])),
-						height: (amount(row) / tallest) * 100
+			list: keys.map((key) => {
+				const parts = new Map<string, number>();
+				for (const row of example.rows) {
+					if (String(row[spec.group]) !== key) continue;
+					const color = swatch(colorOf(example, row[choice]));
+					parts.set(color, (parts.get(color) ?? 0) + amount(row));
+				}
+				return {
+					key,
+					parts: [...parts].map(([color, value]) => ({
+						color,
+						height: (value / tallest) * 100
 					}))
-			}))
+				};
+			})
 		};
 	});
 
@@ -228,8 +234,9 @@
 	</div>
 {:else if chart !== null}
 	<div class="flex h-full flex-col px-4 pb-3">
+		<span class="font-medium text-ink-2">{chart.label}</span>
 		<p class="text-hero leading-tight font-semibold tighter">{number.format(bars.total)}</p>
-		<p class="text-ink-2">{chart.unit}</p>
+		<p class="text-ink-2">{chart.by}</p>
 		<div class="mt-2 grid min-h-0 flex-1 auto-cols-fr grid-flow-col items-end gap-3">
 			{#each bars.list as bar (bar.key)}
 				<div class="flex h-full min-w-0 flex-col-reverse gap-px">
@@ -241,7 +248,7 @@
 		</div>
 		<div class="grid auto-cols-fr grid-flow-col gap-3 pt-1 text-xs text-ink-2">
 			{#each bars.list as bar (bar.key)}
-				<span class="truncate">{bar.key}</span>
+				<span class="truncate text-center">{bar.key}</span>
 			{/each}
 		</div>
 	</div>

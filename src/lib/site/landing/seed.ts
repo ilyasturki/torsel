@@ -3,7 +3,7 @@ import { toStored } from '#lib/core/formula.ts';
 import type { Change } from '#lib/core/model.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 
-import { EXAMPLES, choiceIndex, numberIndex, type Example } from './examples.ts';
+import { EXAMPLES, choiceIndex, type Example } from './examples.ts';
 
 export type SampleViews = {
 	table: string;
@@ -45,15 +45,16 @@ export function seedExample(
 	const list = createView(ws, table.id, { name: 'List', type: 'list', config: { group } });
 	commit(list.changes);
 
-	const number = numberIndex(example);
+	const step = [example.first, example.second].find((item) => item.view === 'chart');
+	if (step?.view !== 'chart') throw new Error('every example ends on a chart');
 	const chart = createView(ws, table.id, {
 		name: 'Chart',
 		type: 'chart',
 		config: {
 			kind: 'bar',
-			x: group,
-			agg: number < 0 ? 'count' : 'sum',
-			y: number < 0 ? null : table.fieldIds[number],
+			x: table.fieldIds[step.group],
+			agg: step.value === null ? 'count' : 'sum',
+			y: step.value === null ? null : table.fieldIds[step.value],
 			color: group
 		}
 	});

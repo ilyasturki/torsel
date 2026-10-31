@@ -11,7 +11,7 @@ export type ExampleField = {
 export type ViewStep = { sentence: string; name: string } & (
 	| { view: 'entry' }
 	| { view: 'list'; group: number }
-	| { view: 'chart'; group: number; value: number | null; unit: string }
+	| { view: 'chart'; group: number; value: number | null; label: string; by: string }
 );
 
 export type Example = {
@@ -75,7 +75,8 @@ export const EXAMPLES: Example[] = [
 			view: 'chart',
 			group: 2,
 			value: 1,
-			unit: 'Sum of Amount, by Category'
+			label: 'Total amount',
+			by: 'by category'
 		}
 	},
 	{
@@ -118,7 +119,8 @@ export const EXAMPLES: Example[] = [
 			view: 'chart',
 			group: 1,
 			value: 2,
-			unit: 'Sum of Value, by Stage'
+			label: 'Total value',
+			by: 'by stage'
 		}
 	},
 	{
@@ -160,7 +162,8 @@ export const EXAMPLES: Example[] = [
 			view: 'chart',
 			group: 1,
 			value: null,
-			unit: 'Number of tasks, by Owner'
+			label: 'Row count',
+			by: 'by owner'
 		}
 	},
 	{
@@ -203,7 +206,8 @@ export const EXAMPLES: Example[] = [
 			view: 'chart',
 			group: 2,
 			value: null,
-			unit: 'Number of applications, by Status'
+			label: 'Row count',
+			by: 'by status'
 		}
 	},
 	{
@@ -250,7 +254,8 @@ export const EXAMPLES: Example[] = [
 			view: 'chart',
 			group: 1,
 			value: 2,
-			unit: 'Sum of Cost, by Kind'
+			label: 'Total cost',
+			by: 'by kind'
 		}
 	},
 	{
@@ -292,7 +297,8 @@ export const EXAMPLES: Example[] = [
 			view: 'chart',
 			group: 1,
 			value: 2,
-			unit: 'Sum of Pages, by Status'
+			label: 'Total pages',
+			by: 'by status'
 		}
 	}
 ];

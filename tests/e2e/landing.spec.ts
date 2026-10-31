@@ -70,7 +70,7 @@ test.describe('with reduced motion', () => {
 		await expect(page.getByTestId('backdrop')).toBeAttached();
 		const stage = page.locator(STAGE);
 		await expect(stage.getByTestId('sentence')).toHaveText('Show me where the money goes.');
-		await expect(stage.getByText('Sum of Amount, by Category')).toBeVisible();
+		await expect(stage.getByText('Total amount')).toBeVisible();
 
 		await page.waitForTimeout(600);
 		const count = (): Promise<number> =>
@@ -91,7 +91,7 @@ test.describe('with reduced motion', () => {
 			'false'
 		);
 		await expect(stage.getByTestId('sentence')).toHaveText('Chart the pipeline.');
-		await expect(stage.getByText('Sum of Value, by Stage')).toBeVisible();
+		await expect(stage.getByText('Total value')).toBeVisible();
 
 		await stage.getByRole('button', { name: 'Step 2' }).click();
 		await expect(stage.getByTestId('sentence')).toHaveText(/expected value/u);
@@ -111,7 +111,7 @@ test.describe('with motion', () => {
 		});
 		await expect(stage.getByTestId('ghost-column')).toBeVisible({ timeout: 10_000 });
 		await expect(stage.getByTestId('proposal')).toHaveText(/Proposed view/u, { timeout: 10_000 });
-		await expect(stage.getByText('Sum of Amount, by Category')).toBeVisible({ timeout: 15_000 });
+		await expect(stage.getByText('Total amount')).toBeVisible({ timeout: 15_000 });
 		await expect(stage.getByTestId('proposal')).toBeHidden({ timeout: 10_000 });
 		await page.waitForTimeout(1500);
 		await expect(stage.getByRole('button', { name: 'Budget' })).toHaveAttribute(
@@ -158,6 +158,17 @@ test('the real table loads SQLite on demand and keeps its rows out of the app', 
 	await expect(stage.getByTestId('row-count')).toHaveText('6 rows');
 	await stage.getByRole('button', { name: 'Add row' }).click();
 	await expect(stage.getByTestId('row-count')).toHaveText('7 rows');
+
+	await page
+		.getByRole('group', { name: 'Views' })
+		.last()
+		.getByRole('button', { name: 'Chart' })
+		.click();
+	await expect(stage.getByText('Total amount')).toBeVisible();
+	await expect(stage.getByText('by category')).toBeVisible();
+	for (const category of ['Food', 'Fun', 'Home', 'Transport']) {
+		await expect(stage.locator('svg text', { hasText: category })).toBeVisible();
+	}
 
 	await page.getByRole('main').getByRole('link', { name: 'Start now' }).first().click();
 	await expect(page).toHaveURL(/\/app$/u);

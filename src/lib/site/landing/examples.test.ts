@@ -48,6 +48,7 @@ describe('what the landing replays is what the engine does', () => {
 			agg: chartStep.value === null ? 'count' : 'sum',
 			y: chartStep.value === null ? null : sample.fields[chartStep.value]
 		});
+		expect(data?.yLabel).toBe(chartStep.label);
 		const totals = new Map<string, number>();
 		for (const row of example.rows) {
 			const key = String(row[chartStep.group]);
