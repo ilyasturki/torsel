@@ -254,17 +254,19 @@ test.describe('cells', () => {
 
 		for (const col of [0, 1, 2]) {
 			const cell = at(page, 0, col);
-			const box = await cell.boundingBox();
+			const closed = await cell.boundingBox();
 			if (isPhone()) await cell.tap();
 			else await cell.dblclick();
 			const input = cell.locator('input');
 			await expect(input).toBeFocused();
+			const box = await cell.boundingBox();
 			const inner = await input.boundingBox();
+			expect(box?.width, 'opening an editor resizes nothing').toBe(closed?.width);
+			expect(box?.height, 'opening an editor resizes nothing').toBe(closed?.height);
 			expect(inner?.x).toBe(box?.x);
 			expect(inner?.y).toBe(box?.y);
 			expect(inner?.width).toBe(box?.width);
 			expect(Math.abs((inner?.height ?? 0) - (box?.height ?? 0))).toBeLessThanOrEqual(1);
-			expect(await cell.boundingBox()).toEqual(box);
 			await input.press('Escape');
 		}
 	});
@@ -706,6 +708,7 @@ test.describe('columns', () => {
 		account
 	}) => {
 		void account;
+		await page.setViewportSize({ width: 390, height: 844 });
 		await open(page, (await seedEveryType(context.request)).path);
 		await expect(at(page, 0, 0).getByText(LONG)).toBeVisible();
 
@@ -844,7 +847,7 @@ test.describe('scale', () => {
 
 		await header(page, 'Reps').getByRole('button').click();
 		await page.getByRole('button', { name: 'Sort descending' }).click();
-		await expect(at(page, 0, 1)).toHaveText('9,999');
+		await expect(at(page, 0, 1)).toHaveText('10,000');
 	});
 });
 
@@ -956,5 +959,18 @@ test.describe('phone', () => {
 		);
 		await option.tap();
 		await expect(at(page, 0, 2)).toHaveText('Tempo');
+	});
+
+	test('a tap in the blank row makes a row', async ({ page, context, account }) => {
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+
+		const blank = at(page, 3, 0);
+		await blank.tap();
+		await blank.locator('input').fill('Row four');
+		await blank.locator('input').press('Enter');
+		await expect(page.getByText('4 rows')).toBeVisible();
+		await expect(at(page, 3, 0)).toHaveText('Row four');
+		await expect(at(page, 4, 0).locator('input')).toHaveCount(0);
 	});
 });

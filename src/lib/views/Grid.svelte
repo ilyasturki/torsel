@@ -86,6 +86,8 @@
 	let columnDrag = $state.raw<{ field: string; at: number } | null>(null);
 	let ignoreHeaderClick = false;
 	let fitContext: CanvasRenderingContext2D | null = null;
+	let catcher = $state<HTMLTextAreaElement>();
+	let catcherRelease: ReturnType<typeof setTimeout> | undefined;
 
 	const fields = $derived.by(() => {
 		void app.version;
@@ -563,6 +565,10 @@
 		} else if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault();
 			clearRange();
+		} else if (command && !event.altKey && ['c', 'x'].includes(event.key.toLowerCase())) {
+			if (!event.shiftKey) armCatcher(rangeTsv());
+		} else if (command && !event.altKey && event.key.toLowerCase() === 'v') {
+			armCatcher('');
 		} else if (command && event.key.toLowerCase() === 'a') {
 			event.preventDefault();
 			anchor = posAt(0, 0);
@@ -716,20 +722,43 @@
 		}
 	}
 
-	function ondocumentcopy(event: ClipboardEvent, cut = false): void {
-		if (document.activeElement !== table || head === null || event.clipboardData === null) return;
-		const cells = rangeRows().map((row) =>
-			rangeFields().map((field) => copyText(app.ws, field, cellValue(row, field, computed)))
+	function rangeTsv(): string {
+		return toTsv(
+			rangeRows().map((row) =>
+				rangeFields().map((field) => copyText(app.ws, field, cellValue(row, field, computed)))
+			)
 		);
-		event.clipboardData.setData('text/plain', toTsv(cells));
+	}
+
+	function backToGrid(): void {
+		clearTimeout(catcherRelease);
+		if (catcher !== undefined) catcher.value = '';
+		table?.focus({ preventScroll: true });
+	}
+
+	// WebKit fires no clipboard event on a page with nothing selected, so the shortcut's default action gets a selected field to act on.
+	function armCatcher(text: string): void {
+		if (catcher === undefined) return;
+		catcher.value = text;
+		catcher.focus({ preventScroll: true });
+		catcher.select();
+		clearTimeout(catcherRelease);
+		catcherRelease = setTimeout(backToGrid, 100);
+	}
+
+	function oncatchercopy(event: ClipboardEvent, cut = false): void {
+		if (event.clipboardData === null) return;
+		event.clipboardData.setData('text/plain', catcher?.value ?? '');
 		event.preventDefault();
-		const count = cells.length * rangeFields().length;
+		const count = (bottom - top + 1) * rangeFields().length;
+		backToGrid();
 		if (cut) clearRange();
 		showToast(`${cut ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'cell' : 'cells'}`);
 	}
 
-	function ondocumentpaste(event: ClipboardEvent): void {
-		if (document.activeElement !== table || head === null || fields.length === 0) return;
+	function oncatcherpaste(event: ClipboardEvent): void {
+		backToGrid();
+		if (head === null || fields.length === 0) return;
 		const text = event.clipboardData?.getData('text/plain') ?? '';
 		if (text === '') return;
 		event.preventDefault();
@@ -850,7 +879,13 @@
 
 	const menuFieldDef = $derived(fields.find((field) => field.id === menuField));
 
+	function backToTop(): void {
+		if (scroller !== undefined) scroller.scrollTop = 0;
+		scrollTop = 0;
+	}
+
 	function sortBy(field: FieldDef, dir: 'asc' | 'desc' | null): void {
+		backToTop();
 		setConfig(
 			{ sort: dir === null ? null : { field: field.id, dir } },
 			dir === null ? 'Sort cleared' : 'Sort changed'
@@ -865,6 +900,7 @@
 			text === '' ? (saved?.field === menuField ? null : saved) : { field: menuField, text };
 		liveFilter = null;
 		if (JSON.stringify(next) !== JSON.stringify(saved)) {
+			backToTop();
 			setConfig({ filter: next }, next === null ? 'Filter cleared' : 'Filter changed');
 		}
 	}
@@ -880,12 +916,6 @@
 				}))
 			: linkOptions(app.ws, field.target);
 </script>
-
-<svelte:document
-	oncopy={(event) => ondocumentcopy(event)}
-	oncut={(event) => ondocumentcopy(event, true)}
-	onpaste={ondocumentpaste}
-/>
 
 {#snippet dataCell(row: Rec | null, r: number, field: FieldDef, c: number)}
 	{@const inRange = r >= top && r <= bottom && c >= left && c <= right}
@@ -903,7 +933,7 @@
 		aria-readonly={field.type === 'formula'}
 		title={field.type === 'formula' ? formulaReason(field) : undefined}
 		class="h-row border-b border-hair p-0 {c === 0
-			? `sticky left-11 z-10 bg-raised max-sm:bg-canvas ${scrolledSideways ? 'border-r border-r-edge' : ''}`
+			? `sticky left-11 z-10 bg-raised max-sm:bg-canvas ${scrolledSideways ? 'border-r border-r-tint-2' : ''}`
 			: 'relative'}"
 	>
 		<div
@@ -962,6 +992,14 @@
 {/snippet}
 
 <div class="flex h-full flex-col">
+	<textarea
+		bind:this={catcher}
+		class="pointer-events-none fixed top-0 left-0 size-px opacity-0"
+		aria-hidden="true"
+		tabindex="-1"
+		oncopy={(event) => oncatchercopy(event)}
+		oncut={(event) => oncatchercopy(event, true)}
+		onpaste={oncatcherpaste}></textarea>
 	{#if filterField}
 		<div class="flex shrink-0 items-center gap-2 px-3 py-1 text-sm text-ink-2">
 			<span class="min-w-0 truncate">
@@ -1029,14 +1067,16 @@
 										: undefined}
 								class="sticky top-0 h-row border-b border-hair bg-raised p-0 text-sm font-medium text-ink-3 max-sm:bg-canvas {index ===
 								0
-									? `left-11 z-30 ${scrolledSideways ? 'border-r border-r-edge' : ''}`
+									? `left-11 z-30 ${scrolledSideways ? 'border-r border-r-tint-2' : ''}`
 									: 'z-20'} {columnDrag?.field === field.id ? 'text-ink' : ''}"
 							>
 								<button
 									type="button"
 									class="absolute inset-0 flex items-center gap-1 px-3 whitespace-nowrap transition-colors motion hover:text-ink {numeric
 										? 'justify-end'
-										: ''}"
+										: field.type === 'check'
+											? 'justify-center'
+											: ''}"
 									onpointerdown={(event) => onheaderdown(event, field)}
 									onclick={(event) => openMenu(event, field)}
 								>
