@@ -20,7 +20,6 @@ type Stack = {
 	phone: Target;
 	app: Target;
 	appServer: string;
-	// What must answer before the suite starts.
 	probes: string[];
 };
 
@@ -81,7 +80,7 @@ function bootBuiltServer(name: string, port: number, env: Record<string, string>
 	boot(name, 'node', ['build/server/index.js'], {
 		HOST: '127.0.0.1',
 		PORT: String(port),
-		// Unset, adapter-node assumes https and the session cookie turns Secure.
+		// Unset, the session cookie turns Secure and Playwright's API requests stop sending it over http.
 		ORIGIN: base,
 		DATABASE_PATH: database,
 		...env
