@@ -426,7 +426,7 @@ test.describe('local data at sign-in', () => {
 		void account;
 		const table = await seedLifts(page);
 		await page.goto(`/app/t/${table}`);
-		await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+		await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 
 		await page.goto('/app/settings');
 		await page.getByRole('button', { name: 'Sign out' }).click();
@@ -439,7 +439,7 @@ test.describe('local data at sign-in', () => {
 		await expect(page.getByRole('status')).toHaveCount(0);
 
 		await page.goto(`/app/t/${table}`);
-		await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+		await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
 	});
 
