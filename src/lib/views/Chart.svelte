@@ -119,18 +119,23 @@
 		return x;
 	}
 
+	const byDate = $derived(xField?.type === 'date');
+	const totalled = $derived(
+		!byDate && config.kind === 'bar' && (config.agg === 'sum' || config.agg === 'count')
+	);
+
 	const per = $derived(
-		xField?.type === 'date' && config.bucket === 'week'
+		byDate && config.bucket === 'week'
 			? 'per week'
-			: xField?.type === 'date' && config.bucket === 'month'
+			: byDate && config.bucket === 'month'
 				? 'per month'
-				: xField?.type === 'date'
+				: byDate
 					? ''
-					: `per ${(data?.xLabel ?? '').toLowerCase()}`
+					: `${totalled ? 'by' : 'per'} ${(data?.xLabel ?? '').toLowerCase()}`
 	);
 	const ticks = $derived([yMin, (yMin + yMax.max) / 2, yMax.max]);
 	const xTicks = $derived(
-		xs.length <= 3
+		xs.length <= 3 || (!byDate && xs.length <= 8)
 			? xs.map((_, index) => index)
 			: [0, Math.floor((xs.length - 1) / 2), xs.length - 1]
 	);
@@ -138,6 +143,9 @@
 	const latest = $derived.by(() => {
 		const last = xs.at(-1);
 		if (last === undefined) return null;
+		if (totalled) {
+			return { x: '', y: [...stacked.values()].reduce((sum, value) => sum + value, 0) };
+		}
 		return {
 			x: last,
 			y:
@@ -226,7 +234,13 @@
 						<text
 							x={config.kind === 'bar' ? PAD.left + index * band + band / 2 : xPos(index)}
 							y={H - 8}
-							text-anchor={index === 0 ? 'start' : index === xs.length - 1 ? 'end' : 'middle'}
+							text-anchor={!byDate
+								? 'middle'
+								: index === 0
+									? 'start'
+									: index === xs.length - 1
+										? 'end'
+										: 'middle'}
 							font-size="11.5"
 							fill="var(--ink-3)">{label(xs[index])}</text
 						>
