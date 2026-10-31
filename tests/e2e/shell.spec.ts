@@ -243,7 +243,7 @@ test('a sheet and the assistant keep room under their buttons', async ({
 	expect(await gapBelow(sheet, sheet.getByRole('button', { name: 'Save' }))).toBeGreaterThan(0);
 });
 
-test('the table menu renames the table, opens view settings and adds a view', async ({
+test('the title renames the table, and the table menu opens view settings and adds a view', async ({
 	page,
 	context,
 	account
@@ -253,10 +253,9 @@ test('the table menu renames the table, opens view settings and adds a view', as
 	await page.goto(`/app/t/${lifts}`);
 	const dialog = page.getByRole('dialog');
 
-	await page.getByRole('button', { name: 'More' }).click();
-	await dialog.getByRole('button', { name: 'Rename table' }).click();
-	await dialog.getByRole('textbox', { name: 'Rename table' }).fill('Sets');
-	await dialog.getByRole('button', { name: 'Rename', exact: true }).click();
+	await page.getByRole('heading', { name: 'Lifts' }).getByRole('button').click();
+	await page.getByRole('textbox', { name: 'Table name' }).fill('Sets');
+	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'Sets' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'More' }).click();
@@ -303,7 +302,7 @@ test('undo takes back the last change, and the keyboard changes the view', async
 	context,
 	account
 }) => {
-	test.skip(test.info().project.name === 'phone', 'the phone reaches both through its menu');
+	test.skip(test.info().project.name === 'phone', 'a phone has no keyboard shortcut');
 	void account;
 	const { lifts, entry } = await seedTwoTables(context.request);
 	await page.goto(`/app/t/${lifts}`);
