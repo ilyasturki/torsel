@@ -88,7 +88,8 @@ export function fieldDef(rec: Rec): FieldDef {
 		target: nullableText(rec.data.target),
 		expr: nullableText(rec.data.expr),
 		description: nullableText(rec.data.description),
-		step: typeof rec.data.step === 'number' && rec.data.step > 0 ? rec.data.step : null
+		step: typeof rec.data.step === 'number' && rec.data.step > 0 ? rec.data.step : null,
+		auto: rec.data.auto === true
 	};
 }
 

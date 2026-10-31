@@ -1,7 +1,7 @@
 import { newId } from './ids.ts';
 import type { Change, Choice, FieldDef, FieldType, Value, ViewConfig, ViewType } from './model.ts';
 import { CREATED, DELETED } from './model.ts';
-import { coerce } from './values.ts';
+import { coerce, typeOfValues } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
 export type FieldSpec = {
@@ -12,6 +12,7 @@ export type FieldSpec = {
 	expr?: string | null;
 	description?: string | null;
 	step?: number | null;
+	auto?: boolean;
 };
 
 export type ViewSpec = { name: string; type: ViewType; config?: ViewConfig };
@@ -36,6 +37,9 @@ function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {
 	}
 	if (spec.step !== undefined) {
 		set.step = spec.step;
+	}
+	if (spec.auto === true) {
+		set.auto = true;
 	}
 
 	return set;
@@ -72,20 +76,32 @@ export function homeBase(ws: Workspace): { id: string; changes: Change[] } {
 		: createBase(ws, 'Tables');
 }
 
-export function blankTable(
-	ws: Workspace,
-	baseId?: string
-): { id: string; name: string; changes: Change[] } {
-	const home = baseId === undefined ? homeBase(ws) : { id: baseId, changes: [] };
+export const BLANK_FIELD = 'Name';
+
+export function nextTableName(ws: Workspace): string {
 	const taken = new Set(
 		ws.bases().flatMap((base) => ws.tables(base.id).map((table) => table.name))
 	);
 	let number = 1;
 	while (taken.has(`Table ${number}`)) number += 1;
-	const name = `Table ${number}`;
-	const made = createTable(ws, home.id, name, [{ name: 'Name', type: 'text' }]);
+	return `Table ${number}`;
+}
 
-	return { id: made.id, name, changes: [...home.changes, ...made.changes] };
+export function blankTable(
+	ws: Workspace,
+	baseId?: string,
+	wanted?: string
+): { id: string; name: string; viewIds: string[]; changes: Change[] } {
+	const home = baseId === undefined ? homeBase(ws) : { id: baseId, changes: [] };
+	const name = wanted?.trim() || nextTableName(ws);
+	const made = createTable(ws, home.id, name, [{ name: BLANK_FIELD, type: 'text', auto: true }]);
+
+	return {
+		id: made.id,
+		name,
+		viewIds: made.viewIds,
+		changes: [...home.changes, ...made.changes]
+	};
 }
 
 /** The field "the last time" is read on when a view does not say: the choice with the most values. */
@@ -220,6 +236,36 @@ export function rowValues(
 	return out;
 }
 
+function settleAuto(
+	all: FieldDef[],
+	rows: Record<string, unknown>[]
+): { fields: FieldDef[]; changes: Change[] } {
+	const changes: Change[] = [];
+
+	const fields = all.map((field) => {
+		const values = field.auto
+			? rows
+					.map((row) => row[field.id])
+					.filter((value) => value !== null && value !== undefined && value !== '')
+			: [];
+		if (values.length === 0) {
+			return field;
+		}
+
+		const type = typeOfValues(values);
+		changes.push({
+			id: field.id,
+			kind: 'field',
+			base: field.base,
+			parent: field.table,
+			set: { type, auto: null }
+		});
+		return { ...field, type };
+	});
+
+	return { fields, changes };
+}
+
 export function insertRows(
 	ws: Workspace,
 	tableId: string,
@@ -231,7 +277,7 @@ export function insertRows(
 		throw new Error('table not found');
 	}
 
-	const fields = ws.fields(tableId);
+	const { fields, changes: settled } = settleAuto(ws.fields(tableId), rows);
 	const ids: string[] = [];
 
 	const changes = rows.map((values, index): Change => {
@@ -248,7 +294,7 @@ export function insertRows(
 		};
 	});
 
-	return { ids, changes };
+	return { ids, changes: [...settled, ...changes] };
 }
 
 export function updateRow(ws: Workspace, rowId: string, values: Record<string, unknown>): Change[] {
@@ -257,7 +303,9 @@ export function updateRow(ws: Workspace, rowId: string, values: Record<string, u
 		throw new Error('row not found');
 	}
 
-	return updateRecord(ws, rowId, rowValues(ws.fields(rec.parent), values));
+	const { fields, changes } = settleAuto(ws.fields(rec.parent), [values]);
+
+	return [...changes, ...updateRecord(ws, rowId, rowValues(fields, values))];
 }
 
 export function createView(

@@ -68,6 +68,8 @@ export type FieldDef = {
 	expr: string | null;
 	description: string | null;
 	step: number | null;
+	// Nobody has chosen a type yet: the first values settle it.
+	auto: boolean;
 };
 
 export type GridConfig = {

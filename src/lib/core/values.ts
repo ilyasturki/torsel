@@ -83,6 +83,24 @@ export function todayIso(now: Date = new Date()): string {
 	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/** The type fresh values read as. A word stays text: one sample can't tell a choice from a note. */
+export function typeOfValues(values: unknown[]): 'number' | 'date' | 'check' | 'text' {
+	if (values.every((value) => typeof value === 'boolean')) {
+		return 'check';
+	}
+	if (
+		values.every(
+			(value) =>
+				typeof value === 'number' || (typeof value === 'string' && parseNumber(value) !== null)
+		)
+	) {
+		return 'number';
+	}
+	return values.every((value) => typeof value === 'string' && parseDate(value) !== null)
+		? 'date'
+		: 'text';
+}
+
 /** What a value becomes once stored in a field of this type; null when it cannot be. */
 export function coerce(field: Pick<FieldDef, 'type'>, raw: unknown): Value {
 	if (raw === undefined || raw === null) {
