@@ -1,3 +1,5 @@
+import type { Choice } from '../core/model.ts';
+
 export const DATA_COLORS = [
 	'gray',
 	'orange',
@@ -13,6 +15,10 @@ export type DataColor = (typeof DATA_COLORS)[number];
 
 export function isDataColor(value: unknown): value is DataColor {
 	return typeof value === 'string' && (DATA_COLORS as readonly string[]).includes(value);
+}
+
+export function nextChoice(choices: Choice[], name: string): Choice {
+	return { name, color: DATA_COLORS[(choices.length % 7) + 1] };
 }
 
 export function swatch(color: string | null | undefined): string {

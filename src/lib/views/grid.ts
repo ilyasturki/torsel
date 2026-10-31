@@ -6,7 +6,7 @@ import type { Change, Choice, FieldDef, GridConfig, Rec, Value } from '#lib/core
 import type { SqlRow } from '#lib/core/sql.ts';
 import { parseCheck, parseDate, parseNumber } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
-import { DATA_COLORS } from '#lib/ui/colors.ts';
+import { nextChoice } from '#lib/ui/colors.ts';
 
 export type Computed = Map<string, SqlRow>;
 
@@ -165,10 +165,6 @@ export function cellReader(ws: Workspace): (field: FieldDef, raw: string) => Val
 				return raw;
 		}
 	};
-}
-
-export function nextChoice(choices: Choice[], name: string): Choice {
-	return { name, color: DATA_COLORS[(choices.length % 7) + 1] };
 }
 
 function sameValue(a: Value | undefined, b: Value | undefined): boolean {

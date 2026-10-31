@@ -20,6 +20,7 @@
 	} from '#lib/core/model.ts';
 	import { todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 
 	import AddField from './AddField.svelte';
@@ -35,7 +36,6 @@
 		fitWidth,
 		gridRows,
 		linkOptions,
-		nextChoice,
 		parseTsv,
 		pasteChanges,
 		sampleRows,

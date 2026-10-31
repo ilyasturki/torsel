@@ -116,6 +116,54 @@ describe('assistant tools', () => {
 		closeEngines(ctx.ws);
 	});
 
+	it('colors the choices it creates as the app does, and keeps those already there', async () => {
+		const { call, ctx } = session();
+		const colors = (field: string): Record<string, string | null> => {
+			const table = ctx.ws.tables(ctx.ws.bases()[0].id)[0];
+			const found = ctx.ws.fields(table.id).find((candidate) => candidate.name === field);
+			return Object.fromEntries((found?.choices ?? []).map((one) => [one.name, one.color]));
+		};
+
+		await call('create_table', {
+			name: 'Clients',
+			fields: [
+				{ name: 'Name', type: 'text' },
+				{ name: 'Stage', type: 'choice', choices: ['Lead', 'Talking'] }
+			]
+		});
+		expect(colors('Stage')).toEqual({ Lead: 'orange', Talking: 'amber' });
+
+		await call('add_rows', {
+			base: 'Tables',
+			table: 'Clients',
+			rows: [{ Name: 'Acme', Stage: 'Won' }]
+		});
+		expect(colors('Stage')).toEqual({ Lead: 'orange', Talking: 'amber', Won: 'green' });
+
+		await call('update_field', {
+			base: 'Tables',
+			table: 'Clients',
+			field: 'Stage',
+			choices: ['Lead', 'Talking', 'Won', 'Lost']
+		});
+		expect(colors('Stage')).toEqual({
+			Lead: 'orange',
+			Talking: 'amber',
+			Won: 'green',
+			Lost: 'teal'
+		});
+
+		await call('add_field', {
+			base: 'Tables',
+			table: 'Clients',
+			name: 'Size',
+			type: 'choice',
+			choices: ['Big']
+		});
+		expect(colors('Size')).toEqual({ Big: 'orange' });
+		closeEngines(ctx.ws);
+	});
+
 	it('answers a bad name with the way to find the right one', async () => {
 		const { call } = session();
 

@@ -21,6 +21,7 @@ import { formulaProblem, materializeBase, readQuery } from '../../core/sql.ts';
 import type { Tier } from '../../core/thread.ts';
 import { TOOL_TITLES } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
+import { nextChoice } from '../../ui/colors.ts';
 
 export type { Tier };
 
@@ -85,10 +86,11 @@ export function findField(ws: Workspace, tableId: string, ref: string): FieldDef
 }
 
 function choicesOf(names: string[] | undefined, previous: Choice[] = []): Choice[] {
-	return (names ?? []).map((name) => ({
-		name,
-		color: previous.find((choice) => choice.name === name)?.color ?? null
-	}));
+	const choices: Choice[] = [];
+	for (const name of names ?? []) {
+		choices.push(previous.find((choice) => choice.name === name) ?? nextChoice(choices, name));
+	}
+	return choices;
 }
 
 function storedFormula(
@@ -324,7 +326,10 @@ function rowsByName(
 
 	const fieldChanges = [...added].flatMap(([fieldId, names]) => {
 		const field = fields.find((candidate) => candidate.id === fieldId) as FieldDef;
-		const choices: Value = [...field.choices, ...[...names].map((name) => ({ name, color: null }))];
+		const choices = [...field.choices];
+		for (const name of names) {
+			choices.push(nextChoice(choices, name));
+		}
 		return updateRecord(ws, fieldId, { choices });
 	});
 
