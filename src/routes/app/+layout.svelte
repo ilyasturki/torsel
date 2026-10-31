@@ -13,19 +13,21 @@
 	} from '#lib/client/assistant.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
+	import { viewToOpen, visitHome, visitTable } from '#lib/client/place.ts';
 	import { me } from '#lib/client/session.svelte.ts';
+	import { pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { blankTable, updateRecord } from '#lib/core/actions.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Logo from '#lib/ui/Logo.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 	import AskPanel from '#lib/views/AskPanel.svelte';
-	import NameSheet from '#lib/views/NameSheet.svelte';
+	import ImportSheet from '#lib/views/ImportSheet.svelte';
 	import RowSheet from '#lib/views/RowSheet.svelte';
 	import SyncStatus from '#lib/views/SyncStatus.svelte';
 	import TableMenu from '#lib/views/TableMenu.svelte';
+	import TableTitle from '#lib/views/TableTitle.svelte';
 	import Toast from '#lib/views/Toast.svelte';
 	import ViewSheet from '#lib/views/ViewSheet.svelte';
 
@@ -52,9 +54,12 @@
 		return table === undefined ? [] : ghostViews(table.id).map((ghost) => ghost.view);
 	});
 
-	const view = $derived(
-		[...ghosts, ...views].find((item) => item.id === page.url.searchParams.get('v')) ?? views[0]
-	);
+	const view = $derived.by(() => {
+		const requested = page.url.searchParams.get('v');
+		return table === undefined
+			? undefined
+			: (ghosts.find((item) => item.id === requested) ?? viewToOpen(views, table.id, requested));
+	});
 
 	const proposedView = $derived(view !== undefined && ghosts.some((item) => item.id === view.id));
 
@@ -66,6 +71,14 @@
 	$effect(() => {
 		if (assistant.available === true && me.account) {
 			void resumeThread();
+		}
+	});
+
+	$effect(() => {
+		if (table !== undefined && view !== undefined && !proposedView) {
+			visitTable(table.id, view.id);
+		} else if (page.url.pathname === HOME) {
+			visitHome();
 		}
 	});
 
@@ -85,25 +98,66 @@
 	let menuOpen = $state(false);
 	let viewSettings = $state(false);
 	let viewCreating = $state(false);
-	let renaming = $state(false);
-	let rowOpen = $state(false);
+	let dropping = $state(false);
 
 	function undo(): void {
 		const group = app.undo();
 		showToast(group === undefined ? 'Nothing to undo' : `Undid: ${group.label}`);
 	}
 
-	function newTable(): void {
-		const made = blankTable(app.ws);
-		app.apply(made.changes, `Table "${made.name}" created`);
-		void goto(tableUrl(made.id));
+	function redo(): void {
+		const group = app.redo();
+		showToast(group === undefined ? 'Nothing to redo' : `Redid: ${group.label}`);
+	}
+
+	function isTyping(target: EventTarget | null): boolean {
+		return (
+			target instanceof HTMLElement &&
+			(target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+		);
+	}
+
+	function hasFiles(event: DragEvent): boolean {
+		return event.dataTransfer?.types.includes('Files') === true;
+	}
+
+	function ondragover(event: DragEvent): void {
+		if (!bare && hasFiles(event)) {
+			event.preventDefault();
+			dropping = true;
+		}
+	}
+
+	function ondrop(event: DragEvent): void {
+		dropping = false;
+		const file = event.dataTransfer?.files[0];
+		if (!bare && file !== undefined) {
+			event.preventDefault();
+			shell.importing = { file, into: table?.id ?? null };
+		}
+	}
+
+	/** Cells pasted where no grid cell took them start a table, or fill an empty one. */
+	function onpaste(event: ClipboardEvent): void {
+		if (
+			event.defaultPrevented ||
+			isTyping(event.target) ||
+			document.querySelector('[role=dialog]')
+		) {
+			return;
+		}
+		const onHome = page.url.pathname === HOME;
+		if ((table !== undefined && rowCount === 0) || onHome) {
+			const text = pastedCells(event);
+			if (text !== null) {
+				event.preventDefault();
+				shell.importing = { text, into: table?.id ?? null };
+			}
+		}
 	}
 
 	function onkeydown(event: KeyboardEvent): void {
-		const target = event.target as HTMLElement | null;
-		const typing =
-			target !== null &&
-			(target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+		const typing = isTyping(event.target);
 		const command = event.metaKey || event.ctrlKey;
 
 		if (command && event.key.toLowerCase() === 'k') {
@@ -112,6 +166,13 @@
 		} else if (!typing && command && event.key.toLowerCase() === 'z' && !event.shiftKey) {
 			event.preventDefault();
 			undo();
+		} else if (
+			!typing &&
+			command &&
+			((event.key.toLowerCase() === 'z' && event.shiftKey) || event.key.toLowerCase() === 'y')
+		) {
+			event.preventDefault();
+			redo();
 		} else if (event.altKey && !command && /^[1-9]$/u.test(event.key) && table !== undefined) {
 			const next = views[Number(event.key) - 1];
 			if (next !== undefined) {
@@ -126,30 +187,53 @@
 	<title>{heading === 'Tables' ? 'Torsel' : `${heading} · Torsel`}</title>
 </svelte:head>
 
-<svelte:window {onkeydown} />
+<svelte:window
+	{onkeydown}
+	{onpaste}
+	{ondragover}
+	{ondrop}
+	ondragleave={(event) => {
+		if (event.relatedTarget === null) dropping = false;
+	}}
+/>
 
 {#if bare}
 	{@render children()}
 {:else}
 	<div class="relative flex h-dvh flex-col overflow-clip pt-safe">
 		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5 max-lg:flex-wrap">
-			<a href={HOME} class="mr-1 shrink-0 text-ink-2 hover:text-ink">
+			<a
+				href={HOME}
+				class="mr-1 shrink-0 text-ink-2 hover:text-ink {table === undefined ? '' : 'max-sm:hidden'}"
+			>
 				<Logo wordmark class="h-4 max-sm:hidden" />
 				<Logo class="h-5 sm:hidden" />
 			</a>
 			<div class="flex min-w-0 items-center gap-3 max-lg:flex-1">
-				<h1 class="min-w-0 truncate text-xl font-semibold tight">{heading}</h1>
 				{#if table !== undefined}
+					<TableTitle {table} rows={rowCount} />
 					<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
+				{:else}
+					<h1 class="min-w-0 truncate text-xl font-semibold tight max-sm:text-lg">{heading}</h1>
 				{/if}
 			</div>
 			<SyncStatus />
 			<div class="ml-auto flex shrink-0 items-center gap-1">
 				<Button
 					variant="ghost"
-					class="max-sm:hidden"
+					class="w-control px-0"
+					aria-label="Undo"
+					title={app.history.at(-1)?.label}
 					disabled={app.history.length === 0}
-					onclick={undo}>Undo</Button
+					onclick={undo}><Icon name="undo" /></Button
+				>
+				<Button
+					variant="ghost"
+					class="w-control px-0"
+					aria-label="Redo"
+					title={app.undone.at(-1)?.label}
+					disabled={app.undone.length === 0}
+					onclick={redo}><Icon name="redo" /></Button
 				>
 				{#if assistant.available && sync.status !== 'offline'}
 					<Button
@@ -213,12 +297,16 @@
 				{#if view?.type !== 'entry'}
 					<Button
 						variant="primary"
-						class="ml-auto max-sm:hidden"
+						class="ml-auto max-sm:w-control max-sm:px-0"
+						aria-label="New row"
 						onclick={() => {
 							if (view?.type === 'grid') gridJump.blankRow += 1;
-							else rowOpen = true;
-						}}>New row</Button
+							else shell.newRow = true;
+						}}
 					>
+						<Icon name="plus" class="size-4 sm:hidden" />
+						<span class="max-sm:hidden">New row</span>
+					</Button>
 				{/if}
 			</div>
 		{/if}
@@ -227,7 +315,7 @@
 			<main
 				class="isolate min-w-0 flex-1 overflow-auto rounded-panel bg-raised shadow-raised transition-[margin] motion-slow max-sm:rounded-none max-sm:bg-transparent max-sm:shadow-none {asking
 					? 'lg:mr-ask-clear'
-					: ''}"
+					: ''} {dropping ? 'ring-2 ring-ink ring-inset' : ''}"
 			>
 				{@render children()}
 			</main>
@@ -260,7 +348,7 @@
 						type="button"
 						class="relative flex size-control shrink-0 items-center justify-center text-ink-2 transition-colors motion hover:text-ink"
 						aria-label="New table"
-						onclick={newTable}><Icon name="plus" /></button
+						onclick={() => startTable()}><Icon name="plus" /></button
 					>
 				{/snippet}
 			</Segmented>
@@ -269,31 +357,19 @@
 		<Toast />
 	</div>
 
+	<ImportSheet />
+
 	{#if table !== undefined}
 		<TableMenu
 			bind:open={menuOpen}
 			{table}
-			onrename={() => (renaming = true)}
 			onviewsettings={proposedView ? undefined : () => (viewSettings = true)}
 			onnewview={() => (viewCreating = true)}
-			onnewrow={() => (rowOpen = true)}
-			onundo={undo}
-			canUndo={app.history.length > 0}
 		/>
 		{#if !proposedView}
 			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
 		{/if}
 		<ViewSheet bind:open={viewCreating} tableId={table.id} />
-		<RowSheet bind:open={rowOpen} tableId={table.id} />
-		<NameSheet
-			bind:open={renaming}
-			title="Rename table"
-			initial={table.name}
-			action="Rename"
-			onsave={(name) => {
-				if (table !== undefined)
-					app.apply(updateRecord(app.ws, table.id, { name }), 'Table renamed');
-			}}
-		/>
+		<RowSheet bind:open={shell.newRow} tableId={table.id} />
 	{/if}
 {/if}

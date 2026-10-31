@@ -3,6 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { HOME, SETTINGS } from '#lib/client/nav.ts';
+	import { shell } from '#lib/client/shell.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import type { TableDef } from '#lib/core/model.ts';
@@ -12,21 +13,13 @@
 	let {
 		open = $bindable(false),
 		table,
-		canUndo,
-		onrename,
 		onviewsettings,
-		onnewview,
-		onnewrow,
-		onundo
+		onnewview
 	}: {
 		open?: boolean;
 		table: TableDef;
-		canUndo: boolean;
-		onrename: () => void;
 		onviewsettings?: () => void;
 		onnewview: () => void;
-		onnewrow: () => void;
-		onundo: () => void;
 	} = $props();
 
 	function run(action: () => void): void {
@@ -45,11 +38,6 @@
 
 <Sheet bind:open title={table.name}>
 	<div class="-mx-2 flex flex-col items-stretch">
-		<Button variant="ghost" class="justify-start sm:hidden" onclick={() => run(onnewrow)}
-			>New row</Button
-		>
-		<Button variant="ghost" class="justify-start" onclick={() => run(onrename)}>Rename table</Button
-		>
 		{#if onviewsettings !== undefined}
 			<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
 				>View settings</Button
@@ -58,9 +46,9 @@
 		<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
 		<Button
 			variant="ghost"
-			class="justify-start sm:hidden"
-			disabled={!canUndo}
-			onclick={() => run(onundo)}>Undo</Button
+			class="justify-start"
+			onclick={() => run(() => (shell.importing = { into: table.id }))}
+			>Import into this table</Button
 		>
 		<a
 			href={SETTINGS}

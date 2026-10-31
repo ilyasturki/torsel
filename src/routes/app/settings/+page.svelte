@@ -7,8 +7,10 @@
 	import { formatDate } from '#lib/client/format.ts';
 	import { SETTINGS } from '#lib/client/nav.ts';
 	import { me } from '#lib/client/session.svelte.ts';
+	import { shell } from '#lib/client/shell.svelte.ts';
 	import { eraseDevice, signOut } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { exportOf } from '#lib/core/backup.ts';
 	import { signInPath } from '#lib/core/return-path.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
@@ -81,15 +83,7 @@
 	}
 
 	function exportJson(): void {
-		const payload = {
-			format: 'torsel',
-			version: 1,
-			exportedAt: new Date().toISOString(),
-			records: [...app.ws.records.values()]
-		};
-		const url = URL.createObjectURL(
-			new Blob([JSON.stringify(payload)], { type: 'application/json' })
-		);
+		const url = URL.createObjectURL(new Blob([exportOf(app.ws)], { type: 'application/json' }));
 		const link = document.createElement('a');
 		link.href = url;
 		link.download = `torsel-${new Date().toISOString().slice(0, 10)}.json`;
@@ -225,7 +219,8 @@
 	{/if}
 
 	<section class="flex items-center justify-between gap-3">
-		<span>All data on this device</span>
+		<span class="min-w-0 flex-1">All data on this device</span>
+		<Button onclick={() => (shell.importing = { into: null })}>Import</Button>
 		<Button onclick={exportJson}>Export as JSON</Button>
 	</section>
 

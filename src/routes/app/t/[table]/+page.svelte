@@ -4,6 +4,8 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { accept, ghostViews, reject } from '#lib/client/assistant.svelte.ts';
 	import { HOME } from '#lib/client/nav.ts';
+	import { viewToOpen } from '#lib/client/place.ts';
+	import { shell } from '#lib/client/shell.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Chart from '#lib/views/Chart.svelte';
@@ -32,7 +34,12 @@
 
 	const ghost = $derived(ghosts.find((item) => item.view.id === requested));
 
-	const view = $derived(ghost?.view ?? views.find((item) => item.id === requested) ?? views[0]);
+	const view = $derived(ghost?.view ?? viewToOpen(views, tableId, requested));
+
+	const blank = $derived.by(() => {
+		void app.version;
+		return view?.type === 'grid' && app.ws.rows(tableId).length === 0;
+	});
 
 	const problems = $derived.by(() => {
 		void app.version;
@@ -65,6 +72,17 @@
 				<span class="min-w-0 flex-1 font-medium">Proposed view: {ghost.view.name}</span>
 				<Button variant="primary" onclick={() => accept(ghost.action.id)}>Accept</Button>
 				<Button onclick={() => reject(ghost.action.id)}>Reject</Button>
+			</div>
+		{/if}
+
+		{#if blank}
+			<div class="shrink-0">
+				<Empty
+					text="This table is empty. Add its fields and a first row, drop a CSV here, or paste cells."
+				>
+					<Button onclick={() => (shell.addingField = true)}>Add a field</Button>
+					<Button onclick={() => (shell.importing = { into: tableId })}>Import a file</Button>
+				</Empty>
 			</div>
 		{/if}
 

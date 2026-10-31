@@ -13,13 +13,23 @@
 	import { formatDate, plainNumber } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
+	import { shell } from '#lib/client/shell.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { insertRows, reorder, updateRecord, updateRow } from '#lib/core/actions.ts';
-	import type { Change, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
+	import type {
+		Change,
+		FieldDef,
+		FieldType,
+		GridConfig,
+		Rec,
+		Value,
+		ViewDef
+	} from '#lib/core/model.ts';
 	import { todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 
+	import AddField from './AddField.svelte';
 	import CellValue from './CellValue.svelte';
 	import FieldSheet from './FieldSheet.svelte';
 	import {
@@ -85,6 +95,7 @@
 	let rowId = $state<string | null>(null);
 	let fieldOpen = $state(false);
 	let fieldId = $state<string | null>(null);
+	let preset = $state<{ name: string; type: FieldType } | null>(null);
 	let menuOpen = $state(false);
 	let menuField = $state<string | null>(null);
 	let menuAnchor = $state<HTMLElement | null>(null);
@@ -1189,17 +1200,16 @@
 							</th>
 						{/each}
 						<th class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas">
-							<button
-								type="button"
+							<AddField
+								{tableId}
+								bind:open={shell.addingField}
 								class="absolute inset-0 flex items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
-								aria-label="Add a field"
-								onclick={() => {
+								onmore={(name, type) => {
 									fieldId = null;
+									preset = { name, type };
 									fieldOpen = true;
 								}}
-							>
-								<Icon name="plus" />
-							</button>
+							/>
 						</th>
 						<th
 							class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas"
@@ -1299,8 +1309,9 @@
 	onfilter={(text) => (liveFilter = text)}
 	onedit={() => {
 		fieldId = menuField;
+		preset = null;
 		fieldOpen = true;
 	}}
 />
 <RowSheet bind:open={rowOpen} {tableId} {rowId} />
-<FieldSheet bind:open={fieldOpen} {tableId} {fieldId} />
+<FieldSheet bind:open={fieldOpen} {tableId} {fieldId} {preset} />
