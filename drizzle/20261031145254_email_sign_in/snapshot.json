@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "69552aa7-3f2e-4908-a46a-fbf99c37bca4",
+  "id": "0902182e-0b19-45e8-98f3-473d6eab9915",
   "prevIds": [
-    "a46b3ccd-71c0-4a0e-95c1-c910ffc635b8"
+    "7eeee0b6-5089-485c-bbae-0c4250e64fd4"
   ],
   "ddl": [
     {
@@ -20,6 +20,18 @@
     },
     {
       "name": "sync_counters",
+      "entityType": "tables"
+    },
+    {
+      "name": "thread_actions",
+      "entityType": "tables"
+    },
+    {
+      "name": "thread_messages",
+      "entityType": "tables"
+    },
+    {
+      "name": "threads",
       "entityType": "tables"
     },
     {
@@ -272,6 +284,216 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "thread_id",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "seq",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "tier",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "summary",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "detail",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "changes",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "after",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "reported",
+      "entityType": "columns",
+      "table": "thread_actions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "thread_id",
+      "entityType": "columns",
+      "table": "thread_messages"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "seq",
+      "entityType": "columns",
+      "table": "thread_messages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "thread_messages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "content",
+      "entityType": "columns",
+      "table": "thread_messages"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "meta",
+      "entityType": "columns",
+      "table": "thread_messages"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "thread_messages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "id",
       "entityType": "columns",
       "table": "users"
@@ -398,6 +620,51 @@
     },
     {
       "columns": [
+        "thread_id"
+      ],
+      "tableTo": "threads",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_thread_actions_thread_id_threads_id_fk",
+      "entityType": "fks",
+      "table": "thread_actions"
+    },
+    {
+      "columns": [
+        "thread_id"
+      ],
+      "tableTo": "threads",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_thread_messages_thread_id_threads_id_fk",
+      "entityType": "fks",
+      "table": "thread_messages"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_threads_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "threads"
+    },
+    {
+      "columns": [
         "id"
       ],
       "nameExplicit": false,
@@ -432,6 +699,35 @@
       "name": "sync_counters_pk",
       "entityType": "pks",
       "table": "sync_counters"
+    },
+    {
+      "columns": [
+        "thread_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "thread_actions_pk",
+      "entityType": "pks",
+      "table": "thread_actions"
+    },
+    {
+      "columns": [
+        "thread_id",
+        "seq"
+      ],
+      "nameExplicit": false,
+      "name": "thread_messages_pk",
+      "entityType": "pks",
+      "table": "thread_messages"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "threads_pk",
+      "entityType": "pks",
+      "table": "threads"
     },
     {
       "columns": [
@@ -505,6 +801,24 @@
       "name": "records_user_base_idx",
       "entityType": "indexes",
       "table": "records"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "updated_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "threads_user_updated_idx",
+      "entityType": "indexes",
+      "table": "threads"
     },
     {
       "columns": [
