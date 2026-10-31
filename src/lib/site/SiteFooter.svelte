@@ -12,7 +12,7 @@
 		class="flex flex-wrap items-start justify-between gap-x-16 gap-y-8 px-gutter pt-10 pb-10 max-sm:pb-8"
 	>
 		<div class="flex flex-col gap-3">
-			<Logo wordmark class="h-4 text-ink" />
+			<Logo wordmark class="h-4 self-start text-ink" />
 			<p class="max-w-72 text-ink-3">
 				{LEGAL_NAME}, {LEGAL_REGISTRATION}. Open source under the MIT license.
 			</p>
