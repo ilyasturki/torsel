@@ -13,6 +13,7 @@ import type {
 import { dependents, prerequisites } from '../core/thread.ts';
 import { fieldDef, viewDef } from '../core/workspace.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
+import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
 import { syncNow } from './sync.svelte.ts';
 import { showToast } from './toast.svelte.ts';
@@ -38,9 +39,6 @@ const FRESH_MS = 3000;
 const THREAD_META = 'thread';
 
 let controller: AbortController | null = null;
-
-// Undo groups live in memory, so an action applied before a reload can no longer be undone.
-const groups = new Map<string, number>();
 
 const queued = new Map<string, ThreadAction['status']>();
 
@@ -105,10 +103,7 @@ function applyAction(action: ThreadAction): void {
 	}
 	// IndexedDB can't clone a state proxy; the cast stops `snapshot` recursing through `Value`.
 	const changes = $state.snapshot(action.changes as unknown[]) as Change[];
-	const group = app.apply(changes, action.summary, 'ai');
-	if (group !== null) {
-		groups.set(action.id, group.id);
-	}
+	const group = app.apply(changes, action.summary, 'ai', action.id);
 	decide(action, 'applied');
 	markFresh(action);
 	showToast(`Applied: ${action.summary}`, group?.id ?? null);
@@ -159,29 +154,27 @@ export function acceptAll(): void {
 }
 
 export function canUndo(action: ThreadAction): boolean {
-	const group = groups.get(action.id);
-	return (
-		action.status === 'applied' &&
-		group !== undefined &&
-		app.history.some((item) => item.id === group)
-	);
+	return action.status === 'applied' && app.history.some((item) => item.action === action.id);
 }
 
 export function undoAction(action: ThreadAction): void {
-	const group = groups.get(action.id);
+	const group = app.history.find((item) => item.action === action.id);
 	if (group !== undefined) {
-		app.undo(group);
+		app.undo(group.id);
 		showToast(`Undid: ${action.summary}`);
 	}
 }
 
-app.onUndo = (group) => {
-	for (const action of assistant.actions) {
-		if (groups.get(action.id) === group.id) {
-			decide(action, 'undone');
-		}
+function report(group: Group, status: ThreadAction['status']): void {
+	const action = assistant.actions.find((candidate) => candidate.id === group.action);
+	if (action !== undefined) {
+		decide(action, status);
 	}
-};
+}
+
+app.onUndo = (group) => report(group, 'undone');
+
+app.onRedo = (group) => report(group, 'applied');
 
 function pushEvent(kind: EventKind, message: string): void {
 	assistant.rows.push({ seq: 0, role: 'event', content: { kind, message }, meta: null });

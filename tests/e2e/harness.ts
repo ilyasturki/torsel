@@ -11,6 +11,7 @@ import { Hlc } from '../../src/lib/core/clock.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
 import { MAX_PUSH } from '../../src/lib/core/protocol.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
+import type { FakeStep } from './fake-anthropic.ts';
 
 export type Account = { email: string; password: string };
 
@@ -88,6 +89,16 @@ export function expireEmailTokens(): void {
 	const db = new DatabaseSync(base.info().project.metadata.database, { timeout: 30_000 });
 	db.exec('update email_tokens set expires_at = 0');
 	db.close();
+}
+
+/** Queues what the fake model answers; a prompt holding the returned key gets these steps. */
+export async function script(request: APIRequestContext, steps: FakeStep[]): Promise<string> {
+	const key = `script-${randomUUID()}`;
+	const response = await request.post(`${process.env.TORSEL_TEST_FAKE ?? ''}/__script?key=${key}`, {
+		data: { steps }
+	});
+	expect(response.ok()).toBe(true);
+	return key;
 }
 
 export async function seed<T>(

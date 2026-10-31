@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, seed, test } from './harness.ts';
+import { expect, script, seed, test } from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -213,6 +213,59 @@ test('a fresh change clears redo, and the keyboard reaches both', async ({ page 
 	await page.getByRole('dialog').getByLabel('Kg').fill('90');
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await expect(redoButton(page)).toBeDisabled();
+});
+
+test('what the assistant applied undoes after a reload, and the model hears', async ({
+	page,
+	context
+}) => {
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_add',
+					name: 'add_rows',
+					input: { base: 'Gym', table: 'Lifts', rows: [{ Exercise: 'Deadlift', Kg: 140 }] }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Logged.' }] },
+		{ blocks: [{ type: 'text', text: 'Understood.' }] }
+	]);
+	const ask = page.getByRole('button', { name: /^Ask/u });
+	const close = page.locator('aside[aria-label="Ask"]').getByRole('button', { name: 'Close' });
+	const thread = page.getByTestId('thread');
+
+	await ask.click();
+	await page.getByPlaceholder('Ask about your tables').fill(`${key} log a deadlift`);
+	await page.getByRole('button', { name: 'Send' }).click();
+	await expect(thread.getByText('Logged.')).toBeVisible();
+	await close.click();
+	await expect(page.getByText('2 rows')).toBeVisible();
+	await expect.poll(() => stored(page, 'undo')).toBe(1);
+
+	await page.reload();
+	await ask.click();
+	await expect(thread.getByText('Applied', { exact: true })).toBeVisible();
+	await close.click();
+
+	await undoButton(page).first().click();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	await ask.click();
+	await expect(thread.getByText('Undone', { exact: true })).toBeVisible();
+
+	await page.getByPlaceholder('Ask about your tables').fill(`${key} what is left`);
+	await page.getByRole('button', { name: 'Send' }).click();
+	await expect(thread.getByText('Understood.')).toBeVisible();
+	const seen = await context.request.get(`${process.env.TORSEL_TEST_FAKE}/__seen?key=${key}`);
+	expect(JSON.stringify((await seen.json()).requests.at(-1).messages)).toContain('Undone: ');
+	await close.click();
+
+	await redoButton(page).click();
+	await expect(page.getByText('2 rows')).toBeVisible();
+	await ask.click();
+	await expect(thread.getByText('Applied', { exact: true })).toBeVisible();
 });
 
 test('the history survives a reload', async ({ page }) => {

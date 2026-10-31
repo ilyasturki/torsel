@@ -1,10 +1,7 @@
-import { randomUUID } from 'node:crypto';
-
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import type { FakeStep } from './fake-anthropic.ts';
-import { expect, seed, test } from './harness.ts';
+import { expect, script, seed, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -12,13 +9,6 @@ type Seen = {
 	requests: { messages: { role: string; content: unknown }[]; body: Record<string, unknown> }[];
 	aborted: number;
 };
-
-async function script(request: APIRequestContext, steps: FakeStep[]): Promise<string> {
-	const key = `script-${randomUUID()}`;
-	const response = await request.post(`${FAKE}/__script?key=${key}`, { data: { steps } });
-	expect(response.ok()).toBe(true);
-	return key;
-}
 
 async function seen(request: APIRequestContext, key: string): Promise<Seen> {
 	return (await request.get(`${FAKE}/__seen?key=${key}`)).json();

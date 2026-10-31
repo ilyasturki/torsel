@@ -11,7 +11,14 @@ import { Workspace } from '../core/workspace.ts';
 import type { LocalDb, Stored } from './local.ts';
 import { openLocal, putRecords, readMeta, writeMeta } from './local.ts';
 
-export type Group = { id: number; label: string; by: 'user' | 'ai'; inverse: Change[] };
+export type Group = {
+	id: number;
+	label: string;
+	by: 'user' | 'ai';
+	inverse: Change[];
+	// The assistant's action this step applied: the thread hears when it is undone, even after a reload.
+	action?: string;
+};
 
 const HISTORY = 50;
 
@@ -30,6 +37,7 @@ class TorselApp {
 	public undone = $state.raw<Group[]>([]);
 	public onChange: (() => void) | null = null;
 	public onUndo: ((group: Group) => void) | null = null;
+	public onRedo: ((group: Group) => void) | null = null;
 
 	private db: LocalDb | undefined;
 	private hlc = new Hlc('local');
@@ -114,12 +122,17 @@ class TorselApp {
 		}
 	}
 
-	public apply(changes: Change[], label: string, by: Group['by'] = 'user'): Group | null {
+	public apply(
+		changes: Change[],
+		label: string,
+		by: Group['by'] = 'user',
+		action?: string
+	): Group | null {
 		if (changes.length === 0) {
 			return null;
 		}
 
-		const group: Group = { id: (this.seq += 1), label, by, inverse: this.write(changes) };
+		const group: Group = { id: (this.seq += 1), label, by, inverse: this.write(changes), action };
 		this.history = [...this.history.slice(1 - HISTORY), group];
 		this.undone = [];
 		this.moved();
@@ -151,6 +164,7 @@ class TorselApp {
 		this.undone = this.undone.slice(0, -1);
 		this.history = [...this.history, { ...group, inverse: this.write(group.inverse) }];
 		this.moved();
+		this.onRedo?.(group);
 
 		return group;
 	}
