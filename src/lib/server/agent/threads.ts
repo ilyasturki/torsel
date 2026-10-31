@@ -62,17 +62,19 @@ export function readRows(db: Database, threadId: string): ThreadRow[] {
 		.all();
 }
 
+const ACTION_COLUMNS = {
+	id: threadActions.id,
+	tier: threadActions.tier,
+	summary: threadActions.summary,
+	detail: threadActions.detail,
+	changes: threadActions.changes,
+	after: threadActions.after,
+	status: threadActions.status
+};
+
 export function readActions(db: Database, threadId: string): ThreadAction[] {
 	return db
-		.select({
-			id: threadActions.id,
-			tier: threadActions.tier,
-			summary: threadActions.summary,
-			detail: threadActions.detail,
-			changes: threadActions.changes,
-			after: threadActions.after,
-			status: threadActions.status
-		})
+		.select(ACTION_COLUMNS)
 		.from(threadActions)
 		.where(eq(threadActions.threadId, threadId))
 		.orderBy(threadActions.seq)
@@ -145,33 +147,33 @@ export function recordDecisions(
 	}, WRITER);
 }
 
-/** Decisions the model has not heard about yet, marked as heard. */
-export function takeUnreported(db: Database, threadId: string): ThreadAction[] {
+/** Decisions the model has not heard about yet. */
+export function readUnreported(db: Database, threadId: string): ThreadAction[] {
+	return db
+		.select(ACTION_COLUMNS)
+		.from(threadActions)
+		.where(and(eq(threadActions.threadId, threadId), eq(threadActions.reported, false)))
+		.orderBy(threadActions.seq)
+		.all()
+		.filter((action) => action.status !== 'pending');
+}
+
+/** The person's message and the decisions it tells the model about, as one write. */
+export function appendPrompt(
+	db: Database,
+	threadId: string,
+	content: unknown,
+	meta: RowMeta,
+	reported: ThreadAction[]
+): number {
 	return db.transaction((tx) => {
-		const unreported = eq(threadActions.reported, false);
-		const scope = and(eq(threadActions.threadId, threadId), unreported);
-		const out = tx
-			.select({
-				id: threadActions.id,
-				tier: threadActions.tier,
-				summary: threadActions.summary,
-				detail: threadActions.detail,
-				changes: threadActions.changes,
-				after: threadActions.after,
-				status: threadActions.status
-			})
-			.from(threadActions)
-			.where(scope)
-			.orderBy(threadActions.seq)
-			.all()
-			.filter((action) => action.status !== 'pending');
-		for (const action of out) {
+		for (const action of reported) {
 			tx.update(threadActions)
 				.set({ reported: true })
 				.where(and(eq(threadActions.threadId, threadId), eq(threadActions.id, action.id)))
 				.run();
 		}
-		return out;
+		return append(tx, threadId, 'user', content, meta);
 	}, WRITER);
 }
 

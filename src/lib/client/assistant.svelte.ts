@@ -277,7 +277,7 @@ export async function send(prompt: string, context: ThreadContext, where: string
 		}
 		await streamLines<TurnEvent>(
 			`/api/ai/threads/${assistant.id}/messages`,
-			{ body: { prompt, context }, signal },
+			{ body: { prompt, context, where }, signal },
 			onEvent
 		);
 	} catch (error) {

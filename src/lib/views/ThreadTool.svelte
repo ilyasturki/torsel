@@ -55,15 +55,16 @@
 	function target(of: ThreadAction): { href: string; name: string } | null {
 		void app.version;
 		if (of.status === 'rejected' || of.status === 'undone') return null;
+		const made = of.changes.find((change) => change.kind === 'table');
 		const view = of.changes.find((change) => change.kind === 'view');
-		if (view !== undefined && of.tier !== 'confirm') {
+		if (made === undefined && view !== undefined && of.tier !== 'confirm') {
 			const name = view.set.name;
 			return {
 				href: tableUrl(view.parent, view.id),
 				name: typeof name === 'string' ? name : 'view'
 			};
 		}
-		const change = of.changes.find((candidate) => candidate.kind !== 'base');
+		const change = made ?? of.changes.find((candidate) => candidate.kind !== 'base');
 		const tableId =
 			change === undefined ? null : change.kind === 'table' ? change.id : change.parent;
 		const table = tableId === null ? undefined : app.ws.table(tableId);
@@ -115,7 +116,7 @@
 	{#if action !== null}
 		{#if action.detail.length > 0 && action.status === 'pending'}
 			<ul class="flex flex-col gap-0.5 px-2 pb-2 pl-7 text-ink-2">
-				{#each action.detail as line (line)}
+				{#each action.detail as line, index (index)}
 					<li class="break-words">{line}</li>
 				{/each}
 			</ul>

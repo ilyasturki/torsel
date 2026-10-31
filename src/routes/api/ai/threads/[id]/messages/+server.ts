@@ -75,6 +75,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 				threadId: thread.id,
 				prompt,
 				context: contextOf(body.context),
+				where: typeof body.where === 'string' ? body.where.slice(0, 200) : '',
 				signal: abort.signal,
 				emit
 			})

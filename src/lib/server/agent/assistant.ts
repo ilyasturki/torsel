@@ -21,10 +21,11 @@ import { envText } from '../env.ts';
 import {
 	appendEvent,
 	appendMessages,
+	appendPrompt,
 	readActions,
 	readRows,
-	recordAction,
-	takeUnreported
+	readUnreported,
+	recordAction
 } from './threads.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { TOOLS, closeEngines, runTool, toolNamed } from './toolkit.ts';
@@ -65,25 +66,29 @@ const TOOL_DEFS: Anthropic.Beta.BetaTool[] = TOOLS.map((tool) => ({
 	input_schema: inputSchema(tool.input)
 }));
 
-const STATUS = {
-	apply: 'applied',
-	propose: 'proposed: waiting for the person to accept or reject it',
-	confirm: 'waiting for the person to confirm'
-};
-
-const REPORTED = { applied: 'Accepted', rejected: 'Rejected', undone: 'Undone' };
+function statusOf(action: ThreadAction): string {
+	if (action.tier === 'propose') return 'proposed: waiting for the person to accept or reject it';
+	if (action.tier === 'confirm') return 'waiting for the person to confirm';
+	return action.after.length > 0
+		? 'held until the person decides on what it builds on'
+		: 'applied';
+}
 
 export class AssistantUnavailable extends Error {}
 
-function where(ws: Workspace, context: ThreadContext): string {
-	const table = context.table === null ? undefined : ws.table(context.table);
-	if (table === undefined) {
-		return 'All tables';
+function decisionLine({ tier, status, summary }: ThreadAction): string {
+	if (tier === 'confirm') {
+		return status === 'applied'
+			? `- Deleted: ${summary}.`
+			: status === 'rejected'
+				? `- Kept, nothing was deleted: ${summary}.`
+				: `- Deleted, then undone, so it is back: ${summary}.`;
 	}
-	const view = context.view === null ? undefined : ws.view(context.view);
-	const rows = context.rows.filter((id) => ws.live(id)?.parent === table.id).length;
-	const on = view === undefined ? `On ${table.name}` : `On ${table.name}, ${view.name}`;
-	return rows === 0 ? on : `${on}, ${rows} row${rows === 1 ? '' : 's'} selected`;
+	return status === 'applied'
+		? `- Accepted: ${summary}.`
+		: status === 'rejected'
+			? `- Rejected: ${summary}. It did not happen and nothing it made exists; do not use its ids.`
+			: `- Undone: ${summary}. It no longer applies and nothing it made exists; do not use its ids.`;
 }
 
 function contextNote(
@@ -121,11 +126,7 @@ function contextNote(
 	);
 	if (reported.length > 0) {
 		lines.push('Decisions since your last reply:');
-		for (const action of reported) {
-			const status = action.status as keyof typeof REPORTED;
-			const gone = status === 'applied' ? '' : ' It does not exist now; do not use its ids.';
-			lines.push(`- ${REPORTED[status]}: ${action.summary}.${gone}`);
-		}
+		lines.push(...reported.map(decisionLine));
 	}
 
 	const waiting = pending.filter((action) => action.tier !== 'apply');
@@ -178,12 +179,13 @@ export type Turn = {
 	threadId: string;
 	prompt: string;
 	context: ThreadContext;
+	where: string;
 	signal: AbortSignal;
 	emit(event: TurnEvent): void;
 };
 
 export async function runTurn(turn: Turn): Promise<void> {
-	const { db, userId, threadId, prompt, context, signal, emit } = turn;
+	const { db, userId, threadId, prompt, context, where, signal, emit } = turn;
 
 	const apiKey = anthropicKey();
 	if (apiKey === undefined) {
@@ -249,17 +251,18 @@ export async function runTurn(turn: Turn): Promise<void> {
 
 	const last = readRows(db, threadId).at(-1);
 	const stopped = last?.role === 'event' && (last.content as EventContent).kind === 'stopped';
-	const note = contextNote(ws, context, takeUnreported(db, threadId), pending, stopped);
-	const [userSeq] = appendMessages(db, threadId, [
-		{
-			role: 'user',
-			content: [
-				{ type: 'text', text: note },
-				{ type: 'text', text: prompt }
-			],
-			meta: { prompt, where: where(ws, context) }
-		}
-	]);
+	const decided = readUnreported(db, threadId);
+	const note = contextNote(ws, context, decided, pending, stopped);
+	const userSeq = appendPrompt(
+		db,
+		threadId,
+		[
+			{ type: 'text', text: note },
+			{ type: 'text', text: prompt }
+		],
+		{ prompt, where },
+		decided
+	);
 	const messages = replay(readRows(db, threadId));
 
 	const finish = (event: EventContent): void => {
@@ -333,7 +336,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				finish({
 					kind: 'declined',
 					message: 'The assistant declined this request.',
-					...(round === 0 && userSeq !== undefined ? { excludes: userSeq } : {})
+					...(round === 0 ? { excludes: userSeq } : {})
 				});
 				return;
 			}
@@ -395,20 +398,12 @@ export async function runTurn(turn: Turn): Promise<void> {
 				}
 
 				const action = committed as ThreadAction | null;
-				const held = action !== null && (action.tier !== 'apply' || action.after.length > 0);
-				const status =
-					action === null
-						? {}
-						: {
-								status:
-									action.tier === 'apply' && !held
-										? STATUS.apply
-										: action.tier === 'apply'
-											? 'held until the person decides on what it builds on'
-											: STATUS[action.tier]
-							};
 				const body = JSON.stringify(
-					outcome.ok ? { ...(outcome.result as object), ...status } : { error: outcome.error }
+					!outcome.ok
+						? { error: outcome.error }
+						: action === null
+							? outcome.result
+							: { ...(outcome.result as object), status: statusOf(action) }
 				);
 				if (action !== null) {
 					recordAction(db, threadId, action);

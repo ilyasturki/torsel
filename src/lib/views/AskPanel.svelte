@@ -60,13 +60,13 @@
 
 	$effect(() => {
 		void items;
-		if (pinned && scroller !== undefined) {
+		if (pinned && scroller) {
 			scroller.scrollTop = scroller.scrollHeight;
 		}
 	});
 
 	function onscroll(): void {
-		if (scroller !== undefined) {
+		if (scroller) {
 			pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48;
 		}
 	}

@@ -24,7 +24,7 @@ async function seen(request: APIRequestContext, key: string): Promise<Seen> {
 	return (await request.get(`${FAKE}/__seen?key=${key}`)).json();
 }
 
-function seedLifts(request: APIRequestContext) {
+function seedLifts(request: APIRequestContext, extra: (number | string)[][] = []) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
 		commit(base.changes);
@@ -36,7 +36,12 @@ function seedLifts(request: APIRequestContext) {
 		commit(table.changes);
 		const rows = insertRows(ws, table.id, [
 			{ [table.fieldIds[0]]: 'Bench', [table.fieldIds[1]]: 8, [table.fieldIds[2]]: 80 },
-			{ [table.fieldIds[0]]: 'Squat', [table.fieldIds[1]]: 5, [table.fieldIds[2]]: 100 }
+			{ [table.fieldIds[0]]: 'Squat', [table.fieldIds[1]]: 5, [table.fieldIds[2]]: 100 },
+			...extra.map(([exercise, reps, kg]) => ({
+				[table.fieldIds[0]]: exercise,
+				[table.fieldIds[1]]: reps,
+				[table.fieldIds[2]]: kg
+			}))
 		]);
 		commit(rows.changes);
 		return { base: base.id, table: table.id, rows: rows.ids };
@@ -75,6 +80,7 @@ test('a reply streams in, with its progress note and each tool call as a row', a
 		{
 			blocks: [
 				{ type: 'note', text: 'Looking at the volume.' },
+				{ type: 'tool', id: 'toolu_list', name: 'list_bases', input: {} },
 				{
 					type: 'tool',
 					id: 'toolu_query',
@@ -101,9 +107,10 @@ test('a reply streams in, with its progress note and each tool call as a row', a
 	const rows = thread(page);
 	await expect(rows.getByText('You lifted', { exact: false })).toBeVisible();
 	await expect(rows.getByText('Looking at the volume.')).toBeVisible();
+	await expect(rows.getByText('List bases: 1')).toBeVisible();
 	await expect(rows.getByText('Read with SQL: 2 rows')).toBeVisible();
 	await expect(rows.getByText('Failed')).toBeVisible();
-	await expect(rows.getByText(/no such column/u)).toBeVisible();
+	await expect(rows.getByText('no such column: nope', { exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
 	await expect(rows.locator('strong')).toHaveText('2 sets');
 
@@ -225,6 +232,7 @@ test('a proposed field previews in the table, and accepting it lands it with its
 
 	const headers = page.getByTestId('proposed-field');
 	await expect(headers).toHaveCount(2);
+	await expect(headers.first()).toBeInViewport();
 	await expect(page.getByRole('cell', { name: '640', exact: true })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Accept Volume' }).click();
@@ -296,7 +304,47 @@ test('a rejected proposal leaves the table alone and reaches the model', async (
 	const { requests } = await seen(context.request, key);
 	const told = JSON.stringify(requests.at(-1)?.messages.at(-1));
 	expect(told).toContain('Rejected: New table');
-	expect(told).toContain('does not exist');
+	expect(told).toContain('nothing it made exists');
+});
+
+test('a proposed table has no page yet, and accepting it brings its rows and a link', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_table',
+					name: 'create_table',
+					input: { name: 'Sleep', fields: [{ name: 'Hours', type: 'number' }] }
+				},
+				{
+					type: 'tool',
+					id: 'toolu_built',
+					name: 'add_rows',
+					input: { base: 'Tables', table: 'Sleep', rows: [{ Hours: 8 }] }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Proposed a table.' }] }
+	]);
+	await page.goto(`/app/t/${table}`);
+	await ask(page, `${key} track my sleep`);
+
+	const rows = thread(page);
+	await expect(rows.getByText('Held until you answer')).toBeVisible();
+	await expect(rows.getByRole('link', { name: /^Show in/u })).toHaveCount(0);
+
+	await rows.getByRole('button', { name: 'Accept', exact: true }).click();
+	await rows.getByRole('link', { name: 'Open Sleep' }).first().click();
+
+	await expect(page.getByRole('heading', { name: 'Sleep' })).toBeVisible();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });
 
 test('a proposed view opens as a tab of its own and can be accepted there', async ({
@@ -347,7 +395,95 @@ test('a proposed view opens as a tab of its own and can be accepted there', asyn
 	await expect(page.getByRole('img', { name: /per Exercise/u })).toBeVisible();
 });
 
+test('a view built on a proposed field waits with it, and accepting the view brings both', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_field',
+					name: 'add_field',
+					input: {
+						base: 'Tables',
+						table: 'Lifts',
+						name: 'Volume',
+						type: 'formula',
+						formula: '"Reps" * "Kg"'
+					}
+				},
+				{
+					type: 'tool',
+					id: 'toolu_view',
+					name: 'create_view',
+					input: {
+						base: 'Tables',
+						table: 'Lifts',
+						name: 'Weekly',
+						type: 'chart',
+						config: { kind: 'bar', x: 'Exercise', agg: 'sum', y: 'Volume' }
+					}
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Both proposed.' }] }
+	]);
+	await page.goto(`/app/t/${table}`);
+	await ask(page, `${key} chart the volume`);
+
+	await thread(page).getByRole('link', { name: 'Show in Weekly' }).click();
+	await expect(page.getByText('This view is built on a field still waiting')).toBeVisible();
+
+	await page.getByTestId('proposed-view').getByRole('button', { name: 'Accept' }).click();
+	await expect(page.getByRole('img', { name: /per Exercise/u })).toBeVisible();
+
+	const tabs = page.getByRole('group', { name: 'Views' });
+	await tabs.getByRole('link', { name: 'Grid' }).click();
+	await expect(page.getByRole('columnheader', { name: /Volume/u })).toBeVisible();
+	await expect(page.getByTestId('proposed-field')).toHaveCount(0);
+});
+
 test('a deletion names what goes and asks in the thread', async ({ page, context, account }) => {
+	void account;
+	const { table, rows: ids } = await seedLifts(context.request, [['Bench', 8, 80]]);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_delete',
+					name: 'delete_rows',
+					input: { base: 'Tables', table: 'Lifts', ids: [ids[0], ids[2]] }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'That needs your word.' }] }
+	]);
+	await page.goto(`/app/t/${table}`);
+	await ask(page, `${key} drop the bench sets`);
+
+	const rows = thread(page);
+	await expect(rows.getByText('Delete 2 rows from Lifts')).toBeVisible();
+	await expect(rows.getByText('Bench, 8, 80')).toHaveCount(2);
+	await expect(page.getByText('3 rows')).toBeVisible();
+	await expect(page.locator('tr[data-doomed]')).toHaveCount(2);
+
+	await rows.getByRole('button', { name: 'Delete' }).click();
+	await expect(rows.getByText('Deleted', { exact: true })).toBeVisible();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	await expect(page.locator('tr[data-doomed]')).toHaveCount(0);
+});
+
+test('keeping what a deletion asked about tells the model it still exists', async ({
+	page,
+	context,
+	account
+}) => {
 	void account;
 	const { table, rows: ids } = await seedLifts(context.request);
 	const key = await script(context.request, [
@@ -361,21 +497,25 @@ test('a deletion names what goes and asks in the thread', async ({ page, context
 				}
 			]
 		},
-		{ blocks: [{ type: 'text', text: 'That needs your word.' }] }
+		{ blocks: [{ type: 'text', text: 'That needs your word.' }] },
+		{ blocks: [{ type: 'text', text: 'Fine, it stays.' }] }
 	]);
 	await page.goto(`/app/t/${table}`);
 	await ask(page, `${key} drop the bench set`);
 
 	const rows = thread(page);
-	await expect(rows.getByText('Delete 1 row from Lifts')).toBeVisible();
-	await expect(rows.getByText('Bench, 8, 80')).toBeVisible();
-	await expect(page.getByText('2 rows')).toBeVisible();
-	await expect(page.locator('tr[data-doomed]')).toContainText('Bench');
-
-	await rows.getByRole('button', { name: 'Delete' }).click();
-	await expect(rows.getByText('Deleted', { exact: true })).toBeVisible();
-	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	await rows.getByRole('button', { name: 'Keep' }).click();
+	await expect(rows.getByText('Kept', { exact: true })).toBeVisible();
 	await expect(page.locator('tr[data-doomed]')).toHaveCount(0);
+	await expect(page.getByText('2 rows')).toBeVisible();
+
+	await ask(page, `${key} never mind`);
+	await expect(rows.getByText('Fine, it stays.')).toBeVisible();
+
+	const { requests } = await seen(context.request, key);
+	const told = JSON.stringify(requests.at(-1)?.messages.at(-1));
+	expect(told).toContain('Kept, nothing was deleted: Delete 1 row from Lifts');
+	expect(told).not.toContain('do not use its ids');
 });
 
 test('a refusal keeps what the turn already did', async ({ page, context, account }) => {
