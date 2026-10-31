@@ -143,7 +143,8 @@ test.describe('in a build', () => {
 	});
 
 	test('the landing registers nothing, and stays out of the worker after a visit to the app', async ({
-		page
+		page,
+		context
 	}) => {
 		await page.goto('/');
 		await page.waitForTimeout(300);
@@ -158,6 +159,13 @@ test.describe('in a build', () => {
 
 		await page.goto('/');
 		expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
+
+		await page.goto('/app');
+		await context.setOffline(true);
+		await expect(page.goto('/'), 'the app must not answer for the landing').rejects.toThrow(
+			/ERR_INTERNET_DISCONNECTED/u
+		);
+		await expect(page.goto('/api/auth/google')).rejects.toThrow(/ERR_INTERNET_DISCONNECTED/u);
 	});
 
 	test('Chromium finds nothing stopping an install', async ({ page, context }) => {

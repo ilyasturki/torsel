@@ -11,7 +11,7 @@ const dev = process.env.TORSEL_TEST_DEV === '1';
 const desktopDevice = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } };
 const phoneDevice = { ...devices['Pixel 5'], viewport: { width: 390, height: 844 } };
 
-// A context closed mid-precache has crashed the browser, and a spinning page's worker hangs the next tab: a spec about the worker allows it.
+// With workers on everywhere, headless Chromium segfaulted once and a spinning page's next tab hung: only a spec about the worker allows it.
 const noWorker = { serviceWorkers: 'block' } as const;
 
 export default defineConfig({
