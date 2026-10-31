@@ -32,8 +32,10 @@ function seedTwoTables(request: APIRequestContext) {
 
 test('the root page is prerendered and links into the app', async ({ page }) => {
 	const response = await page.goto('/');
-	expect(await response?.text()).toContain('Open Torsel');
-	await expect(page.getByRole('link', { name: 'Open Torsel' })).toHaveAttribute('href', '/app');
+	expect(await response?.text()).toContain('Say what you want to track.');
+	await expect(
+		page.getByRole('main').getByRole('link', { name: 'Start now' }).first()
+	).toHaveAttribute('href', '/app');
 });
 
 test('the app shows the logo and serves its manifest and icons', async ({
