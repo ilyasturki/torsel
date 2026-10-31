@@ -1,5 +1,6 @@
 import { formatValue, plainNumber } from '#lib/client/format.ts';
-import { insertRows, updateRecord, updateRow } from '#lib/core/actions.ts';
+import type { RowUpdate } from '#lib/core/actions.ts';
+import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
@@ -199,7 +200,7 @@ export function pasteChanges(
 ): Paste {
 	const read = cellReader(ws);
 	const choices = new Map<string, Choice[]>();
-	const updates: Change[] = [];
+	const updates: RowUpdate[] = [];
 	const inserts: Record<string, Value>[] = [];
 	let skipped = 0;
 
@@ -232,7 +233,7 @@ export function pasteChanges(
 			if (row === undefined) {
 				inserts.push(values);
 			} else {
-				updates.push(...updateRow(ws, row.id, values));
+				updates.push({ id: row.id, values });
 			}
 		}
 	});
@@ -242,11 +243,11 @@ export function pasteChanges(
 			choices: list.map((choice) => ({ name: choice.name, color: choice.color }))
 		})
 	);
-	const added = inserts.length > 0 ? insertRows(ws, tableId, inserts).changes : [];
+	const written = writeRows(ws, tableId, updates, inserts);
 
 	return {
-		changes: [...fieldChanges, ...updates, ...added],
-		added: added.length,
+		changes: [...fieldChanges, ...written.changes],
+		added: written.ids.length,
 		skipped,
 		rows: matrix.length,
 		cols: Math.min(

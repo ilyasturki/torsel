@@ -252,12 +252,6 @@ export function deleteRecords(ws: Workspace, ids: string[]): Change[] {
 	return ids.flatMap((id) => updateRecord(ws, id, { [DELETED]: true }));
 }
 
-export function reorder(ws: Workspace, ids: string[]): Change[] {
-	return ids.flatMap((id, order) =>
-		ws.live(id)?.data.order === order ? [] : updateRecord(ws, id, { order })
-	);
-}
-
 export function shifted(ids: string[], id: string, by: number): string[] {
 	const from = ids.indexOf(id);
 	const to = from + by;
@@ -316,10 +310,14 @@ function settleAuto(
 	return { fields, changes };
 }
 
-export function insertRows(
+export type RowUpdate = { id: string; values: Record<string, unknown> };
+
+/** Rows changed and added in one step, so a field nobody typed settles on all their values at once. */
+export function writeRows(
 	ws: Workspace,
 	tableId: string,
-	rows: Record<string, unknown>[],
+	updates: RowUpdate[],
+	inserts: Record<string, unknown>[],
 	now: number = Date.now()
 ): { ids: string[]; changes: Change[] } {
 	const table = ws.table(tableId);
@@ -327,10 +325,20 @@ export function insertRows(
 		throw new Error('table not found');
 	}
 
-	const { fields, changes: settled } = settleAuto(ws.fields(tableId), rows);
+	const { fields, changes: settled } = settleAuto(ws.fields(tableId), [
+		...updates.map((update) => update.values),
+		...inserts
+	]);
 	const ids: string[] = [];
 
-	const changes = rows.map((values, index): Change => {
+	const updated = updates.flatMap(({ id, values }) => {
+		if (ws.live(id)?.kind !== 'row') {
+			throw new Error('row not found');
+		}
+		return updateRecord(ws, id, rowValues(fields, values));
+	});
+
+	const inserted = inserts.map((values, index): Change => {
 		const id = newId('r');
 		ids.push(id);
 
@@ -344,7 +352,16 @@ export function insertRows(
 		};
 	});
 
-	return { ids, changes: [...settled, ...changes] };
+	return { ids, changes: [...settled, ...updated, ...inserted] };
+}
+
+export function insertRows(
+	ws: Workspace,
+	tableId: string,
+	rows: Record<string, unknown>[],
+	now: number = Date.now()
+): { ids: string[]; changes: Change[] } {
+	return writeRows(ws, tableId, [], rows, now);
 }
 
 export function updateRow(ws: Workspace, rowId: string, values: Record<string, unknown>): Change[] {
@@ -353,9 +370,7 @@ export function updateRow(ws: Workspace, rowId: string, values: Record<string, u
 		throw new Error('row not found');
 	}
 
-	const { fields, changes } = settleAuto(ws.fields(rec.parent), [values]);
-
-	return [...changes, ...updateRecord(ws, rowId, rowValues(fields, values))];
+	return writeRows(ws, rec.parent, [{ id: rowId, values }], []).changes;
 }
 
 export function createView(

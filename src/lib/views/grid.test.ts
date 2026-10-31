@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { createBase, createTable, insertRows, reorder } from '#lib/core/actions.ts';
+import { addField, createBase, createTable, insertRows, reorder } from '#lib/core/actions.ts';
 import { Hlc } from '#lib/core/clock.ts';
-import type { Change } from '#lib/core/model.ts';
+import type { Change, FieldDef } from '#lib/core/model.ts';
 import { parseNumber } from '#lib/core/values.ts';
 import { Workspace } from '#lib/core/workspace.ts';
 
@@ -154,6 +154,48 @@ describe('pasting', () => {
 		]);
 		expect(fillSelection([['x', 'y']], 2, 2)).toEqual([['x', 'y']]);
 		expect(fillSelection([['x']], 1, 1)).toEqual([['x']]);
+	});
+});
+
+describe('pasting into a field nobody typed', () => {
+	function blankField() {
+		const { ws, commit, tableId } = fixture();
+		const made = addField(ws, tableId, { name: 'Fresh', type: 'text', auto: true });
+		commit(made.changes);
+		commit(insertRows(ws, tableId, [{}, {}]).changes);
+		return { ws, commit, tableId, id: made.id, fields: [ws.field(made.id) as FieldDef] };
+	}
+
+	it('settles once, on the whole column', () => {
+		const { ws, commit, tableId, id, fields } = blankField();
+		const paste = pasteChanges(ws, tableId, fields, ws.rows(tableId), { row: 0, col: 0 }, [
+			['heavy'],
+			['100']
+		]);
+
+		expect(paste.changes.filter((change) => change.id === id)).toHaveLength(1);
+		commit(paste.changes);
+		expect(ws.field(id)?.type).toBe('text');
+		expect(ws.rows(tableId).map((row) => row.data[id])).toEqual(['heavy', '100']);
+	});
+
+	it('takes a number when every pasted value is one, past the last row too', () => {
+		const { ws, commit, tableId, id, fields } = blankField();
+		const paste = pasteChanges(ws, tableId, fields, ws.rows(tableId), { row: 0, col: 0 }, [
+			['1'],
+			['2,5'],
+			['3']
+		]);
+
+		expect(paste.added).toBe(1);
+		commit(paste.changes);
+		expect(ws.field(id)?.type).toBe('number');
+		expect(
+			ws
+				.rows(tableId)
+				.map((row) => row.data[id])
+				.sort()
+		).toEqual([1, 2.5, 3]);
 	});
 });
 
