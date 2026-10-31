@@ -135,7 +135,9 @@ test('another account’s unsynced data can be erased', async ({ page, context, 
 	await page.reload();
 
 	await expect(page.getByRole('status')).toContainText('another account’s data');
+	const reloaded = page.waitForEvent('load');
 	await page.getByRole('button', { name: 'erase it' }).click();
+	await reloaded;
 	await expect(page.getByRole('status')).toHaveCount(0);
 	await page.goto('/app');
 	await expect(page.getByText('Lifts')).toHaveCount(0);
