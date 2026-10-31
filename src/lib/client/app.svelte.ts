@@ -99,7 +99,7 @@ class TorselApp {
 	}
 
 	/**
-	 * The landing's working table: with no local database open, `persist` writes nothing and no
+	 * The landing's working table: with no local database open, `moved` writes nothing and no
 	 * sync starts. The page holding it must leave by a full navigation, or /app inherits the sample.
 	 */
 	public openSample(
@@ -142,9 +142,11 @@ class TorselApp {
 	}
 
 	private moved(entries: Stored[]): void {
-		void save(this.db as LocalDb, entries, {
-			history: { undo: this.history, redo: this.undone }
-		});
+		if (this.db !== undefined) {
+			void save(this.db, entries, {
+				history: { undo: this.history, redo: this.undone }
+			});
+		}
 		this.bump();
 	}
 
