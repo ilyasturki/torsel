@@ -2,6 +2,8 @@ import type { ChildProcess } from 'node:child_process';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtempSync, openSync, rmSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,7 +18,7 @@ const suite = join(root, 'tests/e2e');
 const runDir = mkdtempSync(join(tmpdir(), 'torsel-e2e-'));
 const bin = join(root, 'node_modules/.bin');
 
-type Target = { base: string; database: string };
+type Target = { base: string; database: string; log: string };
 type Stack = {
 	desktop: Target;
 	phone: Target;
@@ -52,6 +54,51 @@ function run(command: string, commandArgs: string[], cwd: string): void {
 const servers: ChildProcess[] = [];
 let stopFake = (): void => undefined;
 
+// Stands in for Google. A spec sets the profile to answer as a `profile` cookie, base64url, which comes back as the code.
+async function startGoogleStub(): Promise<{ url: string; close: () => void }> {
+	const stub = createHttpServer((request, response) => {
+		const answer = (status: number, body: unknown): void => {
+			response.writeHead(status, { 'content-type': 'application/json' });
+			response.end(JSON.stringify(body));
+		};
+
+		const url = new URL(request.url ?? '/', 'http://stub');
+
+		if (url.pathname === '/auth') {
+			const back = new URL(url.searchParams.get('redirect_uri') ?? '');
+			const profile = (request.headers.cookie ?? '').match(/profile=([^;]+)/u)?.[1] ?? '';
+			back.searchParams.set('code', profile);
+			back.searchParams.set('state', url.searchParams.get('state') ?? '');
+			response.writeHead(302, { location: back.href });
+			response.end();
+		} else if (request.url === '/token') {
+			let form = '';
+			request.on('data', (chunk) => (form += String(chunk)));
+			request.on('end', () => {
+				const fields = new URLSearchParams(form);
+				if (fields.get('client_secret') === 'e2e-secret') {
+					answer(200, { access_token: fields.get('code') });
+				} else {
+					answer(401, {});
+				}
+			});
+		} else if (request.url === '/userinfo') {
+			const token = (request.headers.authorization ?? '').replace('Bearer ', '');
+			answer(200, JSON.parse(Buffer.from(token, 'base64url').toString()));
+		} else {
+			answer(404, {});
+		}
+	});
+	stub.listen(0, '127.0.0.1');
+	await once(stub, 'listening');
+	return {
+		url: `http://127.0.0.1:${(stub.address() as AddressInfo).port}`,
+		close: () => stub.close()
+	};
+}
+
+const google = await startGoogleStub();
+
 function boot(
 	name: string,
 	command: string,
@@ -69,6 +116,12 @@ function boot(
 			TORSEL_AI_MODEL: '',
 			ORIGIN: '',
 			MIGRATIONS_DIR: '',
+			BREVO_API_KEY: '',
+			TORSEL_EMAIL_FROM: '',
+			TORSEL_PUBLIC_SIGNUP: '1',
+			GOOGLE_CLIENT_ID: 'e2e-client',
+			GOOGLE_CLIENT_SECRET: 'e2e-secret',
+			TORSEL_GOOGLE_ISSUER: google.url,
 			...env
 		},
 		stdio: ['ignore', log, log],
@@ -87,9 +140,12 @@ function bootBuiltServer(name: string, port: number, env: Record<string, string>
 		// Unset, the session cookie turns Secure and Playwright's API requests stop sending it over http.
 		ORIGIN: base,
 		DATABASE_PATH: database,
+		// A spec sets its own address, or the limiters' windows would span the whole suite.
+		ADDRESS_HEADER: 'x-forwarded-for',
+		XFF_DEPTH: '1',
 		...env
 	});
-	return { base, database };
+	return { base, database, log: join(runDir, `${name}.log`) };
 }
 
 async function builtStack(assistant: Record<string, string>): Promise<Stack> {
@@ -108,6 +164,7 @@ async function builtStack(assistant: Record<string, string>): Promise<Stack> {
 	const phone = bootBuiltServer('phone', phonePort, { CORS_ORIGINS: '', ...assistant });
 	const appServer = bootBuiltServer('app-server', appServerPort, {
 		CORS_ORIGINS: appBase,
+		ADDRESS_HEADER: '',
 		...assistant
 	});
 	boot('app', join(suite, 'node_modules/.bin/sirv'), [
@@ -123,7 +180,7 @@ async function builtStack(assistant: Record<string, string>): Promise<Stack> {
 	return {
 		desktop,
 		phone,
-		app: { base: appBase, database: appServer.database },
+		app: { base: appBase, database: appServer.database, log: appServer.log },
 		appServer: appServer.base,
 		probes: [desktop, phone, appServer].map(({ base }) => `${base}/api/health`).concat(appBase)
 	};
@@ -152,11 +209,12 @@ async function devStack(assistant: Record<string, string>): Promise<Stack> {
 		CORS_ORIGINS: ''
 	});
 
-	const web = { base, database };
+	const log = join(runDir, 'web.log');
+	const web = { base, database, log };
 	return {
 		desktop: web,
 		phone: web,
-		app: { base: appBase, database },
+		app: { base: appBase, database, log },
 		appServer: base,
 		probes: [`${base}/api/health`, `${appBase}/api/health`]
 	};
@@ -226,6 +284,7 @@ try {
 					app: stack.app
 				}),
 				TORSEL_TEST_APP_SERVER: stack.appServer,
+				TORSEL_TEST_GOOGLE: google.url,
 				TORSEL_TEST_DEV: dev ? '1' : '',
 				TORSEL_TEST_FAKE: fake.url,
 				TORSEL_TEST_OUTPUT: join(runDir, 'results')
@@ -239,6 +298,7 @@ try {
 	console.error(`[test:e2e] ${error instanceof Error ? error.message : String(error)}`);
 } finally {
 	shutdown();
+	google.close();
 }
 if (exitCode === 0) {
 	rmSync(runDir, { recursive: true, force: true });

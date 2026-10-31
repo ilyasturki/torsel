@@ -1,7 +1,16 @@
 import type { BrowserContext, Page } from '@playwright/test';
 
 import type { Account } from './harness.ts';
-import { expect, newAccount, RETRY_RESET, test } from './harness.ts';
+import {
+	expect,
+	freshEmail,
+	mailTo,
+	newAccount,
+	passwordField,
+	passwordSignIn,
+	RETRY_RESET,
+	test
+} from './harness.ts';
 
 const SERVER = process.env.TORSEL_TEST_APP_SERVER ?? '';
 
@@ -10,10 +19,8 @@ async function connectAndSignIn(page: Page, account: Account): Promise<void> {
 	await page.getByLabel('Server address').fill(SERVER);
 	await page.getByRole('button', { name: 'Connect' }).click();
 	await page.getByRole('link', { name: 'Sign in', exact: true }).click();
-	await page.getByLabel('Email').fill(account.email);
-	await page.getByLabel('Password').fill(account.password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
-	await expect(page.getByText(account.email)).toBeVisible();
+	await passwordSignIn(page, account);
+	await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 }
 
 function deviceHeaders(page: Page): Promise<{ authorization: string }> {
@@ -117,10 +124,8 @@ test('a revoked device asks to sign in again and shows no e-mail', async ({ page
 	await expect(page.getByText(account.email)).toHaveCount(0);
 
 	await page.getByRole('link', { name: 'sign in again' }).click();
-	await page.getByLabel('Email').fill(account.email);
-	await page.getByLabel('Password').fill(account.password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
-	await expect(page.getByText(account.email)).toBeVisible();
+	await passwordSignIn(page, account);
+	await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 	await expect(page.getByRole('status')).toHaveCount(0);
 });
 
@@ -136,7 +141,7 @@ test('signing out on a phone ends its session on the server', async ({ page, con
 		...RETRY_RESET,
 		headers
 	});
-	expect(session.status()).toBe(401);
+	expect(await session.json()).toMatchObject({ user: null });
 });
 
 test('a boot with the server out of reach retries when the network returns', async ({ page }) => {
@@ -152,4 +157,56 @@ test('a boot with the server out of reach retries when the network returns', asy
 	await page.unroute(session);
 	await page.evaluate(() => window.dispatchEvent(new Event('online')));
 	await expect(page.getByText(account.email)).toBeVisible();
+});
+
+test('the login screen picks a server, then signs in by emailed code', async ({ page }) => {
+	const account = newAccount();
+
+	await page.goto('/app/login?to=%2Fapp%2Fsettings');
+	await page.getByLabel('Server address').fill(SERVER);
+	await page.getByRole('button', { name: 'Connect' }).click();
+
+	await expect(page.getByText(`Server: ${SERVER}`)).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Continue with Google' })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'terms' })).toHaveAttribute(
+		'href',
+		`${SERVER}/terms`
+	);
+
+	await page.getByLabel('Email').fill(account.email);
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+	await page.getByRole('button', { name: 'Email me a code' }).click();
+	await expect(page.getByRole('status')).toContainText('code');
+
+	const { code } = await mailTo(account.email);
+	await page.getByLabel('Digit 1 of 6').fill(code);
+
+	await expect(page).toHaveURL(/\/app\/settings$/u);
+	await expect(page.getByText(account.email)).toBeVisible();
+	expect(await page.evaluate(() => localStorage.getItem('torsel.token'))).toMatch(/^ts_/u);
+});
+
+test('a sign-up on the phone keeps its password: the claim comes back with the code', async ({
+	page,
+	context
+}) => {
+	const account = { email: freshEmail(), password: 'phone-chosen-password' };
+
+	await page.goto('/app/login');
+	await page.getByLabel('Server address').fill(SERVER);
+	await page.getByRole('button', { name: 'Connect' }).click();
+	await page.getByLabel('Email').fill(account.email);
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+	await passwordField(page).fill(account.password);
+	await page.getByRole('button', { name: 'Create account' }).click();
+
+	const { code } = await mailTo(account.email);
+	await page.getByLabel('Digit 1 of 6').fill(code);
+	await expect(page).toHaveURL(/\/app$/u);
+
+	const login = await context.request.post(`${SERVER}/api/auth/login`, {
+		...RETRY_RESET,
+		data: { ...account, client: 'device', label: 'check' }
+	});
+	expect(login.status()).toBe(201);
 });

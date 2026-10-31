@@ -31,19 +31,19 @@ export default defineConfig({
 		{
 			name: 'desktop',
 			use: { ...desktopDevice, baseURL: desktop.base },
-			metadata: { database: desktop.database },
+			metadata: { database: desktop.database, log: desktop.log },
 			testIgnore: 'app-build.spec.ts'
 		},
 		{
 			name: 'phone',
 			use: { ...phoneDevice, baseURL: phone.base },
-			metadata: { database: phone.database },
+			metadata: { database: phone.database, log: phone.log },
 			testIgnore: 'app-build.spec.ts'
 		},
 		{
 			name: 'app',
 			use: { ...phoneDevice, baseURL: app.base },
-			metadata: { database: app.database },
+			metadata: { database: app.database, log: app.log },
 			testMatch: 'app-build.spec.ts'
 		}
 	]

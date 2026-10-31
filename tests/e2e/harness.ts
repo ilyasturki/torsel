@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
-import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Locator, Page } from '@playwright/test';
 import { test as base, expect } from '@playwright/test';
 
 import { Hlc } from '../../src/lib/core/clock.ts';
@@ -40,6 +42,52 @@ export async function signIn(context: BrowserContext, account: Account): Promise
 		data: { email: account.email, password: account.password, client: 'web' }
 	});
 	expect(response.status(), 'sign-in through the API').toBe(204);
+}
+
+export function newAddress(): string {
+	return `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
+}
+
+export function freshEmail(): string {
+	return `${randomUUID()}@e2e.test`;
+}
+
+export function passwordField(page: Page): Locator {
+	return page.locator('input[name="password"]');
+}
+
+export async function passwordSignIn(page: Page, account: Account): Promise<void> {
+	await page.getByLabel('Email').fill(account.email);
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+	await passwordField(page).fill(account.password);
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+}
+
+export type SignInMail = { link: string | null; code: string };
+
+/** The newest mail the server logged instead of sending to this address. */
+export async function mailTo(email: string): Promise<SignInMail> {
+	let found: SignInMail | undefined;
+	await expect
+		.poll(() => {
+			const line = readFileSync(base.info().project.metadata.log, 'utf8')
+				.split('\n')
+				.findLast((text) => text.startsWith('[email]') && text.includes(` to ${email} `));
+			const code = line?.match(/\(code: (\d{6})\)/u)?.[1];
+			if (line === undefined || code === undefined) {
+				return false;
+			}
+			found = { code, link: line.match(/\(link: (\S+)\)/u)?.[1] ?? null };
+			return true;
+		}, 'the server logs the mail')
+		.toBe(true);
+	return found as SignInMail;
+}
+
+export function expireEmailTokens(): void {
+	const db = new DatabaseSync(base.info().project.metadata.database, { timeout: 30_000 });
+	db.exec('update email_tokens set expires_at = 0');
+	db.close();
 }
 
 export async function seed<T>(
@@ -98,6 +146,11 @@ type Fixtures = {
 };
 
 export const test = base.extend<Fixtures>({
+	// Not on the app project: a cross-origin page would need its preflight to allow the header.
+	// oxlint-disable-next-line no-empty-pattern
+	extraHTTPHeaders: async ({}, use, info) => {
+		await use(info.project.name === 'app' ? {} : { 'x-forwarded-for': newAddress() });
+	},
 	account: async ({ context }, use) => {
 		const account = newAccount();
 		await signIn(context, account);

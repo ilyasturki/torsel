@@ -1,18 +1,17 @@
-import { expect, newAccount, RETRY_RESET, test } from './harness.ts';
+import { expect, newAccount, passwordField, passwordSignIn, RETRY_RESET, test } from './harness.ts';
 
 test('signs in through the form and lands where it was going', async ({ page }) => {
 	const { email, password } = newAccount();
 
 	await page.goto('/app/settings');
+	await page.getByRole('link', { name: 'Sign in', exact: true }).click();
 	await expect(page).toHaveURL(/\/app\/login\?to=%2Fapp%2Fsettings/u);
 
-	await page.getByLabel('Email').fill(email);
-	await page.getByLabel('Password').fill('not the password');
-	await page.getByRole('button', { name: 'Sign in' }).click();
-	await expect(page.getByRole('alert')).toBeVisible();
+	await passwordSignIn(page, { email, password: 'not the password' });
+	await expect(page.getByRole('alert')).toHaveText('Wrong email or password.');
 
-	await page.getByLabel('Password').fill(password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await passwordField(page).fill(password);
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 	await expect(page).toHaveURL(/\/app\/settings$/u);
 });
 

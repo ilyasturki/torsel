@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, RETRY_RESET, seed, signIn, test } from './harness.ts';
+import { expect, newAccount, passwordSignIn, RETRY_RESET, seed, signIn, test } from './harness.ts';
 
 function seedRow(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -67,13 +67,13 @@ test('an expired session asks to sign in again and shows no e-mail', async ({
 
 	await context.clearCookies();
 	await editCell(page, 'Squat', 'Bench');
-	await expect(page.getByRole('status')).toContainText('Session expired, sign in again');
+	await expect(page.getByRole('status')).toContainText(
+		'Session expired, 1 waiting edit stays here until you sign in again'
+	);
 
 	await page.getByRole('link', { name: 'sign in again' }).click();
 	await expect(page).toHaveURL(/\/app\/login\?to=/u);
-	await page.getByLabel('Email').fill(account.email);
-	await page.getByLabel('Password').fill(account.password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await passwordSignIn(page, account);
 
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await expect(page.getByRole('status')).toHaveCount(0);
