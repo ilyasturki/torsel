@@ -62,12 +62,15 @@ export async function seed<T>(
 	return result;
 }
 
-// What says nothing about the app: Vite's client, and Chromium's own line for a 4xx the page
-// asked for or a request a spec's `setOffline` cut.
+// What says nothing about the app: Vite's client, Chromium's own line for a 4xx the page
+// asked for or a request a spec's `setOffline` cut, and SQLite's loader when a spec navigates
+// while its wasm still downloads.
 const IGNORED_CONSOLE = [
 	/\[vite\]/u,
 	/Failed to load resource: the server responded with a status of 4\d\d/u,
-	/Failed to load resource: net::ERR_INTERNET_DISCONNECTED/u
+	/Failed to load resource: net::ERR_INTERNET_DISCONNECTED/u,
+	/wasm streaming compile failed: .*Response body loading was aborted/u,
+	/falling back to ArrayBuffer instantiation/u
 ];
 
 export function watchErrors(page: Page, errors: string[]): void {
