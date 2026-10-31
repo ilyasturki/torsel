@@ -6,6 +6,8 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { startFake } from '../tests/e2e/fake-anthropic.ts';
+
 const args = process.argv.slice(2);
 const dev = args.includes('--dev');
 const root = process.cwd();
@@ -48,6 +50,7 @@ function run(command: string, commandArgs: string[], cwd: string): void {
 }
 
 const servers: ChildProcess[] = [];
+let stopFake = (): void => undefined;
 
 function boot(
 	name: string,
@@ -62,6 +65,7 @@ function boot(
 		env: {
 			...process.env,
 			ANTHROPIC_API_KEY: '',
+			ANTHROPIC_BASE_URL: '',
 			TORSEL_AI_MODEL: '',
 			ORIGIN: '',
 			MIGRATIONS_DIR: '',
@@ -88,7 +92,7 @@ function bootBuiltServer(name: string, port: number, env: Record<string, string>
 	return { base, database };
 }
 
-async function builtStack(): Promise<Stack> {
+async function builtStack(assistant: Record<string, string>): Promise<Stack> {
 	run('bun', ['run', 'build:server'], root);
 	run('bun', ['run', 'build:app'], root);
 
@@ -100,9 +104,12 @@ async function builtStack(): Promise<Stack> {
 	];
 	const appBase = `http://127.0.0.1:${appPort}`;
 
-	const desktop = bootBuiltServer('desktop', desktopPort, { CORS_ORIGINS: '' });
-	const phone = bootBuiltServer('phone', phonePort, { CORS_ORIGINS: '' });
-	const appServer = bootBuiltServer('app-server', appServerPort, { CORS_ORIGINS: appBase });
+	const desktop = bootBuiltServer('desktop', desktopPort, { CORS_ORIGINS: '', ...assistant });
+	const phone = bootBuiltServer('phone', phonePort, { CORS_ORIGINS: '', ...assistant });
+	const appServer = bootBuiltServer('app-server', appServerPort, {
+		CORS_ORIGINS: appBase,
+		...assistant
+	});
 	boot('app', join(suite, 'node_modules/.bin/sirv'), [
 		'build/app',
 		'--single',
@@ -132,13 +139,13 @@ function bootDevServer(name: string, port: number, env: Record<string, string>):
 }
 
 // Both web projects share one dev server: more would clobber each other's dependency cache.
-async function devStack(): Promise<Stack> {
+async function devStack(assistant: Record<string, string>): Promise<Stack> {
 	const [webPort, appPort] = [await freePort(), await freePort()];
 	const base = `http://127.0.0.1:${webPort}`;
 	const appBase = `http://127.0.0.1:${appPort}`;
 	const database = join(runDir, 'web.sqlite3');
 
-	bootDevServer('web', webPort, { DATABASE_PATH: database, CORS_ORIGINS: appBase });
+	bootDevServer('web', webPort, { DATABASE_PATH: database, CORS_ORIGINS: appBase, ...assistant });
 	bootDevServer('app', appPort, {
 		BUILD_TARGET: 'app',
 		DATABASE_PATH: join(runDir, 'app.sqlite3'),
@@ -172,6 +179,7 @@ async function ready(url: string): Promise<void> {
 }
 
 function shutdown(): void {
+	stopFake();
 	for (const server of servers) {
 		if (server.pid !== undefined) {
 			try {
@@ -198,7 +206,11 @@ try {
 	run('bun', ['install', '--frozen-lockfile'], suite);
 	run(join(bin, 'tsc'), ['-p', 'tests/e2e'], root);
 
-	const stack = dev ? await devStack() : await builtStack();
+	const fake = await startFake();
+	stopFake = fake.close;
+	const assistant = { ANTHROPIC_API_KEY: 'fake-key', ANTHROPIC_BASE_URL: fake.url };
+
+	const stack = dev ? await devStack(assistant) : await builtStack(assistant);
 	await Promise.all(stack.probes.map(ready));
 
 	const playwright = spawn(
@@ -215,6 +227,7 @@ try {
 				}),
 				TORSEL_TEST_APP_SERVER: stack.appServer,
 				TORSEL_TEST_DEV: dev ? '1' : '',
+				TORSEL_TEST_FAKE: fake.url,
 				TORSEL_TEST_OUTPUT: join(runDir, 'results')
 			},
 			stdio: 'inherit'

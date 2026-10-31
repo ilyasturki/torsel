@@ -52,6 +52,22 @@ test('a phone with no server stays silent and keeps its data', async ({ page }) 
 	await expect(page.getByRole('status')).toHaveCount(0);
 });
 
+test('the assistant offers sign-in once a server is connected, and not before', async ({
+	page
+}) => {
+	await page.goto('/app/settings');
+	await expect(page.getByLabel('Server address')).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Ask/u })).toHaveCount(0);
+
+	await page.getByLabel('Server address').fill(SERVER);
+	await page.getByRole('button', { name: 'Connect' }).click();
+	await page.getByRole('button', { name: /^Ask/u }).click();
+
+	const panel = page.locator('aside[aria-label="Ask"]');
+	await expect(panel.getByRole('link', { name: 'Sign in to use it' })).toBeVisible();
+	await expect(panel.getByPlaceholder('Ask about your tables')).toHaveCount(0);
+});
+
 test('a wrong server address reads in plain words', async ({ page }) => {
 	await page.goto('/app/settings');
 	await page.getByLabel('Server address').fill('http://127.0.0.1:9');
