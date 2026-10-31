@@ -39,29 +39,31 @@
 		<a href={HOME} class="underline">See your tables</a>
 	</Empty>
 {:else}
-	{#if problems.length > 0}
-		<div class="flex flex-col gap-1 bg-tint p-3" role="alert">
-			{#each problems as problem (problem.name)}
-				<p>{problem.name} can't be calculated: {problem.message}</p>
-			{/each}
-		</div>
-	{/if}
-
-	{#if view === undefined}
-		<Empty text="This table has no view yet. Add one with the plus above." />
-	{:else}
-		{#key view.id}
-			<div class="h-full enter">
-				{#if view.type === 'grid'}
-					<Grid {tableId} {view} />
-				{:else if view.type === 'entry'}
-					<Entry {tableId} {view} />
-				{:else if view.type === 'list'}
-					<List {tableId} {view} />
-				{:else}
-					<Chart {tableId} {view} />
-				{/if}
+	<div class="flex h-full flex-col">
+		{#if problems.length > 0}
+			<div class="flex shrink-0 flex-col gap-1 bg-tint p-3" role="alert">
+				{#each problems as problem (problem.name)}
+					<p>{problem.name} can't be calculated: {problem.message}</p>
+				{/each}
 			</div>
-		{/key}
-	{/if}
+		{/if}
+
+		{#if view === undefined}
+			<Empty text="This table has no view yet. Add one with the plus above." />
+		{:else}
+			{#key view.id}
+				<div class="min-h-0 flex-1 enter">
+					{#if view.type === 'grid'}
+						<Grid {tableId} {view} />
+					{:else if view.type === 'entry'}
+						<Entry {tableId} {view} />
+					{:else if view.type === 'list'}
+						<List {tableId} {view} />
+					{:else}
+						<Chart {tableId} {view} />
+					{/if}
+				</div>
+			{/key}
+		{/if}
+	</div>
 {/if}

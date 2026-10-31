@@ -7,6 +7,7 @@ import { test as base, expect } from '@playwright/test';
 
 import { Hlc } from '../../src/lib/core/clock.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
+import { MAX_PUSH } from '../../src/lib/core/protocol.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
 
 export type Account = { email: string; password: string };
@@ -54,11 +55,14 @@ export async function seed<T>(
 			push.set(rec.id, rec);
 		}
 	});
-	const response = await request.post('/api/sync', {
-		...RETRY_RESET,
-		data: { watermark: 0, push: [...push.values()] }
-	});
-	expect(response.ok(), 'seeding through /api/sync').toBe(true);
+	const records = [...push.values()];
+	for (let from = 0; from < records.length; from += MAX_PUSH) {
+		const response = await request.post('/api/sync', {
+			...RETRY_RESET,
+			data: { watermark: 0, push: records.slice(from, from + MAX_PUSH) }
+		});
+		expect(response.ok(), 'seeding through /api/sync').toBe(true);
+	}
 	return result;
 }
 

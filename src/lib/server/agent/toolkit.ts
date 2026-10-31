@@ -352,7 +352,13 @@ function describeView(
 	tableId: string,
 	view: ReturnType<Workspace['views']>[number]
 ): Record<string, unknown> {
-	const config: Record<string, unknown> = { ...view.config };
+	const { widths: _widths, ...shown } = view.config;
+	const config: Record<string, unknown> = { ...shown };
+	if (view.config.filter)
+		config.filter = {
+			...view.config.filter,
+			field: ws.field(view.config.filter.field)?.name ?? view.config.filter.field
+		};
 	for (const key of ['hidden', 'fields', 'match', 'show'] as const) {
 		if (view.config[key] !== undefined) config[key] = named(ws, tableId, view.config[key]);
 	}

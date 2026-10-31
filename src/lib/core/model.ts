@@ -73,6 +73,8 @@ export type FieldDef = {
 export type GridConfig = {
 	hidden?: string[];
 	sort?: { field: string; dir: 'asc' | 'desc' } | null;
+	filter?: { field: string; text: string } | null;
+	widths?: Record<string, number>;
 };
 
 export type EntryConfig = { fields?: string[]; match?: string[] };

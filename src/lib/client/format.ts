@@ -6,6 +6,14 @@ export function formatNumber(value: number): string {
 	return numberFormat.format(value);
 }
 
+const decimal =
+	numberFormat.formatToParts(1.5).find((part) => part.type === 'decimal')?.value ?? '.';
+
+/** Every digit and no grouping, so it reads back through `parseNumber`. */
+export function plainNumber(value: number): string {
+	return String(value).replace('.', decimal);
+}
+
 export function formatDate(iso: string, withYear = false): string {
 	const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
 	if (!year || !month || !day) {

@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { me } from '#lib/client/session.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
@@ -173,8 +174,13 @@
 					onclick={() => (menuOpen = true)}><Icon name="more" /></Button
 				>
 				{#if view?.type !== 'entry'}
-					<Button variant="primary" class="ml-auto max-sm:hidden" onclick={() => (rowOpen = true)}
-						>New row</Button
+					<Button
+						variant="primary"
+						class="ml-auto max-sm:hidden"
+						onclick={() => {
+							if (view?.type === 'grid') gridJump.blankRow += 1;
+							else rowOpen = true;
+						}}>New row</Button
 					>
 				{/if}
 			</div>

@@ -15,11 +15,11 @@ function seedRow(request: APIRequestContext) {
 }
 
 async function editCell(page: Page, from: string, to: string): Promise<void> {
-	await page.getByRole('cell', { name: from }).getByRole('button').click();
-	const cell = page.getByRole('cell').getByRole('textbox');
+	await page.getByRole('gridcell', { name: from }).dblclick();
+	const cell = page.getByRole('gridcell').getByRole('textbox');
 	await cell.fill(to);
 	await cell.press('Enter');
-	await expect(page.getByRole('cell', { name: to })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: to })).toBeVisible();
 }
 
 test('holds the strict minimum, and says nothing about a sync that works', async ({
@@ -47,7 +47,7 @@ test('reports changes waiting offline, then falls silent once they are sent', as
 }) => {
 	void account;
 	await page.goto(await seedRow(context.request));
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 
 	await context.setOffline(true);
 	await editCell(page, 'Squat', 'Bench');
@@ -63,7 +63,7 @@ test('an expired session asks to sign in again and shows no e-mail', async ({
 	account
 }) => {
 	await page.goto(await seedRow(context.request));
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 
 	await context.clearCookies();
 	await editCell(page, 'Squat', 'Bench');
@@ -75,7 +75,7 @@ test('an expired session asks to sign in again and shows no e-mail', async ({
 	await page.getByLabel('Password').fill(account.password);
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await expect(page.getByRole('status')).toHaveCount(0);
 	await expect
 		.poll(async () => {
@@ -107,7 +107,7 @@ test('after a 401 the settings offer a sign-in link instead of the e-mail', asyn
 test('a failed sync offers a retry that clears it', async ({ page, context, account }) => {
 	void account;
 	await page.goto(await seedRow(context.request));
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 
 	await page.route('**/api/sync', (route) =>
 		route.fulfill({ status: 400, json: { message: 'raw server wording' } })
@@ -123,7 +123,7 @@ test('a failed sync offers a retry that clears it', async ({ page, context, acco
 test('another account’s unsynced data can be erased', async ({ page, context, account }) => {
 	void account;
 	await page.goto(await seedRow(context.request));
-	await expect(page.getByRole('cell', { name: 'Squat' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 
 	await page.route('**/api/sync', (route) => route.fulfill({ status: 400, json: {} }));
 	await editCell(page, 'Squat', 'Bench');

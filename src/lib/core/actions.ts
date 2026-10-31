@@ -193,6 +193,13 @@ export function updateRecord(ws: Workspace, id: string, set: Record<string, Valu
 	return [{ id, kind: rec.kind, base: rec.base, parent: rec.parent, set }];
 }
 
+/** Gives each record its place in `ids`, touching only the ones that move. */
+export function reorder(ws: Workspace, ids: string[]): Change[] {
+	return ids.flatMap((id, order) =>
+		ws.live(id)?.data.order === order ? [] : updateRecord(ws, id, { order })
+	);
+}
+
 export function deleteRecords(ws: Workspace, ids: string[]): Change[] {
 	return ids.flatMap((id) => updateRecord(ws, id, { [DELETED]: true }));
 }

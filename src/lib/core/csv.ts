@@ -16,7 +16,8 @@ export function detectDelimiter(text: string): string {
 	return counts[0].count > 0 ? counts[0].delimiter : ',';
 }
 
-export function parseCsv(input: string, delimiter: string = detectDelimiter(input)): string[][] {
+/** Every line kept, blank ones included: a paste lines its rows up by position. */
+export function parseCells(input: string, delimiter: string): string[][] {
 	const text = input.replace(/^﻿/u, '');
 	const rows: string[][] = [];
 	let row: string[] = [];
@@ -60,7 +61,11 @@ export function parseCsv(input: string, delimiter: string = detectDelimiter(inpu
 		rows.push(row);
 	}
 
-	return rows.filter((cells) => cells.some((value) => value.trim() !== ''));
+	return rows;
+}
+
+export function parseCsv(input: string, delimiter: string = detectDelimiter(input)): string[][] {
+	return parseCells(input, delimiter).filter((cells) => cells.some((value) => value.trim() !== ''));
 }
 
 export type ColumnGuess = { name: string; type: FieldType; choices: string[] };

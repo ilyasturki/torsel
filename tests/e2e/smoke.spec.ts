@@ -26,13 +26,13 @@ test('creates a table, adds a row and edits its cell', async ({ page, context, a
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await page.getByRole('dialog').getByLabel('Name').fill('Squat');
 	await page.getByRole('button', { name: 'Save' }).click();
-	const cell = page.getByRole('cell', { name: 'Squat' });
+	const cell = page.getByRole('gridcell', { name: 'Squat' });
 	await expect(cell).toBeVisible();
 
-	await cell.getByRole('button').click();
-	await page.getByRole('cell').getByRole('textbox').fill('Bench');
-	await page.getByRole('cell').getByRole('textbox').press('Enter');
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await cell.dblclick();
+	await page.getByRole('gridcell').getByRole('textbox').fill('Bench');
+	await page.getByRole('gridcell').getByRole('textbox').press('Enter');
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 
 	await expect
 		.poll(async () => {

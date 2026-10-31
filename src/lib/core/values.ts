@@ -1,7 +1,21 @@
 import type { FieldDef, Value } from './model.ts';
 
+const GROUPED = /^[-+]?\d{1,3}([,.])\d{3}(\1\d{3})*([,.]\d+)?$/u;
+
+// One group alone stays a decimal: "1,234" is 1.234 where a comma marks decimals.
+function ungrouped(text: string): string {
+	const match = GROUPED.exec(text);
+	if (match === null) {
+		return text;
+	}
+	const [, separator, more, decimals] = match;
+	return decimals?.[0] === separator || (more === undefined && decimals === undefined)
+		? text
+		: text.replaceAll(separator, '');
+}
+
 export function parseNumber(raw: string): number | null {
-	const cleaned = raw.replace(/[\s  ]/gu, '').replace(',', '.');
+	const cleaned = ungrouped(raw.replace(/[\s  ]/gu, '')).replace(',', '.');
 
 	if (cleaned === '' || !/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/iu.test(cleaned)) {
 		return null;

@@ -329,7 +329,7 @@ test('a number typed in a sheet stays and is saved', async ({ page, context, acc
 	await expect(reps).toHaveValue('12');
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('cell', { name: '12', exact: true })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: '12', exact: true })).toBeVisible();
 });
 
 test('entry steps a value and adds the row', async ({ page, context, account }) => {
@@ -363,7 +363,7 @@ test.describe('in another locale', () => {
 		void account;
 		const { lifts } = await seedTwoTables(context.request);
 		await page.goto(`/app/t/${lifts}`);
-		await expect(page.getByRole('cell', { name: '1.234,5' })).toBeVisible();
-		await expect(page.getByRole('cell', { name: /30\. Okt/u })).toBeVisible();
+		await expect(page.getByRole('gridcell', { name: '1.234,5' })).toBeVisible();
+		await expect(page.getByRole('gridcell', { name: /30\. Okt/u })).toBeVisible();
 	});
 });
