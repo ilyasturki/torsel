@@ -222,6 +222,12 @@ test.describe('the first table', () => {
 		expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
 		expect(await page.evaluate(() => document.scrollingElement?.scrollWidth)).toBe(width);
 		await expect(page.getByRole('button', { name: 'Add a field' })).toBeInViewport();
+
+		const [first, added] = await Promise.all([
+			header(page, 'Date').boundingBox(),
+			header(page, 'Note').boundingBox()
+		]);
+		expect(added?.x).toBeGreaterThanOrEqual((first?.x ?? 0) + (first?.width ?? 0) - 1);
 	});
 
 	test('dropping a CSV on the empty home imports it in one more key', async ({ page, account }) => {

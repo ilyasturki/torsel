@@ -1094,6 +1094,7 @@
 		bind:clientHeight={viewHeight}
 		bind:clientWidth={viewWidth}
 		class="relative min-h-0 flex-1 overflow-auto"
+		style="scroll-padding-left: {stickyEnd}px"
 		{onscroll}
 	>
 		<div class="relative pb-tabs-clear">

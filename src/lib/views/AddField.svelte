@@ -63,7 +63,11 @@
 		name = '';
 		type = AUTO;
 		field?.focus();
-		void tick().then(() => trigger?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+		void tick().then(() => {
+			const nearest = { block: 'nearest', inline: 'nearest' } as const;
+			trigger?.scrollIntoView(nearest);
+			trigger?.closest('th')?.previousElementSibling?.scrollIntoView(nearest);
+		});
 	}
 </script>
 
