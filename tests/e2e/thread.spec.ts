@@ -1,7 +1,7 @@
 import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, test, written } from './harness.ts';
+import { expect, script, seed, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -364,7 +364,6 @@ function tablesTabs(page: Page) {
 
 /** Everything the server and this browser hold about the workspace, as text. */
 async function everywhere(page: Page, context: BrowserContext): Promise<string> {
-	await written(page);
 	const pull = await context.request.post('/api/sync', { data: { watermark: 0, push: [] } });
 	const local = await page.evaluate(
 		() =>
