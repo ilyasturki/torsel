@@ -548,6 +548,47 @@ test('a refusal keeps what the turn already did', async ({ page, context, accoun
 	await expect(thread(page).getByText('partial')).toHaveCount(0);
 });
 
+test('a refused message leaves history, and the decision it carried is told again', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_field',
+					name: 'add_field',
+					input: { base: 'Tables', table: 'Lifts', name: 'Note', type: 'text' }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Proposed.' }] },
+		{ blocks: [], stop: 'refusal' },
+		{ blocks: [{ type: 'text', text: 'Back on track.' }] }
+	]);
+	await page.goto(`/app/t/${table}`);
+	await ask(page, `${key} add a note column`);
+
+	const rows = thread(page);
+	await rows.getByRole('button', { name: 'Reject' }).click();
+	await expect(rows.getByText('Rejected', { exact: true })).toBeVisible();
+
+	await ask(page, 'the message that gets refused');
+	await expect(rows.getByText('The assistant declined this request.')).toBeVisible();
+
+	await ask(page, 'something else');
+	await expect(rows.getByText('Back on track.')).toBeVisible();
+
+	const { requests } = await seen(context.request, key);
+	const last = JSON.stringify(requests.at(-1)?.messages);
+	expect(last).not.toContain('the message that gets refused');
+	expect(JSON.stringify(requests.at(-1)?.messages.at(-1))).toContain('Rejected: New field');
+});
+
 test('stop ends the reply and the server call, and the thread carries on', async ({
 	page,
 	context,

@@ -25,7 +25,8 @@ import {
 	readActions,
 	readRows,
 	readUnreported,
-	recordAction
+	recordAction,
+	recordDecisions
 } from './threads.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { TOOLS, closeEngines, runTool, toolNamed } from './toolkit.ts';
@@ -333,6 +334,9 @@ export async function runTurn(turn: Turn): Promise<void> {
 
 			// Partial output of a declined reply is discarded; what earlier rounds did stands.
 			if (message.stop_reason === 'refusal') {
+				if (round === 0) {
+					recordDecisions(db, threadId, decided);
+				}
 				finish({
 					kind: 'declined',
 					message: 'The assistant declined this request.',
