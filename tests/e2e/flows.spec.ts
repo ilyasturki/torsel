@@ -14,6 +14,8 @@ const headerButton = (page: Page, name: string): Locator =>
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
+const press = (target: Locator): Promise<void> => (onPhone() ? target.tap() : target.click());
+
 async function editCell(page: Page, from: string, to: string): Promise<void> {
 	await cell(page, from).dblclick();
 	const editor = page.getByRole('gridcell').getByRole('textbox');
@@ -969,6 +971,50 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 
 		await editCell(page, '100', '110');
 		expect(await taps()).toBeLessThanOrEqual(2);
+	});
+
+	test('edit a cell: was 3 for a choice and 1 for a checkbox', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const { path } = await seed(context.request, (ws, commit) => {
+			const base = createBase(ws, 'Tables');
+			commit(base.changes);
+			const table = createTable(ws, base.id, 'Lifts', [
+				{ name: 'Exercise', type: 'text' },
+				{
+					name: 'Style',
+					type: 'choice',
+					choices: [
+						{ name: 'Strict', color: null },
+						{ name: 'Tempo', color: null }
+					]
+				},
+				{ name: 'Done', type: 'check' }
+			]);
+			commit(table.changes);
+			commit(insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat' }]).changes);
+			return { path: `/app/t/${table.id}` };
+		});
+		await page.goto(path);
+		await expect(cell(page, 'Squat')).toBeVisible();
+		const row = page.getByRole('row').filter({ hasText: 'Squat' });
+
+		let taps = await countTaps(page);
+		await press(row.getByRole('gridcell').nth(1));
+		await page
+			.getByRole('listbox', { name: 'Style' })
+			.getByRole('option', { name: 'Tempo' })
+			.click();
+		await expect(cell(page, 'Tempo')).toBeVisible();
+		expect(await taps()).toBeLessThanOrEqual(3);
+
+		taps = await countTaps(page);
+		await press(row.getByRole('gridcell').nth(2));
+		await expect(row.getByRole('img', { name: 'Yes' })).toBeVisible();
+		expect(await taps()).toBe(1);
 	});
 
 	test('add a field: was 3, and 5 with a type', async ({ page, context, account }) => {
