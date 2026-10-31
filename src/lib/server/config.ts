@@ -1,4 +1,6 @@
-import { envText } from './env.ts';
+import type { GoogleClient } from './auth/google.ts';
+import { GOOGLE_PATH } from './auth/google.ts';
+import { envFlag, envText } from './env.ts';
 
 const CAPACITOR_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost'];
 
@@ -40,4 +42,44 @@ export function allowedOrigins(): string[] {
 export function anthropicKey(): string | undefined {
 	const key = envText('ANTHROPIC_API_KEY', '');
 	return key === '' ? undefined : key;
+}
+
+export function brevoKey(): string | undefined {
+	const key = envText('BREVO_API_KEY', '');
+	return key === '' ? undefined : key;
+}
+
+export function emailSender(): { name: string; email: string } | undefined {
+	const email = envText('TORSEL_EMAIL_FROM', '');
+	return email === '' ? undefined : { name: envText('TORSEL_EMAIL_FROM_NAME', 'Torsel'), email };
+}
+
+export function emailDelivers(): boolean {
+	return brevoKey() !== undefined && emailSender() !== undefined;
+}
+
+export function signUpOpen(): boolean {
+	return envFlag('TORSEL_PUBLIC_SIGNUP');
+}
+
+/** Null in production without `ORIGIN`: the Host header would otherwise pick where an emailed link or an OAuth redirect points. */
+export function siteOrigin(url: URL): string | null {
+	const pinned = toOrigin(envText('ORIGIN', ''));
+	if (pinned !== undefined) {
+		return pinned;
+	}
+
+	return import.meta.env?.DEV === true ? url.origin : null;
+}
+
+export function googleClient(url: URL): GoogleClient | null {
+	const id = envText('GOOGLE_CLIENT_ID', '');
+	const secret = envText('GOOGLE_CLIENT_SECRET', '');
+	const origin = siteOrigin(url);
+
+	if (id === '' || secret === '' || origin === null) {
+		return null;
+	}
+
+	return { id, secret, redirectUri: `${origin}${GOOGLE_PATH}` };
 }

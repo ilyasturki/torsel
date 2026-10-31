@@ -1,7 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
-import { issueToken, normalizeEmail, verifyLogin } from '#lib/server/auth/accounts.ts';
-import { SESSION_COOKIE, sessionCookieOptions, startWebSession } from '#lib/server/auth/session.ts';
+import { normalizeEmail, verifyLogin } from '#lib/server/auth/accounts.ts';
 import {
 	acquireVerificationSlot,
 	clearLoginFailures,
@@ -12,21 +11,17 @@ import {
 import { getDatabase } from '#lib/server/db/client.ts';
 import type { User } from '#lib/server/db/schema.ts';
 import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
-import { publicToken } from '#lib/server/http/shapes.ts';
+import { grantCredential, readClient } from '#lib/server/http/grant.ts';
 
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, cookies, url, locals, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, getClientAddress } = event;
+
 	const body = await readJsonBody(request);
 	const email = requiredString(body, 'email');
 	const password = requiredString(body, 'password');
-
-	const client = body.client;
-	if (client !== 'web' && client !== 'device') {
-		error(400, 'client must be one of: web, device');
-	}
-
-	const label = client === 'web' ? null : requiredString(body, 'label');
+	const client = readClient(body);
 
 	const address = getClientAddress();
 	const account = normalizeEmail(email);
@@ -55,12 +50,13 @@ export const POST: RequestHandler = async ({ request, cookies, url, locals, getC
 
 	clearLoginFailures(address, account);
 
-	if (label === null) {
-		const { token } = startWebSession(db, user.id, locals.credential);
-		cookies.set(SESSION_COOKIE, token, sessionCookieOptions(url));
-		return new Response(null, { status: 204 });
+	if (user.emailVerifiedAt === null) {
+		error(403, 'confirm your email first');
 	}
 
-	const { token, record } = issueToken(db, user.id, label, 'device');
-	return json({ token, credential: publicToken(record, false) }, { status: 201 });
+	const grant = grantCredential(db, user, client, event);
+
+	return grant.kind === 'web'
+		? new Response(null, { status: 204 })
+		: json({ token: grant.token, credential: grant.credential }, { status: 201 });
 };

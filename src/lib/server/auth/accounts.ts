@@ -18,7 +18,9 @@ export function emailProblem(email: string): string | undefined {
 	return undefined;
 }
 
-export function findUserByEmail(db: Database, email: string): User | undefined {
+type Queries = Pick<Database, 'select' | 'insert' | 'update'>;
+
+export function findUserByEmail(db: Queries, email: string): User | undefined {
 	return db
 		.select()
 		.from(users)
@@ -38,21 +40,28 @@ export async function createUser(db: Database, email: string, password: string):
 
 	const passwordHash = await hashPassword(password);
 
-	return db.transaction((tx) => {
-		const user = tx
-			.insert(users)
-			.values({
-				id: crypto.randomUUID(),
-				email: normalizeEmail(email),
-				passwordHash,
-				createdAt: new Date()
-			})
-			.returning()
-			.get();
+	return db.transaction((tx) =>
+		insertUser(tx, {
+			email: normalizeEmail(email),
+			passwordHash,
+			emailVerifiedAt: new Date()
+		})
+	);
+}
 
-		tx.insert(syncCounters).values({ userId: user.id }).run();
-		return user;
-	});
+export function insertUser(
+	db: Queries,
+	values: Pick<User, 'email'> &
+		Partial<Pick<User, 'passwordHash' | 'emailVerifiedAt' | 'googleSub' | 'claimNonceHash'>>
+): User {
+	const user = db
+		.insert(users)
+		.values({ id: crypto.randomUUID(), createdAt: new Date(), ...values })
+		.returning()
+		.get();
+
+	db.insert(syncCounters).values({ userId: user.id }).run();
+	return user;
 }
 
 export async function setPassword(db: Database, userId: string, password: string): Promise<void> {
@@ -85,13 +94,9 @@ export async function verifyLogin(
 ): Promise<User | null> {
 	const user = findUserByEmail(db, email);
 
-	if (user === undefined) {
-		await verifyPassword(password, DECOY_HASH);
-		return null;
-	}
+	const correct = await verifyPassword(password, user?.passwordHash ?? DECOY_HASH);
 
-	const correct = await verifyPassword(password, user.passwordHash);
-	return correct ? user : null;
+	return correct && user?.passwordHash != null ? user : null;
 }
 
 export function issueToken(

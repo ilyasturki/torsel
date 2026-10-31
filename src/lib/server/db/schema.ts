@@ -8,7 +8,10 @@ export const users = sqliteTable(
 	{
 		id: text('id').notNull(),
 		email: text('email').notNull().unique(),
-		passwordHash: text('password_hash').notNull(),
+		passwordHash: text('password_hash'),
+		emailVerifiedAt: integer('email_verified_at', { mode: 'timestamp_ms' }),
+		googleSub: text('google_sub').unique(),
+		claimNonceHash: text('claim_nonce_hash'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 	},
 	(table) => [primaryKey({ columns: [table.id] })]
@@ -35,6 +38,23 @@ export const authTokens = sqliteTable(
 );
 
 export type AuthToken = typeof authTokens.$inferSelect;
+
+export const emailTokens = sqliteTable(
+	'email_tokens',
+	{
+		id: text('id').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		purpose: text('purpose', { enum: ['verify', 'login'] }).notNull(),
+		tokenHash: text('token_hash').notNull().unique(),
+		codeHash: text('code_hash'),
+		codeAttempts: integer('code_attempts').notNull().default(0),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+		usedAt: integer('used_at', { mode: 'timestamp_ms' })
+	},
+	(table) => [primaryKey({ columns: [table.id] }), index('email_tokens_user_idx').on(table.userId)]
+);
 
 export const syncCounters = sqliteTable(
 	'sync_counters',
