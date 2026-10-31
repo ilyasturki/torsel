@@ -211,7 +211,7 @@
 							config.sort = field ? { field, dir: config.sort?.dir ?? 'asc' } : null;
 						}}
 					>
-						<option value="">None</option>
+						<option value="">None, oldest first</option>
 						{#each fields as field (field.id)}
 							<option value={field.id}>{field.name}</option>
 						{/each}
@@ -231,6 +231,15 @@
 					</select>
 				</Field>
 			</div>
+			{#if config.filter}
+				<div class="flex items-center gap-2">
+					<span class="min-w-0 flex-1 truncate">
+						Only rows where {fields.find((field) => field.id === config.filter?.field)?.name} contains
+						"{config.filter.text}"
+					</span>
+					<Button variant="ghost" onclick={() => (config.filter = null)}>Clear filter</Button>
+				</div>
+			{/if}
 			<fieldset class="flex flex-col gap-1">
 				<legend class={legend}>Fields shown</legend>
 				{#each fields as field (field.id)}
