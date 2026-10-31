@@ -32,6 +32,25 @@ test('the call to action reaches a working app with no account', async ({ page }
 	await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
 });
 
+test('what the page says about going offline holds', async ({ page, context }) => {
+	await page.goto('/');
+	await expect(page.getByText('Turn off your network and keep adding rows.')).toBeVisible();
+
+	await page.goto('/app');
+	await page.getByRole('button', { name: 'New table' }).first().click();
+	await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
+	await page.getByRole('link', { name: 'Entry' }).click();
+
+	await context.setOffline(true);
+	await page.getByRole('textbox', { name: 'Name' }).fill('Added offline');
+	await page.getByRole('button', { name: 'Add row' }).click();
+	await expect(page.getByRole('status')).toContainText('Row added');
+
+	await context.setOffline(false);
+	await page.reload();
+	await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Added offline');
+});
+
 test('links the real sign-in, privacy and terms', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('banner').getByRole('link', { name: 'Sign in' })).toHaveAttribute(
