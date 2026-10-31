@@ -37,24 +37,6 @@ async function undoAndRedo(page: Page, before: Locator, after: Locator): Promise
 	await expect(before).toHaveCount(0);
 }
 
-/** How many steps the device has written down: a reload before that would lose the last one. */
-function stored(page: Page, stack: 'undo' | 'redo'): Promise<number> {
-	return page.evaluate(
-		(key) =>
-			new Promise<number>((resolve) => {
-				const open = indexedDB.open('torsel');
-				open.onsuccess = () => {
-					const get = open.result.transaction('meta').objectStore('meta').get('history');
-					get.onsuccess = () => {
-						open.result.close();
-						resolve(get.result?.[key]?.length ?? 0);
-					};
-				};
-			}),
-		stack
-	);
-}
-
 async function openField(page: Page, name: string): Promise<Locator> {
 	await page.getByRole('columnheader', { name }).getByRole('button').click();
 	await page.getByRole('button', { name: 'Field settings' }).click();
@@ -243,8 +225,6 @@ test('what the assistant applied undoes after a reload, and the model hears', as
 	await expect(thread.getByText('Logged.')).toBeVisible();
 	await close.click();
 	await expect(page.getByText('2 rows')).toBeVisible();
-	await expect.poll(() => stored(page, 'undo')).toBe(1);
-
 	await page.reload();
 	await ask.click();
 	await expect(thread.getByText('Applied', { exact: true })).toBeVisible();
@@ -275,13 +255,10 @@ test('the history survives a reload', async ({ page }) => {
 	await editor.press('Enter');
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 
-	await expect.poll(() => stored(page, 'undo')).toBe(1);
-
 	await page.reload();
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await undoButton(page).first().click();
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
-	await expect.poll(() => stored(page, 'redo')).toBe(1);
 	await page.reload();
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await redoButton(page).click();

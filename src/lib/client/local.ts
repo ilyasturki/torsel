@@ -1,4 +1,4 @@
-import type { DBSchema, IDBPDatabase } from 'idb';
+import type { DBSchema, IDBPDatabase, IDBPTransaction } from 'idb';
 import { openDB } from 'idb';
 
 import type { Rec } from '../core/model.ts';
@@ -11,6 +11,10 @@ type Schema = DBSchema & {
 };
 
 export type LocalDb = IDBPDatabase<Schema>;
+
+type Both = ['records', 'meta'];
+
+const BOTH: Both = ['records', 'meta'];
 
 export async function openLocal(name = 'torsel'): Promise<LocalDb> {
 	return openDB<Schema>(name, 1, {
@@ -25,11 +29,64 @@ export async function readMeta<T>(db: LocalDb, key: string): Promise<T | undefin
 	return (await db.get('meta', key)) as T | undefined;
 }
 
-export async function writeMeta(db: LocalDb, key: string, value: unknown): Promise<void> {
-	await db.put('meta', value, key);
+/** Commits in the caller's task: a self-committing transaction awaits callbacks a dying page never runs, and is aborted. */
+export async function save(
+	db: LocalDb,
+	entries: Stored[],
+	meta: Record<string, unknown> = {}
+): Promise<void> {
+	const tx = db.transaction(BOTH, 'readwrite');
+	const writes: Promise<unknown>[] = [tx.done];
+	try {
+		for (const entry of entries) {
+			writes.push(tx.objectStore('records').put(entry));
+		}
+		for (const [key, value] of Object.entries(meta)) {
+			writes.push(tx.objectStore('meta').put(value, key));
+		}
+		tx.commit();
+	} catch (error) {
+		tx.abort();
+		await Promise.allSettled(writes);
+		throw error;
+	}
+	await Promise.all(writes);
 }
 
-export async function putRecords(db: LocalDb, entries: Stored[]): Promise<void> {
-	const tx = db.transaction('records', 'readwrite');
-	await Promise.all([...entries.map((entry) => tx.store.put(entry)), tx.done]);
+export function writeMeta(db: LocalDb, key: string, value: unknown): Promise<void> {
+	return save(db, [], { [key]: value });
+}
+
+function wipe(
+	tx: IDBPTransaction<Schema, Both, 'readwrite'>,
+	drop: string[],
+	owner?: string
+): Promise<unknown[]> {
+	const writes: Promise<unknown>[] = [tx.objectStore('records').clear(), tx.done];
+	for (const key of ['watermark', 'history', ...drop]) {
+		writes.push(tx.objectStore('meta').delete(key));
+	}
+	if (owner !== undefined) {
+		writes.push(tx.objectStore('meta').put(owner, 'owner'));
+	}
+	tx.commit();
+	return Promise.all(writes);
+}
+
+/** A watermark that outlived its records would keep the server from ever sending them again. */
+export async function erase(db: LocalDb, drop: string[] = []): Promise<void> {
+	await wipe(db.transaction(BOTH, 'readwrite'), drop);
+}
+
+/** False, changing nothing, while a record here hasn't reached the server. */
+export async function handOver(db: LocalDb, owner: string): Promise<boolean> {
+	const tx = db.transaction(BOTH, 'readwrite');
+	const stored = await tx.objectStore('records').getAll();
+	if (stored.some((entry) => entry.dirty)) {
+		tx.commit();
+		await tx.done;
+		return false;
+	}
+	await wipe(tx, [], owner);
+	return true;
 }

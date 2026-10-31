@@ -91,23 +91,6 @@ export function expireEmailTokens(): void {
 	db.close();
 }
 
-/** Resolves once what the page wrote so far is on disk: IndexedDB runs this read after those writes. */
-export function written(page: Page): Promise<void> {
-	return page.evaluate(
-		() =>
-			new Promise<void>((resolve) => {
-				const open = indexedDB.open('torsel');
-				open.onsuccess = () => {
-					const read = open.result.transaction(['records', 'meta']);
-					read.oncomplete = () => {
-						open.result.close();
-						resolve();
-					};
-				};
-			})
-	);
-}
-
 /** Queues what the fake model answers; a prompt holding the returned key gets these steps. */
 export async function script(request: APIRequestContext, steps: FakeStep[]): Promise<string> {
 	const key = `script-${randomUUID()}`;
@@ -149,7 +132,7 @@ const IGNORED_CONSOLE = [
 	/\[vite\]/u,
 	/Failed to load resource: the server responded with a status of 4\d\d/u,
 	/Failed to load resource: net::ERR_INTERNET_DISCONNECTED/u,
-	/wasm streaming compile failed: .*Response body loading was aborted/u,
+	/wasm streaming compile failed: .*(Response body loading was aborted|Failed to fetch)/u,
 	/falling back to ArrayBuffer instantiation/u
 ];
 

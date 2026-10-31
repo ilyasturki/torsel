@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, RETRY_RESET, script, seed, signIn, test, written } from './harness.ts';
+import { expect, newAccount, RETRY_RESET, script, seed, signIn, test } from './harness.ts';
 
 const cell = (page: Page, name: string): Locator =>
 	page.getByRole('gridcell', { name, exact: true });
@@ -382,7 +382,6 @@ test.describe('opening where you left off', () => {
 		await page.goto(`/app/t/${table}?v=${entry}`);
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await expect(page.getByText('3 rows')).toBeVisible();
-		await written(page);
 
 		await page.goto(`/app/t/${table}?v=${grid}`);
 		await expect(cell(page, 'Squat').first()).toBeVisible();
@@ -1160,7 +1159,6 @@ test.describe('a boot the server does not answer', () => {
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
 		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
-		await written(page);
 
 		await page.route('**/api/auth/session', (route) => route.fulfill({ status: 400, json: {} }));
 		await page.reload();
@@ -1181,7 +1179,6 @@ test.describe('a boot the server does not answer', () => {
 		await page.keyboard.press('Enter');
 		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
-		await written(page);
 
 		await page.goto('/app');
 		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();

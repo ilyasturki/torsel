@@ -9,7 +9,7 @@ import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
 import { formulaProblem, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
 import type { LocalDb, Stored } from './local.ts';
-import { openLocal, putRecords, readMeta, writeMeta } from './local.ts';
+import { erase, handOver, openLocal, readMeta, save, writeMeta } from './local.ts';
 
 export type Group = {
 	id: number;
@@ -104,14 +104,8 @@ class TorselApp {
 		}
 	}
 
-	private persist(entries: Stored[]): void {
-		if (this.db !== undefined && entries.length > 0) {
-			void putRecords(this.db, entries);
-		}
-	}
-
 	/** Stamps changes in order; what takes them back, in the order to stamp it. */
-	private write(changes: Change[]): Change[] {
+	private stamp(changes: Change[]): { inverse: Change[]; entries: Stored[] } {
 		const inverse: Change[] = [];
 		const entries: Stored[] = [];
 
@@ -122,16 +116,14 @@ class TorselApp {
 			this.dirty.add(stamped.rec.id);
 		}
 
-		this.persist(entries);
-
-		return inverse;
+		return { inverse, entries };
 	}
 
-	private moved(): void {
+	private moved(entries: Stored[]): void {
+		void save(this.db as LocalDb, entries, {
+			history: { undo: this.history, redo: this.undone }
+		});
 		this.bump();
-		if (this.db !== undefined) {
-			void writeMeta(this.db, 'history', { undo: this.history, redo: this.undone });
-		}
 	}
 
 	public apply(
@@ -144,10 +136,11 @@ class TorselApp {
 			return null;
 		}
 
-		const group: Group = { id: (this.seq += 1), label, by, inverse: this.write(changes), action };
+		const { inverse, entries } = this.stamp(changes);
+		const group: Group = { id: (this.seq += 1), label, by, inverse, action };
 		this.history = [...this.history.slice(1 - HISTORY), group];
 		this.undone = [];
-		this.moved();
+		this.moved(entries);
 
 		return group;
 	}
@@ -159,9 +152,10 @@ class TorselApp {
 			return undefined;
 		}
 
+		const { inverse, entries } = this.stamp(group.inverse);
 		this.history = this.history.filter((item) => item.id !== group.id);
-		this.undone = [...this.undone, { ...group, inverse: this.write(group.inverse) }];
-		this.moved();
+		this.undone = [...this.undone, { ...group, inverse }];
+		this.moved(entries);
 		this.onUndo?.(group);
 
 		return group;
@@ -173,9 +167,10 @@ class TorselApp {
 			return undefined;
 		}
 
+		const { inverse, entries } = this.stamp(group.inverse);
 		this.undone = this.undone.slice(0, -1);
-		this.history = [...this.history, { ...group, inverse: this.write(group.inverse) }];
-		this.moved();
+		this.history = [...this.history, { ...group, inverse }];
+		this.moved(entries);
 		this.onRedo?.(group);
 
 		return group;
@@ -192,7 +187,7 @@ class TorselApp {
 		return out;
 	}
 
-	public settle(pushed: Rec[], received: Rec[]): void {
+	public async settle(pushed: Rec[], received: Rec[], watermark: number): Promise<void> {
 		const entries = new Map<string, Stored>();
 
 		for (const rec of pushed) {
@@ -213,9 +208,10 @@ class TorselApp {
 			}
 		}
 
-		this.persist([...entries.values()]);
+		const saved = save(this.db as LocalDb, [...entries.values()], { watermark });
 		this.version += changed ? 1 : 0;
 		this.pending = this.dirty.size;
+		await saved;
 	}
 
 	public async meta<T>(key: string): Promise<T | undefined> {
@@ -228,27 +224,22 @@ class TorselApp {
 		await writeMeta(this.db as LocalDb, key, value);
 	}
 
-	/** Drops every local record, for a device handed to another account. */
-	public async reset(): Promise<void> {
+	public async reset(drop: string[] = []): Promise<void> {
 		await this.load();
-		const db = this.db as LocalDb;
-		await db.clear('records');
-		await db.delete('meta', 'watermark');
-		await db.delete('meta', 'history');
+		await erase(this.db as LocalDb, drop);
 		this.ws.records.clear();
 		window.location.reload();
 	}
 
-	/** Unlike `pending`, counts what other tabs left dirty too: they share the store, not this memory. */
-	public async storedPending(): Promise<number> {
+	/** Drops every local record for another account, unless one still has to reach the server. */
+	public async handOver(owner: string): Promise<boolean> {
 		await this.load();
-		const stored = await (this.db as LocalDb).getAll('records');
-		return stored.filter((entry) => entry.dirty).length;
-	}
-
-	public async forgetOwner(): Promise<void> {
-		await this.load();
-		await (this.db as LocalDb).delete('meta', 'owner');
+		if (!(await handOver(this.db as LocalDb, owner))) {
+			return false;
+		}
+		this.ws.records.clear();
+		window.location.reload();
+		return true;
 	}
 
 	private built_(tableId: string): MemoryEngine {

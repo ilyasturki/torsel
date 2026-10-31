@@ -113,6 +113,20 @@ function applyAction(action: ThreadAction): void {
 	showToast(`Applied: ${action.summary}`, group?.id ?? null);
 }
 
+/** The device's history outranks the server's status: a decision still queued at a reload never got there. */
+function reconcile(): void {
+	for (const action of assistant.actions) {
+		const status = app.undone.some((group) => group.action === action.id)
+			? 'undone'
+			: app.history.some((group) => group.action === action.id)
+				? 'applied'
+				: action.status;
+		if (status !== action.status) {
+			decide(action, status);
+		}
+	}
+}
+
 /** Applies data entry nothing holds back, in the order it came. */
 function settle(): void {
 	for (const action of assistant.actions) {
@@ -304,6 +318,7 @@ export async function openThread(id: string): Promise<void> {
 	assistant.actions = thread.actions;
 	assistant.listing = false;
 	void app.setMeta(THREAD_META, thread.id);
+	reconcile();
 	settle();
 }
 

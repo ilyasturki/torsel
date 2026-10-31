@@ -36,8 +36,7 @@ async function exchange(): Promise<void> {
 			body: { watermark, push }
 		});
 
-		app.settle(push, response.records);
-		await app.setMeta('watermark', response.watermark);
+		await app.settle(push, response.records, response.watermark);
 
 		if (app.pending === 0) {
 			return;
@@ -91,9 +90,7 @@ export async function claimOwner(userId: string): Promise<boolean> {
 		return true;
 	}
 
-	if ((await app.storedPending()) === 0) {
-		await app.setMeta('owner', userId);
-		await app.reset();
+	if (await app.handOver(userId)) {
 		return false;
 	}
 
@@ -176,9 +173,8 @@ async function settleSession(): Promise<void> {
 		return;
 	}
 
-	me.account = account;
-
 	if (account === null) {
+		me.account = null;
 		if (await app.meta<boolean>(SIGNED_IN)) {
 			sync.status = 'signed-out';
 		}
@@ -186,6 +182,7 @@ async function settleSession(): Promise<void> {
 	}
 
 	await app.setMeta(SIGNED_IN, true);
+	me.account = account;
 	sync.status = 'idle';
 	if (await claimOwner(account.id)) {
 		startSync();
@@ -252,8 +249,6 @@ export async function signOut(): Promise<boolean> {
 	return true;
 }
 
-export async function eraseDevice(): Promise<void> {
-	await app.setMeta(SIGNED_IN, false);
-	await app.forgetOwner();
-	await app.reset();
+export function eraseDevice(): Promise<void> {
+	return app.reset(['owner', SIGNED_IN]);
 }
