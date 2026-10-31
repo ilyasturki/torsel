@@ -60,6 +60,7 @@ export async function syncNow(): Promise<void> {
 			try {
 				await exchange();
 				sync.status = 'idle';
+				app.onSynced?.();
 			} catch (error) {
 				if (!(error instanceof ApiError)) {
 					sync.status = 'error';

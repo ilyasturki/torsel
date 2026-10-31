@@ -1,37 +1,22 @@
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import {
+	askAddsDeadlift,
+	askButton,
+	askPanel,
 	cell,
+	editCell,
 	expect,
 	redoButton,
 	RETRY_RESET,
 	script,
 	seed,
+	seedLifts,
 	test,
 	undoButton,
 	watchErrors
 } from './harness.ts';
-
-function seedLifts(request: APIRequestContext) {
-	return seed(request, (ws, commit) => {
-		const base = createBase(ws, 'Gym');
-		commit(base.changes);
-		const lifts = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Exercise', type: 'text' },
-			{ name: 'Kg', type: 'number' }
-		]);
-		commit(lifts.changes);
-		commit(
-			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes
-		);
-		return `/app/t/${lifts.id}`;
-	});
-}
-
-const askButton = (page: Page): Locator => page.getByRole('button', { name: /^Ask/u });
-
-const askPanel = (page: Page): Locator => page.locator('aside[aria-label="Ask"]');
 
 /** The page stops dead right after the task that made the change: none of its callbacks ever run again. */
 function freezeAfterChange(page: Page): Promise<void> {
@@ -230,48 +215,236 @@ test('an undo survives a reload, and its redo with it', async ({ page }) => {
 	await expect(undoButton(page).first()).toBeEnabled();
 });
 
+/** What the server holds for the only action of the only thread. */
+async function serverStatus(request: APIRequestContext): Promise<string> {
+	const threads = (await (await request.get('/api/ai/threads', RETRY_RESET)).json()) as {
+		id: string;
+	}[];
+	const oldest = threads.at(-1) as { id: string };
+	const thread = (await (
+		await request.get(`/api/ai/threads/${oldest.id}`, RETRY_RESET)
+	).json()) as {
+		actions: { status: string }[];
+	};
+	return thread.actions[0].status;
+}
+
+const threadLabel = (page: Page, label: string) =>
+	page.getByTestId('thread').getByText(label, { exact: true });
+
+async function reopenThread(page: Page): Promise<void> {
+	await askButton(page).click();
+	await expect(page.getByTestId('thread').getByText('Logged.')).toBeVisible();
+}
+
+async function closeThread(page: Page): Promise<void> {
+	await askPanel(page).getByRole('button', { name: 'Close' }).click();
+}
+
 test('an undone action stays undone when its decision never reached the server', async ({
 	page,
 	context
 }) => {
-	const key = await script(context.request, [
-		{
-			blocks: [
-				{
-					type: 'tool',
-					id: 'toolu_add',
-					name: 'add_rows',
-					input: { base: 'Gym', table: 'Lifts', rows: [{ Exercise: 'Deadlift', Kg: 140 }] }
-				}
-			]
-		},
-		{ blocks: [{ type: 'text', text: 'Logged.' }] }
-	]);
 	await page.route('**/decisions', (route) => route.fulfill({ status: 400, json: {} }));
-
-	await askButton(page).click();
-	await page.getByPlaceholder('Ask about your tables').fill(`${key} log a deadlift`);
-	await page.getByRole('button', { name: 'Send' }).click();
-	await expect(page.getByTestId('thread').getByText('Logged.')).toBeVisible();
-	await askPanel(page).getByRole('button', { name: 'Close' }).click();
-	await expect(page.getByText('2 rows')).toBeVisible();
+	await askAddsDeadlift(page, context.request);
+	await closeThread(page);
 
 	await undoButton(page).first().click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await page.unroute('**/decisions');
 	await page.reload();
 
-	await askButton(page).click();
-	await expect(page.getByTestId('thread').getByText('Undone', { exact: true })).toBeVisible();
+	await reopenThread(page);
+	await expect(threadLabel(page, 'Undone')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
-	await askPanel(page).getByRole('button', { name: 'Close' }).click();
+	await closeThread(page);
 	await expect(cell(page, 'Deadlift')).toHaveCount(0);
+});
+
+test('an undone action stays undone past a later edit, with its decision in flight at the reload', async ({
+	page,
+	context
+}) => {
+	let holding = true;
+	await page.route('**/decisions', (route) => (holding ? undefined : route.continue()));
+	await askAddsDeadlift(page, context.request);
+	await closeThread(page);
+
+	await undoButton(page).first().click();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	await editCell(page, 'Squat', 'Bench');
+	holding = false;
+	await page.reload();
+
+	await reopenThread(page);
+	await expect(threadLabel(page, 'Undone')).toBeVisible();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	await expect.poll(() => serverStatus(context.request)).toBe('undone');
+});
+
+test('a decision the server keeps refusing holds across a reload, and arrives once it can', async ({
+	page,
+	context
+}) => {
+	await page.route('**/decisions', (route) => route.fulfill({ status: 400, json: {} }));
+	await askAddsDeadlift(page, context.request);
+	await closeThread(page);
+
+	await undoButton(page).first().click();
+	await editCell(page, 'Squat', 'Bench');
+	await page.reload();
+
+	await reopenThread(page);
+	await expect(threadLabel(page, 'Undone')).toBeVisible();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+	expect(await serverStatus(context.request)).toBe('pending');
+
+	await page.unroute('**/decisions');
+	await page.evaluate(() => window.dispatchEvent(new Event('online')));
+	await expect.poll(() => serverStatus(context.request)).toBe('undone');
+});
+
+test('a rejection that never reached the server stays rejected', async ({ page, context }) => {
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_field',
+					name: 'add_field',
+					input: { base: 'Gym', table: 'Lifts', name: 'Note', type: 'text' }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Proposed.' }] }
+	]);
+	await page.route('**/decisions', (route) => route.fulfill({ status: 400, json: {} }));
+	await askButton(page).click();
+	await page.getByPlaceholder('Ask about your tables').fill(`${key} add a note column`);
+	await page.getByRole('button', { name: 'Send' }).click();
+	await expect(page.getByTestId('thread').getByText('Proposed.')).toBeVisible();
+
+	await page.getByTestId('thread').getByRole('button', { name: 'Reject' }).click();
+	await expect(threadLabel(page, 'Rejected')).toBeVisible();
+	await page.reload();
+
+	await askButton(page).click();
+	await expect(threadLabel(page, 'Rejected')).toBeVisible();
+});
+
+test('an undo reaches the thread it belongs to after another one opened', async ({
+	page,
+	context
+}) => {
+	await askAddsDeadlift(page, context.request);
+	await expect.poll(() => serverStatus(context.request)).toBe('applied');
+	await askPanel(page).getByRole('button', { name: 'New' }).click();
+	await closeThread(page);
+
+	await undoButton(page).first().click();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
+
+	await expect.poll(() => serverStatus(context.request)).toBe('undone');
+});
+
+const COULD_NOT_SAVE = 'Couldn’t save on this device';
+
+const REFUSALS = {
+	'a write throws': 'put',
+	'its commit aborts': 'commit'
+} as const;
+
+/** Every write fails like a full disk until `fullDisk.on` turns false. */
+function fillDisk(page: Page, how: 'put' | 'commit'): Promise<void> {
+	return page.evaluate((refusal) => {
+		const disk = { on: true };
+		(window as unknown as { fullDisk: typeof disk }).fullDisk = disk;
+		if (refusal === 'put') {
+			const { put } = IDBObjectStore.prototype;
+			IDBObjectStore.prototype.put = function (...args) {
+				if (disk.on) {
+					throw new DOMException('no room', 'QuotaExceededError');
+				}
+				return put.apply(this, args);
+			};
+		} else {
+			const { commit } = IDBTransaction.prototype;
+			IDBTransaction.prototype.commit = function () {
+				if (disk.on && this.mode === 'readwrite') {
+					this.abort();
+				} else {
+					commit.call(this);
+				}
+			};
+		}
+	}, how);
+}
+
+const emptyDisk = (page: Page): Promise<void> =>
+	page.evaluate(() => {
+		(window as unknown as { fullDisk: { on: boolean } }).fullDisk.on = false;
+	});
+
+for (const [refusal, how] of Object.entries(REFUSALS)) {
+	test(`a change the disk refuses when ${refusal} says so, stays, and lands on retry`, async ({
+		page
+	}) => {
+		await page.route('**/api/sync', (route) => route.fulfill({ status: 400, json: {} }));
+		await fillDisk(page, how);
+		const couldNotSave = page.getByRole('status').getByText(COULD_NOT_SAVE);
+
+		await editCell(page, 'Squat', 'Bench');
+		await expect(couldNotSave).toBeVisible();
+		await expect(cell(page, 'Bench')).toBeVisible();
+
+		await emptyDisk(page);
+		await page.getByRole('status').getByRole('button', { name: 'retry' }).click();
+		await expect(couldNotSave).toHaveCount(0);
+
+		await page.reload();
+		await expect(cell(page, 'Bench')).toBeVisible();
+		await undoButton(page).first().click();
+		await expect(cell(page, 'Squat')).toBeVisible();
+	});
+}
+
+test('a refused change saves by itself once the disk has room', async ({ page }) => {
+	await page.route('**/api/sync', (route) => route.fulfill({ status: 400, json: {} }));
+	await fillDisk(page, 'put');
+	const couldNotSave = page.getByRole('status').getByText(COULD_NOT_SAVE);
+	await editCell(page, 'Squat', 'Bench');
+	await expect(couldNotSave).toBeVisible();
+
+	await emptyDisk(page);
+	await expect(couldNotSave).toHaveCount(0);
+
+	await page.reload();
+	await expect(cell(page, 'Bench')).toBeVisible();
+});
+
+test('the next change carries a refused one with it', async ({ page }) => {
+	await page.route('**/api/sync', (route) => route.fulfill({ status: 400, json: {} }));
+	await fillDisk(page, 'commit');
+	const couldNotSave = page.getByRole('status').getByText(COULD_NOT_SAVE);
+	await editCell(page, 'Squat', 'Bench');
+	await expect(couldNotSave).toBeVisible();
+
+	await emptyDisk(page);
+	await editCell(page, '100', '120');
+	await expect(couldNotSave).toHaveCount(0);
+
+	await page.reload();
+	await expect(cell(page, 'Bench')).toBeVisible();
+	await expect(cell(page, '120')).toBeVisible();
+	await undoButton(page).first().click();
+	await expect(cell(page, '100')).toBeVisible();
+	await undoButton(page).first().click();
+	await expect(cell(page, 'Squat')).toBeVisible();
 });
 
 test('a record whose save failed still lands, before the watermark passes it', async ({
 	page,
-	context,
-	pageErrors
+	context
 }) => {
 	await page.evaluate(() => {
 		const { put } = IDBObjectStore.prototype;
@@ -295,8 +468,7 @@ test('a record whose save failed still lands, before the watermark passes it', a
 	const status = page.getByRole('status');
 
 	await page.evaluate(() => window.dispatchEvent(new Event('online')));
-	await expect(status.getByText('Sync failed')).toBeVisible();
-	expect(pageErrors.splice(0)).toEqual(['no room']);
+	await expect(status.getByText(COULD_NOT_SAVE)).toBeVisible();
 	await status.getByRole('button', { name: 'retry' }).click();
 	await expect(status).toHaveCount(0);
 

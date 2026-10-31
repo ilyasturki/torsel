@@ -8,19 +8,45 @@ import type { Change, ChartConfig, FieldDef, Rec } from '../core/model.ts';
 import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
 import { formulaProblem, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
-import type { LocalDb, Stored } from './local.ts';
-import { erase, handOver, openLocal, readMeta, save, writeMeta } from './local.ts';
+import type { Decision, LocalDb } from './local.ts';
+import {
+	decisionKey,
+	erase,
+	forgetDecisions,
+	handOver,
+	isDecisionKey,
+	openLocal,
+	readDecisions,
+	readMeta,
+	readWritten,
+	save,
+	writeMeta
+} from './local.ts';
 
 export type Group = {
 	id: number;
 	label: string;
 	by: 'user' | 'ai';
 	inverse: Change[];
-	// The assistant's action this step applied: the thread hears when it is undone, even after a reload.
+	// The assistant's action this step applied: its thread hears each undo and redo, open or not.
 	action?: string;
+	thread?: string;
 };
 
+type Stacks = { undo: Group[]; redo: Group[] };
+
+/** Tells the other tabs a transaction committed; each re-reads the store, so the store's commit order settles a race. */
+type Written = { ids: string[]; decided: Decision[] } | 'restart';
+
 const HISTORY = 50;
+const HISTORY_KEY = 'history';
+const SAVE_RETRY_MS = 5000;
+
+function decisionOf(group: Group, status: Decision['status']): Decision | undefined {
+	return group.action === undefined || group.thread === undefined
+		? undefined
+		: { thread: group.thread, id: group.action, status };
+}
 
 function randomNode(): string {
 	const bytes = new Uint8Array(6);
@@ -47,17 +73,26 @@ class TorselApp {
 	public pending = $state(0);
 	public history = $state.raw<Group[]>([]);
 	public undone = $state.raw<Group[]>([]);
+	public saveFailed = $state(false);
 	public onChange: (() => void) | null = null;
+	public onSynced: (() => void) | null = null;
 	public onUndo: ((group: Group) => void) | null = null;
 	public onRedo: ((group: Group) => void) | null = null;
+	public onDecided: ((decisions: Decision[]) => void) | null = null;
 
 	private db: LocalDb | undefined;
 	private hlc = new Hlc('local');
 	private engine: MemoryEngine | undefined;
 	private loading: Promise<void> | undefined;
+	private channel: BroadcastChannel | undefined;
 	private readonly dirty = new Set<string>();
-	// Settled in memory but not on disk: the next watermark passes them, and `put` won't report them again.
+	// In memory but not on disk, each written as it stands by the next `persist`.
 	private readonly unsaved = new Set<string>();
+	private readonly unsavedMeta = new Map<string, unknown>();
+	// The newest write to carry each meta key: a failed older one must not bring its value back.
+	private readonly carried = new Map<string, number>();
+	private writes = 0;
+	private retry: ReturnType<typeof setTimeout> | undefined;
 	private readonly built = new Map<string, number>();
 	private readonly problems = new Map<string, FormulaProblems>();
 	private seq = 0;
@@ -68,6 +103,12 @@ class TorselApp {
 	}
 
 	private async open(): Promise<void> {
+		// Before the first read: a write committed after it still reaches this tab.
+		this.channel = new BroadcastChannel('torsel-store');
+		this.channel.onmessage = ({ data }: MessageEvent<Written>): void => {
+			void this.load().then(() => this.follow(data));
+		};
+
 		const db = await openLocal();
 		this.db = db;
 
@@ -86,11 +127,9 @@ class TorselApp {
 			}
 		}
 
-		const saved = await readMeta<{ undo: Group[]; redo: Group[] }>(db, 'history');
+		const saved = await readMeta<Stacks>(db, HISTORY_KEY);
 		if (saved !== undefined) {
-			this.history = saved.undo;
-			this.undone = saved.redo;
-			this.seq = Math.max(0, ...[...saved.undo, ...saved.redo].map((group) => group.id));
+			this.adopt(saved);
 		}
 
 		this.engine = await openEngine();
@@ -99,7 +138,7 @@ class TorselApp {
 	}
 
 	/**
-	 * The landing's working table: with no local database open, `moved` writes nothing and no
+	 * The landing's working table: with no local database open, `persist` writes nothing and no
 	 * sync starts. The page holding it must leave by a full navigation, or /app inherits the sample.
 	 */
 	public openSample(
@@ -127,26 +166,129 @@ class TorselApp {
 	}
 
 	/** Stamps changes in order; what takes them back, in the order to stamp it. */
-	private stamp(changes: Change[]): { inverse: Change[]; entries: Stored[] } {
+	private stamp(changes: Change[]): Change[] {
 		const inverse: Change[] = [];
-		const entries: Stored[] = [];
 
 		for (const change of changes) {
 			const stamped = this.ws.stamp(change, this.hlc.tick());
 			inverse.unshift(stamped.inverse);
-			entries.push({ id: stamped.rec.id, rec: stamped.rec, dirty: true });
+			this.unsaved.add(stamped.rec.id);
 			this.dirty.add(stamped.rec.id);
 		}
 
-		return { inverse, entries };
+		return inverse;
 	}
 
-	private moved(entries: Stored[]): void {
-		if (this.db !== undefined) {
-			void save(this.db, entries, {
-				history: { undo: this.history, redo: this.undone }
-			});
+	/** Starts its transaction in the caller's task and never rejects: what fails goes back to wait for the next write. */
+	private persist(): Promise<void> {
+		clearTimeout(this.retry);
+		this.retry = undefined;
+		if (this.db === undefined) {
+			return Promise.resolve();
 		}
+
+		const ids = [...this.unsaved];
+		const meta = new Map(this.unsavedMeta);
+		const attempt = (this.writes += 1);
+		this.unsaved.clear();
+		this.unsavedMeta.clear();
+		for (const key of meta.keys()) {
+			this.carried.set(key, attempt);
+		}
+
+		const entries = ids.map((id) => ({
+			id,
+			rec: this.ws.get(id) as Rec,
+			dirty: this.dirty.has(id)
+		}));
+
+		return save(this.db, entries, Object.fromEntries(meta)).then(
+			() => {
+				if (this.unsaved.size === 0 && this.unsavedMeta.size === 0) {
+					this.saveFailed = false;
+				}
+				this.announce(ids, meta);
+			},
+			() => {
+				for (const id of ids) {
+					this.unsaved.add(id);
+				}
+				for (const [key, value] of meta) {
+					if (this.carried.get(key) === attempt) {
+						this.unsavedMeta.set(key, value);
+					}
+				}
+				this.saveFailed = true;
+				this.retry ??= setTimeout(() => void this.persist(), SAVE_RETRY_MS);
+			}
+		);
+	}
+
+	public retrySave(): void {
+		void this.persist();
+	}
+
+	private announce(ids: string[], meta: Map<string, unknown>): void {
+		const decided = [...meta]
+			.filter(([key]) => isDecisionKey(key))
+			.map(([, value]) => value as Decision);
+		if (ids.length > 0 || decided.length > 0 || meta.has(HISTORY_KEY)) {
+			this.channel?.postMessage({ ids, decided } satisfies Written);
+		}
+	}
+
+	/** The store as another tab just left it. Memory ahead of it, from a write that lost a race, goes back. */
+	private async follow(written: Written): Promise<void> {
+		if (written === 'restart') {
+			this.ws.records.clear();
+			window.location.reload();
+			return;
+		}
+
+		const before = this.writes;
+		const { entries, meta } = await readWritten<Stacks>(
+			this.db as LocalDb,
+			written.ids,
+			HISTORY_KEY
+		);
+
+		for (const { id, rec, dirty } of entries) {
+			this.hlc.observe(latestClock(rec));
+			this.ws.put(rec);
+			const same = sameRec(this.ws.get(id), rec);
+			if (dirty) {
+				this.dirty.add(id);
+			} else if (same) {
+				this.dirty.delete(id);
+			}
+			if (!same) {
+				this.unsaved.add(id);
+			}
+		}
+
+		// A write of this tab since the read, or one waiting to retry, is newer than what the read saw.
+		if (meta !== undefined && before === this.writes && !this.unsavedMeta.has(HISTORY_KEY)) {
+			this.adopt(meta);
+		}
+		if (this.unsaved.size > 0 && this.retry === undefined) {
+			void this.persist();
+		}
+		this.bump(false);
+		this.onDecided?.(written.decided);
+	}
+
+	private adopt(stacks: Stacks): void {
+		this.history = stacks.undo;
+		this.undone = stacks.redo;
+		this.seq = Math.max(this.seq, ...[...stacks.undo, ...stacks.redo].map((group) => group.id));
+	}
+
+	private moved(decision?: Decision): void {
+		this.unsavedMeta.set(HISTORY_KEY, { undo: this.history, redo: this.undone });
+		if (decision !== undefined) {
+			this.unsavedMeta.set(decisionKey(decision.id), decision);
+		}
+		void this.persist();
 		this.bump();
 	}
 
@@ -154,17 +296,24 @@ class TorselApp {
 		changes: Change[],
 		label: string,
 		by: Group['by'] = 'user',
-		action?: string
+		action?: { thread: string; id: string }
 	): Group | null {
 		if (changes.length === 0) {
 			return null;
 		}
 
-		const { inverse, entries } = this.stamp(changes);
-		const group: Group = { id: (this.seq += 1), label, by, inverse, action };
+		const inverse = this.stamp(changes);
+		const group: Group = {
+			id: (this.seq += 1),
+			label,
+			by,
+			inverse,
+			action: action?.id,
+			thread: action?.thread
+		};
 		this.history = [...this.history.slice(1 - HISTORY), group];
 		this.undone = [];
-		this.moved(entries);
+		this.moved(decisionOf(group, 'applied'));
 
 		return group;
 	}
@@ -176,10 +325,10 @@ class TorselApp {
 			return undefined;
 		}
 
-		const { inverse, entries } = this.stamp(group.inverse);
+		const inverse = this.stamp(group.inverse);
 		this.history = this.history.filter((item) => item.id !== group.id);
 		this.undone = [...this.undone, { ...group, inverse }];
-		this.moved(entries);
+		this.moved(decisionOf(group, 'undone'));
 		this.onUndo?.(group);
 
 		return group;
@@ -191,13 +340,36 @@ class TorselApp {
 			return undefined;
 		}
 
-		const { inverse, entries } = this.stamp(group.inverse);
+		const inverse = this.stamp(group.inverse);
 		this.undone = this.undone.slice(0, -1);
 		this.history = [...this.history, { ...group, inverse }];
-		this.moved(entries);
+		this.moved(decisionOf(group, 'applied'));
 		this.onRedo?.(group);
 
 		return group;
+	}
+
+	/** A decision that changes no record: with one, `apply`, `undo` and `redo` write it in the change's transaction. */
+	public decide(decision: Decision): void {
+		this.unsavedMeta.set(decisionKey(decision.id), decision);
+		void this.persist();
+	}
+
+	/** Every decision still owed to the server, in any thread. */
+	public async decisions(): Promise<Decision[]> {
+		await this.load();
+		const stored = await readDecisions(this.db as LocalDb);
+		const held = new Map(stored.map((decision) => [decision.id, decision]));
+		for (const [key, value] of this.unsavedMeta) {
+			if (isDecisionKey(key)) {
+				held.set((value as Decision).id, value as Decision);
+			}
+		}
+		return [...held.values()];
+	}
+
+	public delivered(sent: Decision[]): Promise<void> {
+		return forgetDecisions(this.db as LocalDb, sent);
 	}
 
 	public dirtyRecords(): Rec[] {
@@ -212,6 +384,7 @@ class TorselApp {
 	}
 
 	public async settle(pushed: Rec[], received: Rec[], watermark: number): Promise<void> {
+		// Each stays in `unsaved` until a write holds it: the next watermark passes it, and `put` won't report it again.
 		for (const rec of pushed) {
 			const current = this.ws.get(rec.id);
 			if (current !== undefined && sameRec(current, rec)) {
@@ -229,19 +402,11 @@ class TorselApp {
 			}
 		}
 
-		const ids = [...this.unsaved];
-		const entries = ids.map((id) => ({
-			id,
-			rec: this.ws.get(id) as Rec,
-			dirty: this.dirty.has(id)
-		}));
-		const saved = save(this.db as LocalDb, entries, { watermark });
+		this.unsavedMeta.set('watermark', watermark);
+		const saved = this.persist();
 		this.version += changed ? 1 : 0;
 		this.pending = this.dirty.size;
 		await saved;
-		for (const id of ids) {
-			this.unsaved.delete(id);
-		}
 	}
 
 	public async meta<T>(key: string): Promise<T | undefined> {
@@ -251,7 +416,8 @@ class TorselApp {
 
 	public async setMeta(key: string, value: unknown): Promise<void> {
 		await this.load();
-		await writeMeta(this.db as LocalDb, key, value);
+		this.unsavedMeta.set(key, value);
+		await this.persist();
 	}
 
 	public async reset(drop: string[] = []): Promise<void> {
@@ -260,10 +426,10 @@ class TorselApp {
 		this.restart();
 	}
 
-	/** Drops every local record for another account, unless one still has to reach the server. */
+	/** Drops every local record for another account, unless one still has to reach the server or the disk. */
 	public async handOver(owner: string): Promise<boolean> {
 		await this.load();
-		if (!(await handOver(this.db as LocalDb, owner))) {
+		if (this.saveFailed || !(await handOver(this.db as LocalDb, owner))) {
 			return false;
 		}
 		this.restart();
@@ -271,6 +437,7 @@ class TorselApp {
 	}
 
 	private restart(): void {
+		this.channel?.postMessage('restart' satisfies Written);
 		this.ws.records.clear();
 		window.location.reload();
 	}

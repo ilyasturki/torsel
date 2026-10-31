@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { APIRequestContext, BrowserContext, Locator, Page } from '@playwright/test';
 import { test as base, expect } from '@playwright/test';
 
+import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import { Hlc } from '../../src/lib/core/clock.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
 import { MAX_PUSH } from '../../src/lib/core/protocol.ts';
@@ -132,6 +133,56 @@ export async function seed<T>(
 		expect(response.ok(), 'seeding through /api/sync').toBe(true);
 	}
 	return result;
+}
+
+/** One table with one row, Squat at 100 kg, in a base named Gym; returns its path. */
+export function seedLifts(request: APIRequestContext): Promise<string> {
+	return seed(request, (ws, commit) => {
+		const base = createBase(ws, 'Gym');
+		commit(base.changes);
+		const lifts = createTable(ws, base.id, 'Lifts', [
+			{ name: 'Exercise', type: 'text' },
+			{ name: 'Kg', type: 'number' }
+		]);
+		commit(lifts.changes);
+		commit(
+			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes
+		);
+		return `/app/t/${lifts.id}`;
+	});
+}
+
+export async function editCell(page: Page, from: string, to: string): Promise<void> {
+	await cell(page, from).dblclick();
+	await page.getByRole('gridcell').getByRole('textbox').fill(to);
+	await page.getByRole('gridcell').getByRole('textbox').press('Enter');
+	await expect(cell(page, to)).toBeVisible();
+}
+
+export const askButton = (page: Page): Locator => page.getByRole('button', { name: /^Ask/u });
+
+export const askPanel = (page: Page): Locator => page.locator('aside[aria-label="Ask"]');
+
+/** On the page of `seedLifts`: the assistant adds a Deadlift by itself, and the panel stays open. */
+export async function askAddsDeadlift(page: Page, request: APIRequestContext): Promise<void> {
+	const key = await script(request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_add',
+					name: 'add_rows',
+					input: { base: 'Gym', table: 'Lifts', rows: [{ Exercise: 'Deadlift', Kg: 140 }] }
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Logged.' }] }
+	]);
+	await askButton(page).click();
+	await page.getByPlaceholder('Ask about your tables').fill(`${key} log a deadlift`);
+	await page.getByRole('button', { name: 'Send' }).click();
+	await expect(page.getByTestId('thread').getByText('Logged.')).toBeVisible();
+	await expect(page.getByText('2 rows')).toBeVisible();
 }
 
 // What says nothing about the app: Vite's client, Chromium's own line for a 4xx the page

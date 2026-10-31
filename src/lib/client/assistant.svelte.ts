@@ -15,8 +15,8 @@ import type {
 import { dependents, prerequisites } from '../core/thread.ts';
 import { Workspace, tableDef } from '../core/workspace.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
-import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
+import type { Decision } from './local.ts';
 import { me } from './session.svelte.ts';
 import { syncNow } from './sync.svelte.ts';
 import { showToast } from './toast.svelte.ts';
@@ -44,34 +44,49 @@ const THREAD_META = 'thread';
 
 let controller: AbortController | null = null;
 
-const queued = new Map<string, ThreadAction['status']>();
-
 let flushing: Promise<void> = Promise.resolve();
 
-function flushDecisions(): Promise<void> {
-	flushing = flushing.then(async () => {
-		if (queued.size === 0 || assistant.id === null) {
+async function deliver(thread: string, decisions: Decision[]): Promise<void> {
+	try {
+		await request(`/api/ai/threads/${thread}/decisions`, {
+			method: 'POST',
+			body: { decisions: decisions.map(({ id, status }) => ({ id, status })) }
+		});
+	} catch (error) {
+		// A thread that's gone will never take them; anything else, the next flush tries again.
+		if (!(error instanceof ApiError && error.status === 404)) {
 			return;
 		}
-		const decisions = [...queued].map(([id, status]) => ({ id, status }));
-		queued.clear();
-		try {
-			await request(`/api/ai/threads/${assistant.id}/decisions`, {
-				method: 'POST',
-				body: { decisions }
-			});
-		} catch {
-			for (const { id, status } of decisions) {
-				if (!queued.has(id)) queued.set(id, status);
+	}
+	await app.delivered(decisions);
+}
+
+function flushDecisions(): Promise<void> {
+	flushing = flushing
+		.then(async () => {
+			const held = await app.decisions();
+			for (const thread of new Set(held.map((decision) => decision.thread))) {
+				await deliver(
+					thread,
+					held.filter((decision) => decision.thread === thread)
+				);
 			}
-		}
-	});
+		})
+		.catch(() => undefined);
 	return flushing;
 }
 
 function decide(action: ThreadAction, status: ThreadAction['status']): void {
 	action.status = status;
-	queued.set(action.id, status);
+	app.decide({ thread: assistant.id as string, id: action.id, status });
+	void flushDecisions();
+}
+
+/** The decision is already on its way to disk, in the transaction of the change it belongs to. */
+function changed(action: ThreadAction | undefined, status: ThreadAction['status']): void {
+	if (action !== undefined) {
+		action.status = status;
+	}
 	void flushDecisions();
 }
 
@@ -87,7 +102,7 @@ export function markFresh(action: ThreadAction): void {
 	}, FRESH_MS);
 }
 
-/** After a reload whose decision never reached the server, applying again would overwrite later edits. */
+/** On another device a change's records can arrive ahead of its decision, and applying again would overwrite later edits. */
 function alreadyApplied(action: ThreadAction): boolean {
 	return action.changes.every((change) => {
 		const rec = app.ws.get(change.id);
@@ -107,24 +122,13 @@ function applyAction(action: ThreadAction): void {
 	}
 	// IndexedDB can't clone a state proxy; the cast stops `snapshot` recursing through `Value`.
 	const changes = $state.snapshot(action.changes as unknown[]) as Change[];
-	const group = app.apply(changes, action.summary, 'ai', action.id);
-	decide(action, 'applied');
+	const group = app.apply(changes, action.summary, 'ai', {
+		thread: assistant.id as string,
+		id: action.id
+	});
+	changed(action, 'applied');
 	markFresh(action);
 	showToast(`Applied: ${action.summary}`, group?.id ?? null);
-}
-
-/** The device's history outranks the server's status: a decision still queued at a reload never got there. */
-function reconcile(): void {
-	for (const action of assistant.actions) {
-		const status = app.undone.some((group) => group.action === action.id)
-			? 'undone'
-			: app.history.some((group) => group.action === action.id)
-				? 'applied'
-				: action.status;
-		if (status !== action.status) {
-			decide(action, status);
-		}
-	}
 }
 
 /** Applies data entry nothing holds back, in the order it came. */
@@ -183,16 +187,27 @@ export function undoAction(action: ThreadAction): void {
 	}
 }
 
-function report(group: Group, status: ThreadAction['status']): void {
-	const action = assistant.actions.find((candidate) => candidate.id === group.action);
-	if (action !== undefined) {
-		decide(action, status);
+const openAction = (id: string | undefined): ThreadAction | undefined =>
+	assistant.actions.find((candidate) => candidate.id === id);
+
+app.onUndo = (group) => {
+	if (group.action !== undefined) changed(openAction(group.action), 'undone');
+};
+
+app.onRedo = (group) => {
+	if (group.action !== undefined) changed(openAction(group.action), 'applied');
+};
+
+app.onSynced = () => void flushDecisions();
+
+app.onDecided = (decisions) => {
+	for (const { id, status } of decisions) {
+		const action = openAction(id);
+		if (action !== undefined) {
+			action.status = status;
+		}
 	}
-}
-
-app.onUndo = (group) => report(group, 'undone');
-
-app.onRedo = (group) => report(group, 'applied');
+};
 
 function pushEvent(kind: EventKind, message: string): void {
 	assistant.rows.push({ seq: 0, role: 'event', content: { kind, message }, meta: null });
@@ -309,16 +324,20 @@ export function stop(): void {
 
 export async function openThread(id: string): Promise<void> {
 	await flushDecisions();
+	// Read ahead of the fetch: one delivered in between is then only said twice, never missed.
+	const held = await app.decisions();
 	const thread = await request<ThreadSummary & { rows: ThreadRow[]; actions: ThreadAction[] }>(
 		`/api/ai/threads/${id}`
 	);
 	assistant.id = thread.id;
 	assistant.title = thread.title;
 	assistant.rows = thread.rows;
-	assistant.actions = thread.actions;
+	assistant.actions = thread.actions.map((action) => ({
+		...action,
+		status: held.find((decision) => decision.id === action.id)?.status ?? action.status
+	}));
 	assistant.listing = false;
 	void app.setMeta(THREAD_META, thread.id);
-	reconcile();
 	settle();
 }
 
@@ -344,6 +363,7 @@ export async function showThreads(): Promise<void> {
 
 /** The last thread comes back with the app, so its proposals keep showing in the tables. */
 export async function resumeThread(): Promise<void> {
+	void flushDecisions();
 	if (assistant.id === null) {
 		const id = await app.meta<string | null>(THREAD_META);
 		if (id) {

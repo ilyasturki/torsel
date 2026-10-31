@@ -13,12 +13,15 @@
 	}
 </script>
 
-{#if sync.status !== 'idle' && (sync.status !== 'offline' || app.pending > 0)}
+{#if app.saveFailed || (sync.status !== 'idle' && (sync.status !== 'offline' || app.pending > 0))}
 	<p
 		role="status"
 		class="flex shrink-0 items-center gap-1 pt-1 font-medium max-lg:order-last max-lg:basis-full max-lg:flex-wrap"
 	>
-		{#if sync.status === 'offline'}
+		{#if app.saveFailed}
+			Couldn’t save on this device,
+			<button type="button" class={action} onclick={() => app.retrySave()}>retry</button>
+		{:else if sync.status === 'offline'}
 			Offline, {app.pending} change{app.pending === 1 ? '' : 's'} waiting
 		{:else if sync.status === 'signed-out'}
 			Session expired, {app.pending === 0
