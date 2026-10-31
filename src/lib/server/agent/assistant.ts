@@ -11,7 +11,7 @@ import type {
 	ThreadRow,
 	TurnEvent
 } from '../../core/thread.ts';
-import { afterFallback, echoable } from '../../core/thread.ts';
+import { MAX_CONTEXT_ROWS, afterFallback, echoable } from '../../core/thread.ts';
 import { todayIso } from '../../core/values.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { anthropicKey } from '../config.ts';
@@ -69,9 +69,7 @@ const TOOL_DEFS: Anthropic.Beta.BetaTool[] = TOOLS.map((tool) => ({
 function statusOf(action: ThreadAction): string {
 	if (action.tier === 'propose') return 'proposed: waiting for the person to accept or reject it';
 	if (action.tier === 'confirm') return 'waiting for the person to confirm';
-	return action.after.length > 0
-		? 'held until the person decides on what it builds on'
-		: 'applied';
+	return action.after.length > 0 ? 'held until the person decides on what it builds on' : 'applied';
 }
 
 export class AssistantUnavailable extends Error {}
@@ -110,7 +108,9 @@ function contextNote(
 		}
 		const rows = context.rows.filter((id) => ws.live(id)?.parent === table.id);
 		if (rows.length > 0) {
-			lines.push(`Selected rows: ${rows.join(', ')}.`);
+			const shown =
+				rows.length === MAX_CONTEXT_ROWS ? 'Selected rows, the first ones' : 'Selected rows';
+			lines.push(`${shown}: ${rows.join(', ')}.`);
 		}
 	} else {
 		const names = ws.bases().map((candidate) => `"${candidate.name}" (${candidate.id})`);

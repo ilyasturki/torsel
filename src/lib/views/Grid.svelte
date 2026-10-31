@@ -270,8 +270,7 @@
 	});
 
 	$effect(() => {
-		const ids =
-			head === null ? [] : rows.slice(Math.max(0, top), bottom + 1).map((row) => row.id);
+		const ids = head === null ? [] : rows.slice(Math.max(0, top), bottom + 1).map((row) => row.id);
 		untrack(() => {
 			selection.table = tableId;
 			selection.rows = ids;

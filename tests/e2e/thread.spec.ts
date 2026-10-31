@@ -233,7 +233,7 @@ test('a proposed field previews in the table, and accepting it lands it with its
 	const headers = page.getByTestId('proposed-field');
 	await expect(headers).toHaveCount(2);
 	await expect(headers.first()).toBeInViewport();
-	await expect(page.getByRole('cell', { name: '640', exact: true })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: '640', exact: true })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Accept Volume' }).click();
 	await expect(headers).toHaveCount(1);
@@ -243,7 +243,7 @@ test('a proposed field previews in the table, and accepting it lands it with its
 	await page.getByRole('button', { name: 'Accept Note' }).click();
 	await expect(headers).toHaveCount(0);
 	await expect(page.getByText('3 rows')).toBeVisible();
-	await expect(page.getByRole('cell', { name: 'easy', exact: true })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'easy', exact: true })).toBeVisible();
 
 	await ask(page, `${key} thanks`);
 	await expect(rows.getByText('Noted.')).toBeVisible();
@@ -685,14 +685,8 @@ test('the context line says what the next message is about', async ({ page, cont
 	const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Seen.' }] }]);
 	await page.goto(`/app/t/${table}`);
 
-	await page
-		.getByRole('button', { name: 'Open row' })
-		.first()
-		.click({ modifiers: ['Control'] });
-	await page
-		.getByRole('button', { name: 'Open row' })
-		.nth(1)
-		.click({ modifiers: ['Control'] });
+	await page.getByRole('gridcell', { name: 'Bench' }).click();
+	await page.getByRole('gridcell', { name: 'Squat' }).click({ modifiers: ['Shift'] });
 	await page.getByRole('button', { name: /^Ask/u }).click();
 	await expect(page.getByTestId('context')).toHaveText('On Lifts, Grid, 2 rows selected');
 
@@ -722,7 +716,7 @@ test('with no key on the server there is no entry at all, and the app still work
 	});
 	await page.goto(`/app/t/${table}`);
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
-	await expect(page.getByRole('cell', { name: 'Bench' })).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await expect(page.getByRole('button', { name: /^Ask/u })).toHaveCount(0);
 	await expect(page.locator('aside[aria-label="Ask"]')).toHaveCount(0);
 });

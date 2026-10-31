@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import type { ThreadContext, TurnEvent } from '#lib/core/thread.ts';
-import { MAX_PROMPT } from '#lib/core/thread.ts';
+import { MAX_CONTEXT_ROWS, MAX_PROMPT } from '#lib/core/thread.ts';
 import { runTurn } from '#lib/server/agent/assistant.ts';
 import { activeTurn, findThread, trackTurn } from '#lib/server/agent/threads.ts';
 import { anthropicKey } from '#lib/server/config.ts';
@@ -26,7 +26,9 @@ function contextOf(value: unknown): ThreadContext {
 		table: optional(context.table),
 		view: optional(context.view),
 		rows: Array.isArray(context.rows)
-			? context.rows.filter((row): row is string => typeof row === 'string')
+			? context.rows
+					.filter((row): row is string => typeof row === 'string')
+					.slice(0, MAX_CONTEXT_ROWS)
 			: []
 	};
 }

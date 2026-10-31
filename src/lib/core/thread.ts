@@ -4,6 +4,8 @@ import type { Change } from './model.ts';
 
 export const MAX_PROMPT = 4000;
 
+export const MAX_CONTEXT_ROWS = 200;
+
 export type Tier = 'apply' | 'propose' | 'confirm';
 
 export type ActionStatus = 'pending' | 'applied' | 'rejected' | 'undone';

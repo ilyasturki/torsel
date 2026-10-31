@@ -16,7 +16,7 @@
 	import { me } from '#lib/client/session.svelte.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import type { Item } from '#lib/core/thread.ts';
-	import { MAX_PROMPT, toItems } from '#lib/core/thread.ts';
+	import { MAX_CONTEXT_ROWS, MAX_PROMPT, toItems } from '#lib/core/thread.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Markdown from '#lib/ui/Markdown.svelte';
 
@@ -82,7 +82,7 @@
 				base: table?.base ?? null,
 				table: table?.id ?? null,
 				view: view?.id ?? null,
-				rows: $state.snapshot(selected)
+				rows: selected.slice(0, MAX_CONTEXT_ROWS)
 			},
 			where
 		);
