@@ -19,8 +19,7 @@ import {
 	readDecisions,
 	readMeta,
 	readWritten,
-	save,
-	writeMeta
+	save
 } from './local.ts';
 
 export type Group = {
@@ -93,6 +92,8 @@ class TorselApp {
 	private readonly carried = new Map<string, number>();
 	private writes = 0;
 	private retry: ReturnType<typeof setTimeout> | undefined;
+	// The store was just emptied and the reload hasn't taken this page yet: any write would land in it.
+	private leaving = false;
 	private readonly built = new Map<string, number>();
 	private readonly problems = new Map<string, FormulaProblems>();
 	private seq = 0;
@@ -112,12 +113,8 @@ class TorselApp {
 		const db = await openLocal();
 		this.db = db;
 
-		let node = await readMeta<string>(db, 'node');
-		if (node === undefined) {
-			node = randomNode();
-			await writeMeta(db, 'node', node);
-		}
-		this.hlc = new Hlc(node);
+		// Per tab: `merge` takes equal clocks for one write.
+		this.hlc = new Hlc(randomNode());
 
 		for (const stored of await db.getAll('records')) {
 			this.ws.put(stored.rec);
@@ -183,7 +180,7 @@ class TorselApp {
 	private persist(): Promise<void> {
 		clearTimeout(this.retry);
 		this.retry = undefined;
-		if (this.db === undefined) {
+		if (this.db === undefined || this.leaving) {
 			return Promise.resolve();
 		}
 
@@ -240,12 +237,11 @@ class TorselApp {
 	/** The store as another tab just left it. Memory ahead of it, from a write that lost a race, goes back. */
 	private async follow(written: Written): Promise<void> {
 		if (written === 'restart') {
-			this.ws.records.clear();
-			window.location.reload();
+			this.leave();
 			return;
 		}
 
-		const before = this.writes;
+		const before = this.carried.get(HISTORY_KEY);
 		const { entries, meta } = await readWritten<Stacks>(
 			this.db as LocalDb,
 			written.ids,
@@ -266,15 +262,25 @@ class TorselApp {
 			}
 		}
 
-		// A write of this tab since the read, or one waiting to retry, is newer than what the read saw.
-		if (meta !== undefined && before === this.writes && !this.unsavedMeta.has(HISTORY_KEY)) {
+		// A history write of this tab since the read, or one waiting to retry, is newer than what the read saw.
+		if (
+			meta !== undefined &&
+			before === this.carried.get(HISTORY_KEY) &&
+			!this.unsavedMeta.has(HISTORY_KEY)
+		) {
 			this.adopt(meta);
 		}
 		if (this.unsaved.size > 0 && this.retry === undefined) {
 			void this.persist();
 		}
 		this.bump(false);
-		this.onDecided?.(written.decided);
+		if (written.decided.length > 0) {
+			// A row still held is newer than the message, which may have been overtaken on the way.
+			const held = await this.decisions();
+			this.onDecided?.(
+				written.decided.map((sent) => held.find(({ id }) => id === sent.id) ?? sent)
+			);
+		}
 	}
 
 	private adopt(stacks: Stacks): void {
@@ -411,7 +417,9 @@ class TorselApp {
 
 	public async meta<T>(key: string): Promise<T | undefined> {
 		await this.load();
-		return readMeta<T>(this.db as LocalDb, key);
+		const stored = await readMeta<T>(this.db as LocalDb, key);
+		// After the read: a failing write in flight hands its value back before the read resolves.
+		return this.unsavedMeta.has(key) ? (this.unsavedMeta.get(key) as T) : stored;
 	}
 
 	public async setMeta(key: string, value: unknown): Promise<void> {
@@ -438,6 +446,11 @@ class TorselApp {
 
 	private restart(): void {
 		this.channel?.postMessage('restart' satisfies Written);
+		this.leave();
+	}
+
+	private leave(): void {
+		this.leaving = true;
 		this.ws.records.clear();
 		window.location.reload();
 	}

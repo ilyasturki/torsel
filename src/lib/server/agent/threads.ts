@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
 
 import type {
 	ActionStatus,
@@ -141,6 +141,25 @@ export function recordDecisions(
 		for (const { id, status } of decisions) {
 			tx.update(threadActions)
 				.set({ status, reported: false })
+				// A durable queue says a decision twice, and the model must hear it once.
+				.where(
+					and(
+						eq(threadActions.threadId, threadId),
+						eq(threadActions.id, id),
+						ne(threadActions.status, status)
+					)
+				)
+				.run();
+		}
+	}, WRITER);
+}
+
+/** The message that told the model these left history, so the next one tells it again. */
+export function unreportDecisions(db: Database, threadId: string, ids: string[]): void {
+	db.transaction((tx) => {
+		for (const id of ids) {
+			tx.update(threadActions)
+				.set({ reported: false })
 				.where(and(eq(threadActions.threadId, threadId), eq(threadActions.id, id)))
 				.run();
 		}

@@ -15,7 +15,7 @@ export const decisionKey = (id: string): string => `${DECISION}${id}`;
 
 export const isDecisionKey = (key: string): boolean => key.startsWith(DECISION);
 
-const decisionKeys = (): IDBKeyRange => IDBKeyRange.bound(DECISION, `${DECISION}￿`);
+const decisionKeys = (): IDBKeyRange => IDBKeyRange.bound(DECISION, `${DECISION}\uffff`);
 
 type Schema = DBSchema & {
 	records: { key: string; value: Stored };
@@ -65,10 +65,6 @@ export async function save(
 		throw error;
 	}
 	await Promise.all(writes);
-}
-
-export function writeMeta(db: LocalDb, key: string, value: unknown): Promise<void> {
-	return save(db, [], { [key]: value });
 }
 
 export async function readDecisions(db: LocalDb): Promise<Decision[]> {

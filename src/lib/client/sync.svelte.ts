@@ -169,6 +169,7 @@ async function findAccount(): Promise<Account | null | undefined> {
 async function settleSession(): Promise<void> {
 	await app.load();
 
+	watchSignOuts();
 	const signOuts = signedOutElsewhere;
 	const account = await findAccount();
 	if (account === undefined) {
@@ -216,10 +217,27 @@ function tabs(): BroadcastChannel {
 	return channel;
 }
 
+let watching = false;
+
+/** From before the first session request: the layout that follows the other tabs mounts after it, or not until it ends. */
+function watchSignOuts(): void {
+	if (watching) {
+		return;
+	}
+	watching = true;
+
+	tabs().addEventListener('message', ({ data }: MessageEvent<'signed-in' | 'signed-out'>) => {
+		if (data === 'signed-out') {
+			signedOutElsewhere += 1;
+			// This tab's own `true` may have landed after the other tab's `false`.
+			void app.setMeta(SIGNED_IN, false);
+		}
+	});
+}
+
 export function followOtherTabs(): () => void {
 	const listener = ({ data }: MessageEvent<'signed-in' | 'signed-out'>): void => {
 		if (data === 'signed-out') {
-			signedOutElsewhere += 1;
 			me.account = null;
 			sync.status = 'idle';
 		} else {

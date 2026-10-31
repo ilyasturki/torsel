@@ -8,6 +8,8 @@ import {
 	cell,
 	editCell,
 	expect,
+	newAccount,
+	passwordSignIn,
 	redoButton,
 	RETRY_RESET,
 	script,
@@ -344,6 +346,39 @@ test('an undo reaches the thread it belongs to after another one opened', async 
 	await undoButton(page).first().click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 
+	await expect.poll(() => serverStatus(context.request)).toBe('undone');
+});
+
+test('a decision one account still owes outlasts another signing in, and arrives when it is back', async ({
+	page,
+	context,
+	account
+}) => {
+	await page.route('**/decisions', (route) => route.fulfill({ status: 400, json: {} }));
+	await askAddsDeadlift(page, context.request);
+	await closeThread(page);
+
+	const synced = page.waitForResponse('**/api/sync');
+	await undoButton(page).first().click();
+	await synced;
+	await page.goto('/app/settings');
+	await page.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page.getByText('Signed out')).toBeVisible();
+	await page.unroute('**/decisions');
+
+	await page.goto('/app/login');
+	await passwordSignIn(page, newAccount());
+	await expect(page.getByRole('status')).toContainText('another account’s data');
+	await page.waitForTimeout(500);
+	await page.reload();
+	await expect(page.getByRole('status')).toContainText('another account’s data');
+
+	await page.goto('/app/settings');
+	await page.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page.getByText('Signed out')).toBeVisible();
+	await page.goto('/app/login');
+	await passwordSignIn(page, account);
+	await page.waitForURL((url) => !url.pathname.endsWith('/login'));
 	await expect.poll(() => serverStatus(context.request)).toBe('undone');
 });
 

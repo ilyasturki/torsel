@@ -15,6 +15,7 @@ import type {
 import { dependents, prerequisites } from '../core/thread.ts';
 import { Workspace, tableDef } from '../core/workspace.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
+import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
 import type { Decision } from './local.ts';
 import { me } from './session.svelte.ts';
@@ -65,6 +66,10 @@ function flushDecisions(): Promise<void> {
 	flushing = flushing
 		.then(async () => {
 			const held = await app.decisions();
+			// Under another account a held thread answers 404, which would drop what its owner still owes.
+			if (held.length === 0 || !me.account || (await app.meta<string>('owner')) !== me.account.id) {
+				return;
+			}
 			for (const thread of new Set(held.map((decision) => decision.thread))) {
 				await deliver(
 					thread,
@@ -190,13 +195,19 @@ export function undoAction(action: ThreadAction): void {
 const openAction = (id: string | undefined): ThreadAction | undefined =>
 	assistant.actions.find((candidate) => candidate.id === id);
 
-app.onUndo = (group) => {
-	if (group.action !== undefined) changed(openAction(group.action), 'undone');
-};
+function stepped(group: Group, status: ThreadAction['status']): void {
+	if (group.action === undefined) return;
+	const action = openAction(group.action);
+	// A step saved before steps named their thread: only the open thread can say whose it is.
+	if (action !== undefined && group.thread === undefined) {
+		app.decide({ thread: assistant.id as string, id: action.id, status });
+	}
+	changed(action, status);
+}
 
-app.onRedo = (group) => {
-	if (group.action !== undefined) changed(openAction(group.action), 'applied');
-};
+app.onUndo = (group) => stepped(group, 'undone');
+
+app.onRedo = (group) => stepped(group, 'applied');
 
 app.onSynced = () => void flushDecisions();
 
