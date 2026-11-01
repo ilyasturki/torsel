@@ -946,6 +946,24 @@ test.describe('phone', () => {
 		await date.locator('input').press('Escape');
 	});
 
+	test('one tap on a date opens the picker', async ({ page, context, account }) => {
+		void account;
+		await page.addInitScript(() => {
+			const counted = window as unknown as { pickers: number };
+			counted.pickers = 0;
+			HTMLInputElement.prototype.showPicker = function () {
+				counted.pickers += 1;
+			};
+		});
+		await open(page, (await seedEveryType(context.request)).path);
+
+		const date = at(page, 0, 2);
+		await date.scrollIntoViewIfNeeded();
+		await date.tap();
+		await expect(date.locator('input')).toHaveAttribute('type', 'date');
+		expect(await page.evaluate(() => (window as unknown as { pickers: number }).pickers)).toBe(1);
+	});
+
 	test('a choice offers options big enough to tap', async ({ page, context, account }) => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);

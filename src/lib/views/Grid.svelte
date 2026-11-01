@@ -1027,6 +1027,13 @@
 					{@attach (node: HTMLInputElement) => {
 						node.focus();
 						if (node.type === 'text') node.setSelectionRange(node.value.length, node.value.length);
+						if (node.type === 'date') {
+							try {
+								node.showPicker();
+							} catch {
+								// No user activation or no `showPicker`: a second tap still opens it.
+							}
+						}
 					}}
 					class="absolute inset-0 z-1 h-full w-full bg-raised px-3 ring-2 ring-ink outline-none ring-inset {numeric
 						? 'text-right'
