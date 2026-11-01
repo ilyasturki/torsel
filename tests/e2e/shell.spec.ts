@@ -357,6 +357,60 @@ test('entry steps a value and adds the row', async ({ page, context, account }) 
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });
 
+test('entry fills in from the last row done, past rows planned and left blank', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { path } = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Gym');
+		commit(base.changes);
+		const sets = createTable(ws, base.id, 'Sets', [
+			{ name: 'Date', type: 'date' },
+			{
+				name: 'Exercise',
+				type: 'choice',
+				choices: [
+					{ name: 'Squat', color: null },
+					{ name: 'Bench', color: null }
+				]
+			},
+			{ name: 'Kg', type: 'number' },
+			{ name: 'Reps', type: 'number' }
+		]);
+		commit(sets.changes);
+		const [date, exercise, kg, reps] = sets.fieldIds;
+		const row = (day: string, name: string, load: number | null, count: number | null) => ({
+			[date]: day,
+			[exercise]: name,
+			[kg]: load,
+			[reps]: count
+		});
+		commit(
+			insertRows(ws, sets.id, [
+				row('2026-10-20', 'Squat', 100, 5),
+				row('2026-10-21', 'Bench', 70, 8),
+				row('2026-10-22', 'Squat', 102.5, 5),
+				row('2026-10-24', 'Bench', null, null),
+				row('2026-10-24', 'Squat', null, null)
+			]).changes
+		);
+		return { path: `/app/t/${sets.id}?v=${sets.viewIds[1]}` };
+	});
+	await page.goto(path);
+
+	const lastTime = page.locator('p').filter({ hasText: /^Last time/u });
+	await expect(page.getByRole('button', { name: 'Squat', pressed: true })).toBeVisible();
+	await expect(lastTime).toContainText('Oct 22');
+	await expect(lastTime).toContainText('102.5 · 5');
+	await expect(page.getByRole('textbox', { name: 'Kg' })).toHaveValue('102.5');
+
+	await page.getByRole('button', { name: 'Bench', exact: true }).click();
+	await expect(lastTime).toContainText('70 · 8');
+	await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('8');
+});
+
 test.describe('in another locale', () => {
 	test.use({ locale: 'de-DE' });
 

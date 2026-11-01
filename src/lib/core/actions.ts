@@ -1,5 +1,14 @@
 import { newId } from './ids.ts';
-import type { Change, Choice, FieldDef, FieldType, Value, ViewConfig, ViewType } from './model.ts';
+import type {
+	Change,
+	Choice,
+	FieldDef,
+	FieldType,
+	Rec,
+	Value,
+	ViewConfig,
+	ViewType
+} from './model.ts';
 import { CREATED, DELETED } from './model.ts';
 import { coerce, typeOfValues } from './values.ts';
 import type { Workspace } from './workspace.ts';
@@ -127,6 +136,17 @@ export function entryFields(all: FieldDef[], config: ViewConfig): FieldDef[] {
 					.map((id) => all.find((field) => field.id === id))
 					.filter((field) => field !== undefined);
 	return list.filter((field) => field.type !== 'formula');
+}
+
+const blank = (value: Value | undefined): boolean =>
+	value === null || value === undefined || value === '';
+
+/** A row that leaves blank a field most rows fill was planned or skipped, not done: "last time" passes over it. */
+export function doneRows(fields: FieldDef[], rows: Rec[]): (row: Rec) => boolean {
+	const usual = fields.filter(
+		(field) => rows.filter((row) => !blank(row.data[field.id])).length * 2 > rows.length
+	);
+	return (row) => usual.every((field) => !blank(row.data[field.id]));
 }
 
 export type ListLayout = {

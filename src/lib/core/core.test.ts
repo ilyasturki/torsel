@@ -6,6 +6,7 @@ import {
 	createBase,
 	createTable,
 	deleteRecords,
+	doneRows,
 	entryFields,
 	homeBase,
 	insertRows,
@@ -16,7 +17,7 @@ import { guessColumns, importTable, parseCsv } from './csv.ts';
 import { openEngine } from './engine.ts';
 import { FormulaError, toDisplay, toStored } from './formula.ts';
 import { merge, sameRec } from './merge.ts';
-import type { Change, Rec } from './model.ts';
+import type { Change, FieldDef, Rec } from './model.ts';
 import { isDeleted } from './model.ts';
 import { formulaProblem, materializeBase, readQuery } from './sql.ts';
 import { coerce, parseDate, parseNumber } from './values.ts';
@@ -29,6 +30,28 @@ function apply(ws: Workspace, hlc: Hlc, changes: Change[]): Change[] {
 function rec(id: string, data: Rec['data'], clocks: Rec['clocks']): Rec {
 	return { id, kind: 'row', base: 'b_x', parent: 't_x', data, clocks };
 }
+
+describe('done rows', () => {
+	const field = (id: string): FieldDef => ({ id, name: id, type: 'number' }) as FieldDef;
+	const fields = [field('weight'), field('reps'), field('rpe')];
+	const rows = [
+		rec('r0', { weight: 55, reps: 6, rpe: null }, {}),
+		rec('r1', { weight: 60, reps: 5, rpe: null }, {}),
+		rec('r2', { weight: 62.5, reps: 5, rpe: 8 }, {}),
+		rec('r3', { weight: 65, reps: '', rpe: null }, {}),
+		rec('r4', { weight: null, reps: null, rpe: null }, {})
+	];
+
+	it('passes over a row that leaves blank a field most rows fill', () => {
+		const done = doneRows(fields, rows);
+		expect(rows.filter(done).map((row) => row.id)).toEqual(['r0', 'r1', 'r2']);
+	});
+
+	it('takes every row when no field is filled by most', () => {
+		const done = doneRows(fields, [rows[4], rows[4]]);
+		expect(done(rows[4])).toBe(true);
+	});
+});
 
 describe('default entry view', () => {
 	it('follows the fields added after the table was created', () => {

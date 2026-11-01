@@ -3,7 +3,13 @@
 	import { formatDate, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { loggedThrough } from '#lib/client/place.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { defaultMatch, entryFields, insertRows, updateRecord } from '#lib/core/actions.ts';
+	import {
+		defaultMatch,
+		doneRows,
+		entryFields,
+		insertRows,
+		updateRecord
+	} from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { parseNumber, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
@@ -79,7 +85,8 @@
 		return typeof value === 'string' ? value.slice(0, 10) : todayIso(new Date(createdAt(row)));
 	}
 
-	const history = $derived(ordered.filter(matches));
+	const done = $derived(doneRows(others, ordered));
+	const history = $derived(ordered.filter((row) => matches(row) && done(row)));
 	const last = $derived(history[0]);
 	const lastTime = $derived(history.find((row) => dayOf(row) !== today));
 
@@ -87,7 +94,9 @@
 		if (started || !app.ready) return;
 		started = true;
 		for (const field of keys) {
-			const latest = ordered.find((row) => (row.data[field.id] ?? null) !== null);
+			const keyed = (row: Rec): boolean => (row.data[field.id] ?? null) !== null;
+			const latest =
+				ordered.find((row) => keyed(row) && done(row)) ?? ordered.find((row) => keyed(row));
 			values[field.id] = latest?.data[field.id] ?? null;
 		}
 		if (dateField !== undefined) {
