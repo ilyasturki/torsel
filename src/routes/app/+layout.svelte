@@ -46,6 +46,17 @@
 		}
 	});
 
+	onMount(() => {
+		if (!import.meta.env.APP_BUILD) return;
+		const listening = import('@capacitor/app').then(({ App }) =>
+			App.addListener('backButton', ({ canGoBack }) => {
+				if (canGoBack) history.back();
+				else void App.exitApp();
+			})
+		);
+		return () => void listening.then((handle) => handle.remove());
+	});
+
 	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
 	const onSettings = $derived(page.url.pathname === SETTINGS);
 	const tableId = $derived(page.params.table ?? null);
