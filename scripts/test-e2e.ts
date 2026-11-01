@@ -8,7 +8,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { startFake } from '../tests/e2e/fake-anthropic.ts';
+import { DAILY_LIMIT, startFake } from '../tests/e2e/fake-anthropic.ts';
 
 const args = process.argv.slice(2);
 const dev = args.includes('--dev');
@@ -123,6 +123,7 @@ function boot(
 			ANTHROPIC_API_KEY: '',
 			ANTHROPIC_BASE_URL: '',
 			TORSEL_AI_MODEL: '',
+			TORSEL_AI_UNLIMITED: '',
 			ORIGIN: '',
 			MIGRATIONS_DIR: '',
 			BREVO_API_KEY: '',
@@ -282,7 +283,13 @@ try {
 
 	const fake = await startFake();
 	stopFake = fake.close;
-	const assistant = { ANTHROPIC_API_KEY: 'fake-key', ANTHROPIC_BASE_URL: fake.url };
+	const assistant = {
+		ANTHROPIC_API_KEY: 'fake-key',
+		ANTHROPIC_BASE_URL: fake.url,
+		TORSEL_AI_DAILY_LIMIT: String(DAILY_LIMIT),
+		// The specs share each server: a cap across them would refuse whichever came last.
+		TORSEL_AI_INSTANCE_DAILY_LIMIT: '0'
+	};
 
 	const stack = dev ? await devStack(assistant) : await builtStack(assistant);
 	await Promise.all(stack.probes.map(ready));

@@ -1,10 +1,13 @@
 export class ApiError extends Error {
 	public readonly status: number;
 
-	public constructor(status: number, message: string) {
+	public readonly payload: unknown;
+
+	public constructor(status: number, message: string, payload?: unknown) {
 		super(message);
 		this.name = 'ApiError';
 		this.status = status;
+		this.payload = payload;
 	}
 }
 
@@ -166,7 +169,7 @@ export async function streamLines<T>(
 		if (response.status === 401 && token !== null) {
 			setDeviceToken(null);
 		}
-		throw new ApiError(response.status, refusal(response.status, payload));
+		throw new ApiError(response.status, refusal(response.status, payload), payload);
 	}
 
 	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -235,7 +238,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 			setDeviceToken(null);
 		}
 
-		throw new ApiError(response.status, refusal(response.status, payload));
+		throw new ApiError(response.status, refusal(response.status, payload), payload);
 	}
 
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion

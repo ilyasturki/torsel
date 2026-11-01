@@ -17,6 +17,7 @@ import { Workspace, tableDef } from '../core/workspace.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
+import { limitMessage, limitOf } from './limit.ts';
 import type { Decision } from './local.ts';
 import { me } from './session.svelte.ts';
 import { syncNow } from './sync.svelte.ts';
@@ -285,6 +286,10 @@ function onEvent(event: TurnEvent): void {
 
 function problemOf(error: unknown): string {
 	if (error instanceof ApiError) {
+		const limit = error.status === 429 ? limitOf(error.payload) : null;
+		if (limit !== null) {
+			return limitMessage(limit);
+		}
 		return error.status === OFFLINE || error.status === NO_SERVER
 			? 'The assistant needs a connection to the server.'
 			: error.message;

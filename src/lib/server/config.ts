@@ -1,6 +1,6 @@
 import type { GoogleClient } from './auth/google.ts';
 import { GOOGLE_PATH } from './auth/google.ts';
-import { envFlag, envText } from './env.ts';
+import { envCount, envFlag, envText } from './env.ts';
 
 const CAPACITOR_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost'];
 
@@ -42,6 +42,22 @@ export function allowedOrigins(): string[] {
 export function anthropicKey(): string | undefined {
 	const key = envText('ANTHROPIC_API_KEY', '');
 	return key === '' ? undefined : key;
+}
+
+/** Prompts per rolling 24 hours, 0 for no cap; `unlimited` holds lowercased e-mails. */
+export type AiLimits = { account: number; instance: number; unlimited: Set<string> };
+
+export function aiLimits(): AiLimits {
+	return {
+		account: envCount('TORSEL_AI_DAILY_LIMIT', 30),
+		instance: envCount('TORSEL_AI_INSTANCE_DAILY_LIMIT', 300),
+		unlimited: new Set(
+			envText('TORSEL_AI_UNLIMITED', '')
+				.toLowerCase()
+				.split(/[\s,]+/u)
+				.filter((email) => email !== '')
+		)
+	};
 }
 
 export function brevoKey(): string | undefined {

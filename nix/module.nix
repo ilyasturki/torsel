@@ -121,6 +121,36 @@ in
       description = "Display name of the sign-in mail's sender.";
     };
 
+    aiDailyLimit = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 30;
+      description = ''
+        Messages one account can send the assistant in any 24 hours; zero
+        lifts the cap. A refused message never reaches Anthropic, and the
+        thread says when the account can ask again.
+      '';
+    };
+
+    aiInstanceDailyLimit = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 300;
+      description = ''
+        Messages all accounts together can send the assistant in any 24 hours,
+        so a wave of new accounts can't spend the API key either; zero lifts
+        the cap.
+      '';
+    };
+
+    aiUnlimited = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [ "you@example.com" ];
+      description = ''
+        Accounts, by e-mail, that skip both assistant caps. Their messages
+        don't count toward `aiInstanceDailyLimit`.
+      '';
+    };
+
     environmentFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
@@ -156,6 +186,11 @@ in
         PORT = toString cfg.port;
         NODE_ENV = "production";
         DATABASE_PATH = cfg.databasePath;
+        TORSEL_AI_DAILY_LIMIT = toString cfg.aiDailyLimit;
+        TORSEL_AI_INSTANCE_DAILY_LIMIT = toString cfg.aiInstanceDailyLimit;
+      }
+      // lib.optionalAttrs (cfg.aiUnlimited != [ ]) {
+        TORSEL_AI_UNLIMITED = lib.concatStringsSep "," cfg.aiUnlimited;
       }
       // lib.optionalAttrs (cfg.origin != "") {
         ORIGIN = cfg.origin;

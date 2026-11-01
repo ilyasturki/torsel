@@ -3,8 +3,9 @@ import { error } from '@sveltejs/kit';
 import type { ThreadContext, TurnEvent } from '#lib/core/thread.ts';
 import { MAX_CONTEXT_ROWS, MAX_PROMPT } from '#lib/core/thread.ts';
 import { runTurn } from '#lib/server/agent/assistant.ts';
+import { refusedResponse, takePrompt } from '#lib/server/agent/quota.ts';
 import { activeTurn, findThread, trackTurn } from '#lib/server/agent/threads.ts';
-import { anthropicKey } from '#lib/server/config.ts';
+import { aiLimits, anthropicKey } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
 import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
 import { requireCredential } from '#lib/server/http/guards.ts';
@@ -56,6 +57,11 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 			error(409, 'this thread is already answering');
 		}
 		await previous.done;
+	}
+
+	const refusal = takePrompt(db, user, aiLimits());
+	if (refusal !== null) {
+		return refusedResponse(refusal);
 	}
 
 	const abort = new AbortController();

@@ -62,6 +62,8 @@ services.torsel = {
 
 Without a Brevo key the mail goes to the journal, code and link included. Google's redirect URI is `<origin>/api/auth/google`.
 
+The assistant takes 30 messages per account and 300 across the instance in any 24 hours: `aiDailyLimit`, `aiInstanceDailyLimit` (0 lifts either), and `aiUnlimited = [ "you@example.com" ]` for the accounts that skip both.
+
 Every option is documented in [`nix/module.nix`](nix/module.nix).
 
 ## Run without Nix

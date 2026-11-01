@@ -136,3 +136,17 @@ export const threadActions = sqliteTable(
 	},
 	(table) => [primaryKey({ columns: [table.threadId, table.id] })]
 );
+
+export const aiPrompts = sqliteTable(
+	'ai_prompts',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		at: integer('at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [
+		index('ai_prompts_user_at_idx').on(table.userId, table.at),
+		index('ai_prompts_at_idx').on(table.at)
+	]
+);

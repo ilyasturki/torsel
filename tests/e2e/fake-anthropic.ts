@@ -1,6 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createServer } from 'node:http';
 
+// The servers in front of the fake take this many prompts per account a day; no spec but the cap's sends more.
+export const DAILY_LIMIT = 4;
+
 export type FakeBlock =
 	| { type: 'note'; text: string }
 	| { type: 'text'; text: string }
