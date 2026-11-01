@@ -157,10 +157,10 @@ test.describe('the first table', () => {
 		await page.keyboard.press('Enter');
 
 		await expect(page.getByRole('heading', { name: 'Expenses', exact: true })).toBeVisible();
-		const tabs = page.getByRole('group', { name: 'Tables' });
-		await expect(tabs.getByRole('link', { name: 'Expenses', exact: true })).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Field name' })).toBeFocused();
 		await page.keyboard.press('Escape');
+		const tabs = page.getByRole('group', { name: 'Tables' });
+		await expect(tabs.getByRole('link', { name: 'Expenses', exact: true })).toBeVisible();
 
 		await headerButton(page, 'Undo').click();
 		await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
