@@ -56,7 +56,12 @@ test('a phone with no server stays silent and keeps its data', async ({ page }) 
 	).toBe(0);
 
 	await page.goto('/app/settings');
-	await expect(page.getByLabel('Server address')).toBeVisible();
+	await expect(page.getByLabel('Server address')).toHaveAttribute(
+		'placeholder',
+		'https://torsel.example.com'
+	);
+	await expect(page.getByText('Leaving this device for good?')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
 	await expect(page.getByText('Torsel 0.0.0')).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Account' })).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Agents (MCP)' })).toHaveCount(0);

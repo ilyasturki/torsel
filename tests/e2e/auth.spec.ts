@@ -105,6 +105,7 @@ test.describe('no account', () => {
 		await makeTable(page);
 		await page.goto('/app/settings');
 
+		await expect(page.getByText('Leaving this browser for good?')).toBeVisible();
 		await page.getByRole('button', { name: 'Erase this device' }).click();
 		await page.getByRole('button', { name: 'Erase for good' }).click();
 

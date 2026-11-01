@@ -28,7 +28,13 @@
 		void connect();
 	}}
 >
-	<input class={input} bind:value={server} inputmode="url" aria-label="Server address" />
+	<input
+		class={input}
+		bind:value={server}
+		inputmode="url"
+		placeholder="https://torsel.example.com"
+		aria-label="Server address"
+	/>
 	<Button type="submit">Connect</Button>
 </form>
 {#if problem}<p role="alert">{problem}</p>{/if}

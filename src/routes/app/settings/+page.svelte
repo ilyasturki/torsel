@@ -226,7 +226,11 @@
 
 	{#if me.account === null}
 		<section class="flex items-center justify-between gap-3">
-			<span>{erasing ? 'This can’t be undone.' : 'Leaving this browser for good?'}</span>
+			<span
+				>{erasing
+					? 'This can’t be undone.'
+					: `Leaving this ${import.meta.env.APP_BUILD ? 'device' : 'browser'} for good?`}</span
+			>
 			{#if erasing}
 				<Button onclick={() => void eraseDevice()}>Erase for good</Button>
 			{:else}

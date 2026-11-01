@@ -295,6 +295,7 @@ test('settings can be reached from the home and from a table', async ({
 	await page.goto('/app');
 	await page.getByRole('link', { name: 'Settings' }).click();
 	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Settings' }), 'not on its own page').toHaveCount(0);
 
 	await page.goto(`/app/t/${lifts}`);
 	const more = page.getByRole('button', { name: 'More' });

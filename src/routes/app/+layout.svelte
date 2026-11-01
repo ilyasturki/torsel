@@ -311,12 +311,14 @@
 						>Ask <span class="text-sm text-ink-3 max-sm:hidden">Ctrl K</span></Button
 					>
 				{/if}
-				<a
-					href={SETTINGS}
-					class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {onTable
-						? 'max-sm:hidden'
-						: ''}">Settings</a
-				>
+				{#if !onSettings}
+					<a
+						href={SETTINGS}
+						class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {onTable
+							? 'max-sm:hidden'
+							: ''}">Settings</a
+					>
+				{/if}
 				{#if table !== undefined}
 					<Button
 						variant="ghost"
