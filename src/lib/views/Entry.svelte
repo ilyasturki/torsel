@@ -132,7 +132,7 @@
 
 	function recentChoices(field: FieldDef): string[] {
 		const seen = new Set<string>();
-		for (const row of ordered) {
+		for (const row of [...ordered.filter(done), ...ordered]) {
 			const value = row.data[field.id];
 			if (typeof value === 'string') seen.add(value);
 			if (seen.size >= MANY) break;

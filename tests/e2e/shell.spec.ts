@@ -379,9 +379,11 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 				name: 'Exercise',
 				type: 'choice',
 				choices: [
-					{ name: 'Squat', color: null },
-					{ name: 'Bench', color: null }
-				]
+					'Squat',
+					'Bench',
+					'Dip',
+					...Array.from({ length: 10 }, (_, i) => `Lift ${i}`)
+				].map((name) => ({ name, color: null }))
 			},
 			{ name: 'Kg', type: 'number' },
 			{ name: 'Reps', type: 'number' }
@@ -396,11 +398,13 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 		});
 		commit(
 			insertRows(ws, sets.id, [
+				row('2026-10-19', 'Bench', 67.5, 8),
 				row('2026-10-20', 'Squat', 100, 5),
 				row('2026-10-21', 'Bench', 70, 8),
 				row('2026-10-22', 'Squat', 102.5, 5),
 				row('2026-10-24', 'Bench', null, null),
-				row('2026-10-24', 'Squat', null, null)
+				row('2026-10-24', 'Squat', null, null),
+				row('2026-10-24', 'Dip', null, null)
 			]).changes
 		);
 		return { path: `/app/t/${sets.id}?v=${sets.viewIds[1]}` };
@@ -408,6 +412,10 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 	await page.goto(path);
 
 	const lastTime = page.locator('p').filter({ hasText: /^Last time/u });
+	const chips = page.getByRole('button', { pressed: true }).locator('..').getByRole('button');
+	await expect(chips.first(), 'what was done comes before what was only planned').toHaveText(
+		'Squat'
+	);
 	await expect(page.getByRole('button', { name: 'Squat', pressed: true })).toBeVisible();
 	await expect(lastTime).toContainText('Oct 22');
 	await expect(lastTime).toContainText('102.5 · 5');
