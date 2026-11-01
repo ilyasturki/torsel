@@ -166,12 +166,32 @@
 	]);
 
 	let keyboardUp = $state(false);
+	let tallest = 0;
+	let wide = 0;
 
 	function opensKeyboard(target: EventTarget | null): boolean {
 		if (!(target instanceof HTMLElement) || target.inputMode === 'none') return false;
 		if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
 		return target instanceof HTMLInputElement && !NO_KEYBOARD.has(target.type);
 	}
+
+	// Android's Back closes the keyboard and leaves the field focused: only the window growing back says so.
+	function onresize(): void {
+		if (innerWidth !== wide) {
+			wide = innerWidth;
+			tallest = 0;
+		}
+		tallest = Math.max(tallest, innerHeight);
+		keyboardUp =
+			matchMedia('(pointer: coarse)').matches &&
+			opensKeyboard(document.activeElement) &&
+			innerHeight < tallest * 0.85;
+	}
+
+	onMount(() => {
+		wide = innerWidth;
+		tallest = innerHeight;
+	});
 
 	function hasFiles(event: DragEvent): boolean {
 		return event.dataTransfer?.types.includes('Files') === true;
@@ -253,6 +273,7 @@
 		keyboardUp = matchMedia('(pointer: coarse)').matches && opensKeyboard(event.target);
 	}}
 	onfocusout={() => (keyboardUp = false)}
+	{onresize}
 	ondragleave={(event) => {
 		if (event.relatedTarget === null) dropping = false;
 	}}
