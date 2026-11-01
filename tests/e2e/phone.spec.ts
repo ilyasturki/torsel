@@ -97,3 +97,27 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 		'import sheet'
 	).toBe(true);
 });
+
+test('the keyboard stays down until a field is tapped, and the tabs make way for it', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table, entry } = await seedSpending(context.request);
+
+	await page.goto('/app/settings');
+	await page.getByRole('button', { name: 'Import' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Import' });
+	await expect(sheet).toBeFocused();
+	await expect(sheet.getByRole('textbox', { name: 'Cells to import' })).not.toBeFocused();
+	await sheet.getByRole('button', { name: 'Close' }).click();
+
+	await page.goto(`/app/t/${table}?v=${entry}`);
+	const tabs = page.getByRole('group', { name: 'Tables' });
+	await expect(tabs).toBeVisible();
+	await page.getByRole('textbox', { name: 'Amount' }).tap();
+	await expect(tabs).toBeHidden();
+	await page.getByRole('button', { name: 'groceries', exact: true }).tap();
+	await expect(tabs).toBeVisible();
+});

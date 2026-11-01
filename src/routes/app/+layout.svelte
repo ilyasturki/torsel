@@ -149,6 +149,30 @@
 		);
 	}
 
+	const NO_KEYBOARD = new Set([
+		'button',
+		'checkbox',
+		'color',
+		'date',
+		'datetime-local',
+		'file',
+		'month',
+		'radio',
+		'range',
+		'reset',
+		'submit',
+		'time',
+		'week'
+	]);
+
+	let keyboardUp = $state(false);
+
+	function opensKeyboard(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement) || target.inputMode === 'none') return false;
+		if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+		return target instanceof HTMLInputElement && !NO_KEYBOARD.has(target.type);
+	}
+
 	function hasFiles(event: DragEvent): boolean {
 		return event.dataTransfer?.types.includes('Files') === true;
 	}
@@ -225,6 +249,10 @@
 	{onpaste}
 	{ondragover}
 	{ondrop}
+	onfocusin={(event) => {
+		keyboardUp = matchMedia('(pointer: coarse)').matches && opensKeyboard(event.target);
+	}}
+	onfocusout={() => (keyboardUp = false)}
 	ondragleave={(event) => {
 		if (event.relatedTarget === null) dropping = false;
 	}}
@@ -365,7 +393,7 @@
 		<div
 			class="pointer-events-none absolute inset-x-gutter bottom-8 flex justify-center pb-safe transition-[right] motion-slow max-sm:bottom-3 {asking
 				? 'lg:right-tabs-ask'
-				: ''}"
+				: ''} {keyboardUp ? 'invisible' : ''}"
 		>
 			<Segmented
 				label="Tables"

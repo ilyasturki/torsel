@@ -66,7 +66,7 @@
 	const BLANK = '';
 
 	type Pos = { row: string; field: string; r: number };
-	type Editing = { row: string; field: string; initial: string; typed: boolean };
+	type Editing = { row: string; field: string; initial: string; typed: boolean; touch: boolean };
 
 	let scroller = $state<HTMLElement>();
 	let table = $state<HTMLTableElement>();
@@ -466,7 +466,13 @@
 				fields[nextCol]?.id ?? ''
 			);
 		}
-		if (!leaving) table?.focus({ preventScroll: true });
+		if (leaving) return;
+		if (!target.touch) {
+			table?.focus({ preventScroll: true });
+		} else if (down !== 0 && nextKey !== BLANK && nextKey !== target.row) {
+			// Opened before the old editor's blur lands, so the keyboard stays up in this field's mode.
+			beginEdit(undefined, true);
+		}
 	}
 
 	function commitDraft({
@@ -543,7 +549,8 @@
 				row: key,
 				field: field.id,
 				initial: useNativeDate ? initial.slice(0, 10) : initial,
-				typed: typed !== undefined
+				typed: typed !== undefined,
+				touch
 			};
 		});
 	}

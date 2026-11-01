@@ -69,6 +69,12 @@ test('a first table takes one click, with no base to name', async ({ page, accou
 	await expect(page).toHaveURL(/\/app\/t\//u);
 	await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
 	const tabs = page.getByRole('group', { name: 'Tables' });
+	const name = page.getByRole('textbox', { name: 'Table name' });
+	await expect(name).toBeFocused();
+	if (test.info().project.name === 'phone') {
+		await expect(tabs, 'the tabs make way for the keyboard').toBeHidden();
+	}
+	await name.blur();
 	await expect(tabs.getByRole('link', { name: 'Table 1' })).toHaveAttribute('aria-current', 'page');
 
 	await tabs.getByRole('link', { name: 'All' }).click();

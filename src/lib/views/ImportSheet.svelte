@@ -185,6 +185,7 @@
 		? undefined
 		: 'A CSV from Google Sheets or Excel, a Torsel export, or cells you paste.'}
 	dirty={ready}
+	typeOnOpen={false}
 	onsubmit={run}
 >
 	<div class="flex flex-col gap-3" bind:this={body}>

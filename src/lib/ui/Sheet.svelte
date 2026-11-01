@@ -10,6 +10,7 @@
 		title,
 		description,
 		dirty = false,
+		typeOnOpen = true,
 		onsubmit,
 		children,
 		footer
@@ -18,6 +19,8 @@
 		title: string;
 		description?: string;
 		dirty?: boolean;
+		/** False keeps a touch keyboard down on open, for a sheet whose first field is optional. */
+		typeOnOpen?: boolean;
 		onsubmit?: () => void;
 		children: Snippet;
 		footer?: Snippet;
@@ -32,6 +35,10 @@
 
 	function focusFirstControl(event: Event): void {
 		event.preventDefault();
+		if (!typeOnOpen && matchMedia('(pointer: coarse)').matches) {
+			body?.closest<HTMLElement>('[role=dialog]')?.focus();
+			return;
+		}
 		body
 			?.querySelector<HTMLElement>('[data-autofocus], input:not([type="file"]), select, textarea')
 			?.focus();

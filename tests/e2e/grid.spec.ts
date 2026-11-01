@@ -964,6 +964,33 @@ test.describe('phone', () => {
 		expect(await page.evaluate(() => (window as unknown as { pickers: number }).pickers)).toBe(1);
 	});
 
+	test('Enter in a number moves down the column with the same keyboard', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+
+		await at(page, 0, 1).tap();
+		for (const [index, kg] of ['60', '62.5'].entries()) {
+			const input = at(page, index, 1).locator('input');
+			await expect(input).toBeFocused();
+			await expect(input).toHaveAttribute('inputmode', 'decimal');
+			await input.fill(kg);
+			await input.press('Enter');
+			await expect(at(page, index, 1)).toHaveText(kg);
+		}
+		const last = at(page, 2, 1).locator('input');
+		await expect(last).toBeFocused();
+		await last.press('Enter');
+		await expect(page.getByRole('gridcell').locator('input')).toHaveCount(0);
+		expect(
+			await page.evaluate(() => document.activeElement?.tagName),
+			'off the last row the keyboard goes away'
+		).toBe('BODY');
+	});
+
 	test('a choice offers options big enough to tap', async ({ page, context, account }) => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);
