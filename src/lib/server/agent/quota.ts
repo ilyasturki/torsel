@@ -50,7 +50,6 @@ function refusalIn(tx: Executor, user: Asker, limits: AiLimits, now: Date): Prom
 	return instance === null ? null : { scope: 'instance', until: instance };
 }
 
-/** Whether the next prompt would be refused, without taking it. */
 export function promptRefusal(
 	db: Database,
 	user: Asker,
@@ -60,7 +59,6 @@ export function promptRefusal(
 	return exempt(user, limits) ? null : refusalIn(db, user, limits, now);
 }
 
-/** Counts the prompt against both caps, unless one of them refuses it. */
 export function takePrompt(
 	db: Database,
 	user: Asker,

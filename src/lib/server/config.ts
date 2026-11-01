@@ -47,17 +47,29 @@ export function anthropicKey(): string | undefined {
 /** Prompts per rolling 24 hours, 0 for no cap; `unlimited` holds lowercased e-mails. */
 export type AiLimits = { account: number; instance: number; unlimited: Set<string> };
 
+let cachedLimits: { raw: string; limits: AiLimits } | undefined;
+
 export function aiLimits(): AiLimits {
-	return {
-		account: envCount('TORSEL_AI_DAILY_LIMIT', 30),
-		instance: envCount('TORSEL_AI_INSTANCE_DAILY_LIMIT', 300),
-		unlimited: new Set(
-			envText('TORSEL_AI_UNLIMITED', '')
-				.toLowerCase()
-				.split(/[\s,]+/u)
-				.filter((email) => email !== '')
-		)
-	};
+	const names = ['TORSEL_AI_DAILY_LIMIT', 'TORSEL_AI_INSTANCE_DAILY_LIMIT', 'TORSEL_AI_UNLIMITED'];
+	const raw = names.map((name) => envText(name, '')).join('\n');
+
+	if (cachedLimits === undefined || cachedLimits.raw !== raw) {
+		cachedLimits = {
+			raw,
+			limits: {
+				account: envCount('TORSEL_AI_DAILY_LIMIT', 30),
+				instance: envCount('TORSEL_AI_INSTANCE_DAILY_LIMIT', 300),
+				unlimited: new Set(
+					envText('TORSEL_AI_UNLIMITED', '')
+						.toLowerCase()
+						.split(/[\s,]+/u)
+						.filter((email) => email !== '')
+				)
+			}
+		};
+	}
+
+	return cachedLimits.limits;
 }
 
 export function brevoKey(): string | undefined {
