@@ -112,6 +112,7 @@ stdenv.mkDerivation {
     mkdir -p "$out/share/torsel/server" "$out/share/torsel/node_modules/@sqlite.org"
     cp -R build/bundled/. "$out/share/torsel/server/"
     cp -R build/server/client "$out/share/torsel/server/client"
+    cp -R build/server/prerendered "$out/share/torsel/server/prerendered"
     cp -R node_modules/@sqlite.org/sqlite-wasm "$out/share/torsel/node_modules/@sqlite.org/sqlite-wasm"
 
     cp -R drizzle "$out/share/torsel/drizzle"
@@ -129,6 +130,35 @@ stdenv.mkDerivation {
       --set-default MIGRATIONS_DIR "$out/share/torsel/drizzle"
 
     runHook postInstall
+  '';
+
+  # The landing and legal pages are prerendered files the bundle serves from beside itself.
+  doInstallCheck = true;
+  installCheckPhase = ''
+    runHook preInstallCheck
+
+    HOST=127.0.0.1 PORT=4321 ORIGIN=http://127.0.0.1:4321 DATABASE_PATH="$TMPDIR/check.db" \
+      "$out/bin/torsel" &
+    server=$!
+    answers() {
+      node -e 'fetch(process.argv[1]).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))' \
+        "http://127.0.0.1:4321$1"
+    }
+    for path in / /privacy /app /api/health; do
+      tries=0
+      until answers "$path"; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 50 ]; then
+          kill "$server"
+          echo "install check: $path did not answer 200" >&2
+          exit 1
+        fi
+        sleep 0.2
+      done
+    done
+    kill "$server"
+
+    runHook postInstallCheck
   '';
 
   passthru.deps = deps;
