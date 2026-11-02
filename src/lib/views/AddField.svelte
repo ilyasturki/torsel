@@ -6,8 +6,10 @@
 	import { addField } from '#lib/core/actions.ts';
 	import type { FieldType } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
-	import { input, select } from '#lib/ui/styles.ts';
+	import Select from '#lib/ui/Select.svelte';
+	import { input } from '#lib/ui/styles.ts';
 
 	let {
 		tableId,
@@ -23,15 +25,19 @@
 
 	const AUTO = 'auto';
 
-	const TYPES: { id: FieldType | typeof AUTO; label: string }[] = [
-		{ id: AUTO, label: 'From the first value' },
-		{ id: 'text', label: 'Text' },
-		{ id: 'number', label: 'Number' },
-		{ id: 'date', label: 'Date' },
-		{ id: 'check', label: 'Checkbox' },
-		{ id: 'choice', label: 'Choice…' },
-		{ id: 'link', label: 'Link to a table…' },
-		{ id: 'formula', label: 'Formula…' }
+	const TYPES = [
+		{ value: AUTO, label: 'From the first value' },
+		...(
+			[
+				['text', 'Text'],
+				['number', 'Number'],
+				['date', 'Date'],
+				['check', 'Checkbox'],
+				['choice', 'Choice…'],
+				['link', 'Link to a table…'],
+				['formula', 'Formula…']
+			] as const
+		).map(([value, label]) => ({ value, label, icon: fieldIcon(value) }))
 	];
 
 	let name = $state('');
@@ -99,11 +105,7 @@
 				}}
 			/>
 			<div class="flex gap-2">
-				<select class="{select} flex-1" aria-label="Field type" bind:value={type}>
-					{#each TYPES as option (option.id)}
-						<option value={option.id}>{option.label}</option>
-					{/each}
-				</select>
+				<Select class="flex-1" aria-label="Field type" options={TYPES} bind:value={type} />
 				<Button variant="primary" disabled={name.trim() === ''} onclick={add}>Add</Button>
 			</div>
 		</Popover.Content>

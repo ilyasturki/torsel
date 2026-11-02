@@ -18,7 +18,8 @@
 	import Empty from '#lib/ui/Empty.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Stepper from '#lib/ui/Stepper.svelte';
-	import { checkbox, input, select } from '#lib/ui/styles.ts';
+	import Select, { type Option } from '#lib/ui/Select.svelte';
+	import { checkbox, input } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
 	import { timedColumn } from './grid.ts';
@@ -184,6 +185,11 @@
 					.rows(field.target)
 					.map((row) => ({ id: row.id, title: app.ws.rowTitle(row.id) || row.id }));
 
+	const linkOptions = (field: FieldDef): Option[] => [
+		{ value: '', label: '' },
+		...targets(field).map((target) => ({ value: target.id, label: target.title }))
+	];
+
 	const ready = $derived(
 		keys.every((field) => values[field.id] !== null && values[field.id] !== undefined)
 	);
@@ -330,17 +336,13 @@
 							{/if}
 						</div>
 					{:else if field.type === 'link'}
-						<select
-							class={select}
+						<Select
 							aria-label={field.name}
-							value={values[field.id] ?? ''}
-							onchange={(event) => pickKey(field, event.currentTarget.value || null)}
-						>
-							<option value="">Choose {field.name}</option>
-							{#each targets(field) as target (target.id)}
-								<option value={target.id}>{target.title}</option>
-							{/each}
-						</select>
+							placeholder={field.name}
+							options={linkOptions(field)}
+							value={String(values[field.id] ?? '')}
+							onchange={(picked) => pickKey(field, picked || null)}
+						/>
 					{:else}
 						<input
 							class={input}
@@ -396,17 +398,13 @@
 						{field.name}
 					</label>
 				{:else if field.type === 'link'}
-					<select
-						class={select}
+					<Select
 						aria-label={field.name}
-						value={value ?? ''}
-						onchange={(event) => set(field, event.currentTarget.value || null)}
-					>
-						<option value="">Choose {field.name}</option>
-						{#each targets(field) as target (target.id)}
-							<option value={target.id}>{target.title}</option>
-						{/each}
-					</select>
+						placeholder={field.name}
+						options={linkOptions(field)}
+						value={typeof value === 'string' ? value : ''}
+						onchange={(picked) => set(field, picked || null)}
+					/>
 				{:else if field.type === 'date'}
 					{@const timed = timedFields.has(field.id)}
 					<input

@@ -188,12 +188,12 @@ test.describe('the first table', () => {
 
 		const field = page.getByRole('textbox', { name: 'Field name' });
 		await field.fill('Code');
-		await page.getByRole('combobox', { name: 'Field type' }).selectOption('text');
+		await pick(page.getByRole('combobox', { name: 'Field type' }), 'Text');
 		await page.getByRole('button', { name: 'Add', exact: true }).click();
 		await expect(header(page, 'Code')).toBeVisible();
 
 		await field.fill('Genre');
-		await page.getByRole('combobox', { name: 'Field type' }).selectOption('choice');
+		await pick(page.getByRole('combobox', { name: 'Field type' }), 'Choice…');
 		await field.press('Enter');
 		const sheet = page.getByRole('dialog', { name: 'New field' });
 		await expect(sheet.getByLabel('Name')).toHaveValue('Genre');
@@ -205,7 +205,7 @@ test.describe('the first table', () => {
 		await page.getByRole('button', { name: 'Add row' }).click();
 		const row = page.getByRole('dialog', { name: 'New row' });
 		await row.getByLabel('Code').fill('0612');
-		await row.getByLabel('Genre').selectOption('Novel');
+		await pick(row.getByLabel('Genre'), 'Novel');
 		await row.getByRole('button', { name: 'Save' }).click();
 		await expect(cell(page, '0612')).toBeVisible();
 		await expect(cell(page, 'Novel')).toBeVisible();
@@ -297,7 +297,7 @@ test.describe('the first table', () => {
 
 		await pasteText(page, 'exercise\tkg\nSquat\t100');
 		const sheet = page.getByRole('dialog', { name: 'Import' });
-		await expect(sheet.getByRole('combobox', { name: 'Into' })).toHaveValue(/^t_/u);
+		await expect(sheet.getByRole('combobox', { name: 'Into' })).not.toHaveValue('A new table');
 		await sheet.getByRole('button', { name: 'Import' }).click();
 
 		await expect(header(page, 'exercise')).toBeVisible();
@@ -514,7 +514,7 @@ test.describe('fields and views', () => {
 		await openField(page, 'Value');
 
 		const sheet = page.getByRole('dialog');
-		await sheet.getByRole('combobox', { name: 'Type' }).selectOption('number');
+		await pick(sheet.getByRole('combobox', { name: 'Type' }), 'Number');
 		await expect(sheet.getByText("1 value can't become Number and will be cleared.")).toBeVisible();
 		await sheet.getByRole('button', { name: 'Save' }).click();
 
@@ -573,8 +573,8 @@ test.describe('fields and views', () => {
 		};
 
 		let sheet = await openSettings();
-		await sheet.getByRole('combobox', { name: 'Sort by' }).selectOption({ label: 'Kg' });
-		await sheet.getByRole('combobox', { name: 'Order' }).selectOption('desc');
+		await pick(sheet.getByRole('combobox', { name: 'Sort by' }), 'Kg');
+		await pick(sheet.getByRole('combobox', { name: 'Order' }), 'Descending');
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(firstRow).toContainText('100');
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
@@ -585,10 +585,8 @@ test.describe('fields and views', () => {
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
 
 		sheet = await openSettings();
-		await expect(sheet.getByRole('combobox', { name: 'Sort by' })).toHaveValue(/^f_/u);
-		await sheet
-			.getByRole('combobox', { name: 'Sort by' })
-			.selectOption({ label: 'None, oldest first' });
+		await expect(sheet.getByRole('combobox', { name: 'Sort by' })).toHaveValue('Kg');
+		await pick(sheet.getByRole('combobox', { name: 'Sort by' }), 'None, oldest first');
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(header(page, 'Kg').locator('svg')).toHaveCount(0);
 	});
@@ -623,22 +621,18 @@ test.describe('fields and views', () => {
 
 		await page.goto(`${path}?v=${list}`);
 		let sheet = await open();
-		await expect(sheet.getByRole('combobox', { name: 'Group by' })).toHaveValue('auto');
-		await expect(sheet.getByRole('option', { name: 'Automatic (Date)' })).toBeAttached();
+		await expect(sheet.getByRole('combobox', { name: 'Group by' })).toHaveValue('Automatic (Date)');
 		await expect(sheet.getByRole('checkbox', { name: 'Kg' })).toBeChecked();
 		await expect(sheet.getByRole('checkbox', { name: 'Reps' })).toBeChecked();
 		await expect(sheet.getByRole('checkbox', { name: 'Date' })).not.toBeChecked();
 
-		await sheet.getByRole('combobox', { name: 'Group by' }).selectOption('');
+		await pick(sheet.getByRole('combobox', { name: 'Group by' }), 'Nothing');
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
 
 		await page.goto(`${path}?v=${chart}`);
 		sheet = await open();
-		await expect(sheet.getByRole('combobox', { name: 'Horizontal axis' })).toHaveValue(/^f_/u);
-		await expect(
-			sheet.getByRole('combobox', { name: 'Horizontal axis' }).locator('option:checked')
-		).toHaveText('Date');
+		await expect(sheet.getByRole('combobox', { name: 'Horizontal axis' })).toHaveValue('Date');
 	});
 
 	test('view settings name the filter the header set, and clear it', async ({
@@ -738,13 +732,13 @@ test.describe('importing', () => {
 		await expect(sheet.getByText('5 columns, 2 rows')).toBeVisible();
 		const target = (name: string): Locator =>
 			sheet.getByRole('combobox', { name: `Field for ${name}` });
-		await expect(target('date').locator('option:checked')).toHaveText('Date');
-		await expect(target('EXERCISE').locator('option:checked')).toHaveText('Exercise');
-		await expect(target('reps').locator('option:checked')).toHaveText('Reps');
-		await expect(target('place').locator('option:checked')).toHaveText('New field');
-		await expect(target('weight').locator('option:checked')).toHaveText('New field');
-		await target('weight').selectOption({ label: 'Kg' });
-		await target('place').selectOption({ label: 'Skip' });
+		await expect(target('date')).toHaveValue('Date');
+		await expect(target('EXERCISE')).toHaveValue('Exercise');
+		await expect(target('reps')).toHaveValue('Reps');
+		await expect(target('place')).toHaveValue('New field');
+		await expect(target('weight')).toHaveValue('New field');
+		await pick(target('weight'), 'Kg');
+		await pick(target('place'), 'Skip');
 		await sheet.getByRole('button', { name: 'Import' }).click();
 
 		await expect(page.getByText('4 rows')).toBeVisible();
@@ -774,11 +768,9 @@ test.describe('importing', () => {
 
 		await dropFile(page, 'rows.csv', 'Reps\n7\n');
 		const sheet = page.getByRole('dialog', { name: 'Import' });
-		await expect(
-			sheet.getByRole('combobox', { name: 'Field for Reps' }).locator('option:checked')
-		).toHaveText('Reps');
+		await expect(sheet.getByRole('combobox', { name: 'Field for Reps' })).toHaveValue('Reps');
 
-		await sheet.getByRole('combobox', { name: 'Into' }).selectOption({ label: 'A new table' });
+		await pick(sheet.getByRole('combobox', { name: 'Into' }), 'A new table');
 		await expect(sheet.getByRole('textbox', { name: 'Table name' })).toHaveValue('rows');
 		await sheet.getByRole('button', { name: 'Import' }).click();
 		await expect(page.getByRole('heading', { name: 'rows' })).toBeVisible();
@@ -896,14 +888,14 @@ test.describe('importing', () => {
 		await expect(sheet.getByText(`14 columns, ${rows.count} rows`)).toBeVisible();
 		const type = (name: string): Locator =>
 			sheet.getByRole('combobox', { name: `Type of ${name}` });
-		await expect(type('date')).toHaveValue('date');
-		await expect(type('workout')).toHaveValue('choice');
-		await expect(type('exercise')).toHaveValue('choice');
-		await expect(type('weight_kg')).toHaveValue('number');
-		await expect(type('reps')).toHaveValue('number');
-		await expect(type('rpe')).toHaveValue('number');
-		await expect(type('completed')).toHaveValue('check');
-		await expect(type('note')).toHaveValue('text');
+		await expect(type('date')).toHaveValue('Date');
+		await expect(type('workout')).toHaveValue('Choice');
+		await expect(type('exercise')).toHaveValue('Choice');
+		await expect(type('weight_kg')).toHaveValue('Number');
+		await expect(type('reps')).toHaveValue('Number');
+		await expect(type('rpe')).toHaveValue('Number');
+		await expect(type('completed')).toHaveValue('Checkbox');
+		await expect(type('note')).toHaveValue('Text');
 		await page.keyboard.press('Enter');
 
 		await expect(page.getByRole('heading', { name: 'kilorep-sets-2026-10-31' })).toBeVisible();
@@ -1031,7 +1023,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		expect(await taps()).toBe(1);
 
 		await page.getByRole('textbox', { name: 'Field name' }).fill('Done');
-		await page.getByRole('combobox', { name: 'Field type' }).selectOption('check');
+		await pick(page.getByRole('combobox', { name: 'Field type' }), 'Checkbox');
 		await page.getByRole('button', { name: 'Add', exact: true }).click();
 		await expect(header(page, 'Done')).toBeVisible();
 		expect(await taps()).toBeLessThanOrEqual(5);

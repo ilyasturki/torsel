@@ -3,7 +3,8 @@
 	import { formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { hasTime, parseDate } from '#lib/core/values.ts';
-	import { checkbox, input, select } from '#lib/ui/styles.ts';
+	import Select from '#lib/ui/Select.svelte';
+	import { checkbox, input } from '#lib/ui/styles.ts';
 
 	import { timedColumn } from './grid.ts';
 
@@ -63,17 +64,20 @@
 		oninput={(event) => (value = parseDate(event.currentTarget.value))}
 	/>
 {:else if field.type === 'choice'}
-	<select
+	<Select
 		{id}
-		class={select}
+		options={[
+			{ value: '', label: '' },
+			...field.choices.map((choice) => ({
+				value: choice.name,
+				label: choice.name,
+				color: choice.color ?? null
+			}))
+		]}
 		value={typeof value === 'string' ? value : ''}
-		onchange={(event) => (value = event.currentTarget.value || null)}
-	>
-		<option value=""></option>
-		{#each field.choices as choice (choice.name)}
-			<option value={choice.name}>{choice.name}</option>
-		{/each}
-	</select>
+		placeholder={field.name}
+		onchange={(picked) => (value = picked || null)}
+	/>
 {:else if field.type === 'check'}
 	<input
 		{id}
@@ -83,17 +87,16 @@
 		onchange={() => (value = value !== true)}
 	/>
 {:else if field.type === 'link'}
-	<select
+	<Select
 		{id}
-		class={select}
+		options={[
+			{ value: '', label: '' },
+			...targets.map((target) => ({ value: target.id, label: target.title }))
+		]}
 		value={typeof value === 'string' ? value : ''}
-		onchange={(event) => (value = event.currentTarget.value || null)}
-	>
-		<option value=""></option>
-		{#each targets as target (target.id)}
-			<option value={target.id}>{target.title}</option>
-		{/each}
-	</select>
+		placeholder={field.name}
+		onchange={(picked) => (value = picked || null)}
+	/>
 {:else if field.type === 'formula'}
 	<p class="flex h-control items-center rounded-box bg-tint px-2 text-ink-2">
 		{formatValue(field, computed ?? null)}

@@ -73,7 +73,7 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 	const sheet = page.getByRole('dialog');
 	await sheet.getByRole('button', { name: /^Chart/u }).click();
 	await sheet.getByRole('button', { name: 'Line', exact: true }).click();
-	await sheet.getByRole('combobox', { name: 'Horizontal axis' }).selectOption('Day');
+	await pick(sheet.getByRole('combobox', { name: 'Horizontal axis' }), 'Day');
 	const last = sheet.getByRole('textbox', { name: 'Rolling average (days)' });
 	expect(await clearOf(last, sheet.getByRole('button', { name: 'Create' })), 'chart sheet').toBe(
 		true

@@ -25,15 +25,19 @@
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
-	import { input, select, textarea } from '#lib/ui/styles.ts';
+	import { fieldIcon } from '#lib/ui/field-icons.ts';
+	import Select from '#lib/ui/Select.svelte';
+	import { input, textarea } from '#lib/ui/styles.ts';
 
-	const TYPES: { id: FieldType; label: string }[] = [
-		{ id: 'text', label: 'Text' },
-		{ id: 'number', label: 'Number' },
-		{ id: 'date', label: 'Date' },
-		{ id: 'choice', label: 'Choice' },
-		{ id: 'check', label: 'Checkbox' }
-	];
+	const TYPES = (
+		[
+			['text', 'Text'],
+			['number', 'Number'],
+			['date', 'Date'],
+			['choice', 'Choice'],
+			['check', 'Checkbox']
+		] as const
+	).map(([value, label]) => ({ value: value as FieldType, label, icon: fieldIcon(value) }));
 
 	const NEW_TABLE = '';
 
@@ -119,7 +123,7 @@
 		// The control that had focus is gone: Enter should still import.
 		await tick();
 		const sheet = body?.closest<HTMLElement>('[role="dialog"]');
-		(body?.querySelector<HTMLElement>('select, input') ?? sheet)?.focus();
+		(body?.querySelector<HTMLElement>('input') ?? sheet)?.focus();
 	}
 
 	function pickTable(id: string): void {
@@ -223,26 +227,23 @@
 
 		{#if hasColumns}
 			<Field label="Into">
-				<select
-					class={select}
+				<Select
+					options={[
+						{ value: NEW_TABLE, label: 'A new table', icon: 'plus' },
+						...tables.map((table) => ({ value: table.id, label: table.name }))
+					]}
 					value={into}
-					onchange={(event) => pickTable(event.currentTarget.value)}
-				>
-					<option value={NEW_TABLE}>A new table</option>
-					{#each tables as table (table.id)}
-						<option value={table.id}>{table.name}</option>
-					{/each}
-				</select>
+					onchange={pickTable}
+				/>
 			</Field>
 
 			{#if into === NEW_TABLE}
 				{#if bases.length > 1}
 					<Field label="Base">
-						<select class={select} bind:value={base}>
-							{#each bases as item (item.id)}
-								<option value={item.id}>{item.name}</option>
-							{/each}
-						</select>
+						<Select
+							options={bases.map((item) => ({ value: item.id, label: item.name }))}
+							bind:value={base}
+						/>
 					</Field>
 				{/if}
 				<Field label="Table name">
@@ -263,11 +264,11 @@
 									bind:value={column.name}
 									aria-label="Name of column {index + 1}"
 								/>
-								<select class={select} bind:value={column.type} aria-label="Type of {column.name}">
-									{#each TYPES as option (option.id)}
-										<option value={option.id}>{option.label}</option>
-									{/each}
-								</select>
+								<Select
+									options={TYPES}
+									bind:value={column.type}
+									aria-label="Type of {column.name}"
+								/>
 							</div>
 						{:else}
 							<div class="grid grid-cols-2 items-center gap-2">
@@ -275,17 +276,19 @@
 									<span class="truncate font-medium">{column.name}</span>
 									<span class="truncate text-sm text-ink-3">{sample(index)}</span>
 								</span>
-								<select
-									class={select}
+								<Select
+									options={[
+										{ value: NEW_FIELD, label: 'New field', icon: 'plus' },
+										{ value: SKIP, label: 'Skip', icon: 'x' },
+										...fields.map((field) => ({
+											value: field.id,
+											label: field.name,
+											icon: fieldIcon(field.type)
+										}))
+									]}
 									bind:value={targets[index]}
 									aria-label="Field for {column.name}"
-								>
-									<option value={NEW_FIELD}>New field</option>
-									<option value={SKIP}>Skip</option>
-									{#each fields as field (field.id)}
-										<option value={field.id}>{field.name}</option>
-									{/each}
-								</select>
+								/>
 							</div>
 						{/if}
 					{/each}

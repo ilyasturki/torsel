@@ -19,10 +19,12 @@
 	} from '#lib/core/actions.ts';
 	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import Field from '#lib/ui/Field.svelte';
-	import Icon from '#lib/ui/Icon.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
-	import { checkbox, input, legend, select } from '#lib/ui/styles.ts';
+	import Field from '#lib/ui/Field.svelte';
+	import { fieldIcon } from '#lib/ui/field-icons.ts';
+	import Icon from '#lib/ui/Icon.svelte';
+	import Select, { type Option } from '#lib/ui/Select.svelte';
+	import { checkbox, input, legend } from '#lib/ui/styles.ts';
 
 	let {
 		open = $bindable(false),
@@ -103,6 +105,9 @@
 	const autoLayout = $derived(
 		listLayout(fields, { ...config, group: undefined, title: undefined })
 	);
+	const fieldOptions = (list: FieldDef[]): Option[] =>
+		list.map((field) => ({ value: field.id, label: field.name, icon: fieldIcon(field.type) }));
+
 	const axis = $derived(chartAxis(fields, config));
 	const xField = $derived(fields.find((field) => field.id === axis));
 
@@ -203,32 +208,26 @@
 		{#if type === 'grid'}
 			<div class="grid grid-cols-2 gap-3">
 				<Field label="Sort by">
-					<select
-						class={select}
+					<Select
+						options={[{ value: '', label: 'None, oldest first' }, ...fieldOptions(fields)]}
 						value={config.sort?.field ?? ''}
-						onchange={(event) => {
-							const field = event.currentTarget.value;
+						onchange={(field) => {
 							config.sort = field ? { field, dir: config.sort?.dir ?? 'asc' } : null;
 						}}
-					>
-						<option value="">None, oldest first</option>
-						{#each fields as field (field.id)}
-							<option value={field.id}>{field.name}</option>
-						{/each}
-					</select>
+					/>
 				</Field>
 				<Field label="Order">
-					<select
-						class={select}
+					<Select
+						options={[
+							{ value: 'asc', label: 'Ascending', icon: 'arrow-up' },
+							{ value: 'desc', label: 'Descending', icon: 'arrow-down' }
+						]}
 						disabled={!config.sort}
 						value={config.sort?.dir ?? 'asc'}
-						onchange={(event) => {
-							if (config.sort) config.sort.dir = event.currentTarget.value as 'asc' | 'desc';
+						onchange={(dir) => {
+							if (config.sort) config.sort.dir = dir;
 						}}
-					>
-						<option value="asc">Ascending</option>
-						<option value="desc">Descending</option>
-					</select>
+					/>
 				</Field>
 			</div>
 			{#if config.filter}
@@ -270,11 +269,7 @@
 				{/each}
 			</fieldset>
 			<fieldset class="flex flex-col gap-1">
-				<legend class={legend}>"Last time" looks at</legend>
-				<p class="mb-1 text-sm text-ink-3">
-					Entry fills in from the latest row with the same values in these fields, for example the
-					same exercise.
-				</p>
+				<legend class={legend}>"Last time" matches on</legend>
 				{#each keyCandidates as field (field.id)}
 					<label class="flex min-h-control items-center gap-2">
 						<input
@@ -289,32 +284,28 @@
 			</fieldset>
 		{:else if type === 'list'}
 			<Field label="Group by">
-				<select
-					class={select}
+				<Select
+					options={[
+						{ value: 'auto', label: `Automatic (${autoLayout.group?.name ?? 'nothing'})` },
+						{ value: '', label: 'Nothing' },
+						...fieldOptions(fields)
+					]}
 					value={config.group === undefined ? 'auto' : (config.group ?? '')}
-					onchange={(event) => setGroup(event.currentTarget.value)}
-				>
-					<option value="auto">Automatic ({autoLayout.group?.name ?? 'nothing'})</option>
-					<option value="">Nothing</option>
-					{#each fields as field (field.id)}
-						<option value={field.id}>{field.name}</option>
-					{/each}
-				</select>
+					onchange={setGroup}
+				/>
 			</Field>
 			<Field label="Title">
-				<select
-					class={select}
+				<Select
+					options={[
+						{
+							value: '',
+							label: `Automatic (${listLayout(fields, { ...config, title: undefined }).title?.name ?? 'none'})`
+						},
+						...fieldOptions(fields)
+					]}
 					value={config.title ?? ''}
-					onchange={(event) => (config.title = event.currentTarget.value || null)}
-				>
-					<option value=""
-						>Automatic ({listLayout(fields, { ...config, title: undefined }).title?.name ??
-							'none'})</option
-					>
-					{#each fields as field (field.id)}
-						<option value={field.id}>{field.name}</option>
-					{/each}
-				</select>
+					onchange={(title) => (config.title = title || null)}
+				/>
 			</Field>
 			<fieldset class="flex flex-col gap-1">
 				<legend class={legend}>Fields under the title</legend>
@@ -349,78 +340,61 @@
 				{/each}
 			</div>
 			<Field label="Horizontal axis">
-				<select
-					class={select}
+				<Select
+					options={fieldOptions(fields)}
 					value={axis ?? ''}
-					onchange={(event) => setChart('x', event.currentTarget.value || null)}
-				>
-					{#each fields as field (field.id)}
-						<option value={field.id}>{field.name}</option>
-					{/each}
-				</select>
+					onchange={(x) => setChart('x', x || null)}
+				/>
 			</Field>
 			{#if xField?.type === 'date'}
 				<Field label="Group dates by">
-					<select
-						class={select}
+					<Select
+						options={[
+							{ value: 'day', label: 'Day' },
+							{ value: 'week', label: 'Week' },
+							{ value: 'month', label: 'Month' }
+						]}
 						value={config.bucket ?? 'day'}
-						onchange={(event) =>
-							setChart('bucket', event.currentTarget.value as ChartConfig['bucket'])}
-					>
-						<option value="day">Day</option>
-						<option value="week">Week</option>
-						<option value="month">Month</option>
-					</select>
+						onchange={(bucket) => setChart('bucket', bucket)}
+					/>
 				</Field>
 			{/if}
 			<div class="grid grid-cols-2 gap-3">
 				<Field label="Calculation">
-					<select
-						class={select}
+					<Select
+						options={[
+							{ value: 'count', label: 'Row count' },
+							{ value: 'sum', label: 'Sum' },
+							{ value: 'avg', label: 'Average' },
+							{ value: 'max', label: 'Highest' },
+							{ value: 'min', label: 'Lowest' }
+						]}
 						value={config.agg ?? 'count'}
-						onchange={(event) => setAgg(event.currentTarget.value as ChartConfig['agg'])}
-					>
-						<option value="count">Row count</option>
-						<option value="sum">Sum</option>
-						<option value="avg">Average</option>
-						<option value="max">Highest</option>
-						<option value="min">Lowest</option>
-					</select>
+						onchange={setAgg}
+					/>
 				</Field>
 				<Field label="Of">
-					<select
-						class={select}
+					<Select
+						options={fieldOptions(numeric)}
 						value={config.y ?? ''}
 						disabled={(config.agg ?? 'count') === 'count'}
-						onchange={(event) => setChart('y', event.currentTarget.value || null)}
-					>
-						<option value=""></option>
-						{#each numeric as field (field.id)}
-							<option value={field.id}>{field.name}</option>
-						{/each}
-					</select>
+						onchange={(y) => setChart('y', y || null)}
+					/>
 				</Field>
 			</div>
 			<Field label="Colour by">
-				<select
-					class={select}
+				<Select
+					options={[{ value: '', label: 'One series' }, ...fieldOptions(choices)]}
 					value={config.color ?? ''}
-					onchange={(event) => setChart('color', event.currentTarget.value || null)}
-				>
-					<option value="">One series</option>
-					{#each choices as field (field.id)}
-						<option value={field.id}>{field.name}</option>
-					{/each}
-				</select>
+					onchange={(color) => setChart('color', color || null)}
+				/>
 			</Field>
 			{#if (config.kind ?? 'bar') === 'line' && xField?.type === 'date'}
-				<Field
-					label="Rolling average (days)"
-					hint="Empty for the raw line. 7 smooths a daily weigh-in."
-				>
+				<Field label="Rolling average (days)">
 					<input
 						class={input}
 						inputmode="numeric"
+						placeholder="7"
 						value={config.rolling ?? ''}
 						oninput={(event) => {
 							const days = Number(event.currentTarget.value);

@@ -22,5 +22,3 @@ export const menuItem =
 	'motion flex h-control w-full cursor-default items-center gap-2 rounded-box px-2 text-ink outline-none transition-colors select-none data-disabled:text-ink-3 data-highlighted:bg-tint-2';
 
 export const popup = 'z-50 rounded-panel bg-float p-1 shadow-float outline-none';
-
-export const select = input;

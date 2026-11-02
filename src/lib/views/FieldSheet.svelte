@@ -11,9 +11,11 @@
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
-	import Icon from '#lib/ui/Icon.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
-	import { input, select, textarea } from '#lib/ui/styles.ts';
+	import { fieldIcon } from '#lib/ui/field-icons.ts';
+	import Icon from '#lib/ui/Icon.svelte';
+	import Select from '#lib/ui/Select.svelte';
+	import { input, textarea } from '#lib/ui/styles.ts';
 
 	let {
 		open = $bindable(false),
@@ -27,15 +29,17 @@
 		preset?: { name: string; type: FieldType } | null;
 	} = $props();
 
-	const TYPES: { id: FieldType; label: string }[] = [
-		{ id: 'text', label: 'Text' },
-		{ id: 'number', label: 'Number' },
-		{ id: 'date', label: 'Date' },
-		{ id: 'choice', label: 'Choice' },
-		{ id: 'check', label: 'Checkbox' },
-		{ id: 'link', label: 'Link to a table' },
-		{ id: 'formula', label: 'Formula (SQL)' }
-	];
+	const TYPES = (
+		[
+			['text', 'Text'],
+			['number', 'Number'],
+			['date', 'Date'],
+			['choice', 'Choice'],
+			['check', 'Checkbox'],
+			['link', 'Link to a table'],
+			['formula', 'Formula (SQL)']
+		] as const
+	).map(([value, label]) => ({ value: value as FieldType, label, icon: fieldIcon(value) }));
 
 	let name = $state('');
 	let type = $state<FieldType>('text');
@@ -84,7 +88,7 @@
 		if (result === null) return undefined;
 		if (type === 'formula') return 'The values here give way to the formula.';
 		if (type === 'link' && target === '') return 'Pick the table to link to.';
-		const label = TYPES.find((option) => option.id === type)?.label ?? type;
+		const label = TYPES.find((option) => option.value === type)?.label ?? type;
 		return result.lost === 0
 			? 'Every value carries over.'
 			: `${result.lost} ${result.lost === 1 ? 'value' : 'values'} can't become ${label} and will be cleared.`;
@@ -215,20 +219,12 @@
 		</Field>
 
 		<Field label="Type" hint={retypeHint}>
-			<select
-				class={select}
-				value={type}
-				onchange={(event) => pickType(event.currentTarget.value as FieldType)}
-			>
-				{#each TYPES as option (option.id)}
-					<option value={option.id}>{option.label}</option>
-				{/each}
-			</select>
+			<Select options={TYPES} value={type} onchange={pickType} />
 		</Field>
 
 		{#if type === 'choice'}
 			<div class="flex flex-col gap-2">
-				<span class="text-sm font-medium text-ink-2">Choices. Click one to change its colour.</span>
+				<span class="text-sm font-medium text-ink-2">Choices</span>
 				<div class="flex flex-wrap gap-1">
 					{#each choices as choice, index (choice.name)}
 						<span class="inline-flex h-control items-center rounded-box bg-tint">
@@ -271,12 +267,12 @@
 
 		{#if type === 'link'}
 			<Field label="Linked table">
-				<select class={select} bind:value={target} disabled={existing?.type === 'link'}>
-					<option value=""></option>
-					{#each tables as table (table.id)}
-						<option value={table.id}>{table.name}</option>
-					{/each}
-				</select>
+				<Select
+					options={tables.map((table) => ({ value: table.id, label: table.name }))}
+					bind:value={target}
+					placeholder="Pick a table"
+					disabled={existing?.type === 'link'}
+				/>
 			</Field>
 		{/if}
 
