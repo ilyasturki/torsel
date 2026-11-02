@@ -2,6 +2,8 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
+	import { focus } from './styles.ts';
+
 	let {
 		variant = 'secondary',
 		size = 'md',
@@ -28,7 +30,7 @@
 
 <button
 	type="button"
-	class="inline-flex items-center justify-center gap-2 rounded-box font-medium whitespace-nowrap transition-colors motion {variants[
+	class="inline-flex items-center justify-center gap-2 rounded-box font-medium whitespace-nowrap transition-colors motion {focus} {variants[
 		variant
 	]} {sizes[size]} {extra}"
 	{...rest}

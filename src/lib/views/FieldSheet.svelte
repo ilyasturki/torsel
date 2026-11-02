@@ -12,7 +12,7 @@
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import Dialog from '#lib/ui/Dialog.svelte';
 	import { input, select, textarea } from '#lib/ui/styles.ts';
 
 	let {
@@ -208,7 +208,7 @@
 	}
 </script>
 
-<Sheet bind:open title={existing === undefined ? 'New field' : 'Field'} {dirty} onsubmit={save}>
+<Dialog bind:open title={existing === undefined ? 'New field' : 'Field'} {dirty} onsubmit={save}>
 	<div class="flex flex-col gap-3">
 		<Field label="Name">
 			<input class={input} bind:value={name} placeholder="Weight, Exercise, Amount" />
@@ -329,4 +329,4 @@
 		<div class="flex-1"></div>
 		<Button variant="primary" onclick={save}>Save</Button>
 	{/snippet}
-</Sheet>
+</Dialog>

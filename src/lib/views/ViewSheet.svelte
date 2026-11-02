@@ -21,7 +21,7 @@
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import Dialog from '#lib/ui/Dialog.svelte';
 	import { checkbox, input, legend, select } from '#lib/ui/styles.ts';
 
 	let {
@@ -172,7 +172,7 @@
 	): boolean => (config[key] ?? fallback).includes(field.id);
 </script>
 
-<Sheet
+<Dialog
 	bind:open
 	title={existing === undefined ? 'New view' : 'View settings'}
 	{dirty}
@@ -453,4 +453,4 @@
 		<div class="flex-1"></div>
 		<Button variant="primary" onclick={save}>{existing === undefined ? 'Create' : 'Save'}</Button>
 	{/snippet}
-</Sheet>
+</Dialog>

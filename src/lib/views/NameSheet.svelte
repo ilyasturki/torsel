@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '#lib/ui/Button.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import Dialog from '#lib/ui/Dialog.svelte';
 	import { input } from '#lib/ui/styles.ts';
 
 	let {
@@ -38,11 +38,11 @@
 	}
 </script>
 
-<Sheet bind:open {title} dirty={name !== initial} onsubmit={save}>
+<Dialog bind:open {title} dirty={name !== initial} onsubmit={save}>
 	<input class={input} bind:value={name} {placeholder} aria-label={title} />
 
 	{#snippet footer()}
 		<div class="flex-1"></div>
 		<Button variant="primary" disabled={name.trim() === ''} onclick={save}>{action}</Button>
 	{/snippet}
-</Sheet>
+</Dialog>

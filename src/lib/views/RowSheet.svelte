@@ -5,7 +5,7 @@
 	import type { Value } from '#lib/core/model.ts';
 	import { todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import Dialog from '#lib/ui/Dialog.svelte';
 
 	import FieldInput from './FieldInput.svelte';
 
@@ -74,7 +74,7 @@
 	}
 </script>
 
-<Sheet bind:open title={rowId === null ? 'New row' : 'Row'} {dirty} onsubmit={save}>
+<Dialog bind:open title={rowId === null ? 'New row' : 'Row'} {dirty} onsubmit={save}>
 	<div class="flex flex-col gap-3">
 		{#each fields as field (field.id)}
 			<div class="flex flex-col gap-1">
@@ -99,4 +99,4 @@
 		<div class="flex-1"></div>
 		<Button variant="primary" onclick={save}>Save</Button>
 	{/snippet}
-</Sheet>
+</Dialog>

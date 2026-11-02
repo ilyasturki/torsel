@@ -206,6 +206,7 @@
 	--color-fill: var(--fill);
 	--color-on-fill: var(--on-fill);
 	--color-scrim: var(--scrim);
+	--color-focus: var(--ink);
 }
 
 @utility pt-safe {
@@ -284,7 +285,9 @@ button {
 	cursor: pointer;
 }
 
-:focus-visible {
-	outline: 2px solid var(--ink);
-	outline-offset: -2px;
+@layer base {
+	:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: -2px;
+	}
 }

@@ -24,7 +24,7 @@
 	import type { FieldType, Rec } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import Dialog from '#lib/ui/Dialog.svelte';
 	import { input, select, textarea } from '#lib/ui/styles.ts';
 
 	const TYPES: { id: FieldType; label: string }[] = [
@@ -178,7 +178,7 @@
 	}
 </script>
 
-<Sheet
+<Dialog
 	bind:open
 	title="Import"
 	description={ready
@@ -304,4 +304,4 @@
 			>{records === null ? 'Import' : 'Restore'}</Button
 		>
 	{/snippet}
-</Sheet>
+</Dialog>
