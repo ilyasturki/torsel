@@ -1,10 +1,11 @@
-import { formatValue, plainNumber } from '#lib/client/format.ts';
+import type { LocaleFormats } from '#lib/client/format.ts';
+import { browserFormats, formatValue, plainNumber } from '#lib/client/format.ts';
 import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
-import { parseCheck, parseDate, parseNumber } from '#lib/core/values.ts';
+import { parseCheck } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 import { nextChoice } from '#lib/ui/colors.ts';
 
@@ -116,10 +117,11 @@ export function linkOptions(ws: Workspace, tableId: string | null): LinkOption[]
 		.sort((a, b) => collator.compare(a.label, b.label));
 }
 
-const SHORT_DATE = /^\d{1,2}[/.-]\d{1,2}$/u;
-
 /** Reads typed or pasted text into a field's value; undefined when it is not one. */
-export function cellReader(ws: Workspace): (field: FieldDef, raw: string) => Value | undefined {
+export function cellReader(
+	ws: Workspace,
+	formats: LocaleFormats = browserFormats
+): (field: FieldDef, raw: string) => Value | undefined {
 	const links = new Map<string, Map<string, string>>();
 
 	function linkId(tableId: string, raw: string): string | undefined {
@@ -146,12 +148,9 @@ export function cellReader(ws: Workspace): (field: FieldDef, raw: string) => Val
 		}
 		switch (field.type) {
 			case 'number':
-				return parseNumber(text) ?? undefined;
+				return formats.readNumber(text) ?? undefined;
 			case 'date':
-				return (
-					parseDate(SHORT_DATE.test(text) ? `${text}/${new Date().getFullYear()}` : text) ??
-					undefined
-				);
+				return formats.readDate(text) ?? undefined;
 			case 'check':
 				return parseCheck(text) ?? undefined;
 			case 'choice':

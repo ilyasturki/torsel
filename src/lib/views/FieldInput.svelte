@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatNumber, formatValue } from '#lib/client/format.ts';
+	import { formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
-	import { parseNumber } from '#lib/core/values.ts';
+	import { hasTime, parseDate } from '#lib/core/values.ts';
 	import { checkbox, input, select } from '#lib/ui/styles.ts';
 
 	let {
@@ -12,13 +12,21 @@
 		id
 	}: { field: FieldDef; value?: Value; computed?: Value; id?: string } = $props();
 
-	let numberText = $state(typeof value === 'number' ? formatNumber(value) : '');
+	let numberText = $state(typeof value === 'number' ? formatNumber(value, { edit: true }) : '');
 
 	$effect(() => {
 		const current = typeof value === 'number' ? value : null;
-		if (parseNumber(numberText) !== current) {
-			numberText = current === null ? '' : formatNumber(current);
+		if (readNumber(numberText) !== current) {
+			numberText = current === null ? '' : formatNumber(current, { edit: true });
 		}
+	});
+
+	let timed = $state(false);
+
+	$effect.pre(() => {
+		if (field.type !== 'date' || timed) return;
+		void app.version;
+		timed = hasTime(value) || app.ws.rows(field.table).some((row) => hasTime(row.data[field.id]));
 	});
 
 	const targets = $derived.by(() => {
@@ -41,16 +49,16 @@
 		value={numberText}
 		oninput={(event) => {
 			numberText = event.currentTarget.value;
-			value = parseNumber(numberText);
+			value = readNumber(numberText);
 		}}
 	/>
 {:else if field.type === 'date'}
 	<input
 		{id}
 		class={input}
-		type="date"
-		value={typeof value === 'string' ? value.slice(0, 10) : ''}
-		oninput={(event) => (value = event.currentTarget.value || null)}
+		type={timed ? 'datetime-local' : 'date'}
+		value={typeof value === 'string' ? (timed && !hasTime(value) ? `${value}T00:00` : value) : ''}
+		oninput={(event) => (value = parseDate(event.currentTarget.value))}
 	/>
 {:else if field.type === 'choice'}
 	<select
@@ -86,7 +94,7 @@
 	</select>
 {:else if field.type === 'formula'}
 	<p class="flex h-control items-center rounded-box bg-tint px-2 text-ink-2">
-		{formatValue({ type: 'number' }, computed ?? null)}
+		{formatValue(field, computed ?? null)}
 	</p>
 {:else}
 	<input

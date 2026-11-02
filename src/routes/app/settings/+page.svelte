@@ -206,7 +206,7 @@
 								<span class="truncate text-sm text-ink-3"
 									>{token.prefix}…, created {formatDate(
 										new Date(token.createdAt).toISOString().slice(0, 10),
-										true
+										{ withYear: true }
 									)}</span
 								>
 							</span>

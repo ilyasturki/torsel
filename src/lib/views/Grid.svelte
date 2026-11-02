@@ -3,7 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh, ghostFields, ghostValue, isDoomed } from '#lib/client/assistant.svelte.ts';
-	import { formatDate, plainNumber } from '#lib/client/format.ts';
+	import { editDate, formatDate, formatNumber } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -83,7 +83,7 @@
 	let editing = $state.raw<Editing | null>(null);
 	let draft = $state('');
 	let seed = $state('');
-	let useNativeDate = $state(false);
+	let nativeDate = $state<'date' | 'datetime-local' | null>(null);
 
 	let rowOpen = $state(false);
 	let rowId = $state<string | null>(null);
@@ -509,10 +509,14 @@
 		return `${field.name} is calculated by a formula, so it can't be edited.`;
 	}
 
-	function initialDraft(field: FieldDef, row: Rec | undefined): string {
-		const value = row?.data[field.id];
-		if (row === undefined && field.type === 'date') return todayIso();
-		if (field.type === 'number' && typeof value === 'number') return plainNumber(value);
+	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
+		const value = row === undefined && field.type === 'date' ? todayIso() : row?.data[field.id];
+		if (field.type === 'number' && typeof value === 'number') {
+			return formatNumber(value, { edit: true });
+		}
+		if (field.type === 'date' && typeof value === 'string') {
+			return native ? value : editDate(value);
+		}
 		return typeof value === 'string' ? value : '';
 	}
 
@@ -539,16 +543,17 @@
 			toggleCheck(key, field);
 			return;
 		}
-		const initial = initialDraft(field, row);
+		const native = touch && field.type === 'date';
+		const initial = initialDraft(field, row, native);
 		flushSync(() => {
 			anchor = head;
-			useNativeDate = touch && field.type === 'date';
+			nativeDate = native ? (initial.includes('T') ? 'datetime-local' : 'date') : null;
 			seed = typed ?? '';
-			draft = typed ?? (useNativeDate ? initial.slice(0, 10) : initial);
+			draft = typed ?? initial;
 			editing = {
 				row: key,
 				field: field.id,
-				initial: useNativeDate ? initial.slice(0, 10) : initial,
+				initial,
 				typed: typed !== undefined,
 				touch
 			};
@@ -1034,7 +1039,7 @@
 					{@attach (node: HTMLInputElement) => {
 						node.focus();
 						if (node.type === 'text') node.setSelectionRange(node.value.length, node.value.length);
-						if (node.type === 'date') {
+						if (node.type === 'date' || node.type === 'datetime-local') {
 							try {
 								node.showPicker();
 							} catch {
@@ -1046,7 +1051,7 @@
 						? 'text-right'
 						: ''}"
 					aria-label={field.name}
-					type={useNativeDate ? 'date' : 'text'}
+					type={nativeDate ?? 'text'}
 					inputmode={field.type === 'number' ? 'decimal' : undefined}
 					enterkeyhint="done"
 					autocomplete="off"

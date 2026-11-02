@@ -79,6 +79,10 @@ export function parseCheck(raw: string): boolean | null {
 	return FALSE_WORDS.has(value) ? false : null;
 }
 
+export function hasTime(value: unknown): boolean {
+	return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/u.test(value);
+}
+
 export function todayIso(now: Date = new Date()): string {
 	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }

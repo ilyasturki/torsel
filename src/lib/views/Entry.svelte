@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatDate, formatNumber, formatValue } from '#lib/client/format.ts';
+	import { formatDate, formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import { loggedThrough } from '#lib/client/place.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import {
@@ -11,7 +11,7 @@
 		updateRecord
 	} from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
-	import { parseNumber, todayIso } from '#lib/core/values.ts';
+	import { hasTime, parseDate, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
@@ -63,6 +63,16 @@
 	let rowId = $state<string | null>(null);
 
 	const today = todayIso();
+
+	const timedFields = $derived(
+		new Set(
+			others
+				.filter(
+					(field) => field.type === 'date' && ordered.some((row) => hasTime(row.data[field.id]))
+				)
+				.map((field) => field.id)
+		)
+	);
 
 	const ordered = $derived.by(() => {
 		void app.version;
@@ -127,7 +137,7 @@
 		const base = typeof current === 'number' ? current : 0;
 		const next = Math.max(0, Math.round((base + direction * size) * 1000) / 1000);
 		set(field, next);
-		texts[field.id] = formatNumber(next);
+		texts[field.id] = formatNumber(next, { edit: true });
 	}
 
 	function recentChoices(field: FieldDef): string[] {
@@ -352,10 +362,11 @@
 					<Stepper
 						label={field.name}
 						size={stepperSize}
-						text={texts[field.id] ?? (typeof value === 'number' ? formatNumber(value) : '')}
+						text={texts[field.id] ??
+							(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
 						oninput={(text) => {
 							texts[field.id] = text;
-							set(field, parseNumber(text));
+							set(field, readNumber(text));
 						}}
 						onstep={(direction) => step(field, direction)}
 					/>
@@ -400,12 +411,17 @@
 						{/each}
 					</select>
 				{:else if field.type === 'date'}
+					{@const timed = timedFields.has(field.id)}
 					<input
 						class={input}
-						type="date"
+						type={timed ? 'datetime-local' : 'date'}
 						aria-label={field.name}
-						value={typeof value === 'string' ? value.slice(0, 10) : ''}
-						oninput={(event) => set(field, event.currentTarget.value || null)}
+						value={typeof value === 'string'
+							? timed && !hasTime(value)
+								? `${value}T00:00`
+								: value
+							: ''}
+						oninput={(event) => set(field, parseDate(event.currentTarget.value))}
 					/>
 				{:else}
 					<input

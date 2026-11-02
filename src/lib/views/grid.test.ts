@@ -1,3 +1,4 @@
+import { localeFormats } from '#lib/client/format.ts';
 import { describe, expect, it } from 'vitest';
 
 import { addField, createBase, createTable, insertRows, reorder } from '#lib/core/actions.ts';
@@ -77,13 +78,15 @@ describe('copying a cell', () => {
 describe('reading a cell', () => {
 	it('reads each type, and refuses what is not one', () => {
 		const { ws, note, kg, day, style, lift, done, sum, target } = fixture();
-		const read = cellReader(ws);
+		const read = cellReader(ws, localeFormats('en-GB'));
 		expect(read(note, ' spaced ')).toBe(' spaced ');
 		expect(read(kg, '1,5')).toBe(1.5);
 		expect(read(kg, 'heavy')).toBeUndefined();
 		expect(read(day, '30/10/2026')).toBe('2026-10-30');
 		expect(read(day, '30/10')).toBe(`${new Date().getFullYear()}-10-30`);
 		expect(read(day, 'soon')).toBeUndefined();
+		expect(cellReader(ws, localeFormats('en-US'))(day, '10/30/2026')).toBe('2026-10-30');
+		expect(cellReader(ws, localeFormats('en-US'))(kg, '2,024')).toBe(2024);
 		expect(read(style, 'strict')).toBe('Strict');
 		expect(read(style, 'Tempo')).toBe('Tempo');
 		expect(read(lift, 'squat')).toBe(ws.rows(target.id)[0].id);

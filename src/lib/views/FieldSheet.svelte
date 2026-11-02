@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatNumber } from '#lib/client/format.ts';
+	import { formatNumber, readNumber } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
 	import { FormulaError, toDisplay, toStored } from '#lib/core/formula.ts';
@@ -100,7 +100,7 @@
 			target = field?.target ?? '';
 			formula = field?.expr ? toDisplay(field.expr, app.ws.fields(tableId)) : '';
 			description = field?.description ?? '';
-			step = field?.step ? formatNumber(field.step) : '';
+			step = field?.step ? formatNumber(field.step, { edit: true }) : '';
 			newChoice = '';
 			problem = '';
 			start = untrack(snapshot);
@@ -159,7 +159,7 @@
 			}
 		}
 
-		const stepValue = Number(step.replace(',', '.'));
+		const stepValue = readNumber(step) ?? Number.NaN;
 		const set: Record<string, Value> = {
 			name: name.trim(),
 			description: description.trim() === '' ? null : description.trim(),
