@@ -18,7 +18,7 @@ function bucketSql(field: FieldDef, bucket: ChartConfig['bucket']): string {
 	const column = `t.${field.id}`;
 
 	if (field.type !== 'date') {
-		return field.type === 'check' ? `case ${column} when 1 then 'oui' else 'non' end` : column;
+		return field.type === 'check' ? `case ${column} when 1 then 'yes' else 'no' end` : column;
 	}
 
 	const day = `substr(${column}, 1, 10)`;

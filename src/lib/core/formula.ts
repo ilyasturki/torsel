@@ -72,7 +72,7 @@ export function toStored(expr: string, fields: Named[]): string {
 			const end = expr.indexOf('}}', i);
 			const id = end < 0 ? '' : expr.slice(i + 2, end);
 			if (!ids.has(id)) {
-				throw new FormulaError(`champ inconnu : ${id || expr.slice(i)}`);
+				throw new FormulaError(`unknown field: ${id || expr.slice(i)}`);
 			}
 			out += `{{${id}}}`;
 			i = end + 2;
@@ -97,7 +97,7 @@ export function toStored(expr: string, fields: Named[]): string {
 	}
 
 	if (out.trim() === '') {
-		throw new FormulaError('la formule est vide');
+		throw new FormulaError('the formula is empty');
 	}
 
 	return out;
