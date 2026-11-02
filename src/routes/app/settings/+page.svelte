@@ -26,6 +26,11 @@
 	let minted = $state<string | null>(null);
 	let tokenProblem = $state('');
 
+	// From sm up a section reads as a row: its name on the left, what it holds on the right.
+	const row = 'flex flex-col gap-3 sm:flex-row sm:gap-8 sm:border-b sm:border-rule sm:py-6';
+	const rowName = 'font-semibold sm:w-48 sm:shrink-0';
+	const rowBody = 'flex max-w-xl min-w-0 flex-1 flex-col gap-3';
+
 	async function refreshTokens(): Promise<void> {
 		try {
 			tokens = (await listTokens()).filter((token) => token.kind === 'api');
@@ -89,15 +94,11 @@
 	);
 </script>
 
-<div class="flex max-w-prose flex-col gap-6 p-4 pb-tabs-clear">
+<div class="flex flex-col gap-6 p-4 sm:max-w-4xl sm:gap-0 sm:px-6 sm:py-0">
 	{#if import.meta.env.APP_BUILD}
 		<details open={!base}>
 			<summary class="font-semibold">Server{base ? `: ${base}` : ''}</summary>
 			<div class="mt-3 flex flex-col gap-3">
-				<p class="text-ink-2">
-					Without a server, everything stays on this phone. Connect one to sync and use the
-					assistant.
-				</p>
 				<ServerForm
 					onconnected={(address) => {
 						base = address;
@@ -109,118 +110,119 @@
 	{/if}
 
 	{#if base}
-		<section class="flex flex-col gap-3">
-			<h2 class="font-semibold">Account</h2>
-			{#if me.account}
-				<div class="flex items-center justify-between gap-3">
-					<span class="min-w-0 truncate">{me.account.email}</span>
-					<Button onclick={leave}>Sign out</Button>
-				</div>
-				<form
-					class="flex flex-col gap-2"
-					onsubmit={(event) => {
-						event.preventDefault();
-						void savePassword();
-					}}
-				>
-					<input
-						class="sr-only"
-						type="text"
-						name="email"
-						autocomplete="username"
-						value={me.account.email}
-						readonly
-						tabindex="-1"
-						aria-hidden="true"
-					/>
-					<Field
-						label={me.account.hasPassword ? 'New password' : 'Password'}
-						hint={me.account.hasPassword
-							? 'Changing it signs out your other devices and revokes your MCP tokens.'
-							: 'You sign in with an emailed code. A password makes it one step.'}
+		<section class={row}>
+			<h2 class={rowName}>Account</h2>
+			<div class={rowBody}>
+				{#if me.account}
+					<div class="flex items-center justify-between gap-3">
+						<span class="min-w-0 truncate">{me.account.email}</span>
+						<Button onclick={leave}>Sign out</Button>
+					</div>
+					<form
+						class="flex flex-col gap-2"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void savePassword();
+						}}
 					>
-						<PasswordInput
-							bind:value={newPassword}
-							autocomplete="new-password"
-							minlength={8}
-							required
+						<input
+							class="sr-only"
+							type="text"
+							name="email"
+							autocomplete="username"
+							value={me.account.email}
+							readonly
+							tabindex="-1"
+							aria-hidden="true"
 						/>
-					</Field>
-					<Button type="submit" class="self-start">
-						{me.account.hasPassword ? 'Change password' : 'Set password'}
-					</Button>
-					{#if passwordProblem}<p role="alert">{passwordProblem}</p>{/if}
-				</form>
-			{:else if me.account === null}
-				<p class="text-ink-2">
-					Everything here works without an account. Sign in to sync across devices and use the
-					assistant.
-				</p>
-				<a class="self-start font-medium underline" href={signInPath(SETTINGS)}>Sign in</a>
-			{:else}
-				<p class="text-ink-2">Can’t reach the server right now.</p>
-			{/if}
+						<Field
+							label={me.account.hasPassword ? 'New password' : 'Password'}
+							hint={me.account.hasPassword
+								? 'Changing it signs out your other devices and revokes your MCP tokens.'
+								: 'You sign in with an emailed code. A password makes it one step.'}
+						>
+							<PasswordInput
+								bind:value={newPassword}
+								autocomplete="new-password"
+								minlength={8}
+								required
+							/>
+						</Field>
+						<Button type="submit" class="self-start">
+							{me.account.hasPassword ? 'Change password' : 'Set password'}
+						</Button>
+						{#if passwordProblem}<p role="alert">{passwordProblem}</p>{/if}
+					</form>
+				{:else if me.account === null}
+					<a class="self-start font-medium underline" href={signInPath(SETTINGS)}>Sign in</a>
+				{:else}
+					<p class="text-ink-2">Can’t reach the server right now.</p>
+				{/if}
+			</div>
 		</section>
 	{/if}
 
 	{#if me.account}
-		<section class="flex flex-col gap-3">
-			<h2 class="font-semibold">Agents (MCP)</h2>
-			<p class="text-ink-2">
-				A token lets Claude Code, Claude.ai or another MCP client read and change your tables at {mcpUrl}.
-			</p>
-			<form
-				class="flex gap-2"
-				onsubmit={(event) => {
-					event.preventDefault();
-					void mint();
-				}}
-			>
-				<input class={input} bind:value={label} aria-label="Token name" />
-				<Button type="submit">Create token</Button>
-			</form>
-			{#if tokenProblem}<p role="alert">{tokenProblem}</p>{/if}
-			{#if minted}
-				<div class="flex flex-col items-start gap-2 rounded-box bg-tint p-3">
-					<p class="font-medium">Copy it now. It won’t be shown again.</p>
-					<code class="font-mono text-sm break-all">{command}</code>
-					<Button onclick={() => void navigator.clipboard.writeText(command)}>Copy command</Button>
-				</div>
-			{/if}
-			{#if tokens.length > 0}
-				<div class="flex flex-col">
-					{#each tokens as token (token.id)}
-						<div class="flex min-h-row items-center justify-between gap-3">
-							<span class="flex min-w-0 flex-col">
-								<span class="truncate">{token.label}</span>
-								<span class="truncate text-sm text-ink-3"
-									>{token.prefix}…, created {formatDate(
-										new Date(token.createdAt).toISOString().slice(0, 10),
-										{ withYear: true }
-									)}</span
-								>
-							</span>
-							<Button variant="ghost" onclick={() => revoke(token.id)}>Revoke</Button>
-						</div>
-					{/each}
-				</div>
-			{/if}
+		<section class={row}>
+			<h2 class={rowName}>Agents (MCP)</h2>
+			<div class={rowBody}>
+				<code class="font-mono text-sm break-all text-ink-2">{mcpUrl}</code>
+				<form
+					class="flex gap-2"
+					onsubmit={(event) => {
+						event.preventDefault();
+						void mint();
+					}}
+				>
+					<input class={input} bind:value={label} aria-label="Token name" />
+					<Button type="submit">Create token</Button>
+				</form>
+				{#if tokenProblem}<p role="alert">{tokenProblem}</p>{/if}
+				{#if minted}
+					<div class="flex flex-col items-start gap-2 rounded-box bg-tint p-3">
+						<p class="font-medium">Copy it now. It won’t be shown again.</p>
+						<code class="font-mono text-sm break-all">{command}</code>
+						<Button onclick={() => void navigator.clipboard.writeText(command)}>Copy command</Button
+						>
+					</div>
+				{/if}
+				{#if tokens.length > 0}
+					<div class="flex flex-col">
+						{#each tokens as token (token.id)}
+							<div class="flex min-h-row items-center justify-between gap-3">
+								<span class="flex min-w-0 flex-col">
+									<span class="truncate">{token.label}</span>
+									<span class="truncate text-sm text-ink-3"
+										>{token.prefix}…, created {formatDate(
+											new Date(token.createdAt).toISOString().slice(0, 10),
+											{ withYear: true }
+										)}</span
+									>
+								</span>
+								<Button variant="ghost" onclick={() => revoke(token.id)}>Revoke</Button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		</section>
 	{/if}
 
-	<section class="flex items-center justify-between gap-3">
-		<span class="min-w-0 flex-1">All data on this device</span>
-		<Button onclick={() => (shell.importing = { into: null })}>Import</Button>
-		<Button onclick={downloadBackup}>Export as JSON</Button>
+	<section class="{row} max-sm:flex-row max-sm:items-center">
+		<h2 class="{rowName} max-sm:flex-1 max-sm:font-normal">All data on this device</h2>
+		<div class="flex gap-3">
+			<Button onclick={() => (shell.importing = { into: null })}>Import</Button>
+			<Button onclick={downloadBackup}>Export as JSON</Button>
+		</div>
 	</section>
 
 	{#if me.account === null}
-		<section class="flex items-center justify-between gap-3">
-			<span
-				>{erasing
+		<section class="{row} max-sm:flex-row max-sm:items-center">
+			<h2 class="{rowName} max-sm:flex-1 max-sm:font-normal">
+				{erasing
 					? 'This can’t be undone.'
-					: `Leaving this ${import.meta.env.APP_BUILD ? 'device' : 'browser'} for good?`}</span
-			>
+					: `Leaving this ${import.meta.env.APP_BUILD ? 'device' : 'browser'} for good?`}
+			</h2>
 			{#if erasing}
 				<Button onclick={() => void eraseDevice()}>Erase for good</Button>
 			{:else}
@@ -229,5 +231,5 @@
 		</section>
 	{/if}
 
-	<p class="text-sm text-ink-3">Torsel {import.meta.env.APP_VERSION}</p>
+	<p class="text-sm text-ink-3 sm:py-6">Torsel {import.meta.env.APP_VERSION}</p>
 </div>
