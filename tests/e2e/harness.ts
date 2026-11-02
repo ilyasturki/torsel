@@ -88,11 +88,28 @@ export async function pick(select: Locator, option: string | RegExp): Promise<vo
 		.click();
 }
 
-export const undoButton = (page: Page): Locator =>
-	page.getByRole('button', { name: 'Undo', exact: true });
+/** The Undo a change's toast offers, or the Redo an undo's toast offers. */
+export const toastButton = (page: Page, name: 'Undo' | 'Redo'): Locator =>
+	page.getByRole('status').getByRole('button', { name, exact: true });
 
-export const redoButton = (page: Page): Locator =>
-	page.getByRole('button', { name: 'Redo', exact: true });
+/** Out of any text field, which keeps Ctrl+Z for its own text. */
+async function leaveField(page: Page): Promise<void> {
+	await page.evaluate(() => {
+		const active = document.activeElement;
+		if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) active.blur();
+	});
+}
+
+/** The keyboard is the only way back once the toast has gone: no button undoes. */
+export async function undo(page: Page): Promise<void> {
+	await leaveField(page);
+	await page.keyboard.press('ControlOrMeta+z');
+}
+
+export async function redo(page: Page): Promise<void> {
+	await leaveField(page);
+	await page.keyboard.press('ControlOrMeta+Shift+z');
+}
 
 export type SignInMail = { link: string | null; code: string };
 

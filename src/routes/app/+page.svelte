@@ -2,7 +2,7 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { createBase, deleteRecords, updateRecord } from '#lib/core/actions.ts';
 	import type { BaseDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -104,7 +104,7 @@
 	bind:open={creatingBase}
 	title="New base"
 	placeholder="Gym, Money, Reading"
-	onsave={(name) => app.apply(createBase(app.ws, name).changes, `Base "${name}" created`)}
+	onsave={(name) => applyWithUndo(createBase(app.ws, name).changes, `Base "${name}" created`)}
 />
 <NameSheet
 	open={renaming !== null}
@@ -113,6 +113,7 @@
 	initial={renaming?.name ?? ''}
 	action="Rename"
 	onsave={(name) => {
-		if (renaming !== null) app.apply(updateRecord(app.ws, renaming.id, { name }), 'Base renamed');
+		if (renaming !== null)
+			applyWithUndo(updateRecord(app.ws, renaming.id, { name }), 'Base renamed');
 	}}
 />

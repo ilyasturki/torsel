@@ -3,7 +3,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { addField, createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import type { FieldSpec } from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
-import { expect, seed, tablePath, test } from './harness.ts';
+import { expect, seed, tablePath, test, toastButton } from './harness.ts';
 
 const LONG = 'A value far longer than any column could ever show on one line of a grid';
 
@@ -421,11 +421,12 @@ test.describe('ranges', () => {
 		await expect(at(page, 2, 0)).toHaveText('Exercise 3');
 		await expect(at(page, 0, 4)).toHaveText('');
 
-		await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+		await toastButton(page, 'Undo').click();
 		await expect(at(page, 0, 0)).toHaveText('Exercise 1');
 		await expect(at(page, 1, 1)).toHaveText('20');
 		await expect(at(page, 0, 4)).toHaveText('20');
-		await expect(page.getByRole('button', { name: 'Undo', exact: true }).first()).toBeDisabled();
+		await grid(page).press('Control+z');
+		await expect(page.getByRole('status')).toContainText('Nothing to undo');
 	});
 
 	test('copies a range as TSV with the raw values', async ({ page, context, account }) => {
@@ -476,7 +477,8 @@ test.describe('ranges', () => {
 		await expect(at(page, 1, 0)).toHaveText('Exercise 2');
 		await expect(at(page, 1, 1)).toHaveText('20');
 		await expect(at(page, 1, 2)).toHaveText('Strict');
-		await expect(page.getByRole('button', { name: 'Undo', exact: true }).first()).toBeDisabled();
+		await grid(page).press('Control+z');
+		await expect(page.getByRole('status')).toContainText('Nothing to undo');
 	});
 
 	test('one value pasted over a range fills it', async ({ page, context, account }) => {

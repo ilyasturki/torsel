@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
 	import { pastedCells, shell } from '#lib/client/shell.svelte.ts';
+	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
 	import type { TableDef } from '#lib/core/model.ts';
 	import { fieldFocus } from '#lib/ui/styles.ts';
@@ -29,7 +30,7 @@
 		editing = false;
 		const name = draft.trim();
 		if (name !== '' && name !== table.name) {
-			app.apply(updateRecord(app.ws, table.id, { name }), 'Table renamed');
+			applyWithUndo(updateRecord(app.ws, table.id, { name }), 'Table renamed');
 		}
 	}
 

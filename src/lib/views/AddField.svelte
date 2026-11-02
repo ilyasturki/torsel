@@ -3,6 +3,7 @@
 	import { tick } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { addField } from '#lib/core/actions.ts';
 	import type { FieldType } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -65,7 +66,7 @@
 			type: type === AUTO ? 'text' : type,
 			auto: type === AUTO
 		});
-		app.apply(changes, `Field "${label}" added`);
+		applyWithUndo(changes, `Field "${label}" added`);
 		name = '';
 		type = AUTO;
 		field?.focus();

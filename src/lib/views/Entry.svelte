@@ -2,7 +2,7 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import { loggedThrough } from '#lib/client/place.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import {
 		defaultMatch,
 		doneRows,
@@ -172,7 +172,7 @@
 				...field.choices,
 				{ name, color: DATA_COLORS[(field.choices.length % 7) + 1] }
 			];
-			app.apply(updateRecord(app.ws, field.id, { choices }), `Choice "${name}" added`);
+			applyWithUndo(updateRecord(app.ws, field.id, { choices }), `Choice "${name}" added`);
 		}
 		if (keyIds.has(field.id)) pickKey(field, name);
 		else set(field, name);

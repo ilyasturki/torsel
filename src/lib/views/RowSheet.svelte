@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords, insertRows, updateRow } from '#lib/core/actions.ts';
 	import type { Value } from '#lib/core/model.ts';
 	import { todayIso } from '#lib/core/values.ts';
@@ -59,7 +59,7 @@
 			const group = app.apply(changes, 'Row added');
 			showToast('Row added', group?.id ?? null);
 		} else if (dirty) {
-			app.apply(updateRow(app.ws, rowId, changed), 'Row changed');
+			applyWithUndo(updateRow(app.ws, rowId, changed), 'Row changed');
 		}
 		open = false;
 	}

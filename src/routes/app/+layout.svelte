@@ -14,7 +14,7 @@
 	import { me } from '#lib/client/session.svelte.ts';
 	import { pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { redoChange, undoChange } from '#lib/client/toast.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Logo from '#lib/ui/Logo.svelte';
@@ -115,16 +115,6 @@
 	let viewCreating = $state(false);
 	let dropping = $state(false);
 
-	function undo(): void {
-		const group = app.undo();
-		showToast(group === undefined ? 'Nothing to undo' : `Undid: ${group.label}`);
-	}
-
-	function redo(): void {
-		const group = app.redo();
-		showToast(group === undefined ? 'Nothing to redo' : `Redid: ${group.label}`);
-	}
-
 	function isTyping(target: EventTarget | null): boolean {
 		return (
 			target instanceof HTMLElement &&
@@ -224,14 +214,14 @@
 			asking = !asking;
 		} else if (!typing && command && event.key.toLowerCase() === 'z' && !event.shiftKey) {
 			event.preventDefault();
-			undo();
+			undoChange();
 		} else if (
 			!typing &&
 			command &&
 			((event.key.toLowerCase() === 'z' && event.shiftKey) || event.key.toLowerCase() === 'y')
 		) {
 			event.preventDefault();
-			redo();
+			redoChange();
 		} else if (event.altKey && !command && /^[1-9]$/u.test(event.key) && table !== undefined) {
 			const next = views[Number(event.key) - 1];
 			if (next !== undefined) {
@@ -284,22 +274,6 @@
 			</div>
 			<SyncStatus />
 			<div class="ml-auto flex shrink-0 items-center gap-1">
-				<Button
-					variant="ghost"
-					class="w-control px-0"
-					aria-label="Undo"
-					title={app.history.at(-1)?.label}
-					disabled={app.history.length === 0}
-					onclick={undo}><Icon name="undo" /></Button
-				>
-				<Button
-					variant="ghost"
-					class="w-control px-0"
-					aria-label="Redo"
-					title={app.undone.at(-1)?.label}
-					disabled={app.undone.length === 0}
-					onclick={redo}><Icon name="redo" /></Button
-				>
 				{#if assistant.available && sync.status !== 'offline'}
 					<Button
 						variant="ghost"

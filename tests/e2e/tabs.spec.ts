@@ -7,10 +7,10 @@ import {
 	cell,
 	editCell,
 	expect,
-	redoButton,
+	redo,
 	seedLifts,
 	test,
-	undoButton,
+	undo,
 	watchErrors
 } from './harness.ts';
 
@@ -42,11 +42,11 @@ test('a change in one tab shows in the other, with its undo step', async ({
 	await editCell(page, 'Squat', 'Bench');
 	await expect(cell(other, 'Bench')).toBeVisible();
 
-	await undoButton(other).first().click();
+	await undo(other);
 	await expect(cell(other, 'Squat')).toBeVisible();
 	await expect(cell(page, 'Squat')).toBeVisible();
 
-	await redoButton(page).click();
+	await redo(page);
 	await expect(cell(page, 'Bench')).toBeVisible();
 	await expect(cell(other, 'Bench')).toBeVisible();
 });
@@ -59,16 +59,19 @@ test('neither tab overwrites the undo steps of the other', async ({
 	const other = await secondTab(page, context, pageErrors);
 
 	await editCell(page, 'Squat', 'Bench');
-	await expect(undoButton(other).first()).toBeEnabled();
+	await expect(cell(other, 'Bench')).toBeVisible();
 	await editCell(other, '100', '120');
 	await expect(cell(page, '120')).toBeVisible();
 
 	await page.reload();
-	await undoButton(page).first().click();
+	await expect(cell(page, '120')).toBeVisible();
+	await undo(page);
 	await expect(cell(page, '100')).toBeVisible();
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(cell(page, 'Squat')).toBeVisible();
-	await expect(undoButton(other).first()).toBeDisabled();
+	await expect(cell(other, 'Squat')).toBeVisible();
+	await undo(other);
+	await expect(other.getByText('Nothing to undo')).toBeVisible();
 });
 
 test('history a stale tab held never brings back what the other undid', async ({
@@ -80,7 +83,7 @@ test('history a stale tab held never brings back what the other undid', async ({
 	await askPanel(page).getByRole('button', { name: 'Close' }).click();
 	const other = await secondTab(page, context, pageErrors);
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(cell(other, 'Deadlift')).toHaveCount(0);
 	await editCell(other, 'Squat', 'Bench');
 	await expect(cell(page, 'Bench')).toBeVisible();
@@ -89,7 +92,10 @@ test('history a stale tab held never brings back what the other undid', async ({
 	await askButton(page).click();
 	await expect(page.getByTestId('thread').locator('[data-status="undone"]')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
-	await expect(redoButton(page)).toBeDisabled();
+	await askPanel(page).getByRole('button', { name: 'Close' }).click();
+	await redo(page);
+	await expect(page.getByText('Nothing to redo')).toBeVisible();
+	await expect(cell(page, 'Deadlift')).toHaveCount(0);
 });
 
 test('a decision in one tab reaches the thread open in the other', async ({
@@ -150,11 +156,13 @@ test('tabs writing at the same moment end up agreeing, on disk too', async ({
 	await page.evaluate(() => (window as unknown as { release: () => void }).release());
 	await expect(cell(other, 'Bench')).toBeVisible();
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(cell(page, '100')).toBeVisible();
 	await expect(cell(other, '100')).toBeVisible();
-	await expect(undoButton(page).first()).toBeDisabled();
-	await expect(undoButton(other).first()).toBeDisabled();
+	await undo(page);
+	await expect(page.getByText('Nothing to undo')).toBeVisible();
+	await undo(other);
+	await expect(other.getByText('Nothing to undo')).toBeVisible();
 
 	await other.reload();
 	await expect(cell(other, 'Bench')).toBeVisible();

@@ -363,9 +363,12 @@ test('undo takes back the last change, and the keyboard changes the view', async
 	await page.keyboard.press('Alt+2');
 	await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Entry')}$`, 'u'));
 
+	await expect(
+		page.getByRole('banner').getByRole('button', { name: /^(Undo|Redo)$/u })
+	).toHaveCount(0);
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await expect(page.getByText('2 rows')).toBeVisible();
-	await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+	await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });
 

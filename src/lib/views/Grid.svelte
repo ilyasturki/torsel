@@ -7,7 +7,7 @@
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { insertRows, reorder, updateRecord, updateRow } from '#lib/core/actions.ts';
 	import type {
 		Change,
@@ -318,9 +318,13 @@
 		);
 	}
 
-	function setConfig(patch: Partial<GridConfig>, label: string): void {
+	function setConfig(
+		patch: Partial<GridConfig>,
+		label: string,
+		apply: (changes: Change[], label: string) => unknown = applyWithUndo
+	): void {
 		const next = JSON.parse(JSON.stringify({ ...view.config, ...patch })) as Value;
-		app.apply(updateRecord(app.ws, view.id, { config: next }), label);
+		apply(updateRecord(app.ws, view.id, { config: next }), label);
 	}
 
 	function posAt(r: number, c: number): Pos {
@@ -393,18 +397,24 @@
 		});
 	}
 
+	/** A typed cell applies quietly where Ctrl+Z is at hand; a touch screen has only the toast's Undo. */
+	function applyCell(changes: Change[], label: string): void {
+		if (matchMedia('(pointer: coarse)').matches) applyWithUndo(changes, label);
+		else app.apply(changes, label);
+	}
+
 	/** The id of the row this made, when it wrote into the blank row. */
 	function writeCell(rowKey: string, field: FieldDef, value: Value): string | null {
 		const extra = newChoiceChanges(field, value);
 		if (rowKey === BLANK) {
 			if (value === null) return null;
 			const made = insertRows(app.ws, tableId, [{ ...todayDates(), [field.id]: value }]);
-			app.apply([...extra, ...made.changes], 'Row added');
+			applyCell([...extra, ...made.changes], 'Row added');
 			return made.ids[0];
 		}
 		const row = app.ws.live(rowKey);
 		if (row !== undefined && JSON.stringify(row.data[field.id] ?? null) !== JSON.stringify(value)) {
-			app.apply(
+			applyCell(
 				[...extra, ...updateRow(app.ws, rowKey, { [field.id]: value })],
 				`${field.name} changed`
 			);
@@ -550,12 +560,12 @@
 		return fields.slice(Math.max(0, left), right + 1);
 	}
 
-	function clearRange(): void {
+	function clearRange(): number | null {
 		const changes = clearChanges(app.ws, rangeFields(), rangeRows());
-		if (changes.length > 0) {
-			const count = changes.length;
-			app.apply(changes, count === 1 ? 'Cell cleared' : `${count} rows cleared`);
-		}
+		const count = changes.length;
+		return (
+			applyWithUndo(changes, count === 1 ? 'Cell cleared' : `${count} rows cleared`)?.id ?? null
+		);
 	}
 
 	function onkeydown(event: KeyboardEvent): void {
@@ -797,8 +807,8 @@
 		event.preventDefault();
 		const count = (bottom - top + 1) * rangeFields().length;
 		backToGrid();
-		if (cut) clearRange();
-		showToast(`${cut ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'cell' : 'cells'}`);
+		const undo = cut ? clearRange() : null;
+		showToast(`${cut ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'cell' : 'cells'}`, undo);
 	}
 
 	function oncatcherpaste(event: ClipboardEvent): void {
@@ -842,7 +852,11 @@
 			handle.removeEventListener('pointerup', onup);
 			if (resizing !== null) {
 				const { width: next } = resizing;
-				setConfig({ widths: { ...view.config.widths, [field.id]: next } }, `${field.name} resized`);
+				setConfig(
+					{ widths: { ...view.config.widths, [field.id]: next } },
+					`${field.name} resized`,
+					applyCell
+				);
 			}
 			resizing = null;
 		};
@@ -858,7 +872,7 @@
 		if (view.config.widths?.[field.id] !== undefined) {
 			const rest = { ...view.config.widths };
 			delete rest[field.id];
-			setConfig({ widths: rest }, `${field.name} refitted`);
+			setConfig({ widths: rest }, `${field.name} refitted`, applyCell);
 		}
 	}
 
@@ -912,7 +926,7 @@
 		const ids = others.map((other) => other.id);
 		ids.splice(place, 0, field.id);
 		const changes = reorder(app.ws, ids);
-		if (changes.length > 0) app.apply(changes, `${field.name} moved`);
+		applyWithUndo(changes, `${field.name} moved`);
 	}
 
 	function openMenu(event: MouseEvent, field: FieldDef): void {

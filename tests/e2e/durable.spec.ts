@@ -10,7 +10,7 @@ import {
 	expect,
 	newAccount,
 	passwordSignIn,
-	redoButton,
+	redo,
 	RETRY_RESET,
 	script,
 	seed,
@@ -18,7 +18,7 @@ import {
 	tableMenu,
 	tablePath,
 	test,
-	undoButton,
+	undo,
 	watchErrors
 } from './harness.ts';
 
@@ -195,7 +195,7 @@ for (const kind of KINDS) {
 			await next.goto(path);
 			await kind.reopened(next);
 			await serverHolds(context.request, kind.serverHolds);
-			await undoButton(next).first().click();
+			await undo(next);
 			await kind.undone(next);
 		});
 	}
@@ -207,14 +207,15 @@ test('an undo survives a reload, and its redo with it', async ({ page }) => {
 	await page.getByRole('gridcell').getByRole('textbox').press('Enter');
 	await expect(cell(page, 'Bench')).toBeVisible();
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await page.reload();
 	await expect(cell(page, 'Squat')).toBeVisible();
 
-	await redoButton(page).click();
+	await redo(page);
 	await page.reload();
 	await expect(cell(page, 'Bench')).toBeVisible();
-	await expect(undoButton(page).first()).toBeEnabled();
+	await undo(page);
+	await expect(cell(page, 'Squat')).toBeVisible();
 });
 
 /** What the server holds for the only action of the only thread. */
@@ -251,7 +252,7 @@ test('an undone action stays undone when its decision never reached the server',
 	await askAddsDeadlift(page, context.request);
 	await closeThread(page);
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await page.unroute('**/decisions');
 	await page.reload();
@@ -272,7 +273,7 @@ test('an undone action stays undone past a later edit, with its decision in flig
 	await askAddsDeadlift(page, context.request);
 	await closeThread(page);
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await editCell(page, 'Squat', 'Bench');
 	holding = false;
@@ -292,7 +293,7 @@ test('a decision the server keeps refusing holds across a reload, and arrives on
 	await askAddsDeadlift(page, context.request);
 	await closeThread(page);
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await editCell(page, 'Squat', 'Bench');
 	await page.reload();
 
@@ -315,7 +316,7 @@ test('an undo reaches the thread it belongs to after another one opened', async 
 	await askPanel(page).getByRole('button', { name: 'New' }).click();
 	await closeThread(page);
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 
 	await expect.poll(() => serverStatus(context.request)).toBe('undone');
@@ -331,7 +332,7 @@ test('a decision one account still owes outlasts another signing in, and arrives
 	await closeThread(page);
 
 	const synced = page.waitForResponse('**/api/sync');
-	await undoButton(page).first().click();
+	await undo(page);
 	await synced;
 	await page.goto('/app/settings');
 	await page.getByRole('button', { name: 'Sign out' }).click();
@@ -410,7 +411,7 @@ for (const [refusal, how] of Object.entries(REFUSALS)) {
 
 		await page.reload();
 		await expect(cell(page, 'Bench')).toBeVisible();
-		await undoButton(page).first().click();
+		await undo(page);
 		await expect(cell(page, 'Squat')).toBeVisible();
 	});
 }
@@ -443,9 +444,9 @@ test('the next change carries a refused one with it', async ({ page }) => {
 	await page.reload();
 	await expect(cell(page, 'Bench')).toBeVisible();
 	await expect(cell(page, '120')).toBeVisible();
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(cell(page, '100')).toBeVisible();
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(cell(page, 'Squat')).toBeVisible();
 });
 
@@ -512,6 +513,6 @@ test('10,000 pasted rows land in one transaction, straight before a reload', asy
 
 	await page.reload();
 	await expect(page.getByText('10000 rows', { exact: true })).toBeVisible();
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });

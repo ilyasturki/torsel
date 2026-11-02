@@ -5,7 +5,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import {
 		chartAxis,
 		createView,
@@ -142,11 +142,11 @@
 				type,
 				config: clean as ViewConfig
 			});
-			app.apply(changes, `View "${label}" added`);
+			applyWithUndo(changes, `View "${label}" added`);
 			void goto(tableUrl(tableId, id));
 		} else {
 			const label = name.trim() || labelOf(type);
-			app.apply(
+			applyWithUndo(
 				updateRecord(app.ws, existing.id, { name: label, type, config: clean }),
 				`View "${label}" changed`
 			);
@@ -166,7 +166,10 @@
 	function move(by: number): void {
 		if (existing !== undefined) {
 			const ids = siblings.map((view) => view.id);
-			app.apply(reorder(app.ws, shifted(ids, existing.id, by)), `View "${existing.name}" moved`);
+			applyWithUndo(
+				reorder(app.ws, shifted(ids, existing.id, by)),
+				`View "${existing.name}" moved`
+			);
 		}
 	}
 

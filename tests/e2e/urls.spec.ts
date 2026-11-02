@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, seed, tableMenu, tablePath, test, undoButton } from './harness.ts';
+import { expect, seed, tableMenu, tablePath, test, toastButton } from './harness.ts';
 
 const at = (path: string): RegExp => new RegExp(`${path}$`, 'u');
 
@@ -53,7 +53,7 @@ test('a rename moves the address, and the old one still leads there', async ({
 	await expect(page.getByRole('heading', { name: 'Shows to watch' })).toBeVisible();
 	await expect(page).toHaveURL(at('/app/t/shows-to-watch/date-watched'));
 
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(page.getByRole('heading', { name: 'Séries' })).toBeVisible();
 	await expect(page).toHaveURL(at('/app/t/series/date-watched'));
 

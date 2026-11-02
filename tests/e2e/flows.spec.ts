@@ -6,20 +6,20 @@ import {
 	expect,
 	newAccount,
 	pick,
+	redo,
 	RETRY_RESET,
 	script,
 	seed,
 	signIn,
 	tableMenu,
 	tablePath,
-	test
+	test,
+	toastButton,
+	undo
 } from './harness.ts';
 
 const header = (page: Page, name: string): Locator =>
 	page.getByRole('columnheader', { name, exact: true });
-
-const headerButton = (page: Page, name: string): Locator =>
-	page.getByRole('banner').getByRole('button', { name, exact: true });
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -174,7 +174,7 @@ test.describe('the first table', () => {
 		const tabs = page.getByRole('group', { name: 'Tables' });
 		await expect(tabs.getByRole('link', { name: 'Expenses', exact: true })).toBeVisible();
 
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
 	});
 
@@ -525,7 +525,7 @@ test.describe('fields and views', () => {
 		await expect(cell(page, '12')).toBeVisible();
 		await expect(cell(page, 'plenty')).toHaveCount(0);
 
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(cell(page, 'plenty')).toBeVisible();
 	});
 
@@ -547,7 +547,7 @@ test.describe('fields and views', () => {
 		await sheet.getByRole('button', { name: 'Move left' }).click();
 		await sheet.getByRole('button', { name: 'Close' }).click();
 		await expect.poll(names).toEqual(['Date', 'Kg', 'Exercise', 'Reps']);
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect.poll(names).toEqual(['Date', 'Exercise', 'Kg', 'Reps']);
 
 		await page.goto(tablePath(table, list));
@@ -583,9 +583,9 @@ test.describe('fields and views', () => {
 		await expect(firstRow).toContainText('100');
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
 
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(header(page, 'Kg').locator('svg')).toHaveCount(0);
-		await headerButton(page, 'Redo').click();
+		await redo(page);
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
 
 		sheet = await openSettings();
@@ -607,7 +607,7 @@ test.describe('fields and views', () => {
 
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Sets')}$`, 'u'));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(page.getByRole('img', { name: /per Date/u })).toHaveCount(0);
 	});
 
@@ -752,10 +752,10 @@ test.describe('importing', () => {
 		await expect(header(page, 'weight')).toHaveCount(0);
 		await expect(header(page, 'place')).toHaveCount(0);
 
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(page.getByText('2 rows', { exact: true })).toBeVisible();
 		await expect(cell(page, 'Deadlift')).toHaveCount(0);
-		await headerButton(page, 'Redo').click();
+		await redo(page);
 		await expect(page.getByText('4 rows')).toBeVisible();
 		await expect(cell(page, 'Deadlift')).toBeVisible();
 	});
@@ -792,8 +792,9 @@ test.describe('importing', () => {
 			.click();
 		await expect(page.getByRole('heading', { name: 'weigh-ins' })).toBeVisible();
 
-		await headerButton(page, 'Undo').click();
-		await expect(headerButton(page, 'Undo')).toBeDisabled();
+		await undo(page);
+		await undo(page);
+		await expect(page.getByText('Nothing to undo')).toBeVisible();
 		await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'All' }).click();
 		await expect(page.getByText('No tables yet.')).toBeVisible();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
@@ -875,7 +876,7 @@ test.describe('importing', () => {
 			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
 		).toBeVisible();
 
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(
 			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
 		).toHaveCount(0);
@@ -1096,7 +1097,11 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		expect(await taps()).toBeLessThanOrEqual(2);
 	});
 
-	test('undo: was the toast within 6s on a phone', async ({ page, context, account }) => {
+	test('undo: one tap in the toast on a phone, Ctrl+Z on a desktop', async ({
+		page,
+		context,
+		account
+	}) => {
 		void account;
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
@@ -1104,9 +1109,13 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		await page.waitForTimeout(100);
 		const taps = await countTaps(page);
 
-		await headerButton(page, 'Undo').click();
+		if (onPhone()) {
+			await toastButton(page, 'Undo').click();
+		} else {
+			await undo(page);
+		}
 		await expect(cell(page, '100')).toBeVisible();
-		expect(await taps()).toBe(1);
+		expect(await taps()).toBe(onPhone() ? 1 : 0);
 	});
 });
 
@@ -1128,7 +1137,9 @@ test.describe('a boot the server does not answer', () => {
 		await expect(page.getByRole('button', { name: /^Ask/u })).toHaveCount(0);
 
 		await editCell(page, '100', '123.5');
-		await expect(page.getByRole('status')).toHaveText('Offline, 1 change waiting');
+		await expect(page.getByRole('status').filter({ hasText: 'Offline' })).toHaveText(
+			'Offline, 1 change waiting'
+		);
 
 		await page.unroute('**/api/auth/session');
 		await page.unroute('**/api/sync');
@@ -1177,7 +1188,7 @@ test.describe('a boot the server does not answer', () => {
 		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
 		await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 		await expect(page.getByRole('status')).toHaveCount(0);
-		await headerButton(page, 'Undo').click();
+		await undo(page);
 		await expect(page.getByText('This table no longer exists.')).toBeVisible();
 	});
 });

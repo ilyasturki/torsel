@@ -3,13 +3,14 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import {
 	expect,
-	redoButton,
+	redo,
 	script,
 	seed,
 	tableMenu,
 	tablePath,
 	test,
-	undoButton
+	toastButton,
+	undo
 } from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
@@ -32,13 +33,24 @@ function seedLifts(request: APIRequestContext) {
 	});
 }
 
-/** Undo puts `before` back and redo brings `after` back, through the header both viewports share. */
+/** Undo puts `before` back and redo brings `after` back, from the keyboard. */
 async function undoAndRedo(page: Page, before: Locator, after: Locator): Promise<void> {
 	await expect(after).toBeVisible();
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(before).toBeVisible();
 	await expect(after).toHaveCount(0);
-	await redoButton(page).click();
+	await redo(page);
+	await expect(after).toBeVisible();
+	await expect(before).toHaveCount(0);
+}
+
+/** The same through the toasts both viewports share: Undo in the change's, Redo in the undo's. */
+async function undoAndRedoInToast(page: Page, before: Locator, after: Locator): Promise<void> {
+	await expect(after).toBeVisible();
+	await toastButton(page, 'Undo').click();
+	await expect(before).toBeVisible();
+	await expect(after).toHaveCount(0);
+	await toastButton(page, 'Redo').click();
 	await expect(after).toBeVisible();
 	await expect(before).toHaveCount(0);
 }
@@ -60,6 +72,13 @@ test('a cell edit', async ({ page }) => {
 	const editor = page.getByRole('gridcell').getByRole('textbox');
 	await editor.fill('Bench');
 	await editor.press('Enter');
+	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
+	if (test.info().project.name === 'desktop') {
+		await expect(
+			toastButton(page, 'Undo'),
+			'with Ctrl+Z at hand, a cell commit is quiet'
+		).toHaveCount(0);
+	}
 	await undoAndRedo(
 		page,
 		page.getByRole('gridcell', { name: 'Squat' }),
@@ -72,7 +91,7 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 	const sheet = page.getByRole('dialog');
 	await sheet.getByLabel('Kg').fill('120');
 	await sheet.getByRole('button', { name: 'Save' }).click();
-	await undoAndRedo(
+	await undoAndRedoInToast(
 		page,
 		page.getByRole('gridcell', { name: '100' }),
 		page.getByRole('gridcell', { name: '120' })
@@ -81,9 +100,12 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await sheet.getByLabel('Exercise').fill('Deadlift');
 	await sheet.getByRole('button', { name: 'Save' }).click();
-	await expect(page.getByRole('gridcell', { name: 'Deadlift' })).toBeVisible();
-	await undoButton(page).first().click();
-	await expect(page.getByRole('gridcell', { name: 'Deadlift' })).toHaveCount(0);
+	const added = page.getByRole('gridcell', { name: 'Deadlift' });
+	await expect(added).toBeVisible();
+	await toastButton(page, 'Undo').click();
+	await expect(added).toHaveCount(0);
+	await toastButton(page, 'Redo').click();
+	await expect(added).toBeVisible();
 });
 
 test('a deleted row, with no question asked', async ({ page }) => {
@@ -91,9 +113,9 @@ test('a deleted row, with no question asked', async ({ page }) => {
 	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toHaveCount(0);
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
-	await redoButton(page).click();
+	await toastButton(page, 'Redo').click();
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toHaveCount(0);
 });
 
@@ -101,7 +123,7 @@ test('a field renamed, then deleted', async ({ page }) => {
 	const sheet = await openField(page, 'Kg');
 	await sheet.getByLabel('Name').fill('Load');
 	await sheet.getByRole('button', { name: 'Save' }).click();
-	await undoAndRedo(
+	await undoAndRedoInToast(
 		page,
 		page.getByRole('columnheader', { name: 'Kg' }),
 		page.getByRole('columnheader', { name: 'Load' })
@@ -111,7 +133,7 @@ test('a field renamed, then deleted', async ({ page }) => {
 	await sheet.getByRole('button', { name: 'Delete' }).click();
 	await expect(sheet).toHaveCount(0);
 	await expect(page.getByRole('columnheader', { name: 'Load' })).toHaveCount(0);
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(page.getByRole('columnheader', { name: 'Load' })).toBeVisible();
 });
 
@@ -122,10 +144,22 @@ test('a field added from the header', async ({ page }) => {
 	await page.keyboard.press('Escape');
 	const added = page.getByRole('columnheader', { name: 'RPE' });
 	await expect(added).toBeVisible();
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(added).toHaveCount(0);
-	await redoButton(page).click();
+	await toastButton(page, 'Redo').click();
 	await expect(added).toBeVisible();
+});
+
+test('a sort, from its toast', async ({ page }) => {
+	const kg = page.getByRole('columnheader', { name: 'Kg' });
+	await kg.getByRole('button').click();
+	await page.getByRole('button', { name: 'Sort descending' }).click();
+	await expect(kg).toHaveAttribute('aria-sort', 'descending');
+	await expect(page.getByRole('status')).toContainText('Sort changed');
+	await toastButton(page, 'Undo').click();
+	await expect(kg).not.toHaveAttribute('aria-sort');
+	await toastButton(page, 'Redo').click();
+	await expect(kg).toHaveAttribute('aria-sort', 'descending');
 });
 
 test('a view added, then deleted', async ({ page }) => {
@@ -136,9 +170,9 @@ test('a view added, then deleted', async ({ page }) => {
 	await sheet.getByRole('button', { name: /^Chart/u }).click();
 	await sheet.getByRole('button', { name: 'Create' }).click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toHaveCount(0);
-	await redoButton(page).click();
+	await toastButton(page, 'Redo').click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
 
 	await views.getByRole('link', { name: 'Chart' }).click();
@@ -148,7 +182,7 @@ test('a view added, then deleted', async ({ page }) => {
 		.getByRole('button', { name: 'Delete' })
 		.click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toHaveCount(0);
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
 });
 
@@ -158,21 +192,19 @@ test('a table deleted, and a base deleted', async ({ page }) => {
 	await tableMenu(page, 'Delete table');
 	await expect(page).toHaveURL(/\/app$/u);
 	await expect(tabs.getByRole('link', { name: 'Lifts' })).toHaveCount(0);
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(tabs.getByRole('link', { name: 'Lifts' })).toBeVisible();
 
 	const money = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Money' }) });
 	await money.last().getByRole('button', { name: 'Delete' }).click();
 	await expect(tabs.getByRole('link', { name: 'Expenses' })).toHaveCount(0);
-	await undoButton(page).first().click();
+	await toastButton(page, 'Undo').click();
 	await expect(tabs.getByRole('link', { name: 'Expenses' })).toBeVisible();
-	await redoButton(page).click();
+	await toastButton(page, 'Redo').click();
 	await expect(tabs.getByRole('link', { name: 'Expenses' })).toHaveCount(0);
 });
 
 test('a fresh change clears redo, and the keyboard reaches both', async ({ page }) => {
-	test.skip(test.info().project.name === 'phone', 'a phone has no keyboard shortcut');
-
 	await page.getByRole('gridcell', { name: 'Squat' }).dblclick();
 	const editor = page.getByRole('gridcell').getByRole('textbox');
 	await editor.fill('Bench');
@@ -189,11 +221,14 @@ test('a fresh change clears redo, and the keyboard reaches both', async ({ page 
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 
 	await page.keyboard.press('Control+z');
-	await expect(redoButton(page)).toBeEnabled();
+	await expect(page.getByRole('status')).toContainText('Undid: ');
 	await page.getByRole('button', { name: 'Open row' }).first().click();
 	await page.getByRole('dialog').getByLabel('Kg').fill('90');
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await expect(redoButton(page)).toBeDisabled();
+	await expect(page.getByRole('gridcell', { name: '90' })).toBeVisible();
+	await page.keyboard.press('Control+Shift+z');
+	await expect(page.getByRole('status')).toContainText('Nothing to redo');
+	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 });
 
 test('what the assistant applied undoes after a reload, and the model hears', async ({
@@ -229,7 +264,7 @@ test('what the assistant applied undoes after a reload, and the model hears', as
 	await expect(thread.locator('[data-status="applied"]')).toBeVisible();
 	await close.click();
 
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await ask.click();
 	await expect(thread.locator('[data-status="undone"]')).toBeVisible();
@@ -243,7 +278,7 @@ test('what the assistant applied undoes after a reload, and the model hears', as
 	);
 	await close.click();
 
-	await redoButton(page).click();
+	await redo(page);
 	await expect(page.getByText('2 rows')).toBeVisible();
 	await ask.click();
 	await expect(thread.locator('[data-status="applied"]')).toBeVisible();
@@ -258,10 +293,10 @@ test('the history survives a reload', async ({ page }) => {
 
 	await page.reload();
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
-	await undoButton(page).first().click();
+	await undo(page);
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 	await page.reload();
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
-	await redoButton(page).click();
+	await redo(page);
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 });

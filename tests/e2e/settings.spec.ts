@@ -60,10 +60,11 @@ test('reports changes waiting offline, then falls silent once they are sent', as
 
 	await context.setOffline(true);
 	await editCell(page, 'Squat', 'Bench');
-	await expect(page.getByRole('status')).toHaveText('Offline, 1 change waiting');
+	const offline = page.getByRole('status').filter({ hasText: 'Offline' });
+	await expect(offline).toHaveText('Offline, 1 change waiting');
 
 	await context.setOffline(false);
-	await expect(page.getByRole('status')).toHaveCount(0);
+	await expect(offline).toHaveCount(0);
 });
 
 test('an expired session asks to sign in again and shows no e-mail', async ({
@@ -76,7 +77,7 @@ test('an expired session asks to sign in again and shows no e-mail', async ({
 
 	await context.clearCookies();
 	await editCell(page, 'Squat', 'Bench');
-	await expect(page.getByRole('status')).toContainText(
+	await expect(page.getByRole('status').filter({ hasText: 'Session expired' })).toContainText(
 		'Session expired, 1 waiting edit stays here until you sign in again'
 	);
 
@@ -122,11 +123,12 @@ test('a failed sync offers a retry that clears it', async ({ page, context, acco
 		route.fulfill({ status: 400, json: { message: 'raw server wording' } })
 	);
 	await editCell(page, 'Squat', 'Bench');
-	await expect(page.getByRole('status')).toHaveText(/Sync failed,\s+retry/u);
+	const failed = page.getByRole('status').filter({ hasText: 'Sync failed' });
+	await expect(failed).toHaveText(/Sync failed,\s+retry/u);
 
 	await page.unroute('**/api/sync');
 	await page.getByRole('button', { name: 'retry' }).click();
-	await expect(page.getByRole('status')).toHaveCount(0);
+	await expect(failed).toHaveCount(0);
 });
 
 test('another account’s unsynced data can be erased', async ({ page, context, account }) => {
@@ -136,7 +138,7 @@ test('another account’s unsynced data can be erased', async ({ page, context, 
 
 	await page.route('**/api/sync', (route) => route.fulfill({ status: 400, json: {} }));
 	await editCell(page, 'Squat', 'Bench');
-	await expect(page.getByRole('status')).toContainText('Sync failed');
+	await expect(page.getByRole('status').filter({ hasText: 'Sync failed' })).toBeVisible();
 
 	await context.clearCookies();
 	await signIn(context, newAccount());

@@ -3,7 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatNumber, readNumber } from '#lib/client/format.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
 	import { FormulaError, toDisplay, toStored } from '#lib/core/formula.ts';
 	import type { Change, Choice, FieldType, Value } from '#lib/core/model.ts';
@@ -179,12 +179,12 @@
 
 		if (existing === undefined) {
 			const { changes } = addField(app.ws, tableId, { name: name.trim(), type });
-			app.apply(
+			applyWithUndo(
 				[{ ...changes[0], set: { ...changes[0].set, ...set } }],
 				`Field "${name.trim()}" added`
 			);
 		} else {
-			app.apply(
+			applyWithUndo(
 				[...(retyped?.changes ?? []), ...updateRecord(app.ws, existing.id, set)],
 				`Field "${name.trim()}" changed`
 			);
@@ -204,7 +204,7 @@
 
 	function move(by: number): void {
 		if (existing !== undefined) {
-			app.apply(
+			applyWithUndo(
 				reorder(app.ws, shifted(siblings, existing.id, by)),
 				`Field "${existing.name}" moved`
 			);
