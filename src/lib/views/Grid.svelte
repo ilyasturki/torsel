@@ -995,13 +995,13 @@
 			: 'relative border-r-rule-col'}"
 	>
 		<div
-			class="absolute inset-0 flex items-center overflow-hidden px-3 transition-colors motion-slow group-hover:bg-tint {numeric
+			class="absolute inset-0 flex items-center overflow-hidden px-3 transition-colors motion-slow {numeric
 				? 'justify-end'
 				: ''} {field.type === 'check' ? 'justify-center' : ''} {inRange && isRange
 				? 'bg-selected'
 				: row !== null && fresh.has(row.id)
 					? 'bg-tint-2'
-					: ''} {isActive ? `ring-2 ring-inset ${focused ? 'ring-accent' : 'ring-edge'}` : ''}"
+					: 'group-hover:bg-tint'} {isActive ? `ring-2 ring-inset ${focused ? 'ring-accent' : 'ring-edge'}` : ''}"
 		>
 			{#if field.type === 'check'}
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
@@ -1240,6 +1240,14 @@
 					{/if}
 				</tbody>
 			</table>
+			{#if isRange && head !== null}
+				<div
+					aria-hidden="true"
+					class="pointer-events-none absolute ring-1 ring-accent ring-inset"
+					style="left: {lefts[left]}px; top: {(top + 1) * rowHeight}px; width: {lefts[right + 1] -
+						lefts[left]}px; height: {(bottom - top + 1) * rowHeight}px"
+				></div>
+			{/if}
 			{#if columnDrag !== null}
 				<div
 					class="pointer-events-none absolute inset-y-0 z-40 w-0.5 bg-ink"

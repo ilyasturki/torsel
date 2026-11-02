@@ -25,6 +25,11 @@ export function swatch(color: string | null | undefined): string {
 	return `background: var(--d-${isDataColor(color) ? color : 'gray'})`;
 }
 
+export function tag(color: string | null | undefined): string {
+	const name = isDataColor(color) ? color : 'gray';
+	return `background: var(--d-${name}-bg); color: var(--d-${name}-fg)`;
+}
+
 export function strongColor(color: string | null | undefined, index: number): string {
 	const name = isDataColor(color) ? color : DATA_COLORS[(index % (DATA_COLORS.length - 1)) + 1];
 	return `var(--d-${name})`;
