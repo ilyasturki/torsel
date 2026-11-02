@@ -1,0 +1,105 @@
+import { describe, expect, it } from 'vitest';
+
+import { createBase, createTable, insertRows, updateRecord } from '../../core/actions.ts';
+import { Hlc } from '../../core/clock.ts';
+import type { Change } from '../../core/model.ts';
+import type { ThreadContext } from '../../core/thread.ts';
+import { Workspace } from '../../core/workspace.ts';
+import { contextNote } from './assistant.ts';
+
+function movies() {
+	const ws = new Workspace();
+	const hlc = new Hlc('t');
+	const commit = (changes: Change[]): void => {
+		for (const change of changes) ws.stamp(change, hlc.tick());
+	};
+	const base = createBase(ws, 'Movies');
+	commit(base.changes);
+	const table = createTable(ws, base.id, 'Movies', [
+		{ name: 'Title', type: 'text' },
+		{ name: 'Status', type: 'choice', choices: [{ name: 'watched', color: null }] },
+		{ name: 'Rating', type: 'number', description: 'Out of 10' }
+	]);
+	commit(table.changes);
+	const rows = insertRows(ws, table.id, [
+		{ [table.fieldIds[0]]: 'Dune', [table.fieldIds[2]]: 8 },
+		{ [table.fieldIds[0]]: 'Alien' }
+	]);
+	commit(rows.changes);
+	const grid = ws.views(table.id)[0];
+	commit(
+		updateRecord(ws, grid.id, {
+			config: { sort: { field: table.fieldIds[2], dir: 'desc' } }
+		})
+	);
+	return { ws, base, table, rows, grid };
+}
+
+const at = (context: Partial<ThreadContext>): ThreadContext => ({
+	screen: 'home',
+	base: null,
+	table: null,
+	view: null,
+	rows: [],
+	fields: [],
+	today: '2026-11-02',
+	...context
+});
+
+describe('contextNote', () => {
+	it('gives the open table whole: schema, view, sort and selected values', () => {
+		const { ws, base, table, rows, grid } = movies();
+		const note = contextNote(
+			ws,
+			at({
+				screen: 'table',
+				base: base.id,
+				table: table.id,
+				view: grid.id,
+				rows: [rows.ids[0]],
+				fields: [table.fieldIds[2]]
+			}),
+			[],
+			false
+		);
+		expect(note).toContain('Today: 2026-11-02.');
+		expect(note).toContain(`table "Movies" (${table.id}) in base "Movies" (${base.id}), 2 rows`);
+		expect(note).toContain(`view "Grid" (${grid.id}, grid), sorted by Rating descending`);
+		expect(note).toContain('Status (');
+		expect(note).toContain('choice: watched');
+		expect(note).toContain('"Out of 10"');
+		expect(note).toContain('Selected: 1 row, in Rating.');
+		expect(note).toContain(`- ${rows.ids[0]}: {"Rating":8}`);
+	});
+
+	it('says which page is open when no table is, with every table to reach', () => {
+		const { ws, table } = movies();
+		const home = contextNote(ws, at({}), [], false);
+		expect(home).toContain('Screen: the home page');
+		expect(home).toContain(`"Movies" (${table.id}, 2 rows)`);
+		expect(contextNote(ws, at({ screen: 'settings' }), [], false)).toContain(
+			'Screen: the settings page'
+		);
+	});
+
+	it('tells what the person undid', () => {
+		const { ws } = movies();
+		const note = contextNote(
+			ws,
+			at({}),
+			[
+				{
+					id: 'a',
+					turn: 1,
+					summary: 'Add 6 rows to Movies',
+					changes: [],
+					before: [],
+					status: 'undone'
+				}
+			],
+			true
+		);
+		expect(note).toContain('The person stopped your previous reply');
+		expect(note).toContain('- Add 6 rows to Movies.');
+	});
+});

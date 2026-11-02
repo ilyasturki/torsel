@@ -6,13 +6,7 @@
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import {
-		assistant,
-		checkAvailability,
-		ghostTables,
-		ghostViews,
-		resumeThread
-	} from '#lib/client/assistant.svelte.ts';
+	import { assistant, checkAvailability, resumeThread } from '#lib/client/assistant.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { viewToOpen, visitHome, visitTable } from '#lib/client/place.ts';
@@ -71,19 +65,10 @@
 		return table === undefined ? [] : app.ws.views(table.id);
 	});
 
-	const ghosts = $derived.by(() => {
-		void app.version;
-		return table === undefined ? [] : ghostViews(table.id).map((ghost) => ghost.view);
-	});
-
 	const view = $derived.by(() => {
 		const requested = page.url.searchParams.get('v');
-		return table === undefined
-			? undefined
-			: (ghosts.find((item) => item.id === requested) ?? viewToOpen(views, table.id, requested));
+		return table === undefined ? undefined : viewToOpen(views, table.id, requested);
 	});
-
-	const proposedView = $derived(view !== undefined && ghosts.some((item) => item.id === view.id));
 
 	$effect(() => {
 		void me.account;
@@ -97,7 +82,7 @@
 	});
 
 	$effect(() => {
-		if (table !== undefined && view !== undefined && !proposedView) {
+		if (table !== undefined && view !== undefined) {
 			visitTable(table.id, view.id);
 		} else if (page.url.pathname === HOME) {
 			visitHome();
@@ -109,22 +94,14 @@
 		return app.ws.bases().flatMap((base) => app.ws.tables(base.id));
 	});
 
-	const proposals = $derived.by(() => {
-		void app.version;
-		return ghostTables();
-	});
-
-	const proposed = $derived(proposals.find((ghost) => ghost.table.id === tableId));
-	const onTable = $derived(table !== undefined || proposed !== undefined);
+	const onTable = $derived(table !== undefined);
 
 	const rowCount = $derived.by(() => {
 		void app.version;
 		return table === undefined ? 0 : app.ws.rows(table.id).length;
 	});
 
-	const heading = $derived(
-		table?.name ?? proposed?.table.name ?? (onSettings ? 'Settings' : 'Tables')
-	);
+	const heading = $derived(table?.name ?? (onSettings ? 'Settings' : 'Tables'));
 
 	let asking = $state(false);
 	let menuOpen = $state(false);
@@ -296,12 +273,6 @@
 				{#if table !== undefined}
 					<TableTitle {table} rows={rowCount} />
 					<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
-				{:else if proposed !== undefined}
-					<h1 class="min-w-0 truncate text-xl font-semibold tight max-sm:text-lg">{heading}</h1>
-					<span class="shrink-0 pt-1 text-ink-3"
-						>{proposed.rows}
-						{proposed.rows === 1 ? 'row' : 'rows'}</span
-					>
 				{:else}
 					<h1 class="min-w-0 truncate text-xl font-semibold tight max-sm:text-lg">{heading}</h1>
 				{/if}
@@ -363,12 +334,6 @@
 							label: item.name,
 							href: tableUrl(table.id, item.id),
 							active: item.id === view?.id
-						})),
-						...ghosts.map((item) => ({
-							id: item.id,
-							label: `${item.name} (proposed)`,
-							href: tableUrl(table.id, item.id),
-							active: item.id === view?.id
 						}))
 					]}
 				/>
@@ -413,7 +378,7 @@
 				{@render children()}
 			</main>
 			{#if assistant.available}
-				<AskPanel bind:open={asking} table={table ?? proposed?.table ?? null} view={view ?? null} />
+				<AskPanel bind:open={asking} table={table ?? null} view={view ?? null} />
 			{/if}
 		</div>
 
@@ -431,12 +396,6 @@
 					...tables.map((item) => ({
 						id: item.id,
 						label: item.name,
-						href: tableUrl(item.id),
-						active: item.id === tableId
-					})),
-					...proposals.map(({ table: item }) => ({
-						id: item.id,
-						label: `${item.name} (proposed)`,
 						href: tableUrl(item.id),
 						active: item.id === tableId
 					}))
@@ -463,12 +422,10 @@
 			bind:open={menuOpen}
 			anchor={menuAnchor}
 			{table}
-			onviewsettings={proposedView ? undefined : () => (viewSettings = true)}
+			onviewsettings={() => (viewSettings = true)}
 			onnewview={() => (viewCreating = true)}
 		/>
-		{#if !proposedView}
-			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
-		{/if}
+		<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
 		<ViewSheet bind:open={viewCreating} tableId={table.id} />
 		<RowSheet bind:open={shell.newRow} tableId={table.id} />
 	{/if}

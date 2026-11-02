@@ -1,7 +1,7 @@
-import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import type { Change, Rec } from '../../core/model.ts';
-import type { ActionStatus, RowMeta, Tier } from '../../core/thread.ts';
+import type { ActionStatus, RowMeta } from '../../core/thread.ts';
 
 export const users = sqliteTable(
 	'users',
@@ -126,15 +126,32 @@ export const threadActions = sqliteTable(
 			.references(() => threads.id, { onDelete: 'cascade' }),
 		id: text('id').notNull(),
 		seq: integer('seq').notNull(),
-		tier: text('tier').notNull().$type<Tier>(),
+		turn: integer('turn').notNull(),
 		summary: text('summary').notNull(),
-		detail: text('detail', { mode: 'json' }).notNull().$type<string[]>(),
 		changes: text('changes', { mode: 'json' }).notNull().$type<Change[]>(),
-		after: text('after', { mode: 'json' }).notNull().$type<string[]>(),
+		before: text('before', { mode: 'json' }).notNull().$type<Change[]>(),
 		status: text('status').notNull().$type<ActionStatus>(),
 		reported: integer('reported', { mode: 'boolean' }).notNull().default(false)
 	},
 	(table) => [primaryKey({ columns: [table.threadId, table.id] })]
+);
+
+// Uploaded ahead of the message that carries them, so `thread_id` is set only once it is sent.
+export const threadFiles = sqliteTable(
+	'thread_files',
+	{
+		id: text('id').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		threadId: text('thread_id').references(() => threads.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		type: text('type').notNull(),
+		size: integer('size').notNull(),
+		data: blob('data', { mode: 'buffer' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.id] }), index('thread_files_user_idx').on(table.userId)]
 );
 
 export const aiPrompts = sqliteTable(

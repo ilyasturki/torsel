@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { flushSync, onDestroy, onMount, tick, untrack } from 'svelte';
+	import { flushSync, onDestroy, onMount, untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { fresh, ghostFields, ghostValue, isDoomed } from '#lib/client/assistant.svelte.ts';
+	import { fresh } from '#lib/client/assistant.svelte.ts';
 	import { formatDate, formatNumber } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
@@ -44,7 +44,6 @@
 	} from './grid.ts';
 	import GridColumnMenu from './GridColumnMenu.svelte';
 	import GridPicker from './GridPicker.svelte';
-	import ProposedHeader from './ProposedHeader.svelte';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
@@ -52,7 +51,6 @@
 	// Matches the row-number column's `w-11`.
 	const NUMBER_WIDTH = 44;
 	const ADD_WIDTH = 44;
-	const GHOST_WIDTH = 192;
 	// Small tables stay whole in the DOM, so the browser's own find still reaches every row.
 	const VIRTUAL_ABOVE = 100;
 	const OVERSCAN = 16;
@@ -114,29 +112,6 @@
 	const computed = $derived.by(() => {
 		void app.version;
 		return app.computed(tableId);
-	});
-
-	const ghosts = $derived.by(() => {
-		void app.version;
-		return ghostFields(tableId).map((ghost) => ({
-			...ghost,
-			values:
-				ghost.field.type === 'formula' && ghost.field.expr !== null
-					? app.formulaPreview(tableId, ghost.field.expr)
-					: new Map<string, Value>()
-		}));
-	});
-
-	const ghostIds = $derived(ghosts.map((ghost) => ghost.field.id).join());
-
-	$effect(() => {
-		if (ghostIds !== '') {
-			void tick().then(() =>
-				document
-					.querySelector('[data-testid="proposed-field"]')
-					?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-			);
-		}
 	});
 
 	const config = $derived.by((): GridConfig => {
@@ -280,6 +255,8 @@
 		untrack(() => {
 			selection.table = tableId;
 			selection.rows = ids;
+			selection.fields =
+				head === null ? [] : fields.slice(left, right + 1).map((field) => field.id);
 		});
 	});
 
@@ -1010,9 +987,7 @@
 				: ''} {field.type === 'check' ? 'justify-center' : ''} {(inRange && isRange) ||
 			(row !== null && fresh.has(row.id))
 				? 'bg-tint-2'
-				: ''} {row !== null && isDoomed(row.id) ? 'text-ink-3 line-through' : ''} {isActive
-				? `ring-2 ring-inset ${focused ? 'ring-ink' : 'ring-edge'}`
-				: ''}"
+				: ''} {isActive ? `ring-2 ring-inset ${focused ? 'ring-ink' : 'ring-edge'}` : ''}"
 		>
 			{#if field.type === 'check'}
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
@@ -1069,24 +1044,6 @@
 	</td>
 {/snippet}
 
-{#snippet ghostCells(row: Rec | null)}
-	{#each ghosts as ghost (ghost.field.id)}
-		<td
-			class="relative h-row border-b border-hair bg-tint px-3 {ghost.field.type === 'number' ||
-			ghost.field.type === 'formula'
-				? 'text-right'
-				: ''}"
-		>
-			{#if row !== null}
-				<CellValue
-					field={ghost.field}
-					value={ghost.values.get(row.id) ?? ghostValue(row.id, ghost.field.id)}
-				/>
-			{/if}
-		</td>
-	{/each}
-{/snippet}
-
 <div class="flex h-full flex-col">
 	<textarea
 		bind:this={catcher}
@@ -1121,7 +1078,7 @@
 				role="grid"
 				tabindex="0"
 				aria-rowcount={rows.length + 2}
-				aria-colcount={fields.length + ghosts.length + 1}
+				aria-colcount={fields.length + 1}
 				aria-activedescendant={head !== null && headRow >= start && headRow < end
 					? cellId(headRow, headCol)
 					: undefined}
@@ -1141,9 +1098,6 @@
 					<col style="width: {NUMBER_WIDTH}px" />
 					{#each fields as field, index (field.id)}
 						<col style="width: {widths[index]}px" />
-					{/each}
-					{#each ghosts as ghost (ghost.field.id)}
-						<col style="width: {GHOST_WIDTH}px" />
 					{/each}
 					<col style="width: {ADD_WIDTH}px" />
 					<col />
@@ -1194,15 +1148,6 @@
 								></div>
 							</th>
 						{/each}
-						{#each ghosts as ghost (ghost.field.id)}
-							<th
-								scope="col"
-								class="sticky top-0 z-20 h-row border-b border-edge bg-raised p-0 text-sm font-medium text-ink max-sm:bg-canvas"
-								data-testid="proposed-field"
-							>
-								<ProposedHeader {ghost} />
-							</th>
-						{/each}
 						<th class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas">
 							<AddField
 								{tableId}
@@ -1224,17 +1169,12 @@
 				<tbody>
 					{#if start > 0}
 						<tr aria-hidden="true" style="height: {start * rowHeight}px">
-							<td colspan={fields.length + ghosts.length + 3} class="p-0"></td>
+							<td colspan={fields.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
 					{#each visible as row, offset (row.id)}
 						{@const r = start + offset}
-						<tr
-							class="group"
-							aria-rowindex={r + 2}
-							data-fresh={fresh.has(row.id) || undefined}
-							data-doomed={isDoomed(row.id) || undefined}
-						>
+						<tr class="group" aria-rowindex={r + 2} data-fresh={fresh.has(row.id) || undefined}>
 							<td
 								role="rowheader"
 								class="sticky left-0 z-10 h-row border-b border-hair bg-raised p-0 max-sm:bg-canvas"
@@ -1252,14 +1192,13 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(row, r, field, c)}
 							{/each}
-							{@render ghostCells(row)}
 							<td class="border-b border-hair" aria-hidden="true"></td>
 							<td class="border-b border-hair" aria-hidden="true"></td>
 						</tr>
 					{/each}
 					{#if end < total}
 						<tr aria-hidden="true" style="height: {(total - end) * rowHeight}px">
-							<td colspan={fields.length + ghosts.length + 3} class="p-0"></td>
+							<td colspan={fields.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
 					{#if showBlank}
@@ -1281,7 +1220,6 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(null, rows.length, field, c)}
 							{/each}
-							{@render ghostCells(null)}
 							<td class="border-b border-hair" aria-hidden="true"></td>
 							<td class="border-b border-hair" aria-hidden="true"></td>
 						</tr>

@@ -1,51 +1,85 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, desc, eq, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 
 import type {
 	ActionStatus,
+	Attachment,
 	EventContent,
 	RowMeta,
 	ThreadAction,
 	ThreadRow,
 	ThreadSummary
 } from '../../core/thread.ts';
+import { titleOf } from '../../core/thread.ts';
 import type { Database } from '../db/client.ts';
 import { WRITER } from '../db/client.ts';
-import { threadActions, threadMessages, threads } from '../db/schema.ts';
+import { threadActions, threadFiles, threadMessages, threads } from '../db/schema.ts';
 import type { Executor } from '../db/seq.ts';
-
-const TITLE_LENGTH = 60;
 
 const LISTED = 100;
 
+// An upload no message took within this long was abandoned.
+const UNSENT_MS = 24 * 60 * 60 * 1000;
+
+const SUMMARY = {
+	id: threads.id,
+	title: threads.title,
+	createdAt: threads.createdAt,
+	updatedAt: threads.updatedAt
+};
+
+function summary(thread: {
+	id: string;
+	title: string;
+	createdAt: Date;
+	updatedAt: Date;
+}): ThreadSummary {
+	return {
+		...thread,
+		createdAt: thread.createdAt.getTime(),
+		updatedAt: thread.updatedAt.getTime()
+	};
+}
+
 export function createThread(db: Database, userId: string, prompt: string): ThreadSummary {
-	const line = prompt.trim().replace(/\s+/gu, ' ');
-	const title = line.length > TITLE_LENGTH ? `${line.slice(0, TITLE_LENGTH).trimEnd()}…` : line;
 	const now = new Date();
-	const id = randomUUID();
-	db.insert(threads).values({ id, userId, title, createdAt: now, updatedAt: now }).run();
-	return { id, title, updatedAt: now.getTime() };
+	const thread = { id: randomUUID(), title: titleOf(prompt), createdAt: now, updatedAt: now };
+	db.insert(threads)
+		.values({ ...thread, userId })
+		.run();
+	return summary(thread);
 }
 
 export function listThreads(db: Database, userId: string): ThreadSummary[] {
 	return db
-		.select({ id: threads.id, title: threads.title, updatedAt: threads.updatedAt })
+		.select(SUMMARY)
 		.from(threads)
 		.where(eq(threads.userId, userId))
 		.orderBy(desc(threads.updatedAt))
 		.limit(LISTED)
 		.all()
-		.map((thread) => ({ ...thread, updatedAt: thread.updatedAt.getTime() }));
+		.map(summary);
 }
 
 export function findThread(db: Database, userId: string, id: string): ThreadSummary | undefined {
 	const thread = db
-		.select({ id: threads.id, title: threads.title, updatedAt: threads.updatedAt })
+		.select(SUMMARY)
 		.from(threads)
 		.where(and(eq(threads.id, id), eq(threads.userId, userId)))
 		.get();
-	return thread && { ...thread, updatedAt: thread.updatedAt.getTime() };
+	return thread && summary(thread);
+}
+
+export function renameThread(db: Database, threadId: string, title: string): void {
+	db.update(threads)
+		.set({ title: titleOf(title) })
+		.where(eq(threads.id, threadId))
+		.run();
+}
+
+export function deleteThread(db: Database, threadId: string): void {
+	db.delete(threads).where(eq(threads.id, threadId)).run();
 }
 
 export function readRows(db: Database, threadId: string): ThreadRow[] {
@@ -64,11 +98,10 @@ export function readRows(db: Database, threadId: string): ThreadRow[] {
 
 const ACTION_COLUMNS = {
 	id: threadActions.id,
-	tier: threadActions.tier,
+	turn: threadActions.turn,
 	summary: threadActions.summary,
-	detail: threadActions.detail,
 	changes: threadActions.changes,
-	after: threadActions.after,
+	before: threadActions.before,
 	status: threadActions.status
 };
 
@@ -115,8 +148,8 @@ export function appendMessages(
 	);
 }
 
-export function appendEvent(db: Database, threadId: string, event: EventContent): void {
-	db.transaction((tx) => append(tx, threadId, 'event', event, null), WRITER);
+export function appendEvent(db: Database, threadId: string, event: EventContent): number {
+	return db.transaction((tx) => append(tx, threadId, 'event', event, null), WRITER);
 }
 
 export function recordAction(db: Database, threadId: string, action: ThreadAction): void {
@@ -166,6 +199,14 @@ export function unreportDecisions(db: Database, threadId: string, ids: string[])
 	}, WRITER);
 }
 
+/** A replaced turn leaves the model's history: nothing it did is told as undone. */
+export function silenceTurn(db: Database, threadId: string, turn: number): void {
+	db.update(threadActions)
+		.set({ reported: true })
+		.where(and(eq(threadActions.threadId, threadId), eq(threadActions.turn, turn)))
+		.run();
+}
+
 /** Decisions the model has not heard about yet. */
 export function readUnreported(db: Database, threadId: string): ThreadAction[] {
 	return db
@@ -174,26 +215,142 @@ export function readUnreported(db: Database, threadId: string): ThreadAction[] {
 		.where(and(eq(threadActions.threadId, threadId), eq(threadActions.reported, false)))
 		.orderBy(threadActions.seq)
 		.all()
-		.filter((action) => action.status !== 'pending');
+		.filter((action) => action.status === 'undone');
 }
 
-/** The person's message and the decisions it tells the model about, as one write. */
+/** The person's message, which tells the model every decision still unreported, as one write. */
 export function appendPrompt(
 	db: Database,
 	threadId: string,
 	content: unknown,
-	meta: RowMeta,
-	reported: ThreadAction[]
+	meta: RowMeta
 ): number {
 	return db.transaction((tx) => {
-		for (const action of reported) {
-			tx.update(threadActions)
-				.set({ reported: true })
-				.where(and(eq(threadActions.threadId, threadId), eq(threadActions.id, action.id)))
-				.run();
-		}
+		tx.update(threadActions)
+			.set({ reported: true })
+			.where(and(eq(threadActions.threadId, threadId), eq(threadActions.reported, false)))
+			.run();
 		return append(tx, threadId, 'user', content, meta);
 	}, WRITER);
+}
+
+/** Starts an upload, or adds its next part: the bytes held so far, or null when the part doesn't fit. */
+export function receivePart(
+	db: Database,
+	userId: string,
+	file: Attachment,
+	offset: number,
+	part: Buffer
+): number | null {
+	return db.transaction((tx) => {
+		if (offset === 0) {
+			tx.delete(threadFiles)
+				.where(
+					and(
+						isNull(threadFiles.threadId),
+						lt(threadFiles.createdAt, new Date(Date.now() - UNSENT_MS))
+					)
+				)
+				.run();
+			tx.delete(threadFiles)
+				.where(
+					and(
+						eq(threadFiles.id, file.id),
+						eq(threadFiles.userId, userId),
+						isNull(threadFiles.threadId)
+					)
+				)
+				.run();
+			tx.insert(threadFiles)
+				.values({ ...file, userId, threadId: null, data: part, createdAt: new Date() })
+				.run();
+			return part.length;
+		}
+		const stored = tx
+			.select({ data: threadFiles.data, size: threadFiles.size })
+			.from(threadFiles)
+			.where(
+				and(
+					eq(threadFiles.id, file.id),
+					eq(threadFiles.userId, userId),
+					isNull(threadFiles.threadId)
+				)
+			)
+			.get();
+		if (
+			stored === undefined ||
+			stored.data.length !== offset ||
+			offset + part.length > stored.size
+		) {
+			return null;
+		}
+		const data = Buffer.concat([stored.data, part]);
+		tx.update(threadFiles).set({ data }).where(eq(threadFiles.id, file.id)).run();
+		return data.length;
+	}, WRITER);
+}
+
+export type StoredFile = Attachment & { data: Buffer };
+
+/** This person's complete uploads, taken by the thread their message goes to. */
+export function claimFiles(
+	db: Database,
+	userId: string,
+	threadId: string,
+	ids: string[]
+): Attachment[] {
+	if (ids.length === 0) return [];
+	return db.transaction((tx) => {
+		const rows = tx
+			.select({
+				id: threadFiles.id,
+				name: threadFiles.name,
+				type: threadFiles.type,
+				size: threadFiles.size,
+				length: sql<number>`length(${threadFiles.data})`,
+				threadId: threadFiles.threadId
+			})
+			.from(threadFiles)
+			.where(and(eq(threadFiles.userId, userId), inArray(threadFiles.id, ids)))
+			.all()
+			.filter(
+				(row) => row.length === row.size && (row.threadId === null || row.threadId === threadId)
+			);
+		if (rows.length > 0) {
+			tx.update(threadFiles)
+				.set({ threadId })
+				.where(
+					inArray(
+						threadFiles.id,
+						rows.map((row) => row.id)
+					)
+				)
+				.run();
+		}
+		return ids.flatMap((id) => {
+			const row = rows.find((candidate) => candidate.id === id);
+			return row === undefined
+				? []
+				: [{ id: row.id, name: row.name, type: row.type, size: row.size }];
+		});
+	}, WRITER);
+}
+
+export function readFiles(db: Database, threadId: string): Map<string, StoredFile> {
+	return new Map(
+		db
+			.select({
+				id: threadFiles.id,
+				name: threadFiles.name,
+				type: threadFiles.type,
+				size: threadFiles.size,
+				data: threadFiles.data
+			})
+			.from(threadFiles)
+			.where(eq(threadFiles.threadId, threadId))
+			.all()
+			.map((file) => [file.id, file])
+	);
 }
 
 type Running = { abort: AbortController; done: Promise<void> };

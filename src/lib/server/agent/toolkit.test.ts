@@ -2,17 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { Hlc } from '../../core/clock.ts';
 import { Workspace } from '../../core/workspace.ts';
+import type { Effect } from '../../core/thread.ts';
+import type { Sheet } from './files.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { closeEngines, runTool, toolNamed } from './toolkit.ts';
 
-function session(): {
+function session(sheets: Record<string, Sheet> = {}): {
 	ctx: ToolContext;
 	actions: Action[];
+	shown: Effect[];
 	call: (name: string, input: unknown) => Promise<unknown>;
 } {
 	const ws = new Workspace();
 	const hlc = new Hlc('ai');
 	const actions: Action[] = [];
+	const shown: Effect[] = [];
 	const ctx: ToolContext = {
 		ws,
 		commit(action) {
@@ -20,7 +24,9 @@ function session(): {
 				ws.stamp(change, hlc.tick());
 			}
 			actions.push(action);
-		}
+		},
+		show: (effect) => shown.push(effect),
+		sheet: (file) => sheets[file] ?? null
 	};
 
 	const call = async (name: string, input: unknown): Promise<unknown> => {
@@ -30,11 +36,11 @@ function session(): {
 		return outcome.ok ? outcome.result : { error: outcome.error };
 	};
 
-	return { ctx, actions, call };
+	return { ctx, actions, shown, call };
 }
 
 describe('assistant tools', () => {
-	it('tiers what it writes and reads back its own changes', async () => {
+	it('applies what it writes and reads back its own changes', async () => {
 		const { ctx, actions, call } = session();
 
 		await call('create_base', { name: 'Muscu' });
@@ -48,7 +54,10 @@ describe('assistant tools', () => {
 				{ name: 'Reps', type: 'number' }
 			]
 		});
-		expect(actions.map((action) => action.tier)).toEqual(['propose', 'propose']);
+		expect(actions.map((action) => action.summary)).toEqual([
+			'New base "Muscu"',
+			'New table "Séries"'
+		]);
 
 		const added = await call('add_rows', {
 			base: 'Muscu',
@@ -59,7 +68,7 @@ describe('assistant tools', () => {
 			]
 		});
 		expect(added).toHaveProperty('added');
-		expect(actions[2].tier).toBe('apply');
+		expect(actions[2].summary).toBe('Add 2 rows to Séries');
 		expect(
 			ctx.ws
 				.fields(ctx.ws.tables(ctx.ws.bases()[0].id)[0].id)[1]
@@ -93,7 +102,7 @@ describe('assistant tools', () => {
 		]);
 
 		await call('delete_rows', { base: 'Muscu', table: 'Séries', ids: [rows.rows[1]._id] });
-		expect(actions.at(-1)?.tier).toBe('confirm');
+		expect(actions.at(-1)?.summary).toBe('Delete 1 row from Séries');
 
 		closeEngines(ctx.ws);
 	});
@@ -110,7 +119,7 @@ describe('assistant tools', () => {
 			fields: [{ name: 'Amount', type: 'number' }]
 		})) as { id: string; base: string };
 
-		expect(actions.map((action) => action.tier)).toEqual(['propose', 'propose']);
+		expect(actions).toHaveLength(2);
 		expect(second.base).toBe(first.base);
 		expect(ctx.ws.tables(first.base).map((table) => table.name)).toEqual(['Weight', 'Expenses']);
 		closeEngines(ctx.ws);
@@ -171,5 +180,94 @@ describe('assistant tools', () => {
 			error: expect.stringMatching(/list_bases/u)
 		});
 		expect(await call('add_rows', { base: 'x' })).toEqual({ error: expect.any(String) });
+	});
+
+	it('renames, resorts a view and deletes a base, as the person can by hand', async () => {
+		const { call, actions, ctx } = session();
+		const made = (await call('create_table', {
+			name: 'Movies',
+			fields: [
+				{ name: 'Title', type: 'text' },
+				{ name: 'Rating', type: 'number' }
+			]
+		})) as { id: string; base: string };
+		const grid = ctx.ws.views(made.id)[0];
+
+		await call('rename', { base: made.base, id: made.id, name: 'Films' });
+		expect(ctx.ws.table(made.id)?.name).toBe('Films');
+
+		await call('update_view', {
+			base: made.base,
+			table: 'Films',
+			view: grid.name,
+			config: { sort: { field: 'Rating', dir: 'desc' } }
+		});
+		const rating = ctx.ws.fields(made.id)[1].id;
+		expect(ctx.ws.view(grid.id)?.config.sort).toEqual({ field: rating, dir: 'desc' });
+
+		await call('update_view', {
+			base: made.base,
+			table: 'Films',
+			view: grid.id,
+			config: { sort: null }
+		});
+		expect(ctx.ws.view(grid.id)?.config.sort).toBeNull();
+
+		await call('delete', { base: made.base, id: made.base });
+		expect(ctx.ws.bases()).toEqual([]);
+		expect(actions.at(-1)?.summary).toMatch(/^Delete base/u);
+		closeEngines(ctx.ws);
+	});
+
+	it('shows a table or a page rather than changing anything', async () => {
+		const { call, actions, shown } = session();
+		const made = (await call('create_table', {
+			name: 'Pesées',
+			fields: [{ name: 'Kg', type: 'number' }]
+		})) as { id: string };
+
+		await call('open', { table: 'pesées' });
+		await call('open', { page: 'settings' });
+		await call('export', {});
+		expect(shown).toEqual([
+			{ kind: 'open', table: made.id, view: null },
+			{ kind: 'settings' },
+			{ kind: 'export' }
+		]);
+		expect(await call('open', { table: 'Nowhere' })).toEqual({ error: expect.any(String) });
+		expect(actions).toHaveLength(1);
+	});
+
+	it('imports an attached sheet into a new table, then appends to it by column name', async () => {
+		const { call, ctx } = session({
+			first: {
+				kind: 'table',
+				name: 'kilorep.csv',
+				rows: [
+					['Date', 'Exercise', 'Weight'],
+					['2026-10-01', 'bench press', '80'],
+					['2026-10-02', 'squat', '100']
+				]
+			},
+			more: {
+				kind: 'table',
+				name: 'more.csv',
+				rows: [
+					['Weight', 'Exercise'],
+					['85', 'bench press']
+				]
+			}
+		});
+
+		const made = (await call('import_file', { file: 'first' })) as { id: string };
+		expect(ctx.ws.table(made.id)?.name).toBe('kilorep');
+		expect(ctx.ws.rows(made.id)).toHaveLength(2);
+
+		expect(await call('import_file', { file: 'more', table: 'kilorep' })).toMatchObject({
+			added: 1
+		});
+		const weight = ctx.ws.fields(made.id).find((field) => field.name === 'Weight');
+		expect(ctx.ws.rows(made.id).map((row) => row.data[weight?.id ?? ''])).toContain(85);
+		expect(await call('import_file', { file: 'missing' })).toEqual({ error: expect.any(String) });
 	});
 });

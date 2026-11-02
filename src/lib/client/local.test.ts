@@ -62,7 +62,7 @@ describe('decisions', () => {
 	});
 
 	it('are forgotten once delivered, unless the status moved on meanwhile', async () => {
-		const other: Decision = { thread: 't', id: 'y', status: 'rejected' };
+		const other: Decision = { thread: 't', id: 'y', status: 'applied' };
 		await save(db, [], { [decisionKey('x')]: undone, [decisionKey('y')]: other });
 
 		await forgetDecisions(db, [{ ...undone, status: 'applied' }, other]);

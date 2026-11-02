@@ -1,10 +1,17 @@
 import { error } from '@sveltejs/kit';
 
-import type { ThreadContext, TurnEvent } from '#lib/core/thread.ts';
-import { MAX_CONTEXT_ROWS, MAX_PROMPT } from '#lib/core/thread.ts';
+import type { Screen, ThreadContext, TurnEvent } from '#lib/core/thread.ts';
+import { MAX_CONTEXT_ROWS, MAX_FILES, MAX_PROMPT } from '#lib/core/thread.ts';
+import type { Ask } from '#lib/server/agent/assistant.ts';
 import { runTurn } from '#lib/server/agent/assistant.ts';
 import { refusedResponse, takePrompt } from '#lib/server/agent/quota.ts';
-import { activeTurn, findThread, trackTurn } from '#lib/server/agent/threads.ts';
+import {
+	activeTurn,
+	claimFiles,
+	findThread,
+	recordDecisions,
+	trackTurn
+} from '#lib/server/agent/threads.ts';
 import { aiLimits, anthropicKey } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
 import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
@@ -15,23 +22,44 @@ import type { RequestHandler } from './$types';
 // Proxies drop a silent connection; a model can think for longer than their read timeout.
 const PING_MS = 15_000;
 
+const SCREENS = new Set<Screen>(['home', 'settings', 'table']);
+
 function optional(value: unknown): string | null {
 	return typeof value === 'string' && value !== '' ? value : null;
+}
+
+function strings(value: unknown, limit: number): string[] {
+	return Array.isArray(value)
+		? value.filter((item): item is string => typeof item === 'string').slice(0, limit)
+		: [];
 }
 
 function contextOf(value: unknown): ThreadContext {
 	const context =
 		typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+	const today = optional(context.today);
 	return {
+		screen: SCREENS.has(context.screen as Screen) ? (context.screen as Screen) : 'home',
 		base: optional(context.base),
 		table: optional(context.table),
 		view: optional(context.view),
-		rows: Array.isArray(context.rows)
-			? context.rows
-					.filter((row): row is string => typeof row === 'string')
-					.slice(0, MAX_CONTEXT_ROWS)
-			: []
+		rows: strings(context.rows, MAX_CONTEXT_ROWS),
+		fields: strings(context.fields, MAX_CONTEXT_ROWS),
+		...(today !== null && /^\d{4}-\d{2}-\d{2}$/u.test(today) ? { today } : {})
 	};
+}
+
+function decisionsOf(value: unknown): { id: string; status: 'applied' | 'undone' }[] {
+	if (!Array.isArray(value)) return [];
+	return value.flatMap((item) => {
+		const { id, status } = (typeof item === 'object' && item !== null ? item : {}) as Record<
+			string,
+			unknown
+		>;
+		return typeof id === 'string' && (status === 'applied' || status === 'undone')
+			? [{ id, status }]
+			: [];
+	});
 }
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
@@ -43,7 +71,8 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	}
 
 	const body = await readJsonBody(request);
-	const prompt = requiredString(body, 'prompt');
+	const mode = body.mode === 'retry' || body.mode === 'edit' ? body.mode : 'send';
+	const prompt = mode === 'retry' ? '' : requiredString(body, 'prompt');
 	if (prompt.length > MAX_PROMPT) {
 		error(400, 'prompt is too long');
 	}
@@ -59,10 +88,25 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		await previous.done;
 	}
 
+	// Carried here rather than flushed ahead, so the send doesn't wait on a round trip.
+	recordDecisions(db, thread.id, decisionsOf(body.decisions));
+
 	const refusal = takePrompt(db, user, aiLimits());
 	if (refusal !== null) {
 		return refusedResponse(refusal);
 	}
+
+	const where = typeof body.where === 'string' ? body.where.slice(0, 200) : '';
+	const files = claimFiles(db, user.id, thread.id, strings(body.files, MAX_FILES));
+	const ask: Ask =
+		mode === 'retry'
+			? { kind: 'retry' }
+			: {
+					kind: mode,
+					prompt,
+					context: contextOf(body.context),
+					meta: { prompt, where, ...(files.length > 0 ? { files } : {}) }
+				};
 
 	const abort = new AbortController();
 	request.signal.addEventListener('abort', () => abort.abort(), { once: true });
@@ -81,9 +125,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 				db,
 				userId: user.id,
 				threadId: thread.id,
-				prompt,
-				context: contextOf(body.context),
-				where: typeof body.where === 'string' ? body.where.slice(0, 200) : '',
+				ask,
 				signal: abort.signal,
 				emit
 			})

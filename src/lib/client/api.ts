@@ -106,6 +106,8 @@ export async function checkServer(base: string): Promise<void> {
 export type RequestOptions = {
 	method?: string;
 	body?: unknown;
+	// Sent as is, in place of a JSON body.
+	bytes?: Uint8Array<ArrayBuffer>;
 	fetch?: typeof globalThis.fetch;
 };
 
@@ -192,7 +194,7 @@ export async function streamLines<T>(
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = 'GET', body, fetch = globalThis.fetch } = options;
+	const { method = 'GET', body, bytes, fetch = globalThis.fetch } = options;
 
 	const base = apiBase();
 
@@ -204,7 +206,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
 	// SvelteKit's built server answers 403 to a cross-origin mutation with no content type, body or not.
 	if (method !== 'GET') {
-		headers.set('content-type', 'application/json');
+		headers.set(
+			'content-type',
+			bytes === undefined ? 'application/json' : 'application/octet-stream'
+		);
 	}
 
 	const token = deviceToken();
@@ -217,7 +222,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 		response = await fetch(`${base}${path}`, {
 			method,
 			headers,
-			body: body === undefined ? undefined : JSON.stringify(body)
+			body: bytes ?? (body === undefined ? undefined : JSON.stringify(body))
 		});
 	} catch {
 		throw new ApiError(OFFLINE, 'Can’t reach this server.');

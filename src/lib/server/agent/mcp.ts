@@ -30,7 +30,10 @@ export function buildMcpServer(
 		}
 	};
 
-	for (const tool of TOOLS) {
+	// No screen here to show a table on, and no attachment to import.
+	for (const tool of TOOLS.filter(
+		(candidate) => candidate.kind !== 'screen' && candidate.name !== 'import_file'
+	)) {
 		server.registerTool(
 			tool.name,
 			{
@@ -38,8 +41,8 @@ export function buildMcpServer(
 				description: tool.description,
 				inputSchema: tool.input,
 				annotations: {
-					readOnlyHint: tool.tier === 'read',
-					destructiveHint: tool.tier === 'confirm'
+					readOnlyHint: tool.kind === 'read',
+					destructiveHint: tool.destructive === true
 				}
 			},
 			async (input: unknown) => {

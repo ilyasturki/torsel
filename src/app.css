@@ -208,6 +208,11 @@
 	--color-on-fill: var(--on-fill);
 	--color-scrim: var(--scrim);
 	--color-focus: var(--focus);
+	/* A diff's before and after: feedback, so the data palette's green and pink. */
+	--color-added: var(--d-green-bg);
+	--color-added-ink: var(--d-green-fg);
+	--color-removed: var(--d-pink-bg);
+	--color-removed-ink: var(--d-pink-fg);
 }
 
 @utility pt-safe {

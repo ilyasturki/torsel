@@ -1,31 +1,37 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
+import { toDisplay } from '../../core/formula.ts';
 import { Hlc } from '../../core/clock.ts';
-import { latestClock } from '../../core/merge.ts';
-import type { Change } from '../../core/model.ts';
+import { stampAll } from '../../core/diff.ts';
+import type { FieldDef, Value } from '../../core/model.ts';
 import type {
+	Effect,
 	EventContent,
+	RowMeta,
 	ThreadAction,
 	ThreadContext,
 	ThreadRow,
 	TurnEvent
 } from '../../core/thread.ts';
-import { MAX_CONTEXT_ROWS, afterFallback, echoable } from '../../core/thread.ts';
+import { afterFallback, droppedSeqs, echoable } from '../../core/thread.ts';
 import { todayIso } from '../../core/values.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { anthropicKey } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
 import { envText } from '../env.ts';
+import { blocksOf, sheetOf } from './files.ts';
 import {
 	appendEvent,
 	appendMessages,
 	appendPrompt,
 	readActions,
+	readFiles,
 	readRows,
 	readUnreported,
 	recordAction,
+	silenceTurn,
 	unreportDecisions
 } from './threads.ts';
 import type { Action, ToolContext } from './toolkit.ts';
@@ -33,28 +39,28 @@ import { TOOLS, closeEngines, runTool, toolNamed } from './toolkit.ts';
 
 const MAX_ROUNDS = 12;
 
+export const DEFAULT_MODEL = 'claude-sonnet-5-5';
+
+// Values of the selected rows the note spells out; past it, only their ids.
+const SHOWN_SELECTION = 20;
+
 // The system prompt and tool list are part of what a thinking block is bound to: keep them free of
 // anything that varies per request. What varies goes in the user message, as contextNote does.
-const SYSTEM = `You are the assistant inside Torsel, a data app: bases of typed tables (fields: text, number, date, choice, check, link, formula) shown through views (grid, entry, list, chart). The person talks to you in a thread beside their data, often on a phone and sometimes by dictation. Each of their messages starts with what they have open in the app and any decisions they made since your last reply.
+const SYSTEM = `You are the assistant inside Torsel, a data app: bases of typed tables (fields: text, number, date, choice, check, link, formula) shown through views (grid, entry, list, chart). The person talks to you in a panel beside the screen they are on, often on a phone or by dictation. Each of their messages starts with a note from the app: today's date, the screen they see (the open table with its schema, view, sort, filter and selection, or the home or settings page), and the changes of yours they undid since your last reply.
 
-Act with the tools rather than explaining how. Entering data (add_rows, update_rows) applies at once and the person can undo it. Creating or changing a base, table, field or view reaches them as a proposal they accept or reject, shown in place in their table. A deletion waits for their confirmation. So do not ask permission first: do what they ask and the app handles the rest. Ask a question only when you cannot tell what they mean or a wrong guess would be costly.
+Act at once with the tools. Every change applies immediately and the person sees it as a diff they can undo, so never ask for confirmation, deletions included. Ask only when you cannot tell what they mean.
 
-Each write's result has a status saying where it stands. You can build on a proposal in the same reply, such as add_rows on a table you just proposed: what you build on it follows their decision. Their decisions reach you in their next message. After a rejection the thing does not exist, so never use its id or speak as if it were there.
+Read each request against the screen. "This", "here" and "these" mean the open table, view or selection. A word that could name a feature or data means the feature when the screen makes it one: on a grid, "placeholders" are input hints, not rows. Never invent data: add sample rows only when asked for examples, and leave a value you were not given empty. When Torsel has nothing for what they ask, say so in one sentence and offer the closest thing.
 
-Read the schema before writing. Field names, existing choices and links come from there: reuse an existing choice rather than creating a near-duplicate ("bench press", not "Bench Press", if that is what the table holds). A value you were not given stays empty, never invented. Read data with query: read-only SQLite over views named like the tables and fields. The person keeps working while you talk, so read again rather than trusting an earlier result.
+The open table's schema is in the note: write to it without reading it first. Reuse its names and choices ("bench press", not "Bench Press", if that is what the table holds). Read values with query, a read-only SQLite SELECT over views named like the tables and fields, and other bases with describe_base. "3x8 at 80 on bench" means three rows of 8 reps at 80 kg on the matching exercise, dated today; "same as last time" is read from the history with query.
 
-A request like "3x8 at 80 on bench" means three rows of 8 reps at 80 kg, on the existing exercise that matches, dated today. "Same as last time" is read from the history with query.
+You can do what the person can do by hand from the app: change data, fields, views, tables and bases, show them a table, view or page (open), import an attached file (import_file) and download a backup (export). Their account stays theirs: password, sign-in, tokens and erasing the device are not yours to touch.
 
-For a computed field, write an SQLite expression over the row's fields, names in double quotes, with a one-sentence description. For a view, pick the type that answers the request: chart for a progression, entry for fast input, list for browsing.
+Files they attach come with their message: images and PDFs as themselves, tables and text as text. Follow what they say to do with them; import_file brings a table in whole.
 
-Reply in the person's language. Say what you did or proposed, then stop: the thread already shows each tool call with its result, so do not repeat them. Keep replies short. Bold, lists and small tables render; headings do not need to.`;
+For a computed field, write an SQLite expression over the row's fields, names in double quotes. For a view, pick the type that answers the request: chart for a progression, entry for fast input, list for browsing.
 
-const TIER_NOTE = {
-	read: '',
-	apply: ' Applies at once; the person can undo it.',
-	propose: ' Reaches the person as a proposal they accept or reject.',
-	confirm: ' Waits for the person to confirm.'
-};
+Reply in the person's language, in one or two short sentences, after acting. The app shows each change with its before and after, so never restate what you changed, never describe your steps or plans, and use no lists or tables unless asked. A question gets the answer itself: the number, the date, the name.`;
 
 function inputSchema(schema: z.ZodObject): Anthropic.Beta.BetaTool.InputSchema {
 	const { $schema: _, ...json } = z.toJSONSchema(schema) as Record<string, unknown>;
@@ -63,85 +69,141 @@ function inputSchema(schema: z.ZodObject): Anthropic.Beta.BetaTool.InputSchema {
 
 const TOOL_DEFS: Anthropic.Beta.BetaTool[] = TOOLS.map((tool) => ({
 	name: tool.name,
-	description: `${tool.description}${TIER_NOTE[tool.tier]}`,
+	description: tool.description,
 	input_schema: inputSchema(tool.input)
 }));
 
-function statusOf(action: ThreadAction): string {
-	if (action.tier === 'propose') return 'proposed: waiting for the person to accept or reject it';
-	if (action.tier === 'confirm') return 'waiting for the person to confirm';
-	return action.after.length > 0 ? 'held until the person decides on what it builds on' : 'applied';
-}
-
 export class AssistantUnavailable extends Error {}
 
-function decisionLine({ tier, status, summary }: ThreadAction): string {
-	if (tier === 'confirm') {
-		return status === 'applied'
-			? `- Deleted: ${summary}.`
-			: status === 'rejected'
-				? `- Kept, nothing was deleted: ${summary}.`
-				: `- Deleted, then undone, so it is back: ${summary}.`;
-	}
-	return status === 'applied'
-		? `- Accepted: ${summary}.`
-		: status === 'rejected'
-			? `- Rejected: ${summary}. It did not happen and nothing it made exists; do not use its ids.`
-			: `- Undone: ${summary}. It no longer applies and nothing it made exists; do not use its ids.`;
+function fieldLine(ws: Workspace, field: FieldDef): string {
+	const extra =
+		field.type === 'choice'
+			? `: ${field.choices.map((choice) => choice.name).join(', ') || 'no choices yet'}`
+			: field.type === 'link' && field.target !== null
+				? ` to "${ws.table(field.target)?.name ?? field.target}"`
+				: field.type === 'formula' && field.expr !== null
+					? `: ${toDisplay(field.expr, ws.fields(field.table))}`
+					: '';
+	const about = field.description === null ? '' : `, "${field.description}"`;
+	return `${field.name} (${field.id}, ${field.type}${extra}${about})`;
 }
 
-function contextNote(
+function cellText(ws: Workspace, field: FieldDef, value: Value | undefined): Value | undefined {
+	return field.type === 'link' && typeof value === 'string' ? ws.rowTitle(value) : value;
+}
+
+function tableNote(ws: Workspace, context: ThreadContext): string[] | null {
+	const table = context.table === null ? undefined : ws.table(context.table);
+	const base = table === undefined ? undefined : ws.base(table.base);
+	if (table === undefined || base === undefined) return null;
+
+	const fields = ws.fields(table.id);
+	const name = (id: string): string => ws.field(id)?.name ?? id;
+	const rows = ws.rows(table.id);
+	const lines: string[] = [];
+
+	let screen = `Screen: table "${table.name}" (${table.id}) in base "${base.name}" (${base.id}), ${rows.length} rows`;
+	const view = context.view === null ? undefined : ws.view(context.view);
+	if (view !== undefined && view.table === table.id) {
+		screen += `, view "${view.name}" (${view.id}, ${view.type})`;
+		const { sort, filter, hidden } = view.config;
+		if (sort)
+			screen += `, sorted by ${name(sort.field)} ${sort.dir === 'asc' ? 'ascending' : 'descending'}`;
+		if (filter && filter.text !== '')
+			screen += `, showing rows whose ${name(filter.field)} contains "${filter.text}"`;
+		if (view.type === 'grid' && hidden && hidden.length > 0)
+			screen += `, hiding ${hidden.map(name).join(', ')}`;
+	}
+	lines.push(`${screen}.`);
+	lines.push(`Fields: ${fields.map((field) => fieldLine(ws, field)).join('; ') || 'none yet'}.`);
+	lines.push(
+		`Views: ${ws
+			.views(table.id)
+			.map((candidate) => `${candidate.name} (${candidate.id}, ${candidate.type})`)
+			.join(', ')}.`
+	);
+
+	const selected = context.rows.filter((id) => ws.live(id)?.parent === table.id);
+	if (selected.length > 0) {
+		const columns = context.fields
+			.map((id) => fields.find((field) => field.id === id))
+			.filter((field) => field !== undefined);
+		const shownFields = columns.length > 0 ? columns : fields;
+		lines.push(
+			`Selected: ${selected.length} row${selected.length === 1 ? '' : 's'}${
+				columns.length > 0 ? `, in ${columns.map((field) => field.name).join(', ')}` : ''
+			}.`
+		);
+		for (const id of selected.slice(0, SHOWN_SELECTION)) {
+			const data = ws.live(id)?.data ?? {};
+			const values = Object.fromEntries(
+				shownFields
+					.filter(
+						(field) => field.type !== 'formula' && data[field.id] != null && data[field.id] !== ''
+					)
+					.map((field) => [field.name, cellText(ws, field, data[field.id])])
+			);
+			lines.push(`- ${id}: ${JSON.stringify(values)}`);
+		}
+		if (selected.length > SHOWN_SELECTION) {
+			lines.push(`- and ${selected.slice(SHOWN_SELECTION).join(', ')}`);
+		}
+	}
+	return lines;
+}
+
+function tablesLine(ws: Workspace, except: string | null): string {
+	const bases = ws.bases().map((base) => {
+		const tables = ws
+			.tables(base.id)
+			.filter((table) => table.id !== except)
+			.map((table) => `"${table.name}" (${table.id}, ${ws.rows(table.id).length} rows)`);
+		return tables.length === 0 ? null : `in "${base.name}" (${base.id}): ${tables.join(', ')}`;
+	});
+	const listed = bases.filter((line) => line !== null);
+	return listed.length === 0 ? 'none' : listed.join('; ');
+}
+
+export function contextNote(
 	ws: Workspace,
 	context: ThreadContext,
-	decided: ThreadAction[],
-	pending: ThreadAction[],
+	undone: ThreadAction[],
 	stopped: boolean
 ): string {
-	const lines = [`Today: ${todayIso()}.`];
+	const lines = [`Today: ${context.today ?? todayIso()}.`];
 
-	const base = context.base === null ? undefined : ws.base(context.base);
-	const table = context.table === null ? undefined : ws.table(context.table);
-	if (base !== undefined && table !== undefined) {
-		lines.push(`Open: base "${base.name}" (${base.id}), table "${table.name}" (${table.id}).`);
-		const view = context.view === null ? undefined : ws.view(context.view);
-		if (view !== undefined) {
-			lines.push(`View: "${view.name}" (${view.type}).`);
-		}
-		const rows = context.rows.filter((id) => ws.live(id)?.parent === table.id);
-		if (rows.length > 0) {
-			const shown =
-				rows.length === MAX_CONTEXT_ROWS ? 'Selected rows, the first ones' : 'Selected rows';
-			lines.push(`${shown}: ${rows.join(', ')}.`);
-		}
+	const table = context.screen === 'table' ? tableNote(ws, context) : null;
+	if (table !== null) {
+		lines.push(...table);
+		lines.push(`Other tables: ${tablesLine(ws, context.table)}.`);
 	} else {
-		const names = ws.bases().map((candidate) => `"${candidate.name}" (${candidate.id})`);
-		lines.push(`No table open. Bases: ${names.join(', ') || 'none'}.`);
+		lines.push(
+			context.screen === 'settings'
+				? 'Screen: the settings page (account, API tokens, import a file, export a backup).'
+				: 'Screen: the home page, listing every table.'
+		);
+		lines.push(`Tables: ${tablesLine(ws, null)}.`);
 	}
 
 	if (stopped) {
 		lines.push('The person stopped your previous reply before it finished.');
 	}
-
-	const reported = decided.filter(
-		(action) => action.tier !== 'apply' || action.status !== 'applied'
-	);
-	if (reported.length > 0) {
-		lines.push('Decisions since your last reply:');
-		lines.push(...reported.map(decisionLine));
-	}
-
-	const waiting = pending.filter((action) => action.tier !== 'apply');
-	if (waiting.length > 0) {
-		lines.push('Still waiting for the person:');
-		for (const action of waiting) {
-			lines.push(`- ${action.summary}.`);
-		}
+	if (undone.length > 0) {
+		lines.push('Undone by the person since your last reply, so it no longer applies:');
+		lines.push(...undone.map((action) => `- ${action.summary}.`));
 	}
 
 	return lines.join('\n');
 }
 
-function replay(rows: ThreadRow[]): Anthropic.Beta.BetaMessageParam[] {
+/** What a stored message holds in place of each file, so the bytes are stored once. */
+type FileMark = { type: 'file'; id: string };
+
+function replay(
+	rows: ThreadRow[],
+	db: Database,
+	threadId: string
+): Anthropic.Beta.BetaMessageParam[] {
 	const excluded = new Set(
 		rows.flatMap((row) =>
 			row.role === 'event' && (row.content as EventContent).excludes !== undefined
@@ -149,14 +211,22 @@ function replay(rows: ThreadRow[]): Anthropic.Beta.BetaMessageParam[] {
 				: []
 		)
 	);
+	const dropped = droppedSeqs(rows);
+	let files: ReturnType<typeof readFiles> | undefined;
 	const out: Anthropic.Beta.BetaMessageParam[] = [];
 	for (const row of rows) {
-		if (row.role !== 'event' && !excluded.has(row.seq)) {
-			out.push({
-				role: row.role,
-				content: echoable(row.content as Anthropic.Beta.BetaContentBlockParam[])
-			});
-		}
+		if (row.role === 'event' || excluded.has(row.seq) || dropped(row.seq)) continue;
+		const content = (row.content as (Anthropic.Beta.BetaContentBlockParam | FileMark)[]).flatMap(
+			(block) => {
+				if (block.type !== 'file') return [block as Anthropic.Beta.BetaContentBlockParam];
+				files ??= readFiles(db, threadId);
+				const file = files.get((block as FileMark).id);
+				return file === undefined
+					? [{ type: 'text' as const, text: 'An attached file that is no longer stored.' }]
+					: blocksOf(file);
+			}
+		);
+		out.push({ role: row.role, content: echoable(content) });
 	}
 	return out;
 }
@@ -174,101 +244,135 @@ function errorText(thrown: unknown): string {
 	return 'The assistant stopped responding. Try again.';
 }
 
+/** A new message, the last one sent again with new words, or the last turn run again. */
+export type Ask =
+	| { kind: 'send' | 'edit'; prompt: string; context: ThreadContext; meta: RowMeta & object }
+	| { kind: 'retry' };
+
 export type Turn = {
 	db: Database;
 	userId: string;
 	threadId: string;
-	prompt: string;
-	context: ThreadContext;
-	where: string;
+	ask: Ask;
 	signal: AbortSignal;
 	emit(event: TurnEvent): void;
 };
 
+function lastPrompt(rows: ThreadRow[]): ThreadRow | undefined {
+	const dropped = droppedSeqs(rows);
+	return rows.findLast((row) => row.role === 'user' && row.meta !== null && !dropped(row.seq));
+}
+
+function isExcluded(rows: ThreadRow[], seq: number): boolean {
+	return rows.some((row) => row.role === 'event' && (row.content as EventContent).excludes === seq);
+}
+
 export async function runTurn(turn: Turn): Promise<void> {
-	const { db, userId, threadId, prompt, context, where, signal, emit } = turn;
+	const { db, userId, threadId, ask, signal, emit } = turn;
 
 	const apiKey = anthropicKey();
 	if (apiKey === undefined) {
 		throw new AssistantUnavailable('this server has no ANTHROPIC_API_KEY');
 	}
 	const client = new Anthropic({ apiKey });
-	const model = envText('TORSEL_AI_MODEL', 'claude-opus-5-5');
+	const model = envText('TORSEL_AI_MODEL', DEFAULT_MODEL);
 
 	const ws = loadWorkspace(db, userId);
 	const hlc = new Hlc('ai');
 
-	const stamp = (changes: Change[]): void => {
-		for (const change of changes) {
-			const existing = ws.get(change.id);
-			if (existing !== undefined) {
-				hlc.observe(latestClock(existing));
-			}
-			ws.stamp(change, hlc.tick());
-		}
-	};
-
-	// Records that exist only because an undecided action made them, and which action that was.
-	const heldBy = new Map<string, string>();
-	const hold = (id: string, changes: Change[]): void => {
-		for (const change of changes) {
-			if (ws.get(change.id) === undefined) {
-				heldBy.set(change.id, id);
-			}
-		}
-	};
-	const pending = readActions(db, threadId).filter((action) => action.status === 'pending');
-	for (const action of pending) {
-		if (action.tier !== 'apply' || action.after.length > 0) {
-			hold(action.id, action.changes);
-		}
-		stamp(action.changes);
+	// What the person's device has not applied yet is already true for the model.
+	for (const action of readActions(db, threadId)) {
+		if (action.status === 'pending') stampAll(ws, hlc, action.changes);
 	}
-
-	let current = '';
-	let committed: ThreadAction | null = null;
-	const ctx: ToolContext = {
-		ws,
-		commit(action: Action) {
-			const text = JSON.stringify(action.changes);
-			const after = [...new Set(heldBy)]
-				.filter(([record]) => text.includes(record))
-				.map(([, id]) => id);
-			committed = {
-				id: current,
-				tier: action.tier,
-				summary: action.summary,
-				detail: action.detail ?? [],
-				changes: action.changes,
-				after: [...new Set(after)],
-				status: 'pending'
-			};
-			if (action.tier !== 'apply' || after.length > 0) {
-				hold(current, action.changes);
-			}
-			stamp(action.changes);
-		}
-	};
-
-	const last = readRows(db, threadId).at(-1);
-	const stopped = last?.role === 'event' && (last.content as EventContent).kind === 'stopped';
-	const decided = readUnreported(db, threadId);
-	const note = contextNote(ws, context, decided, pending, stopped);
-	const userSeq = appendPrompt(
-		db,
-		threadId,
-		[
-			{ type: 'text', text: note },
-			{ type: 'text', text: prompt }
-		],
-		{ prompt, where },
-		decided
-	);
-	const messages = replay(readRows(db, threadId));
 
 	const finish = (event: EventContent): void => {
 		appendEvent(db, threadId, event);
 		emit({ type: 'event', event });
+	};
+
+	let rows = readRows(db, threadId);
+	const previous = lastPrompt(rows);
+	const end = rows.at(-1)?.seq ?? 0;
+
+	let userSeq: number;
+	let decided: ThreadAction[] = [];
+
+	if (ask.kind === 'retry') {
+		if (previous === undefined) {
+			finish({ kind: 'error', message: 'Nothing to try again.' });
+			return;
+		}
+		if (isExcluded(rows, previous.seq)) {
+			// Declined before anything ran: the same message goes again, its note as it was.
+			appendEvent(db, threadId, {
+				kind: 'replaced',
+				message: '',
+				drops: { from: previous.seq, to: end }
+			});
+			userSeq = appendPrompt(db, threadId, previous.content, previous.meta);
+		} else {
+			userSeq = previous.seq;
+			// A reply cut short is kept as plain text, and the model can't go on from its own last words.
+			const dropped = droppedSeqs(rows);
+			const last = rows.findLast((row) => row.role !== 'event' && !dropped(row.seq));
+			if (last !== undefined && last.role === 'assistant') {
+				appendEvent(db, threadId, {
+					kind: 'replaced',
+					message: '',
+					drops: { from: last.seq, to: last.seq }
+				});
+			}
+		}
+	} else {
+		if (ask.kind === 'edit' && previous !== undefined) {
+			appendEvent(db, threadId, {
+				kind: 'replaced',
+				message: '',
+				drops: { from: previous.seq, to: end }
+			});
+			silenceTurn(db, threadId, previous.seq);
+		}
+		const tail = rows.at(-1);
+		const stopped = tail?.role === 'event' && (tail.content as EventContent).kind === 'stopped';
+		decided = readUnreported(db, threadId);
+		const note = contextNote(ws, ask.context, decided, ask.kind === 'send' && stopped);
+		const marks: FileMark[] = (ask.meta.files ?? []).map((file) => ({ type: 'file', id: file.id }));
+		userSeq = appendPrompt(
+			db,
+			threadId,
+			[{ type: 'text', text: note }, ...marks, { type: 'text', text: ask.prompt }],
+			ask.meta
+		);
+	}
+	emit({ type: 'turn', seq: userSeq });
+	rows = readRows(db, threadId);
+	const messages = replay(rows, db, threadId);
+
+	let current = '';
+	let committed: ThreadAction | null = null;
+	let shown: Effect | null = null;
+	let files: ReturnType<typeof readFiles> | undefined;
+	const ctx: ToolContext = {
+		ws,
+		commit(action: Action) {
+			committed = {
+				id: current,
+				turn: userSeq,
+				summary: action.summary,
+				changes: action.changes,
+				before: stampAll(ws, hlc, action.changes),
+				status: 'pending'
+			};
+		},
+		show(effect) {
+			shown = effect;
+		},
+		sheet(ref) {
+			files ??= readFiles(db, threadId);
+			const file =
+				files.get(ref) ?? [...files.values()].find((candidate) => candidate.name === ref);
+			return file === undefined ? null : sheetOf(file);
+		}
 	};
 
 	let partial = '';
@@ -281,19 +385,14 @@ export async function runTurn(turn: Turn): Promise<void> {
 				{
 					model,
 					max_tokens: 64000,
-					betas: [
-						'server-side-fallback-2026-07-01',
-						'thinking-display-updates-2026-08-18',
-						'thinking-binding-controls-2026-08-01'
-					],
+					betas: ['server-side-fallback-2026-07-01', 'thinking-binding-controls-2026-08-01'],
 					fallbacks: 'default',
 					// A deploy that edits the prompt or a tool must not turn every old thread into a 400.
 					thinking: {
 						type: 'adaptive',
-						display: 'updates',
 						block_binding: { prefix_mismatch_behavior: 'drop_block' }
 					},
-					output_config: { effort: 'medium' },
+					output_config: { effort: 'low' },
 					cache_control: { type: 'ephemeral' },
 					system: SYSTEM,
 					tools: TOOL_DEFS,
@@ -319,8 +418,6 @@ export async function runTurn(turn: Turn): Promise<void> {
 					if (event.delta.type === 'text_delta') {
 						partial += event.delta.text;
 						emit({ type: 'text', index: event.index, text: event.delta.text });
-					} else if (event.delta.type === 'thinking_delta') {
-						emit({ type: 'note', index: event.index, text: event.delta.thinking });
 					}
 				} else if (event.type === 'content_block_stop') {
 					const block = stream.currentMessage?.content[event.index];
@@ -334,7 +431,8 @@ export async function runTurn(turn: Turn): Promise<void> {
 
 			// Partial output of a declined reply is discarded; what earlier rounds did stands.
 			if (message.stop_reason === 'refusal') {
-				if (round === 0) {
+				const first = round === 0 && ask.kind !== 'retry';
+				if (first) {
 					unreportDecisions(
 						db,
 						threadId,
@@ -344,7 +442,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				finish({
 					kind: 'declined',
 					message: 'The assistant declined this request.',
-					...(round === 0 ? { excludes: userSeq } : {})
+					...(first ? { excludes: userSeq } : {})
 				});
 				return;
 			}
@@ -361,6 +459,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 
 			// A tool input cut off at max_tokens can still parse, so none of it runs.
 			if (message.stop_reason === 'max_tokens') {
+				const cut = JSON.stringify({ error: 'the reply ran out of room before this call' });
 				appendMessages(db, threadId, [
 					{ role: 'assistant', content },
 					{
@@ -369,7 +468,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 							type: 'tool_result',
 							tool_use_id: use.id,
 							is_error: true,
-							content: JSON.stringify({ error: 'the reply ran out of room before this call' })
+							content: cut
 						}))
 					}
 				]);
@@ -378,8 +477,9 @@ export async function runTurn(turn: Turn): Promise<void> {
 						type: 'result',
 						id: use.id,
 						isError: true,
-						content: JSON.stringify({ error: 'the reply ran out of room before this call' }),
-						action: null
+						content: cut,
+						action: null,
+						effect: null
 					});
 				}
 				finish({
@@ -393,6 +493,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 			for (const use of uses) {
 				current = use.id;
 				committed = null;
+				shown = null;
 				const tool = toolNamed(use.name);
 				let outcome: Awaited<ReturnType<typeof runTool>>;
 				try {
@@ -406,13 +507,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				}
 
 				const action = committed as ThreadAction | null;
-				const body = JSON.stringify(
-					!outcome.ok
-						? { error: outcome.error }
-						: action === null
-							? outcome.result
-							: { ...(outcome.result as object), status: statusOf(action) }
-				);
+				const body = JSON.stringify(outcome.ok ? outcome.result : { error: outcome.error });
 				if (action !== null) {
 					recordAction(db, threadId, action);
 				}
@@ -422,7 +517,14 @@ export async function runTurn(turn: Turn): Promise<void> {
 					is_error: !outcome.ok,
 					content: body
 				});
-				emit({ type: 'result', id: use.id, isError: !outcome.ok, content: body, action });
+				emit({
+					type: 'result',
+					id: use.id,
+					isError: !outcome.ok,
+					content: body,
+					action,
+					effect: shown
+				});
 			}
 
 			appendMessages(db, threadId, [

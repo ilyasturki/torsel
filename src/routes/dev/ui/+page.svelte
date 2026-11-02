@@ -3,7 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import type { Item } from '#lib/core/thread.ts';
+	import type { ThreadAction } from '#lib/core/thread.ts';
 	import { seedFixture, type Fixture } from '#lib/dev/fixtures.ts';
 	import Section from '#lib/dev/Section.svelte';
 	import Specimen from '#lib/dev/Specimen.svelte';
@@ -33,6 +33,7 @@
 	import Textarea from '#lib/ui/Textarea.svelte';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 	import CellValue from '#lib/views/CellValue.svelte';
+	import ChangeCard from '#lib/views/ChangeCard.svelte';
 	import Chart from '#lib/views/Chart.svelte';
 	import Entry from '#lib/views/Entry.svelte';
 	import FieldInput from '#lib/views/FieldInput.svelte';
@@ -40,7 +41,6 @@
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
 	import RowSheet from '#lib/views/RowSheet.svelte';
-	import ThreadTool from '#lib/views/ThreadTool.svelte';
 	import Toast from '#lib/views/Toast.svelte';
 	import ViewSheet from '#lib/views/ViewSheet.svelte';
 
@@ -86,7 +86,7 @@
 				'FieldSheet',
 				'ViewSheet',
 				'Toast',
-				'ThreadTool'
+				'ChangeCard'
 			]
 		}
 	];
@@ -208,38 +208,61 @@
 		'| Deadlift | 140 |'
 	].join('\n');
 
-	const TOOLS: Extract<Item, { kind: 'tool' }>[] = [
-		{
-			kind: 'tool',
-			key: 'running',
-			name: 'insert_rows',
-			label: 'Adding 3 rows to Sets',
-			state: 'running',
-			input: { table: 'Sets', rows: 3 },
-			output: null,
-			action: null
-		},
-		{
-			kind: 'tool',
-			key: 'done',
-			name: 'read_rows',
-			label: 'Read Sets',
-			state: 'done',
-			input: { table: 'Sets' },
-			output: '{"rows": 6}',
-			action: null
-		},
-		{
-			kind: 'tool',
-			key: 'error',
-			name: 'add_field',
-			label: 'Add a field to Sets',
-			state: 'error',
-			input: { name: 'Kg' },
-			output: '{"error": "A field named Kg already exists."}',
-			action: null
+	/** One of each kind of change, on the sample table: rows added, a value changed, a field gone, one undone. */
+	const changes = $derived.by((): ThreadAction[] => {
+		void app.version;
+		if (fixture === null) return [];
+		const tableId = fixture.table;
+		const all = app.ws.fields(tableId);
+		const text = all.find((item) => item.type === 'text');
+		const number = all.find((item) => item.type === 'number');
+		const row = app.ws.live(fixture.rows[0]);
+		const gone = all.at(-1);
+		if (text === undefined || number === undefined || row === undefined || gone === undefined) {
+			return [];
 		}
-	];
+		const base = row.base;
+		const added = { id: 'r_devui_added', kind: 'row' as const, base, parent: tableId };
+		const edit = { id: row.id, kind: 'row' as const, base, parent: tableId };
+		const field = { id: gone.id, kind: 'field' as const, base, parent: tableId };
+		const before = row.data[number.id] ?? null;
+		const after = typeof before === 'number' ? before + 5 : 100;
+		const goneRec = app.ws.get(gone.id);
+		return [
+			{
+				id: 'added',
+				turn: 1,
+				summary: 'Add 1 row to Sets',
+				changes: [{ ...added, set: { [text.id]: 'Deadlift', [number.id]: 140 } }],
+				before: [{ ...added, set: { _del: true } }],
+				status: 'applied'
+			},
+			{
+				id: 'edited',
+				turn: 1,
+				summary: 'Change 1 row in Sets',
+				changes: [{ ...edit, set: { [number.id]: after } }],
+				before: [{ ...edit, set: { [number.id]: before } }],
+				status: 'applied'
+			},
+			{
+				id: 'gone',
+				turn: 2,
+				summary: `Delete field "${gone.name}"`,
+				changes: [{ ...field, set: { _del: true } }],
+				before: [{ ...field, set: { ...goneRec?.data, _del: null } }],
+				status: 'applied'
+			},
+			{
+				id: 'undone',
+				turn: 3,
+				summary: 'Change 1 row in Sets',
+				changes: [{ ...edit, set: { [number.id]: after } }],
+				before: [{ ...edit, set: { [number.id]: before } }],
+				status: 'undone'
+			}
+		];
+	});
 
 	const fields = $derived.by(() => {
 		void app.version;
@@ -856,12 +879,12 @@
 			</Specimen>
 		</Section>
 
-		<Section name="ThreadTool" from="views/ThreadTool.svelte">
+		<Section name="ChangeCard" from="views/ChangeCard.svelte">
 			<div class="flex w-full max-w-ask flex-col gap-2">
-				{#each TOOLS as item (item.key)}
-					<Specimen label="state={item.state}" wide>
+				{#each changes as action (action.id)}
+					<Specimen label="{action.id}, status={action.status}" wide>
 						<div class="w-full">
-							<ThreadTool {item} busy={item.state === 'running'} onopen={() => {}} />
+							<ChangeCard {action} onopen={() => {}} />
 						</div>
 					</Specimen>
 				{/each}

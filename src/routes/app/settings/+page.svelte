@@ -7,10 +7,9 @@
 	import { formatDate } from '#lib/client/format.ts';
 	import { SETTINGS } from '#lib/client/nav.ts';
 	import { me } from '#lib/client/session.svelte.ts';
-	import { shell } from '#lib/client/shell.svelte.ts';
+	import { downloadBackup, shell } from '#lib/client/shell.svelte.ts';
 	import { eraseDevice, signOut } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { exportOf } from '#lib/core/backup.ts';
 	import { signInPath } from '#lib/core/return-path.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
@@ -80,15 +79,6 @@
 		} catch {
 			tokenProblem = 'Couldn’t revoke the token. Try again.';
 		}
-	}
-
-	function exportJson(): void {
-		const url = URL.createObjectURL(new Blob([exportOf(app.ws)], { type: 'application/json' }));
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = `torsel-${new Date().toISOString().slice(0, 10)}.json`;
-		link.click();
-		URL.revokeObjectURL(url);
 	}
 
 	const mcpUrl = $derived(`${base ?? DEFAULT_SERVER}/api/mcp`);
@@ -221,7 +211,7 @@
 	<section class="flex items-center justify-between gap-3">
 		<span class="min-w-0 flex-1">All data on this device</span>
 		<Button onclick={() => (shell.importing = { into: null })}>Import</Button>
-		<Button onclick={exportJson}>Export as JSON</Button>
+		<Button onclick={downloadBackup}>Export as JSON</Button>
 	</section>
 
 	{#if me.account === null}

@@ -6,32 +6,60 @@ export const MAX_PROMPT = 4000;
 
 export const MAX_CONTEXT_ROWS = 200;
 
-export type Tier = 'apply' | 'propose' | 'confirm';
+export const MAX_TITLE = 60;
 
-export type ActionStatus = 'pending' | 'applied' | 'rejected' | 'undone';
+export const MAX_FILES = 5;
 
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+// adapter-node refuses a body over BODY_SIZE_LIMIT, 512K unless the server sets it.
+export const UPLOAD_PART = 400_000;
+
+export const ATTACHABLE =
+	'.csv,.tsv,.txt,.md,.json,.xlsx,.pdf,image/png,image/jpeg,image/gif,image/webp,text/*';
+
+export type ActionStatus = 'pending' | 'applied' | 'undone';
+
+/** One write of the assistant: applied at once, undone by stamping `before`. */
 export type ThreadAction = {
 	id: string;
-	tier: Tier;
+	// The seq of the person's message whose turn made it.
+	turn: number;
 	summary: string;
-	detail: string[];
 	changes: Change[];
-	after: string[];
+	// What takes it back, in the order to stamp it; a deletion holds the whole record it removed.
+	before: Change[];
 	status: ActionStatus;
 };
 
+/** What the person sees, where the assistant can act from. */
+export type Screen = 'home' | 'settings' | 'table';
+
 export type ThreadContext = {
+	screen: Screen;
 	base: string | null;
 	table: string | null;
 	view: string | null;
 	rows: string[];
+	fields: string[];
+	// The person's own date, which the server's time zone can't tell.
+	today?: string;
 };
 
-export type RowMeta = { prompt: string; where: string } | null;
+export type Attachment = { id: string; name: string; type: string; size: number };
 
-export type EventKind = 'stopped' | 'declined' | 'error';
+export type RowMeta = { prompt: string; where: string; files?: Attachment[] } | null;
 
-export type EventContent = { kind: EventKind; message: string; excludes?: number };
+export type EventKind = 'stopped' | 'declined' | 'error' | 'replaced';
+
+// `excludes` leaves one row out of what the model is sent; `drops` leaves a range out of both the
+// model's history and the thread the person reads.
+export type EventContent = {
+	kind: EventKind;
+	message: string;
+	excludes?: number;
+	drops?: { from: number; to: number };
+};
 
 export type ThreadRow = {
 	seq: number;
@@ -40,14 +68,21 @@ export type ThreadRow = {
 	meta: RowMeta;
 };
 
-export type ThreadSummary = { id: string; title: string; updatedAt: number };
+export type ThreadSummary = { id: string; title: string; createdAt: number; updatedAt: number };
+
+/** What the app does on the screen for the assistant: no record changes. */
+export type Effect =
+	| { kind: 'open'; table: string; view: string | null }
+	| { kind: 'home' }
+	| { kind: 'settings' }
+	| { kind: 'export' };
 
 export type TurnEvent =
 	| { type: 'ping' }
+	| { type: 'turn'; seq: number }
 	| { type: 'assistant' }
 	| { type: 'block'; index: number; block: { type: string; id?: string; name?: string } }
 	| { type: 'text'; index: number; text: string }
-	| { type: 'note'; index: number; text: string }
 	| { type: 'input'; index: number; input: unknown }
 	| {
 			type: 'result';
@@ -55,43 +90,16 @@ export type TurnEvent =
 			isError: boolean;
 			content: string;
 			action: ThreadAction | null;
+			effect: Effect | null;
 	  }
 	| { type: 'event'; event: EventContent }
 	| { type: 'done' };
 
-export const TOOL_TITLES: Record<string, string> = {
-	list_bases: 'List bases',
-	describe_base: 'Read the schema',
-	query: 'Read with SQL',
-	add_rows: 'Add rows',
-	update_rows: 'Change rows',
-	delete_rows: 'Delete rows',
-	create_base: 'Create a base',
-	create_table: 'Create a table',
-	add_field: 'Add a field',
-	update_field: 'Change a field',
-	create_view: 'Create a view',
-	delete: 'Delete a table, field or view'
-};
-
 export type Item =
-	| { kind: 'user'; key: string; text: string; where: string }
-	| { kind: 'note'; key: string; text: string }
+	| { kind: 'user'; key: string; seq: number; text: string; where: string; files: Attachment[] }
 	| { kind: 'text'; key: string; text: string }
-	| {
-			kind: 'tool';
-			key: string;
-			name: string;
-			label: string;
-			state: 'running' | 'done' | 'error';
-			input: unknown;
-			output: string | null;
-			action: ThreadAction | null;
-	  }
+	| { kind: 'change'; key: string; action: ThreadAction }
 	| { kind: 'event'; key: string; event: EventKind; message: string };
-
-// What the API sends in place of a progress note it could not finish; not meant for the person.
-const INTERRUPTED = 'This part of the response was interrupted before it finished.';
 
 type Block = Anthropic.Beta.BetaContentBlockParam;
 
@@ -99,103 +107,53 @@ function blocks(content: unknown): Block[] {
 	return Array.isArray(content) ? (content as Block[]) : [];
 }
 
-function plural(count: number, one: string): string {
-	return `${count} ${one}${count === 1 ? '' : 's'}`;
+/** Rows a later retry or edit took out of the thread. */
+export function droppedSeqs(rows: ThreadRow[]): (seq: number) => boolean {
+	const ranges = rows.flatMap((row) => {
+		const drops = row.role === 'event' ? (row.content as EventContent).drops : undefined;
+		return drops === undefined ? [] : [drops];
+	});
+	return (seq) => ranges.some(({ from, to }) => seq >= from && seq <= to);
 }
 
-function parsed(output: string | null): Record<string, unknown> {
-	try {
-		const value: unknown = JSON.parse(output ?? '');
-		return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-	} catch {
-		return {};
-	}
-}
-
-/** What a tool call did and on what, in one line. */
-export function describeCall(
-	name: string,
-	output: string | null,
-	action: ThreadAction | null
-): string {
-	const title = TOOL_TITLES[name] ?? name;
-	if (action !== null) {
-		return action.summary;
-	}
-	if (output === null) {
-		return title;
-	}
-
-	const result = parsed(output);
-	if (typeof result.error === 'string') {
-		return title;
-	}
-	if (name === 'query' && typeof result.count === 'number') {
-		return `${title}: ${plural(result.count, 'row')}`;
-	}
-	if (name === 'describe_base' && typeof result.name === 'string') {
-		return `${title} of ${result.name}`;
-	}
-	if (name === 'list_bases' && Array.isArray(result)) {
-		return `${title}: ${result.length}`;
-	}
-	return title;
-}
-
-export function errorOf(output: string | null): string | null {
-	const error = parsed(output).error;
-	return typeof error === 'string' ? error : null;
-}
-
-/** One rendering for a loaded thread and a streaming one: both are the same rows. */
+/**
+ * One rendering for a loaded thread and a streaming one: both are the same rows. Reads and failed
+ * calls stay out of it; a write shows as its change.
+ */
 export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 	const items: Item[] = [];
-	const results = new Map<string, { output: string; isError: boolean }>();
-
-	for (const row of rows) {
-		if (row.role !== 'user') continue;
-		for (const block of blocks(row.content)) {
-			if (block.type === 'tool_result') {
-				results.set(block.tool_use_id, {
-					output: typeof block.content === 'string' ? block.content : JSON.stringify(block.content),
-					isError: block.is_error === true
-				});
-			}
-		}
-	}
+	const dropped = droppedSeqs(rows);
+	const byId = new Map(actions.map((action) => [action.id, action]));
 
 	rows.forEach((row, at) => {
+		// A row still streaming has seq 0, and nothing drops it.
+		if (row.seq !== 0 && dropped(row.seq)) return;
 		if (row.role === 'event') {
 			const event = row.content as EventContent;
-			items.push({ kind: 'event', key: `${at}`, event: event.kind, message: event.message });
+			if (event.kind !== 'replaced') {
+				items.push({ kind: 'event', key: `${at}`, event: event.kind, message: event.message });
+			}
 		} else if (row.role === 'user') {
 			if (row.meta !== null) {
-				items.push({ kind: 'user', key: `${at}`, text: row.meta.prompt, where: row.meta.where });
+				items.push({
+					kind: 'user',
+					key: `${at}`,
+					seq: row.seq,
+					text: row.meta.prompt,
+					where: row.meta.where,
+					files: row.meta.files ?? []
+				});
 			}
 		} else {
 			blocks(row.content).forEach((block, index) => {
-				const key = `${at}.${index}`;
 				if (block === undefined) return;
 				if (block.type === 'text' && block.text !== '') {
-					items.push({ kind: 'text', key, text: block.text });
-				} else if (block.type === 'thinking') {
-					if (block.thinking !== '' && block.thinking !== INTERRUPTED) {
-						items.push({ kind: 'note', key, text: block.thinking });
-					}
+					items.push({ kind: 'text', key: `${at}.${index}`, text: block.text });
 				} else if (block.type === 'tool_use') {
-					const result = results.get(block.id);
-					const action = actions.find((candidate) => candidate.id === block.id) ?? null;
-					const output = result?.output ?? null;
-					items.push({
-						kind: 'tool',
-						key: block.id,
-						name: block.name,
-						label: describeCall(block.name, output, action),
-						state: result === undefined ? 'running' : result.isError ? 'error' : 'done',
-						input: block.input,
-						output,
-						action
-					});
+					const action = byId.get(block.id);
+					if (action !== undefined) {
+						items.push({ kind: 'change', key: block.id, action });
+					}
 				}
 			});
 		}
@@ -221,30 +179,8 @@ export function echoable<T extends { type: string }>(content: T[]): T[] {
 			);
 }
 
-/** Actions a decision on `id` carries with it: those built on it, however indirectly. */
-export function dependents(actions: ThreadAction[], id: string): ThreadAction[] {
-	const found = new Set([id]);
-	for (const action of actions) {
-		if (action.after.some((dep) => found.has(dep))) {
-			found.add(action.id);
-		}
-	}
-	found.delete(id);
-	return actions.filter((action) => found.has(action.id));
-}
-
-/** Still-pending actions `id` is built on, the ones furthest back first. */
-export function prerequisites(actions: ThreadAction[], id: string): ThreadAction[] {
-	const needed = new Set<string>();
-	const visit = (actionId: string): void => {
-		const action = actions.find((candidate) => candidate.id === actionId);
-		for (const dep of action?.after ?? []) {
-			if (!needed.has(dep)) {
-				needed.add(dep);
-				visit(dep);
-			}
-		}
-	};
-	visit(id);
-	return actions.filter((action) => needed.has(action.id) && action.status === 'pending');
+/** A thread's title from its first message, on one line. */
+export function titleOf(text: string): string {
+	const line = text.trim().replace(/\s+/gu, ' ');
+	return line.length > MAX_TITLE ? `${line.slice(0, MAX_TITLE).trimEnd()}…` : line;
 }

@@ -340,14 +340,15 @@ class TorselApp {
 		return group;
 	}
 
-	public redo(): Group | undefined {
-		const group = this.undone.at(-1);
+	public redo(id?: number): Group | undefined {
+		const group =
+			id === undefined ? this.undone.at(-1) : this.undone.find((item) => item.id === id);
 		if (group === undefined) {
 			return undefined;
 		}
 
 		const inverse = this.stamp(group.inverse);
-		this.undone = this.undone.slice(0, -1);
+		this.undone = this.undone.filter((item) => item.id !== group.id);
 		this.history = [...this.history, { ...group, inverse }];
 		this.moved(decisionOf(group, 'applied'));
 		this.onRedo?.(group);

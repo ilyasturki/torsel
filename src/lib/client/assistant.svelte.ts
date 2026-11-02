@@ -1,10 +1,11 @@
 import { SvelteSet } from 'svelte/reactivity';
 
-import { Hlc } from '../core/clock.ts';
-import type { BaseDef, Change, FieldDef, Rec, TableDef, Value, ViewDef } from '../core/model.ts';
-import { DELETED } from '../core/model.ts';
-import type { SqlRow } from '../core/sql.ts';
+import { goto } from '$app/navigation';
+
+import type { Change } from '../core/model.ts';
 import type {
+	Attachment,
+	Effect,
 	EventKind,
 	ThreadAction,
 	ThreadContext,
@@ -12,18 +13,21 @@ import type {
 	ThreadSummary,
 	TurnEvent
 } from '../core/thread.ts';
-import { dependents, prerequisites } from '../core/thread.ts';
-import { Workspace, tableDef } from '../core/workspace.ts';
+import { MAX_FILE_BYTES, UPLOAD_PART, droppedSeqs } from '../core/thread.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
 import { limitMessage, limitOf } from './limit.ts';
 import type { Decision } from './local.ts';
+import { HOME, SETTINGS, tableUrl } from './nav.ts';
 import { me } from './session.svelte.ts';
+import { downloadBackup } from './shell.svelte.ts';
 import { syncNow } from './sync.svelte.ts';
 import { showToast } from './toast.svelte.ts';
 
-type LiveBlock = { type: string; text?: string; thinking?: string; input?: unknown };
+type LiveBlock = { type: string; text?: string; input?: unknown };
+
+export type Upload = Attachment & { received: number; failed: boolean };
 
 export const assistant = $state({
 	available: null as boolean | null,
@@ -34,7 +38,8 @@ export const assistant = $state({
 	threads: [] as ThreadSummary[],
 	listing: false,
 	busy: false,
-	resumed: false
+	// Bumped each time the assistant shows the person another screen.
+	moved: 0
 });
 
 /** Rows the assistant just wrote, standing out in place for a moment. */
@@ -63,14 +68,19 @@ async function deliver(thread: string, decisions: Decision[]): Promise<void> {
 	await app.delivered(decisions);
 }
 
+/** Decisions held for threads under this account; another account's would be refused. */
+async function owed(): Promise<Decision[]> {
+	const held = await app.decisions();
+	if (held.length === 0 || !me.account || (await app.meta<string>('owner')) !== me.account.id) {
+		return [];
+	}
+	return held;
+}
+
 function flushDecisions(): Promise<void> {
 	flushing = flushing
 		.then(async () => {
-			const held = await app.decisions();
-			// Under another account a held thread answers 404, which would drop what its owner still owes.
-			if (held.length === 0 || !me.account || (await app.meta<string>('owner')) !== me.account.id) {
-				return;
-			}
+			const held = await owed();
 			for (const thread of new Set(held.map((decision) => decision.thread))) {
 				await deliver(
 					thread,
@@ -121,75 +131,80 @@ function alreadyApplied(action: ThreadAction): boolean {
 	});
 }
 
+// IndexedDB can't clone a state proxy; the cast stops `snapshot` recursing through `Value`.
+const plain = (changes: Change[]): Change[] => $state.snapshot(changes as unknown[]) as Change[];
+
 function applyAction(action: ThreadAction): void {
 	if (alreadyApplied(action)) {
 		decide(action, 'applied');
 		return;
 	}
-	// IndexedDB can't clone a state proxy; the cast stops `snapshot` recursing through `Value`.
-	const changes = $state.snapshot(action.changes as unknown[]) as Change[];
-	const group = app.apply(changes, action.summary, 'ai', {
+	app.apply(plain(action.changes), action.summary, 'ai', {
 		thread: assistant.id as string,
 		id: action.id
 	});
 	changed(action, 'applied');
 	markFresh(action);
-	showToast(`Applied: ${action.summary}`, group?.id ?? null);
 }
 
-/** Applies data entry nothing holds back, in the order it came. */
+/** Applies what this device hasn't yet, in the order it came. */
 function settle(): void {
 	for (const action of assistant.actions) {
-		if (
-			action.status === 'pending' &&
-			action.tier === 'apply' &&
-			action.after.every(
-				(dep) => assistant.actions.find((other) => other.id === dep)?.status !== 'pending'
-			)
-		) {
+		if (action.status === 'pending') {
 			applyAction(action);
 		}
 	}
 }
 
-export function accept(id: string): void {
-	const action = assistant.actions.find((candidate) => candidate.id === id);
-	if (action?.status !== 'pending') return;
-	for (const needed of prerequisites(assistant.actions, id)) {
-		applyAction(needed);
-	}
-	applyAction(action);
-	settle();
-}
-
-export function reject(id: string): void {
-	const action = assistant.actions.find((candidate) => candidate.id === id);
-	if (action?.status !== 'pending') return;
-	decide(action, 'rejected');
-	for (const built of dependents(assistant.actions, id)) {
-		if (built.status === 'pending') {
-			decide(built, 'rejected');
-		}
-	}
-}
-
-export function acceptAll(): void {
-	for (const action of assistant.actions) {
-		if (action.tier === 'propose') {
-			accept(action.id);
-		}
-	}
-}
-
-export function canUndo(action: ThreadAction): boolean {
-	return action.status === 'applied' && app.history.some((item) => item.action === action.id);
-}
-
-export function undoAction(action: ThreadAction): void {
+/** Undoes one change: by its step while this device holds it, else by its stored before-values. */
+function undoOne(action: ThreadAction): void {
+	if (action.status !== 'applied') return;
 	const group = app.history.find((item) => item.action === action.id);
 	if (group !== undefined) {
 		app.undo(group.id);
-		showToast(`Undid: ${action.summary}`);
+		return;
+	}
+	app.apply(plain(action.before), `Undo: ${action.summary}`);
+	decide(action, 'undone');
+}
+
+function redoOne(action: ThreadAction): void {
+	if (action.status !== 'undone') return;
+	const group = app.undone.find((item) => item.action === action.id);
+	if (group !== undefined) {
+		app.redo(group.id);
+		return;
+	}
+	app.apply(plain(action.changes), action.summary, 'ai', {
+		thread: assistant.id as string,
+		id: action.id
+	});
+	changed(action, 'applied');
+	markFresh(action);
+}
+
+export function undoChange(action: ThreadAction): void {
+	undoOne(action);
+}
+
+export function redoChange(action: ThreadAction): void {
+	redoOne(action);
+}
+
+export function turnActions(turn: number): ThreadAction[] {
+	return assistant.actions.filter((action) => action.turn === turn);
+}
+
+/** The last change first, so each one finds the records the next undo restores as it left them. */
+export function undoTurn(turn: number): void {
+	for (const action of turnActions(turn).toReversed()) {
+		undoOne(action);
+	}
+}
+
+export function redoTurn(turn: number): void {
+	for (const action of turnActions(turn)) {
+		redoOne(action);
 	}
 }
 
@@ -221,6 +236,19 @@ app.onDecided = (decisions) => {
 	}
 };
 
+function perform(effect: Effect): void {
+	assistant.moved += 1;
+	if (effect.kind === 'open') {
+		void goto(tableUrl(effect.table, effect.view ?? undefined));
+	} else if (effect.kind === 'home') {
+		void goto(HOME);
+	} else if (effect.kind === 'settings') {
+		void goto(SETTINGS);
+	} else {
+		downloadBackup();
+	}
+}
+
 function pushEvent(kind: EventKind, message: string): void {
 	assistant.rows.push({ seq: 0, role: 'event', content: { kind, message }, meta: null });
 }
@@ -234,6 +262,11 @@ function onEvent(event: TurnEvent): void {
 	const live = rows.findLast((row) => row.role === 'assistant');
 
 	switch (event.type) {
+		case 'turn': {
+			const asked = rows.findLast((row) => row.role === 'user' && row.meta !== null);
+			if (asked !== undefined && asked.seq === 0) asked.seq = event.seq;
+			break;
+		}
 		case 'assistant':
 			rows.push({ seq: 0, role: 'assistant', content: [], meta: null });
 			break;
@@ -241,17 +274,12 @@ function onEvent(event: TurnEvent): void {
 			blocksOf(live)[event.index] =
 				event.block.type === 'text'
 					? { type: 'text', text: '' }
-					: event.block.type === 'thinking'
-						? { type: 'thinking', thinking: '' }
-						: event.block.type === 'tool_use'
-							? { ...event.block, input: {} }
-							: event.block;
+					: event.block.type === 'tool_use'
+						? { ...event.block, input: {} }
+						: event.block;
 			break;
 		case 'text':
 			blocksOf(live)[event.index].text += event.text;
-			break;
-		case 'note':
-			blocksOf(live)[event.index].thinking += event.text;
 			break;
 		case 'input':
 			blocksOf(live)[event.index].input = event.input;
@@ -273,6 +301,9 @@ function onEvent(event: TurnEvent): void {
 			if (event.action !== null) {
 				assistant.actions.push(event.action);
 				settle();
+			}
+			if (event.effect !== null) {
+				perform(event.effect);
 			}
 			break;
 		}
@@ -297,31 +328,54 @@ function problemOf(error: unknown): string {
 	return 'Something went wrong. Try again.';
 }
 
-export async function send(prompt: string, context: ThreadContext, where: string): Promise<void> {
-	if (assistant.busy) return;
+type Mode = 'send' | 'edit' | 'retry';
+
+type Message = { prompt: string; context: ThreadContext; where: string; files: Attachment[] };
+
+async function run(mode: Mode, message: Message | null): Promise<void> {
 	assistant.busy = true;
 	assistant.listing = false;
 	controller = new AbortController();
 	const { signal } = controller;
-	assistant.rows.push({ seq: 0, role: 'user', content: [], meta: { prompt, where } });
+	let decisions: Decision[] = [];
 
 	try {
-		await flushDecisions();
-		await syncNow();
-		if (assistant.id === null) {
-			const thread = await request<ThreadSummary>('/api/ai/threads', {
-				method: 'POST',
-				body: { prompt }
-			});
-			assistant.id = thread.id;
-			assistant.title = thread.title;
-			void app.setMeta(THREAD_META, thread.id);
-		}
+		// Only edits not yet on the server need a sync first: the model reads the server's copy.
+		await Promise.all([
+			app.pending > 0 ? syncNow() : undefined,
+			assistant.id === null && message !== null
+				? request<ThreadSummary>('/api/ai/threads', {
+						method: 'POST',
+						body: { prompt: message.prompt }
+					}).then((thread) => {
+						assistant.id = thread.id;
+						assistant.title = thread.title;
+						void app.setMeta(THREAD_META, thread.id);
+					})
+				: undefined
+		]);
+		const thread = assistant.id as string;
+		decisions = (await owed()).filter((decision) => decision.thread === thread);
 		await streamLines<TurnEvent>(
-			`/api/ai/threads/${assistant.id}/messages`,
-			{ body: { prompt, context, where }, signal },
+			`/api/ai/threads/${thread}/messages`,
+			{
+				body: {
+					mode,
+					...(message === null
+						? {}
+						: {
+								prompt: message.prompt,
+								context: message.context,
+								where: message.where,
+								files: message.files.map((file) => file.id)
+							}),
+					decisions: decisions.map(({ id, status }) => ({ id, status }))
+				},
+				signal
+			},
 			onEvent
 		);
+		void app.delivered(decisions);
 	} catch (error) {
 		if (signal.aborted) {
 			pushEvent('stopped', 'Stopped.');
@@ -332,13 +386,96 @@ export async function send(prompt: string, context: ThreadContext, where: string
 		assistant.busy = false;
 		controller = null;
 	}
+	// The server's rows carry the seqs a later edit or retry names.
+	if (assistant.id !== null && !signal.aborted) {
+		await refresh(assistant.id);
+	}
+}
+
+export async function send(message: Message): Promise<void> {
+	if (assistant.busy) return;
+	assistant.rows.push({
+		seq: 0,
+		role: 'user',
+		content: [],
+		meta: {
+			prompt: message.prompt,
+			where: message.where,
+			...(message.files.length > 0 ? { files: message.files } : {})
+		}
+	});
+	await run('send', message);
+}
+
+/** The thread as the person reads it: what a retry or an edit took out is gone. */
+function visible(rows: ThreadRow[]): ThreadRow[] {
+	const dropped = droppedSeqs(rows);
+	return rows.filter((row) => row.seq === 0 || !dropped(row.seq));
+}
+
+export function lastPrompt(): ThreadRow | undefined {
+	return visible(assistant.rows).findLast((row) => row.role === 'user' && row.meta !== null);
+}
+
+/** Runs the last turn again from where it failed or stopped. */
+export async function retry(): Promise<void> {
+	if (assistant.busy || assistant.id === null) return;
+	const rows = visible(assistant.rows);
+	while (rows.at(-1)?.role === 'event') rows.pop();
+	const last = rows.at(-1);
+	if (last?.role === 'assistant') rows.pop();
+	assistant.rows = rows;
+	await run('retry', null);
+}
+
+/** Takes back the last message and what its turn changed, then sends its new words. */
+export async function edit(message: Message): Promise<void> {
+	const asked = lastPrompt();
+	if (assistant.busy || assistant.id === null || asked === undefined || asked.seq === 0) return;
+	undoTurn(asked.seq);
+	const rows = visible(assistant.rows);
+	const at = rows.indexOf(asked);
+	assistant.rows = [
+		...rows.slice(0, at),
+		{
+			seq: 0,
+			role: 'user',
+			content: [],
+			meta: {
+				prompt: message.prompt,
+				where: message.where,
+				...(message.files.length > 0 ? { files: message.files } : {})
+			}
+		}
+	];
+	await run('edit', message);
 }
 
 export function stop(): void {
 	controller?.abort();
 }
 
+async function refresh(id: string): Promise<void> {
+	const thread = await request<ThreadSummary & { rows: ThreadRow[]; actions: ThreadAction[] }>(
+		`/api/ai/threads/${id}`
+	).catch(() => null);
+	if (thread === null || assistant.id !== id || assistant.busy) return;
+	const held = await app.decisions();
+	assistant.title = thread.title;
+	assistant.rows = thread.rows;
+	assistant.actions = thread.actions.map((action) => {
+		const local = assistant.actions.find((candidate) => candidate.id === action.id);
+		return {
+			...action,
+			status:
+				held.find((decision) => decision.id === action.id)?.status ??
+				(local !== undefined && local.status !== 'pending' ? local.status : action.status)
+		};
+	});
+}
+
 export async function openThread(id: string): Promise<void> {
+	if (assistant.busy) stop();
 	await flushDecisions();
 	// Read ahead of the fetch: one delivered in between is then only said twice, never missed.
 	const held = await app.decisions();
@@ -368,16 +505,39 @@ export function newThread(): void {
 	void app.setMeta(THREAD_META, null);
 }
 
+export async function listThreads(): Promise<void> {
+	assistant.threads = await request<ThreadSummary[]>('/api/ai/threads').catch(
+		() => assistant.threads
+	);
+}
+
 export async function showThreads(): Promise<void> {
 	assistant.listing = !assistant.listing;
 	if (assistant.listing) {
-		assistant.threads = await request<ThreadSummary[]>('/api/ai/threads').catch(
-			() => assistant.threads
-		);
+		await listThreads();
 	}
 }
 
-/** The last thread comes back with the app, so its proposals keep showing in the tables. */
+export async function renameThread(id: string, title: string): Promise<void> {
+	const renamed = await request<ThreadSummary>(`/api/ai/threads/${id}`, {
+		method: 'PATCH',
+		body: { title }
+	});
+	assistant.threads = assistant.threads.map((thread) => (thread.id === id ? renamed : thread));
+	if (assistant.id === id) assistant.title = renamed.title;
+}
+
+export async function deleteThread(id: string): Promise<void> {
+	await request(`/api/ai/threads/${id}`, { method: 'DELETE' });
+	assistant.threads = assistant.threads.filter((thread) => thread.id !== id);
+	if (assistant.id === id) {
+		newThread();
+		assistant.listing = true;
+	}
+	showToast('Thread deleted');
+}
+
+/** The last thread comes back with the app. */
 export async function resumeThread(): Promise<void> {
 	void flushDecisions();
 	if (assistant.id === null) {
@@ -386,15 +546,6 @@ export async function resumeThread(): Promise<void> {
 			await openThread(id).catch(() => app.setMeta(THREAD_META, null));
 		}
 	}
-	assistant.resumed = true;
-}
-
-/** While a thread may still come back, a table not in the workspace may be one it proposes. */
-export function mayResume(): boolean {
-	return (
-		assistant.available === null ||
-		(assistant.available && (!me.asked || (Boolean(me.account) && !assistant.resumed)))
-	);
 }
 
 /** Whether this server can run the assistant; an unreachable server leaves the last answer standing. */
@@ -411,120 +562,30 @@ export async function checkAvailability(): Promise<void> {
 	}
 }
 
-export type GhostField = { field: FieldDef; action: ThreadAction };
-
-export type GhostView = { view: ViewDef; action: ThreadAction };
-
-export type GhostTable = {
-	table: TableDef;
-	action: ThreadAction;
-	rows: number;
-	base: BaseDef;
-	baseProposed: boolean;
-};
-
-export type TablePreview = {
-	fields: GhostField[];
-	rows: Rec[];
-	computed: Map<string, SqlRow>;
-};
-
-function waiting(): ThreadAction[] {
-	return assistant.actions.filter(
-		(action) => action.status === 'pending' && action.tier === 'propose'
-	);
-}
-
-/** What undecided actions would add, held apart: the workspace is what syncs and reaches undo. */
-function proposal(): Workspace {
-	const held = new Workspace();
-	const hlc = new Hlc('proposal');
-	for (const action of assistant.actions) {
-		if (action.status === 'pending' && action.tier !== 'confirm') {
-			for (const change of action.changes) {
-				if (app.ws.get(change.id) === undefined) {
-					held.stamp(change, hlc.tick());
-				}
-			}
-		}
+/** Sends a file in parts the server's body limit takes, `progress` told each step. */
+export async function upload(
+	file: File,
+	progress: (received: number) => void
+): Promise<Attachment> {
+	if (file.size > MAX_FILE_BYTES) {
+		throw new ApiError(413, 'Files go up to 10 MB.');
 	}
-	return held;
-}
-
-function proposerOf(id: string): ThreadAction {
-	return waiting().find((action) =>
-		action.changes.some((change) => change.id === id)
-	) as ThreadAction;
-}
-
-/** Proposed fields of a table, drawn in place: none of them is in the workspace yet. */
-export function ghostFields(tableId: string): GhostField[] {
-	return proposal()
-		.fields(tableId)
-		.map((field) => ({ field, action: proposerOf(field.id) }));
-}
-
-export function ghostViews(tableId: string): GhostView[] {
-	return proposal()
-		.views(tableId)
-		.map((view) => ({ view, action: proposerOf(view.id) }));
-}
-
-/** Proposed tables whose base is there or proposed too: elsewhere they could not land. */
-export function ghostTables(): GhostTable[] {
-	const held = proposal();
-	return waiting().flatMap((action) =>
-		action.changes.flatMap((change) => {
-			const rec = change.kind === 'table' ? held.get(change.id) : undefined;
-			if (rec === undefined) return [];
-			const table = tableDef(rec);
-			const proposedBase = held.base(table.base);
-			const base = proposedBase ?? app.ws.base(table.base);
-			return base === undefined
-				? []
-				: [
-						{
-							table,
-							action,
-							rows: held.rows(table.id).length,
-							base,
-							baseProposed: proposedBase !== undefined
-						}
-					];
-		})
-	);
-}
-
-export function ghostTable(id: string): GhostTable | undefined {
-	return ghostTables().find((ghost) => ghost.table.id === id);
-}
-
-export function previewTable(tableId: string): TablePreview {
-	const held = proposal();
-	return {
-		fields: ghostFields(tableId),
-		rows: held.rows(tableId),
-		computed: app.computedIn(held, tableId)
+	const attachment: Attachment = {
+		id: crypto.randomUUID(),
+		name: file.name,
+		type: file.type,
+		size: file.size
 	};
-}
-
-/** A value held back with a proposed field: data entry built on it waits for the decision. */
-export function ghostValue(rowId: string, fieldId: string): Value | undefined {
-	for (const action of assistant.actions) {
-		if (action.status !== 'pending' || action.tier !== 'apply') continue;
-		const change = action.changes.find((candidate) => candidate.id === rowId);
-		if (change !== undefined && fieldId in change.set) {
-			return change.set[fieldId];
-		}
+	const query = new URLSearchParams({
+		id: attachment.id,
+		name: file.name,
+		type: file.type,
+		size: String(file.size)
+	});
+	for (let offset = 0; offset < file.size; offset += UPLOAD_PART) {
+		const bytes = new Uint8Array(await file.slice(offset, offset + UPLOAD_PART).arrayBuffer());
+		await request(`/api/ai/files?${query}&offset=${offset}`, { method: 'POST', bytes });
+		progress(Math.min(file.size, offset + UPLOAD_PART));
 	}
-	return undefined;
-}
-
-export function isDoomed(id: string): boolean {
-	return assistant.actions.some(
-		(action) =>
-			action.status === 'pending' &&
-			action.tier === 'confirm' &&
-			action.changes.some((change) => change.id === id && change.set[DELETED] === true)
-	);
+	return attachment;
 }

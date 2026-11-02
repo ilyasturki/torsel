@@ -1,15 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import {
-		accept,
-		ghostTable,
-		ghostViews,
-		mayResume,
-		reject
-	} from '#lib/client/assistant.svelte.ts';
 	import { HOME } from '#lib/client/nav.ts';
 	import { viewToOpen } from '#lib/client/place.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -19,7 +11,6 @@
 	import Entry from '#lib/views/Entry.svelte';
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
-	import TablePreview from '#lib/views/TablePreview.svelte';
 
 	const tableId = $derived(page.params.table ?? '');
 
@@ -33,32 +24,9 @@
 		return app.ws.views(tableId);
 	});
 
-	const ghosts = $derived.by(() => {
-		void app.version;
-		return ghostViews(tableId);
-	});
-
-	const proposed = $derived.by(() => {
-		void app.version;
-		return ghostTable(tableId);
-	});
-
-	// A rejected table leaves nothing to look at, and this page's URL with it.
-	let previewing = false;
-	$effect(() => {
-		if (proposed !== undefined) {
-			previewing = true;
-		} else if (previewing) {
-			previewing = false;
-			if (table === undefined) void goto(HOME, { replaceState: true });
-		}
-	});
-
 	const requested = $derived(page.url.searchParams.get('v'));
 
-	const ghost = $derived(ghosts.find((item) => item.view.id === requested));
-
-	const view = $derived(ghost?.view ?? viewToOpen(views, tableId, requested));
+	const view = $derived(viewToOpen(views, tableId, requested));
 
 	const blank = $derived.by(() => {
 		void app.version;
@@ -75,9 +43,7 @@
 </script>
 
 {#if table === undefined}
-	{#if proposed !== undefined}
-		<TablePreview ghost={proposed} />
-	{:else if !mayResume()}
+	{#if app.ready}
 		<Empty text="This table no longer exists.">
 			<a href={HOME} class="underline">See your tables</a>
 		</Empty>
@@ -89,17 +55,6 @@
 				{#each problems as problem (problem.name)}
 					<p>{problem.name} can't be calculated: {problem.message}</p>
 				{/each}
-			</div>
-		{/if}
-
-		{#if ghost !== undefined}
-			<div
-				class="flex shrink-0 flex-wrap items-center gap-2 bg-tint-2 p-2 pl-3"
-				data-testid="proposed-view"
-			>
-				<span class="min-w-0 flex-1 font-medium">Proposed view: {ghost.view.name}</span>
-				<Button variant="primary" onclick={() => accept(ghost.action.id)}>Accept</Button>
-				<Button onclick={() => reject(ghost.action.id)}>Reject</Button>
 			</div>
 		{/if}
 
@@ -116,10 +71,6 @@
 
 		{#if view === undefined}
 			<Empty text="This table has no view yet. Add one with the plus above." />
-		{:else if ghost !== undefined && ghost.action.after.length > 0}
-			<Empty
-				text="This view is built on a field still waiting for your answer. Accept to see it."
-			/>
 		{:else}
 			{#key view.id}
 				<div class="min-h-0 flex-1 enter">

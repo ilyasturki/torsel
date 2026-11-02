@@ -1,6 +1,7 @@
 import { goto } from '$app/navigation';
 
 import { blankTable } from '../core/actions.ts';
+import { exportOf } from '../core/backup.ts';
 import { app } from './app.svelte.ts';
 import { tableUrl } from './nav.ts';
 
@@ -29,4 +30,13 @@ export function startTable(baseId?: string, name?: string): void {
 		shell.namingTable = made.id;
 	}
 	void goto(tableUrl(made.id, made.viewIds[0]));
+}
+
+export function downloadBackup(): void {
+	const url = URL.createObjectURL(new Blob([exportOf(app.ws)], { type: 'application/json' }));
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = `torsel-${new Date().toISOString().slice(0, 10)}.json`;
+	link.click();
+	URL.revokeObjectURL(url);
 }

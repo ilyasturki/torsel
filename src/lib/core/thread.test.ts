@@ -1,18 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ThreadAction, ThreadRow } from './thread.ts';
-import { afterFallback, dependents, echoable, prerequisites, toItems } from './thread.ts';
+import { afterFallback, droppedSeqs, echoable, titleOf, toItems } from './thread.ts';
 
-function action(id: string, after: string[] = [], status: ThreadAction['status'] = 'pending') {
-	return {
-		id,
-		tier: 'propose',
-		summary: id,
-		detail: [],
-		changes: [],
-		after,
-		status
-	} satisfies ThreadAction;
+function action(id: string, turn = 1): ThreadAction {
+	return { id, turn, summary: id, changes: [], before: [], status: 'applied' };
 }
 
 const prompt: ThreadRow = {
@@ -28,79 +20,28 @@ const prompt: ThreadRow = {
 describe('toItems', () => {
 	it('shows the person what they typed, never the context note', () => {
 		expect(toItems([prompt], [])).toEqual([
-			{ kind: 'user', key: '0', text: 'how much', where: 'On Lifts, Grid' }
+			{ kind: 'user', key: '0', seq: 1, text: 'how much', where: 'On Lifts, Grid', files: [] }
 		]);
 	});
 
-	it('pairs a tool call with its result, across the row that holds it', () => {
+	it('shows a write as its change, and leaves reads, failures and notes out', () => {
 		const rows: ThreadRow[] = [
 			prompt,
 			{
 				seq: 2,
 				role: 'assistant',
 				content: [
-					{ type: 'thinking', thinking: '' },
 					{ type: 'thinking', thinking: 'Checking the volume.' },
 					{ type: 'tool_use', id: 'a', name: 'query', input: { sql: 'select 1' } },
-					{ type: 'tool_use', id: 'b', name: 'query', input: { sql: 'nope' } },
-					{ type: 'tool_use', id: 'c', name: 'add_rows', input: {} }
-				],
-				meta: null
-			},
-			{
-				seq: 3,
-				role: 'user',
-				content: [
-					{
-						type: 'tool_result',
-						tool_use_id: 'a',
-						content: JSON.stringify({ rows: [{}, {}], count: 2 })
-					},
-					{
-						type: 'tool_result',
-						tool_use_id: 'b',
-						is_error: true,
-						content: JSON.stringify({ error: 'no such column' })
-					}
+					{ type: 'tool_use', id: 'b', name: 'add_rows', input: {} },
+					{ type: 'text', text: 'Done.' }
 				],
 				meta: null
 			}
 		];
-		const items = toItems(rows, []);
-		expect(items.map((item) => item.kind)).toEqual(['user', 'note', 'tool', 'tool', 'tool']);
-		expect(items[2]).toMatchObject({ label: 'Read with SQL: 2 rows', state: 'done' });
-		expect(items[3]).toMatchObject({ label: 'Read with SQL', state: 'error' });
-		expect(items[4]).toMatchObject({ label: 'Add rows', state: 'running' });
-	});
-
-	it('hides the sentinel the API leaves for an unfinished note', () => {
-		const rows: ThreadRow[] = [
-			{
-				seq: 1,
-				role: 'assistant',
-				content: [
-					{
-						type: 'thinking',
-						thinking: 'This part of the response was interrupted before it finished.'
-					}
-				],
-				meta: null
-			}
-		];
-		expect(toItems(rows, [])).toEqual([]);
-	});
-
-	it('labels a write by its action', () => {
-		const rows: ThreadRow[] = [
-			{
-				seq: 1,
-				role: 'assistant',
-				content: [{ type: 'tool_use', id: 'a', name: 'add_field', input: {} }],
-				meta: null
-			}
-		];
-		const items = toItems(rows, [{ ...action('a'), summary: 'New field "RPE" in Lifts' }]);
-		expect(items[0]).toMatchObject({ label: 'New field "RPE" in Lifts' });
+		const items = toItems(rows, [action('b')]);
+		expect(items.map((item) => item.kind)).toEqual(['user', 'change', 'text']);
+		expect(items[1]).toMatchObject({ key: 'b', action: { id: 'b' } });
 	});
 
 	it('renders an event from what the server stored', () => {
@@ -110,6 +51,26 @@ describe('toItems', () => {
 		expect(toItems(rows, [])).toEqual([
 			{ kind: 'event', key: '0', event: 'stopped', message: 'Stopped.' }
 		]);
+	});
+
+	it('hides what an edit replaced, the replacement marker included', () => {
+		const rows: ThreadRow[] = [
+			prompt,
+			{ seq: 2, role: 'assistant', content: [{ type: 'text', text: 'Old.' }], meta: null },
+			{ seq: 3, role: 'event', content: { kind: 'error', message: 'Failed.' }, meta: null },
+			{
+				seq: 4,
+				role: 'event',
+				content: { kind: 'replaced', message: '', drops: { from: 1, to: 3 } },
+				meta: null
+			},
+			{ ...prompt, seq: 5, meta: { prompt: 'how many', where: 'On Lifts' } }
+		];
+		expect(toItems(rows, []).map((item) => (item.kind === 'user' ? item.text : item.kind))).toEqual(
+			['how many']
+		);
+		const dropped = droppedSeqs(rows);
+		expect([1, 2, 3, 5].map(dropped)).toEqual([true, true, true, false]);
 	});
 });
 
@@ -143,21 +104,9 @@ describe('a turn that fell back', () => {
 	});
 });
 
-describe('a decision carries what is built on it', () => {
-	const actions = [action('table'), action('field', ['table']), action('rows', ['field'])];
-
-	it('rejecting reaches every action built on it, however indirectly', () => {
-		expect(dependents(actions, 'table').map((item) => item.id)).toEqual(['field', 'rows']);
-		expect(dependents(actions, 'rows')).toEqual([]);
-	});
-
-	it('accepting needs every action it stands on', () => {
-		expect(prerequisites(actions, 'rows').map((item) => item.id)).toEqual(['table', 'field']);
-		expect(prerequisites(actions, 'table')).toEqual([]);
-	});
-
-	it('does not ask again for what is already applied', () => {
-		const done = [action('table', [], 'applied'), action('field', ['table'])];
-		expect(prerequisites(done, 'field')).toEqual([]);
+describe('titleOf', () => {
+	it('keeps one line, cut at the limit', () => {
+		expect(titleOf('  add\n3 sets  ')).toBe('add 3 sets');
+		expect(titleOf('x'.repeat(100))).toBe(`${'x'.repeat(60)}…`);
 	});
 });
