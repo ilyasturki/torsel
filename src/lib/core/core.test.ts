@@ -19,6 +19,7 @@ import { FormulaError, toDisplay, toStored } from './formula.ts';
 import { merge, sameRec } from './merge.ts';
 import type { Change, FieldDef, Rec } from './model.ts';
 import { isDeleted } from './model.ts';
+import { pushBatch } from './protocol.ts';
 import { formulaProblem, materializeBase, readQuery } from './sql.ts';
 import { coerce, parseDate, parseNumber } from './values.ts';
 import { Workspace } from './workspace.ts';
@@ -360,5 +361,30 @@ describe('csv', () => {
 		const rows = ws.rows(id);
 		expect(rows).toHaveLength(3);
 		expect(rows[2].data[weight?.id ?? '']).toBe(17.5);
+	});
+});
+
+describe('sync push', () => {
+	const rec = (id: string, text: string): Rec => ({
+		id,
+		kind: 'row',
+		base: 'b',
+		parent: 't',
+		data: { text },
+		clocks: { text: formatClock(1, 0, 'n') }
+	});
+
+	it('cuts a batch under the server body limit, by bytes', () => {
+		const dirty = Array.from({ length: 1000 }, (_, i) => rec(`r${i}`, 'é'.repeat(500)));
+		const batch = pushBatch(dirty);
+		expect(batch.length).toBeGreaterThan(0);
+		expect(batch.length).toBeLessThan(1000);
+		expect(
+			new TextEncoder().encode(JSON.stringify({ watermark: 0, push: batch })).length
+		).toBeLessThan(512 * 1024);
+	});
+
+	it('still sends one record bigger than the limit', () => {
+		expect(pushBatch([rec('big', 'x'.repeat(600_000)), rec('next', '')])).toHaveLength(1);
 	});
 });

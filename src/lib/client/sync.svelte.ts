@@ -1,4 +1,4 @@
-import { MAX_PUSH } from '../core/protocol.ts';
+import { pushBatch } from '../core/protocol.ts';
 import type { SyncResponse } from '../core/protocol.ts';
 import { ApiError, NO_SERVER, OFFLINE, deviceToken, request } from './api.ts';
 import { app } from './app.svelte.ts';
@@ -28,7 +28,7 @@ export function scheduleSync(delay = DEBOUNCE_MS): void {
 
 async function exchange(): Promise<void> {
 	for (let round = 0; round < ROUNDS; round += 1) {
-		const push = app.dirtyRecords().slice(0, MAX_PUSH);
+		const push = pushBatch(app.dirtyRecords());
 		const watermark = (await app.meta<number>('watermark')) ?? 0;
 
 		const response = await request<SyncResponse>('/api/sync', {
