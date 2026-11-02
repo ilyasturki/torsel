@@ -128,6 +128,7 @@
 
 	let asking = $state(false);
 	let menuOpen = $state(false);
+	let menuAnchor = $state<HTMLElement | null>(null);
 	let viewSettings = $state(false);
 	let viewCreating = $state(false);
 	let dropping = $state(false);
@@ -381,7 +382,10 @@
 					variant="ghost"
 					class="w-control px-0 max-sm:hidden"
 					aria-label="More"
-					onclick={() => (menuOpen = true)}><Icon name="more" /></Button
+					onclick={(event) => {
+						menuAnchor = event.currentTarget;
+						menuOpen = !menuOpen;
+					}}><Icon name="more" /></Button
 				>
 				{#if view?.type !== 'entry'}
 					<Button
@@ -457,6 +461,7 @@
 	{#if table !== undefined}
 		<TableMenu
 			bind:open={menuOpen}
+			anchor={menuAnchor}
 			{table}
 			onviewsettings={proposedView ? undefined : () => (viewSettings = true)}
 			onnewview={() => (viewCreating = true)}

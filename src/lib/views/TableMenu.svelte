@@ -8,15 +8,21 @@
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import type { TableDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import Dialog from '#lib/ui/Dialog.svelte';
+	import { wide } from '#lib/ui/media.svelte.ts';
+	import Menu from '#lib/ui/Menu.svelte';
+	import MenuItem from '#lib/ui/MenuItem.svelte';
+	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
 
 	let {
 		open = $bindable(false),
+		anchor = null,
 		table,
 		onviewsettings,
 		onnewview
 	}: {
 		open?: boolean;
+		anchor?: HTMLElement | null;
 		table: TableDef;
 		onviewsettings?: () => void;
 		onnewview: () => void;
@@ -27,6 +33,10 @@
 		action();
 	}
 
+	const importHere = (): void => {
+		shell.importing = { into: table.id };
+	};
+
 	function remove(): void {
 		const label = `Table "${table.name}" deleted`;
 		const group = app.apply(deleteRecords(app.ws, [table.id]), label);
@@ -36,25 +46,34 @@
 	}
 </script>
 
-<Sheet bind:open title={table.name}>
-	<div class="-mx-2 flex flex-col items-stretch">
+{#if wide.current}
+	<Menu bind:open {anchor} label={table.name} align="end">
 		{#if onviewsettings !== undefined}
-			<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
-				>View settings</Button
-			>
+			<MenuItem onSelect={() => run(onviewsettings)}>View settings</MenuItem>
 		{/if}
-		<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
-		<Button
-			variant="ghost"
-			class="justify-start"
-			onclick={() => run(() => (shell.importing = { into: table.id }))}
-			>Import into this table</Button
-		>
-		<a
-			href={SETTINGS}
-			class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink sm:hidden"
-			onclick={() => (open = false)}>Settings</a
-		>
-		<Button variant="ghost" class="justify-start" onclick={remove}>Delete table</Button>
-	</div>
-</Sheet>
+		<MenuItem icon="plus" onSelect={() => run(onnewview)}>New view</MenuItem>
+		<MenuItem onSelect={() => run(importHere)}>Import into this table</MenuItem>
+		<MenuSeparator />
+		<MenuItem icon="x" onSelect={remove}>Delete table</MenuItem>
+	</Menu>
+{:else}
+	<Dialog bind:open title={table.name}>
+		<div class="-mx-2 flex flex-col items-stretch">
+			{#if onviewsettings !== undefined}
+				<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
+					>View settings</Button
+				>
+			{/if}
+			<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
+			<Button variant="ghost" class="justify-start" onclick={() => run(importHere)}
+				>Import into this table</Button
+			>
+			<a
+				href={SETTINGS}
+				class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink"
+				onclick={() => (open = false)}>Settings</a
+			>
+			<Button variant="ghost" class="justify-start" onclick={remove}>Delete table</Button>
+		</div>
+	</Dialog>
+{/if}

@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, RETRY_RESET, seed, test } from './harness.ts';
+import { expect, RETRY_RESET, seed, tableMenu, test } from './harness.ts';
 
 function seedTwoTables(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -266,8 +266,7 @@ test('the title renames the table, and the table menu opens view settings and ad
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'Sets' })).toBeVisible();
 
-	await page.getByRole('button', { name: 'More' }).click();
-	await dialog.getByRole('button', { name: 'View settings' }).click();
+	await tableMenu(page, 'View settings');
 	await expect(dialog.getByRole('heading', { name: 'View settings' })).toBeVisible();
 	await page
 		.getByRole('dialog', { name: 'View settings' })
@@ -275,8 +274,7 @@ test('the title renames the table, and the table menu opens view settings and ad
 		.click();
 	await expect(dialog).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'More' }).click();
-	await dialog.getByRole('button', { name: 'New view' }).click();
+	await tableMenu(page, 'New view');
 	await dialog.getByRole('button', { name: /^List/u }).click();
 	await dialog.getByRole('button', { name: 'Create' }).click();
 	await expect(

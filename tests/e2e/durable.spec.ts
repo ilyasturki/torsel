@@ -15,6 +15,7 @@ import {
 	script,
 	seed,
 	seedLifts,
+	tableMenu,
 	test,
 	undoButton,
 	watchErrors
@@ -72,11 +73,7 @@ const KINDS: Kind[] = [
 		name: 'an import',
 		serverHolds: 'Deadlift',
 		async prepare(page) {
-			await page.getByRole('button', { name: 'More' }).click();
-			await page
-				.getByRole('dialog')
-				.getByRole('button', { name: 'Import into this table' })
-				.click();
+			await tableMenu(page, 'Import into this table');
 			const sheet = page.getByRole('dialog', { name: 'Import' });
 			await sheet.getByLabel('File to import').setInputFiles({
 				name: 'more.csv',

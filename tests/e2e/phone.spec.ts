@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, seed, test } from './harness.ts';
+import { expect, pick, seed, tableMenu, test } from './harness.ts';
 
 test.beforeEach(() => {
 	test.skip(test.info().project.name !== 'phone', 'a phone-sized screen is the point here');
@@ -69,8 +69,7 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 	expect(await clearOf(day, addRow), 'Entry: Day above Add row').toBe(true);
 
 	await page.goto(`/app/t/${table}`);
-	await page.getByRole('button', { name: 'More' }).click();
-	await page.getByRole('dialog').getByRole('button', { name: 'New view' }).click();
+	await tableMenu(page, 'New view');
 	const sheet = page.getByRole('dialog');
 	await sheet.getByRole('button', { name: /^Chart/u }).click();
 	await sheet.getByRole('button', { name: 'Line', exact: true }).click();

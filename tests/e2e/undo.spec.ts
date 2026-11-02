@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, redoButton, script, seed, test, undoButton } from './harness.ts';
+import { expect, redoButton, script, seed, tableMenu, test, undoButton } from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -37,11 +37,6 @@ async function undoAndRedo(page: Page, before: Locator, after: Locator): Promise
 async function openField(page: Page, name: string): Promise<Locator> {
 	await page.getByRole('columnheader', { name }).getByRole('button').click();
 	await page.getByRole('button', { name: 'Field settings' }).click();
-	return page.getByRole('dialog');
-}
-
-async function openMenu(page: Page): Promise<Locator> {
-	await page.getByRole('button', { name: 'More' }).click();
 	return page.getByRole('dialog');
 }
 
@@ -127,8 +122,8 @@ test('a field added from the header', async ({ page }) => {
 test('a view added, then deleted', async ({ page }) => {
 	const views = page.getByRole('group', { name: 'Views' });
 
-	const sheet = await openMenu(page);
-	await sheet.getByRole('button', { name: 'New view' }).click();
+	const sheet = page.getByRole('dialog');
+	await tableMenu(page, 'New view');
 	await sheet.getByRole('button', { name: /^Chart/u }).click();
 	await sheet.getByRole('button', { name: 'Create' }).click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
@@ -138,8 +133,7 @@ test('a view added, then deleted', async ({ page }) => {
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
 
 	await views.getByRole('link', { name: 'Chart' }).click();
-	await openMenu(page);
-	await sheet.getByRole('button', { name: 'View settings' }).click();
+	await tableMenu(page, 'View settings');
 	await page
 		.getByRole('dialog', { name: 'View settings' })
 		.getByRole('button', { name: 'Delete' })
@@ -152,8 +146,7 @@ test('a view added, then deleted', async ({ page }) => {
 test('a table deleted, and a base deleted', async ({ page }) => {
 	const tabs = page.getByRole('group', { name: 'Tables' });
 
-	const sheet = await openMenu(page);
-	await sheet.getByRole('button', { name: 'Delete table' }).click();
+	await tableMenu(page, 'Delete table');
 	await expect(page).toHaveURL(/\/app$/u);
 	await expect(tabs.getByRole('link', { name: 'Lifts' })).toHaveCount(0);
 	await undoButton(page).first().click();

@@ -1,7 +1,18 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { cell, expect, newAccount, RETRY_RESET, script, seed, signIn, test } from './harness.ts';
+import {
+	cell,
+	expect,
+	newAccount,
+	pick,
+	RETRY_RESET,
+	script,
+	seed,
+	signIn,
+	tableMenu,
+	test
+} from './harness.ts';
 
 const header = (page: Page, name: string): Locator =>
 	page.getByRole('columnheader', { name, exact: true });
@@ -538,8 +549,7 @@ test.describe('fields and views', () => {
 		await page.goto(`${path}?v=${list}`);
 		const views = page.getByRole('group', { name: 'Views' }).getByRole('link');
 		await expect(views).toHaveText(['Grid', 'Entry', 'Volume', 'Sets']);
-		await page.getByRole('button', { name: 'More' }).click();
-		await sheet.getByRole('button', { name: 'View settings' }).click();
+		await tableMenu(page, 'View settings');
 		await page
 			.getByRole('dialog', { name: 'View settings' })
 			.getByRole('button', { name: 'Move left' })
@@ -558,8 +568,7 @@ test.describe('fields and views', () => {
 
 		const firstRow = page.locator('tbody tr').first();
 		const openSettings = async (): Promise<Locator> => {
-			await page.getByRole('button', { name: 'More' }).click();
-			await page.getByRole('dialog').getByRole('button', { name: 'View settings' }).click();
+			await tableMenu(page, 'View settings');
 			return page.getByRole('dialog', { name: 'View settings' });
 		};
 
@@ -588,8 +597,7 @@ test.describe('fields and views', () => {
 		void account;
 		const { path, list } = await seedGym(context.request);
 		await page.goto(`${path}?v=${list}`);
-		await page.getByRole('button', { name: 'More' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'View settings' }).click();
+		await tableMenu(page, 'View settings');
 
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await sheet.getByRole('button', { name: /^Chart/u }).click();
@@ -608,10 +616,8 @@ test.describe('fields and views', () => {
 	}) => {
 		void account;
 		const { path, list, chart } = await seedGym(context.request);
-		const dialog = page.getByRole('dialog');
 		const open = async (): Promise<Locator> => {
-			await page.getByRole('button', { name: 'More' }).click();
-			await dialog.getByRole('button', { name: 'View settings' }).click();
+			await tableMenu(page, 'View settings');
 			return page.getByRole('dialog', { name: 'View settings' });
 		};
 
@@ -650,8 +656,7 @@ test.describe('fields and views', () => {
 		await page.keyboard.press('Enter');
 		await expect(cell(page, 'Bench')).toHaveCount(0);
 
-		await page.getByRole('button', { name: 'More' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'View settings' }).click();
+		await tableMenu(page, 'View settings');
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await expect(sheet.getByText('Only rows where Exercise contains "squ"')).toBeVisible();
 		await sheet.getByRole('button', { name: 'Clear filter' }).click();
@@ -663,8 +668,7 @@ test.describe('fields and views', () => {
 		void account;
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
-		await page.getByRole('button', { name: 'More' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'New view' }).click();
+		await tableMenu(page, 'New view');
 		await page
 			.getByRole('dialog', { name: 'New view' })
 			.getByRole('button', { name: 'Create' })
@@ -693,8 +697,7 @@ test.describe('fields and views', () => {
 		await expect(dialog).toHaveCount(0);
 		await expect(header(page, 'Repetitions')).toBeVisible();
 
-		await page.getByRole('button', { name: 'More' }).click();
-		await dialog.getByRole('button', { name: 'View settings' }).click();
+		await tableMenu(page, 'View settings');
 		const settings = page.getByRole('dialog', { name: 'View settings' });
 		await settings.getByLabel('Name').fill('Sheet');
 		await settings.getByLabel('Name').press('Enter');
@@ -722,8 +725,7 @@ test.describe('importing', () => {
 		await page.goto(path);
 		await expect(page.getByText('2 rows')).toBeVisible();
 
-		await page.getByRole('button', { name: 'More' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'Import into this table' }).click();
+		await tableMenu(page, 'Import into this table');
 		const sheet = page.getByRole('dialog', { name: 'Import' });
 		await sheet.getByLabel('File to import').setInputFiles({
 			name: 'more.csv',
@@ -862,8 +864,7 @@ test.describe('importing', () => {
 		await exportTo(page, file);
 
 		await page.goto(path);
-		await page.getByRole('button', { name: 'More' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'Delete table' }).click();
+		await tableMenu(page, 'Delete table');
 		await expect(page).toHaveURL(/\/app$/u);
 		await expect(
 			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
@@ -1056,8 +1057,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		const taps = await countTaps(page);
 
 		if (onPhone()) {
-			await page.getByRole('button', { name: 'More' }).click();
-			await page.getByRole('dialog').getByRole('button', { name: 'New view' }).click();
+			await tableMenu(page, 'New view');
 		} else {
 			await page.getByRole('button', { name: 'New view' }).click();
 		}

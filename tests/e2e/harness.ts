@@ -68,6 +68,24 @@ export async function passwordSignIn(page: Page, account: Account): Promise<void
 export const cell = (page: Page, name: string): Locator =>
 	page.getByRole('gridcell', { name, exact: true });
 
+/** Picks from the table's "…": an anchored menu from `sm` up, a sheet on a phone. */
+export async function tableMenu(page: Page, item: string): Promise<void> {
+	await page.getByRole('button', { name: 'More' }).click();
+	await page
+		.getByRole('menuitem', { name: item })
+		.or(page.getByRole('dialog').getByRole('button', { name: item }))
+		.click();
+}
+
+/** Picks an option of the app's Select, found by its label. */
+export async function pick(select: Locator, option: string | RegExp): Promise<void> {
+	await select.click();
+	await select
+		.page()
+		.getByRole('option', { name: option, exact: typeof option === 'string' })
+		.click();
+}
+
 export const undoButton = (page: Page): Locator =>
 	page.getByRole('button', { name: 'Undo', exact: true });
 
