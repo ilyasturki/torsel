@@ -159,11 +159,11 @@
 			}
 		}
 
-		const stepValue = readNumber(step) ?? Number.NaN;
+		const stepValue = readNumber(step);
 		const set: Record<string, Value> = {
 			name: name.trim(),
 			description: description.trim() === '' ? null : description.trim(),
-			step: Number.isFinite(stepValue) && stepValue > 0 ? stepValue : null
+			step: stepValue !== null && stepValue > 0 ? stepValue : null
 		};
 		const retyped = conversion(expr);
 		if (retyped === null) {
