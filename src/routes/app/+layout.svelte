@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 
 	import { dev } from '$app/env';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
@@ -54,6 +54,15 @@
 
 	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
 	const onSettings = $derived(page.url.pathname === SETTINGS);
+
+	let beforeSettings = $state(HOME);
+
+	afterNavigate(({ from, to }) => {
+		const was = from?.url;
+		if (to?.url?.pathname === SETTINGS && was && was.pathname !== SETTINGS) {
+			beforeSettings = was.pathname + was.search;
+		}
+	});
 	const tableId = $derived(
 		page.params.table === undefined ? null : (tableBySlug(page.params.table) ?? null)
 	);
@@ -283,14 +292,19 @@
 						>Ask <span class="text-sm text-ink-3 max-sm:hidden">Ctrl K</span></Button
 					>
 				{/if}
-				{#if !onSettings}
-					<a
-						href={SETTINGS}
-						class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {onTable
-							? 'max-sm:hidden'
-							: ''}">Settings</a
-					>
-				{/if}
+				<a
+					href={onSettings ? beforeSettings : SETTINGS}
+					class="inline-grid h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {onTable
+						? 'max-sm:hidden'
+						: ''}"
+					onclick={(event) => {
+						// The second click of a double-click lands here once Settings has opened.
+						if (onSettings && event.detail > 1) event.preventDefault();
+					}}
+				>
+					<span class="col-start-1 row-start-1 {onSettings ? 'invisible' : ''}">Settings</span>
+					<span class="col-start-1 row-start-1 {onSettings ? '' : 'invisible'}">Back</span>
+				</a>
 				{#if table !== undefined}
 					<Button
 						variant="ghost"

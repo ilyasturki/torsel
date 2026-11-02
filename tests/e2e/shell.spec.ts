@@ -327,26 +327,38 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 	await expect(more).toBeFocused();
 });
 
-test('settings can be reached from the home and from a table', async ({
+test('settings opens from the home and a table, and its slot turns into Back in place', async ({
 	page,
 	context,
 	account
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
+	const header = page.getByRole('banner');
+	const ask = header.getByRole('button', { name: /^Ask/u });
 
 	await page.goto('/app');
-	await page.getByRole('link', { name: 'Settings' }).click();
+	const settings = header.getByRole('link', { name: 'Settings' });
+	const slot = await settings.boundingBox();
+	const asked = (await ask.count()) > 0 ? await ask.boundingBox() : null;
+	await settings.dblclick();
 	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Settings' }), 'not on its own page').toHaveCount(0);
+	await expect(page, 'the second click does not go back').toHaveURL(/\/app\/settings$/u);
+	const back = header.getByRole('link', { name: 'Back' });
+	expect(await back.boundingBox(), 'Back sits where Settings was').toEqual(slot);
+	if (asked !== null) expect(await ask.boundingBox(), 'nothing beside it moves').toEqual(asked);
+	await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+	await back.click();
+	await expect(page).toHaveURL(/\/app$/u);
 
 	await page.goto(tablePath(lifts));
-	const more = page.getByRole('button', { name: 'More' });
 	if (test.info().project.name === 'phone') {
-		await more.click();
+		await page.getByRole('button', { name: 'More' }).click();
 	}
 	await page.getByRole('link', { name: 'Settings' }).click();
 	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+	await back.click();
+	await expect(page).toHaveURL((url) => url.pathname.startsWith(tablePath(lifts)));
 });
 
 test('undo takes back the last change, and the keyboard changes the view', async ({
