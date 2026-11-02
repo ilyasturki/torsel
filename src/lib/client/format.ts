@@ -1,5 +1,5 @@
 import type { FieldDef, Value } from '../core/model.ts';
-import { parseDate, parseNumber } from '../core/values.ts';
+import { pad, parseDate, parseNumber, validDay } from '../core/values.ts';
 
 export type NumberStyle = {
 	/** Every digit, for an editor: what it seeds reads back as the same number. */
@@ -10,24 +10,19 @@ export type DateStyle = { withYear?: boolean };
 
 const SPACES = /[\s  ]/gu;
 const ISO_LIKE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/u;
+const TIME = /^(.*?)[\s,]*(\d{1,2})(?:(?::|\s*h\s*|\.)(\d{2}))?\s*(?:([ap])\.?\s?m\.?)?$/iu;
 
 function escaped(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function plain(word: string): string {
-	return word.normalize('NFD').replace(/\p{M}/gu, '').replace(/\.$/u, '').toLowerCase();
-}
-
-function pad(value: number): string {
-	return String(value).padStart(2, '0');
-}
-
-function validDay(year: number, month: number, day: number): boolean {
-	const date = new Date(Date.UTC(year, month - 1, day));
-	return (
-		date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-	);
+	return word
+		.normalize('NFD')
+		.replace(/\p{M}/gu, '')
+		.normalize('NFC')
+		.replace(/\.$/u, '')
+		.toLowerCase();
 }
 
 /** Formats and readers for one locale; `undefined` is the browser's. */
@@ -43,10 +38,19 @@ export function localeFormats(locale?: string) {
 	const minus = parts.find((part) => part.type === 'minusSign')?.value ?? '-';
 	const spacedGroup = group.replace(SPACES, '') === '';
 	const grouped = new RegExp(
-		`^[-+]?\\d{1,3}(?:${escaped(group)}\\d{3})+(?:${escaped(decimal)}\\d+)?$`,
+		`^[-+]?\\d{1,3}(?:${escaped(group)}\\d{2,3})*${escaped(group)}\\d{3}(?:${escaped(decimal)}\\d+)?$`,
 		'u'
 	);
 	const decimalOnly = new RegExp(`^[-+]?\\d*${escaped(decimal)}\\d+$`, 'u');
+	const nativeDigits = new Map(
+		Array.from({ length: 10 }, (_, at) => [shown.format(at), String(at)])
+	);
+
+	function latin(text: string): string {
+		return text
+			.replace(/\p{Cf}/gu, '')
+			.replace(/\p{Nd}/gu, (digit) => nativeDigits.get(digit) ?? digit);
+	}
 
 	function formatNumber(value: number, style: NumberStyle = {}): string {
 		return (style.edit ? precise : shown).format(value);
@@ -54,7 +58,7 @@ export function localeFormats(locale?: string) {
 
 	/** The locale's own form exactly, else any form `parseNumber` tolerates. */
 	function readNumber(raw: string): number | null {
-		const text = raw.replace(SPACES, '').replaceAll(minus, '-').replaceAll('−', '-');
+		const text = latin(raw.replace(SPACES, '')).replaceAll(minus, '-').replaceAll('−', '-');
 		if (!spacedGroup && grouped.test(text)) {
 			return parseNumber(text.replaceAll(group, '').replace(decimal, '.'));
 		}
@@ -79,9 +83,16 @@ export function localeFormats(locale?: string) {
 	});
 	const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' });
 	const month = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
-	const monthFirst =
-		numericDate.formatToParts(new Date(2024, 0, 5)).findIndex((part) => part.type === 'month') <
-		numericDate.formatToParts(new Date(2024, 0, 5)).findIndex((part) => part.type === 'day');
+	const order = numericDate.formatToParts(new Date(2024, 0, 5)).map((part) => part.type);
+	const monthFirst = order.indexOf('month') < order.indexOf('day');
+	const periods = [3, 15].flatMap((hours) => {
+		const word = time
+			.formatToParts(new Date(2024, 0, 1, hours))
+			.find((part) => part.type === 'dayPeriod')?.value;
+		return word === undefined
+			? []
+			: [{ word: new RegExp(`(?<!\\p{L})${escaped(word)}(?!\\p{L})`, 'iu'), pm: hours > 12 }];
+	});
 
 	const monthNames: [string, number][] = [];
 	for (const names of [locale, 'en']) {
@@ -127,39 +138,29 @@ export function localeFormats(locale?: string) {
 		return read.timed ? `${day} ${time.format(read.date)}` : day;
 	}
 
-	/** The form a date editor opens on: numeric, with the year, in the locale's order. */
-	function editDate(iso: string): string {
-		const read = dateOf(iso);
-		if (read === null) {
-			return iso;
-		}
-		const day = numericDate.format(read.date);
-		return read.timed ? `${day} ${time.format(read.date)}` : day;
-	}
-
 	function formatMonth(iso: string): string {
 		const [year, monthAt] = iso.split('-').map(Number);
 		return monthAt ? month.format(new Date(year, monthAt - 1, 1)) : iso;
 	}
 
-	const TIME = /^(.*?)[\s,]*(\d{1,2})(?:(?::|h|\.)(\d{2}))?\s*(?:([ap])\.?\s?m\.?)?$/iu;
-
-	function splitTime(text: string): { day: string; hours: number; minutes: number } | null {
-		const match = TIME.exec(text);
+	function splitTime(raw: string): { day: string; hours: number; minutes: number } | null {
+		const period = periods.find(({ word }) => word.test(raw));
+		const match = TIME.exec(period === undefined ? raw : raw.replace(period.word, ' '));
 		if (match === null) {
 			return null;
 		}
 		const [, day, hourText, minuteText, meridiem] = match;
-		if (minuteText === undefined && meridiem === undefined) {
+		const pm = period?.pm ?? (meridiem === undefined ? undefined : meridiem.toLowerCase() === 'p');
+		if (minuteText === undefined && pm === undefined) {
 			return null;
 		}
 		let hours = Number(hourText);
 		const minutes = Number(minuteText ?? 0);
-		if (meridiem !== undefined) {
+		if (pm !== undefined) {
 			if (hours < 1 || hours > 12) {
 				return null;
 			}
-			hours = (hours % 12) + (meridiem.toLowerCase() === 'p' ? 12 : 0);
+			hours = (hours % 12) + (pm ? 12 : 0);
 		}
 		return hours > 23 || minutes > 59 ? null : { day, hours, minutes };
 	}
@@ -208,7 +209,7 @@ export function localeFormats(locale?: string) {
 
 	/** ISO, the locale's numeric order, or its month names; a time may follow. */
 	function readDate(raw: string, now: Date = new Date()): string | null {
-		const text = raw.trim();
+		const text = latin(raw).trim();
 		const iso = /^\d{4}-/u.test(text) ? parseDate(text) : null;
 		if (iso !== null) {
 			return iso;
@@ -253,7 +254,6 @@ export function localeFormats(locale?: string) {
 		readNumber,
 		plainNumber,
 		formatDate,
-		editDate,
 		formatMonth,
 		readDate,
 		formatValue
@@ -269,7 +269,6 @@ export const {
 	readNumber,
 	plainNumber,
 	formatDate,
-	editDate,
 	formatMonth,
 	readDate,
 	formatValue

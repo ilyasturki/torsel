@@ -25,11 +25,11 @@ export function parseNumber(raw: string): number | null {
 	return Number.isFinite(value) ? value : null;
 }
 
-function pad(value: number): string {
+export function pad(value: number): string {
 	return String(value).padStart(2, '0');
 }
 
-function validDay(year: number, month: number, day: number): boolean {
+export function validDay(year: number, month: number, day: number): boolean {
 	const date = new Date(Date.UTC(year, month - 1, day));
 	return (
 		date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
