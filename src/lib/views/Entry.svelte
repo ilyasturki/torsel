@@ -244,7 +244,7 @@
 	<Empty text="This view has no fields to fill in." />
 {:else}
 	<div class="flex h-full min-h-0 flex-col lg:flex-row lg:items-end">
-		<div class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden lg:pb-tabs-clear">
+		<div class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden">
 			<ul class="flex flex-col">
 				{#each recent as { row, day } (row.id)}
 					<li>
@@ -273,7 +273,7 @@
 			</ul>
 		</div>
 
-		<section class="flex shrink-0 flex-col gap-3 p-4 pb-tabs-clear lg:w-entry">
+		<section class="flex shrink-0 flex-col gap-3 p-4 lg:w-entry">
 			{#if lastTime !== undefined && others.length > 0}
 				<p class="flex items-center justify-between gap-3 text-ink-2">
 					<span class="shrink-0"
@@ -446,7 +446,7 @@
 			<Button
 				variant="primary"
 				size="cta"
-				class="sticky bottom-tabs-clear z-10 shrink-0"
+				class="sticky bottom-4 z-10 shrink-0"
 				disabled={!ready}
 				onclick={commit}>Add row</Button
 			>

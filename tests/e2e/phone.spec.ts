@@ -97,13 +97,9 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 	).toBe(true);
 });
 
-test('the keyboard stays down until a field is tapped, and the tabs make way for it', async ({
-	page,
-	context,
-	account
-}) => {
+test('the keyboard stays down until a field is tapped', async ({ page, context, account }) => {
 	void account;
-	const { table, entry } = await seedSpending(context.request);
+	await seedSpending(context.request);
 
 	await page.goto('/app/settings');
 	await page.getByRole('button', { name: 'Import' }).click();
@@ -111,23 +107,4 @@ test('the keyboard stays down until a field is tapped, and the tabs make way for
 	await expect(sheet).toBeFocused();
 	await expect(sheet.getByRole('textbox', { name: 'Cells to import' })).not.toBeFocused();
 	await sheet.getByRole('button', { name: 'Close' }).click();
-
-	await page.goto(tablePath(table, entry));
-	const tabs = page.getByRole('group', { name: 'Tables' });
-	await expect(tabs).toBeVisible();
-	const amount = page.getByRole('textbox', { name: 'Amount' });
-	await amount.tap();
-	await expect(tabs).toBeHidden();
-	await page.getByRole('button', { name: 'groceries', exact: true }).tap();
-	await expect(tabs).toBeVisible();
-
-	// The keyboard shrinks the window as it opens; Back closes it and leaves the field focused.
-	await amount.tap();
-	await page.setViewportSize({ width: 390, height: 480 });
-	await expect(tabs).toBeHidden();
-	await page.setViewportSize({ width: 390, height: 844 });
-	await expect(amount).toBeFocused();
-	await expect(tabs, 'no keyboard, so the tabs come back').toBeVisible();
-	await page.setViewportSize({ width: 390, height: 480 });
-	await expect(tabs, 'a tap on the focused field brings the keyboard back').toBeHidden();
 });

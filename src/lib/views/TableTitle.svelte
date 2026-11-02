@@ -6,6 +6,8 @@
 	import type { TableDef } from '#lib/core/model.ts';
 	import { fieldFocus } from '#lib/ui/styles.ts';
 
+	import TableSwitcher from './TableSwitcher.svelte';
+
 	let { table, rows }: { table: TableDef; rows: number } = $props();
 
 	let editing = $state(false);
@@ -16,6 +18,10 @@
 		if (shell.namingTable === table.id) {
 			shell.namingTable = null;
 			naming = true;
+			begin();
+		} else if (shell.renamingTable === table.id) {
+			shell.renamingTable = null;
+			naming = false;
 			begin();
 		}
 	});
@@ -42,11 +48,11 @@
 	}
 </script>
 
-<h1 class="flex min-w-0 text-xl font-semibold tight max-sm:text-lg" aria-label={table.name}>
+<h1 class="flex min-w-0" aria-label={table.name}>
 	{#if editing}
 		<input
 			use:select
-			class="w-full min-w-0 rounded-box bg-tint px-1 {fieldFocus}"
+			class="-mx-1.5 h-control w-full min-w-0 rounded-box bg-tint px-1.5 font-semibold {fieldFocus}"
 			aria-label="Table name"
 			bind:value={draft}
 			onblur={commit}
@@ -70,14 +76,6 @@
 			}}
 		/>
 	{:else}
-		<button
-			type="button"
-			class="min-w-0 truncate text-left"
-			title="Rename"
-			onclick={() => {
-				naming = false;
-				begin();
-			}}>{table.name}</button
-		>
+		<TableSwitcher name={table.name} current={table.id} />
 	{/if}
 </h1>

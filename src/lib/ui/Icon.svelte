@@ -6,6 +6,7 @@
 		check: 'M3 8.5l3.5 3.5L13 4.5',
 		more: 'M3 8h.01M8 8h.01M13 8h.01',
 		chevron: 'M6 4l4 4-4 4',
+		'chevron-down': 'M4 6l4 4 4-4',
 		'arrow-up': 'M8 13V3M4 7l4-4 4 4',
 		'arrow-down': 'M8 3v10M4 9l4 4 4-4',
 		'arrow-left': 'M13 8H3M7 4L3 8l4 4',

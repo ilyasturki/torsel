@@ -156,7 +156,7 @@
 	});
 </script>
 
-<div class="flex min-h-full flex-col gap-1 p-6 pb-tabs-clear max-sm:p-4 max-sm:pb-tabs-clear">
+<div class="flex min-h-full flex-col gap-1 p-6 max-sm:p-4">
 	{#if data === null}
 		<Empty text="Pick an axis and a calculation for this chart in View settings." />
 	{:else}

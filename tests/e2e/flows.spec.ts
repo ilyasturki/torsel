@@ -2,9 +2,12 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import {
+	allTables,
 	cell,
 	expect,
+	expectListed,
 	newAccount,
+	openTable,
 	pick,
 	redo,
 	RETRY_RESET,
@@ -171,8 +174,7 @@ test.describe('the first table', () => {
 		await expect(page.getByRole('heading', { name: 'Expenses', exact: true })).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Field name' })).toBeFocused();
 		await page.keyboard.press('Escape');
-		const tabs = page.getByRole('group', { name: 'Tables' });
-		await expect(tabs.getByRole('link', { name: 'Expenses', exact: true })).toBeVisible();
+		await expectListed(page, 'Expenses');
 
 		await undo(page);
 		await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
@@ -351,14 +353,13 @@ test.describe('opening where you left off', () => {
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Volume')}$`, 'u'));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
-		const tabs = page.getByRole('group', { name: 'Tables' });
-		await tabs.getByRole('link', { name: 'All' }).click();
+		await allTables(page).click();
 		await expect(page).toHaveURL(/\/app$/u);
 		await expect(page.getByRole('heading', { name: 'Tables' })).toBeVisible();
 
 		await page.goto('/app');
 		await expect(page).toHaveURL(/\/app$/u);
-		await tabs.getByRole('link', { name: 'Lifts' }).click();
+		await openTable(page, 'Lifts');
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 	});
 
@@ -704,7 +705,7 @@ test.describe('fields and views', () => {
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sheet' })
 		).toBeVisible();
 
-		await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'All' }).click();
+		await allTables(page).click();
 		await page.getByRole('button', { name: 'New base' }).click();
 		await dialog.getByRole('textbox', { name: 'New base' }).fill('Money');
 		await dialog.getByRole('textbox', { name: 'New base' }).press('Enter');
@@ -795,16 +796,14 @@ test.describe('importing', () => {
 		await undo(page);
 		await undo(page);
 		await expect(page.getByText('Nothing to undo')).toBeVisible();
-		await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'All' }).click();
+		await allTables(page).click();
 		await expect(page.getByText('No tables yet.')).toBeVisible();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
 	});
 
 	async function exportTo(page: Page, file: string): Promise<void> {
 		await page.goto('/app/settings');
-		await expect(
-			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
-		).toBeVisible();
+		await expectListed(page, 'Lifts');
 		const downloading = page.waitForEvent('download');
 		await page.getByRole('button', { name: 'Export as JSON' }).click();
 		await (await downloading).saveAs(file);
@@ -843,8 +842,7 @@ test.describe('importing', () => {
 		await expect(sheet.getByText('This export holds 1 table, 2 rows.')).toBeVisible();
 		await sheet.getByRole('button', { name: 'Restore' }).click();
 
-		const tabs = other.getByRole('group', { name: 'Tables' });
-		await tabs.getByRole('link', { name: 'Lifts' }).click();
+		await openTable(other, 'Lifts');
 		await expect(other.getByText('2 rows')).toBeVisible();
 		await expect(other.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 		await device.close();
@@ -863,23 +861,17 @@ test.describe('importing', () => {
 		await page.goto(path);
 		await tableMenu(page, 'Delete table');
 		await expect(page).toHaveURL(/\/app$/u);
-		await expect(
-			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
-		).toHaveCount(0);
+		await expectListed(page, 'Lifts', 0);
 
 		await page.getByRole('button', { name: 'Import a file' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Import' });
 		await sheet.getByLabel('File to import').setInputFiles(file);
 		await expect(sheet.getByText('This export holds 1 table, 2 rows.')).toBeVisible();
 		await page.keyboard.press('Enter');
-		await expect(
-			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
-		).toBeVisible();
+		await expectListed(page, 'Lifts');
 
 		await undo(page);
-		await expect(
-			page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Lifts' })
-		).toHaveCount(0);
+		await expectListed(page, 'Lifts', 0);
 	});
 
 	test('the kilorep export makes a table you can log into', async ({ page, account }) => {

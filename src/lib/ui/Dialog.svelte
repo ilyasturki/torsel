@@ -12,6 +12,7 @@
 		dirty = false,
 		typeOnOpen = true,
 		onsubmit,
+		onCloseAutoFocus,
 		children,
 		footer
 	}: {
@@ -22,6 +23,8 @@
 		/** False keeps a touch keyboard down on open, for a sheet whose first field is optional. */
 		typeOnOpen?: boolean;
 		onsubmit?: () => void;
+		/** Called as the sheet hands focus back to what opened it; preventing it keeps focus where an action put it. */
+		onCloseAutoFocus?: (event: Event) => void;
 		children: Snippet;
 		footer?: Snippet;
 	} = $props();
@@ -89,6 +92,7 @@
 		<Dialog.Content
 			class="fixed inset-x-0 bottom-0 z-50 flex max-h-sheet-max enter flex-col rounded-panel bg-float pb-safe shadow-float outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-sheet sm:-translate-x-1/2 sm:-translate-y-1/2 sm:pb-0"
 			onOpenAutoFocus={focusFirstControl}
+			{onCloseAutoFocus}
 			onEscapeKeydown={guard}
 			onInteractOutside={guard}
 			{onkeydown}

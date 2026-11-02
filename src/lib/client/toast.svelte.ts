@@ -4,9 +4,7 @@ import { app } from './app.svelte.ts';
 
 // An undo is a step of the history, or what takes back a change kept out of it.
 type ToastAction =
-	| { label: 'Undo'; group: number }
-	| { label: 'Undo'; run: () => void }
-	| { label: 'Redo' };
+	{ label: 'Undo'; group: number } | { label: 'Undo'; run: () => void } | { label: 'Redo' };
 
 export const toast = $state({ text: '', action: null as ToastAction | null, seq: 0 });
 

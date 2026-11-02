@@ -12,7 +12,7 @@
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { visitHome, visitTable } from '#lib/client/place.ts';
 	import { me } from '#lib/client/session.svelte.ts';
-	import { pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
+	import { pastedCells, shell } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
 	import { redoChange, undoChange } from '#lib/client/toast.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -24,6 +24,7 @@
 	import RowSheet from '#lib/views/RowSheet.svelte';
 	import SyncStatus from '#lib/views/SyncStatus.svelte';
 	import TableMenu from '#lib/views/TableMenu.svelte';
+	import TableSwitcher from '#lib/views/TableSwitcher.svelte';
 	import TableTitle from '#lib/views/TableTitle.svelte';
 	import Toast from '#lib/views/Toast.svelte';
 	import ViewSheet from '#lib/views/ViewSheet.svelte';
@@ -103,11 +104,6 @@
 		}
 	});
 
-	const tables = $derived.by(() => {
-		void app.version;
-		return app.ws.bases().flatMap((base) => app.ws.tables(base.id));
-	});
-
 	const onTable = $derived(table !== undefined);
 
 	const rowCount = $derived.by(() => {
@@ -130,50 +126,6 @@
 			(target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
 		);
 	}
-
-	const NO_KEYBOARD = new Set([
-		'button',
-		'checkbox',
-		'color',
-		'date',
-		'datetime-local',
-		'file',
-		'month',
-		'radio',
-		'range',
-		'reset',
-		'submit',
-		'time',
-		'week'
-	]);
-
-	let keyboardUp = $state(false);
-	let tallest = 0;
-	let wide = 0;
-
-	function opensKeyboard(target: EventTarget | null): boolean {
-		if (!(target instanceof HTMLElement) || target.inputMode === 'none') return false;
-		if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
-		return target instanceof HTMLInputElement && !NO_KEYBOARD.has(target.type);
-	}
-
-	// Android's Back closes the keyboard and leaves the field focused: only the window growing back says so.
-	function onresize(): void {
-		if (innerWidth !== wide) {
-			wide = innerWidth;
-			tallest = 0;
-		}
-		tallest = Math.max(tallest, innerHeight);
-		keyboardUp =
-			matchMedia('(pointer: coarse)').matches &&
-			opensKeyboard(document.activeElement) &&
-			innerHeight < tallest * 0.85;
-	}
-
-	onMount(() => {
-		wide = innerWidth;
-		tallest = innerHeight;
-	});
 
 	function hasFiles(event: DragEvent): boolean {
 		return event.dataTransfer?.types.includes('Files') === true;
@@ -221,6 +173,9 @@
 		if (command && event.key.toLowerCase() === 'k') {
 			event.preventDefault();
 			asking = !asking;
+		} else if (command && !event.altKey && event.key.toLowerCase() === 'p') {
+			event.preventDefault();
+			shell.switching = !shell.switching;
 		} else if (!typing && command && event.key.toLowerCase() === 'z' && !event.shiftKey) {
 			event.preventDefault();
 			undoChange();
@@ -251,11 +206,6 @@
 	{onpaste}
 	{ondragover}
 	{ondrop}
-	onfocusin={(event) => {
-		keyboardUp = matchMedia('(pointer: coarse)').matches && opensKeyboard(event.target);
-	}}
-	onfocusout={() => (keyboardUp = false)}
-	{onresize}
 	ondragleave={(event) => {
 		if (event.relatedTarget === null) dropping = false;
 	}}
@@ -265,20 +215,26 @@
 	{@render children()}
 {:else}
 	<div class="relative flex h-dvh flex-col overflow-clip pt-safe">
-		<header class="flex shrink-0 items-center gap-3 px-gutter pt-5 max-lg:flex-wrap">
+		<header
+			class="flex min-h-13 shrink-0 items-center gap-x-3 gap-y-1 px-gutter py-2.5 max-lg:flex-wrap max-sm:gap-x-2 max-sm:pr-2"
+		>
 			<a
 				href={HOME}
-				class="mr-1 shrink-0 text-ink-2 hover:text-ink {onTable ? 'max-sm:hidden' : ''}"
+				class="shrink-0 rounded-box text-ink transition-colors motion hover:text-ink-2"
+				aria-label="All tables"
 			>
-				<Logo wordmark class="h-4 max-sm:hidden" />
-				<Logo class="h-5 sm:hidden" />
+				<Logo class="size-4" />
 			</a>
-			<div class="flex min-w-0 items-center gap-3 max-lg:flex-1">
+			<div class="flex min-w-0 items-center gap-2 max-lg:flex-1">
 				{#if table !== undefined}
 					<TableTitle {table} rows={rowCount} />
-					<span class="shrink-0 pt-1 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
 				{:else}
-					<h1 class="min-w-0 truncate text-xl font-semibold tight max-sm:text-lg">{heading}</h1>
+					<h1 class="flex min-w-0" aria-label={heading}>
+						<TableSwitcher name={heading} current={null} />
+					</h1>
+				{/if}
+				{#if table !== undefined}
+					<span class="shrink-0 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
 				{/if}
 			</div>
 			<SyncStatus />
@@ -289,7 +245,7 @@
 						class={asking ? 'bg-tint-2 text-ink' : ''}
 						aria-pressed={asking}
 						onclick={() => (asking = !asking)}
-						>Ask <span class="text-sm text-ink-3 max-sm:hidden">Ctrl K</span></Button
+						>Ask <span class="font-normal text-ink-3 max-sm:hidden">Ctrl K</span></Button
 					>
 				{/if}
 				<a
@@ -317,10 +273,11 @@
 		</header>
 
 		{#if table !== undefined}
-			<div class="flex shrink-0 items-center gap-2 px-gutter pt-3">
+			<div class="flex shrink-0 items-center gap-1 border-b border-rule px-gutter max-sm:pr-2">
 				<Segmented
 					label="Views"
-					class="max-sm:flex-1"
+					tone="line"
+					class="min-w-0 max-sm:flex-1"
 					items={[
 						...views.map((item) => ({
 							id: item.id,
@@ -362,47 +319,17 @@
 			</div>
 		{/if}
 
-		<div class="relative flex min-h-0 flex-1 px-gutter pt-3 pb-5 max-sm:px-0 max-sm:pb-0">
+		<div class="relative flex min-h-0 flex-1 px-gutter pt-3 pb-5 max-sm:p-0 max-sm:pb-safe">
 			<main
-				class="isolate min-w-0 flex-1 overflow-auto rounded-panel bg-raised shadow-raised transition-[margin] motion-slow max-sm:rounded-none max-sm:bg-transparent max-sm:shadow-none {asking
+				class="isolate min-w-0 flex-1 overflow-auto rounded-panel bg-raised transition-[margin] motion-slow max-sm:rounded-none {asking
 					? 'lg:mr-ask-clear'
-					: ''} {dropping ? 'ring-2 ring-ink ring-inset' : ''}"
+					: ''} {dropping ? 'ring-2 ring-accent ring-inset' : 'ring-1 ring-frame max-sm:ring-0'}"
 			>
 				{@render children()}
 			</main>
 			{#if assistant.available}
 				<AskPanel bind:open={asking} table={table ?? null} view={view ?? null} />
 			{/if}
-		</div>
-
-		<div
-			class="pointer-events-none absolute inset-x-gutter bottom-8 flex justify-center pb-safe transition-[right] motion-slow max-sm:bottom-3 {asking
-				? 'lg:right-tabs-ask'
-				: ''} {keyboardUp ? 'invisible' : ''}"
-		>
-			<Segmented
-				label="Tables"
-				tone="float"
-				class="pointer-events-auto"
-				items={[
-					{ id: 'all', label: 'All', href: HOME, active: page.url.pathname === HOME },
-					...tables.map((item) => ({
-						id: item.id,
-						label: item.name,
-						href: tableUrl(item.id),
-						active: item.id === tableId
-					}))
-				]}
-			>
-				{#snippet after()}
-					<button
-						type="button"
-						class="relative flex size-control shrink-0 items-center justify-center text-ink-2 transition-colors motion hover:text-ink"
-						aria-label="New table"
-						onclick={() => startTable()}><Icon name="plus" /></button
-					>
-				{/snippet}
-			</Segmented>
 		</div>
 
 		<Toast />

@@ -92,6 +92,34 @@ export async function pick(select: Locator, option: string | RegExp): Promise<vo
 export const toastButton = (page: Page, name: 'Undo' | 'Redo'): Locator =>
 	page.getByRole('status').getByRole('button', { name, exact: true });
 
+/** The header's list of tables, opened from the name it shows. */
+export async function tableList(page: Page): Promise<Locator> {
+	const list = page.getByRole('listbox', { name: 'Tables' });
+	if (!(await list.isVisible())) {
+		await page.getByRole('banner').getByRole('heading').getByRole('button').click();
+	}
+	await expect(list).toBeVisible();
+	return list;
+}
+
+/** Goes to a table, or a proposed one, through the header's list. */
+export async function openTable(page: Page, name: string): Promise<void> {
+	await (await tableList(page)).getByRole('option', { name, exact: true }).click();
+}
+
+/** The header's list holds `name` `count` times; the list closes again after. */
+export async function expectListed(page: Page, name: string | RegExp, count = 1): Promise<void> {
+	const list = await tableList(page);
+	await expect(list.getByRole('option', { name, exact: typeof name === 'string' })).toHaveCount(
+		count
+	);
+	await page.keyboard.press('Escape');
+	await expect(list).toBeHidden();
+}
+
+export const allTables = (page: Page): Locator =>
+	page.getByRole('banner').getByRole('link', { name: 'All tables' });
+
 /** Out of any text field, which keeps Ctrl+Z for its own text. */
 async function leaveField(page: Page): Promise<void> {
 	await page.evaluate(() => {

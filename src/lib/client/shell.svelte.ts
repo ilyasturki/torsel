@@ -12,7 +12,9 @@ export const shell = $state({
 	newRow: false,
 	importing: null as ImportStart | null,
 	namingTable: null as string | null,
-	addingField: false
+	addingField: false,
+	switching: false,
+	renamingTable: null as string | null
 });
 
 /** The text of a paste holding more than one cell, null for a plain word to type in. */

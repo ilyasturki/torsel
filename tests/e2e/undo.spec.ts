@@ -3,6 +3,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import {
 	expect,
+	expectListed,
 	redo,
 	script,
 	seed,
@@ -187,21 +188,19 @@ test('a view added, then deleted', async ({ page }) => {
 });
 
 test('a table deleted, and a base deleted', async ({ page }) => {
-	const tabs = page.getByRole('group', { name: 'Tables' });
-
 	await tableMenu(page, 'Delete table');
 	await expect(page).toHaveURL(/\/app$/u);
-	await expect(tabs.getByRole('link', { name: 'Lifts' })).toHaveCount(0);
+	await expectListed(page, 'Lifts', 0);
 	await toastButton(page, 'Undo').click();
-	await expect(tabs.getByRole('link', { name: 'Lifts' })).toBeVisible();
+	await expectListed(page, 'Lifts');
 
 	const money = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Money' }) });
 	await money.last().getByRole('button', { name: 'Delete' }).click();
-	await expect(tabs.getByRole('link', { name: 'Expenses' })).toHaveCount(0);
+	await expectListed(page, 'Expenses', 0);
 	await toastButton(page, 'Undo').click();
-	await expect(tabs.getByRole('link', { name: 'Expenses' })).toBeVisible();
+	await expectListed(page, 'Expenses');
 	await toastButton(page, 'Redo').click();
-	await expect(tabs.getByRole('link', { name: 'Expenses' })).toHaveCount(0);
+	await expectListed(page, 'Expenses', 0);
 });
 
 test('a fresh change clears redo, and the keyboard reaches both', async ({ page }) => {

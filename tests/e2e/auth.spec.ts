@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import {
 	expect,
+	expectListed,
 	expireEmailTokens,
 	freshEmail,
 	mailTo,
@@ -75,7 +76,7 @@ test.describe('no account', () => {
 		await page.waitForTimeout(100);
 		await page.reload();
 
-		await expect(page.getByRole('link', { name: 'Table 1' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
 	});
 
@@ -381,8 +382,8 @@ test.describe('local data at sign-in', () => {
 		await page.goto('/app/login');
 		await passwordSignIn(page, account);
 
-		await expect(page.getByRole('link', { name: 'Table 1' }).first()).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Lifts' }).first()).toBeVisible();
+		await expectListed(page, 'Table 1');
+		await expectListed(page, 'Lifts');
 		await expect.poll(() => serverRecords(page)).toContain('Table 1');
 		await expect(page.getByRole('status')).toHaveCount(0);
 	});

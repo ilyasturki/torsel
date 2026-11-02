@@ -74,7 +74,6 @@
 	let viewHeight = $state(0);
 	let viewWidth = $state(0);
 	let rowHeight = $state(34);
-	let tabsClear = $state(64);
 
 	let anchor = $state.raw<Pos | null>(null);
 	let head = $state.raw<Pos | null>(null);
@@ -230,7 +229,6 @@
 		void viewWidth;
 		const styles = getComputedStyle(document.documentElement);
 		rowHeight = parseFloat(styles.getPropertyValue('--row')) || rowHeight;
-		tabsClear = parseFloat(styles.getPropertyValue('--tabs-clear')) || tabsClear;
 	});
 
 	$effect(() => {
@@ -340,8 +338,8 @@
 		const height = scroller.clientHeight;
 		if (y < scroller.scrollTop + rowHeight) {
 			scroller.scrollTop = y - rowHeight;
-		} else if (y + rowHeight > scroller.scrollTop + height - tabsClear) {
-			scroller.scrollTop = y + rowHeight - height + tabsClear;
+		} else if (y + rowHeight > scroller.scrollTop + height) {
+			scroller.scrollTop = y + rowHeight - height;
 		}
 		if (c > 0) {
 			const from = lefts[c];
@@ -573,7 +571,7 @@
 		const extend = event.shiftKey;
 		const lastRow = Math.max(0, rows.length - 1);
 		const lastCol = fields.length - 1;
-		const page = Math.max(1, Math.floor((viewHeight - rowHeight - tabsClear) / rowHeight));
+		const page = Math.max(1, Math.floor((viewHeight - rowHeight) / rowHeight));
 
 		const moves: Record<string, () => [number, number]> = {
 			ArrowUp: () => [command ? 0 : headRow - 1, headCol],
@@ -685,8 +683,8 @@
 							? point.x - (box.left + stickyEnd)
 							: 0;
 				const dy =
-					point.y > box.bottom - tabsClear
-						? point.y - (box.bottom - tabsClear)
+					point.y > box.bottom - 24
+						? point.y - (box.bottom - 24)
 						: point.y < box.top + rowHeight
 							? point.y - (box.top + rowHeight)
 							: 0;
@@ -1001,7 +999,9 @@
 				? 'bg-selected'
 				: row !== null && fresh.has(row.id)
 					? 'bg-tint-2'
-					: 'group-hover:bg-tint'} {isActive ? `ring-2 ring-inset ${focused ? 'ring-accent' : 'ring-edge'}` : ''}"
+					: 'group-hover:bg-tint'} {isActive
+				? `ring-2 ring-inset ${focused ? 'ring-accent' : 'ring-edge'}`
+				: ''}"
 		>
 			{#if field.type === 'check'}
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
@@ -1086,7 +1086,7 @@
 		style="scroll-padding-left: {stickyEnd}px"
 		{onscroll}
 	>
-		<div class="relative pb-tabs-clear">
+		<div class="relative">
 			<table
 				bind:this={table}
 				role="grid"

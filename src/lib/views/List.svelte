@@ -82,7 +82,7 @@
 			: null;
 </script>
 
-<div class="flex min-h-full flex-col pb-tabs-clear">
+<div class="flex min-h-full flex-col pb-4">
 	{#each groups.entries as [key, rows] (key)}
 		<section class="flex flex-col">
 			{#if group !== undefined}

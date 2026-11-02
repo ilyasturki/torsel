@@ -40,7 +40,6 @@
 	--size-sm: 12.5px;
 	--size-base: 13.5px;
 	--gutter: 28px;
-	--tabs-clear: 64px;
 	--site-cell: 34px;
 	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .09 -.03'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
 
@@ -133,7 +132,6 @@
 		--size-sm: 13px;
 		--size-base: 15px;
 		--gutter: 16px;
-		--tabs-clear: 76px;
 		--site-cell: 26px;
 	}
 }
@@ -182,7 +180,6 @@
 	--spacing-mark: 8px;
 	--spacing-sheet-max: 92dvh;
 	--spacing-ask-clear: 416px;
-	--spacing-tabs-ask: 444px;
 }
 
 @theme inline {
@@ -202,8 +199,7 @@
 	--spacing-control: var(--control);
 	--spacing-cta: var(--cta);
 	--spacing-gutter: var(--gutter);
-	--spacing-tabs-clear: calc(var(--tabs-clear) + env(safe-area-inset-bottom));
-	--spacing-toast: calc(var(--tabs-clear) + env(safe-area-inset-bottom) + var(--cta) + 0.5rem);
+	--spacing-toast: calc(env(safe-area-inset-bottom) + var(--cta) + 1.25rem);
 
 	--color-canvas: var(--canvas);
 	--color-raised: var(--raised);

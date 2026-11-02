@@ -20,7 +20,7 @@
 	}: {
 		items: SegmentedItem[];
 		label: string;
-		tone?: 'inset' | 'float';
+		tone?: 'inset' | 'float' | 'line';
 		class?: string;
 		after?: Snippet;
 	} = $props();
@@ -57,16 +57,22 @@
 
 	const shell = {
 		inset: 'bg-tint rounded-panel p-0.5',
-		float: 'bg-float shadow-float rounded-panel p-1'
+		float: 'bg-float shadow-float rounded-panel p-1',
+		line: ''
 	};
-	const thumb = { inset: 'bg-float shadow-raised', float: 'bg-tint-2' };
+	const thumb = {
+		inset: 'top-0 h-control rounded-box bg-float shadow-raised',
+		float: 'top-0 h-control rounded-box bg-tint-2',
+		line: 'bottom-0 h-0.5 bg-ink'
+	};
+	const size = { inset: 'h-control', float: 'h-control', line: 'h-10' };
 </script>
 
 <div class="inline-flex max-w-full {shell[tone]} {extra}" role="group" aria-label={label}>
 	<div class="relative flex min-w-0 hide-scrollbar overflow-x-auto" use:slide>
 		<i
 			data-indicator
-			class="pointer-events-none absolute top-0 left-0 h-control rounded-box transition-[transform,width] motion-slow {thumb[
+			class="pointer-events-none absolute left-0 transition-[transform,width] motion-slow {thumb[
 				tone
 			]}"
 		></i>
@@ -74,7 +80,9 @@
 			{#if item.href !== undefined}
 				<a
 					href={item.href}
-					class="relative flex h-control shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
+					class="relative flex {size[
+						tone
+					]} shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
 						? 'text-ink'
 						: 'text-ink-2'}"
 					data-on={item.active === true}
@@ -84,7 +92,9 @@
 			{:else}
 				<button
 					type="button"
-					class="relative flex h-control shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
+					class="relative flex {size[
+						tone
+					]} shrink-0 items-center px-3 font-medium whitespace-nowrap transition-colors motion hover:text-ink {item.active
 						? 'text-ink'
 						: 'text-ink-2'}"
 					data-on={item.active === true}

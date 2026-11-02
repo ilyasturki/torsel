@@ -1,7 +1,18 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, RETRY_RESET, seed, tableMenu, tablePath, test } from './harness.ts';
+import {
+	allTables,
+	expect,
+	expectListed,
+	openTable,
+	RETRY_RESET,
+	seed,
+	tableList,
+	tableMenu,
+	tablePath,
+	test
+} from './harness.ts';
 
 function seedTwoTables(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -68,21 +79,17 @@ test('a first table takes one click, with no base to name', async ({ page, accou
 
 	await expect(page).toHaveURL(/\/app\/t\//u);
 	await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
-	const tabs = page.getByRole('group', { name: 'Tables' });
 	const name = page.getByRole('textbox', { name: 'Table name' });
 	await expect(name).toBeFocused();
-	if (test.info().project.name === 'phone') {
-		await expect(tabs, 'the tabs make way for the keyboard').toBeHidden();
-	}
 	await name.blur();
-	await expect(tabs.getByRole('link', { name: 'Table 1' })).toHaveAttribute('aria-current', 'page');
+	await expectListed(page, 'Table 1');
 
-	await tabs.getByRole('link', { name: 'All' }).click();
+	await allTables(page).click();
 	await expect(page.getByRole('link', { name: /Table 1/u }).first()).toBeVisible();
 	await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
 });
 
-test('tabs change the table and the view strip changes the view', async ({
+test('the header list changes the table and the view strip changes the view', async ({
 	page,
 	context,
 	account
@@ -99,7 +106,7 @@ test('tabs change the table and the view strip changes the view', async ({
 	await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Volume')}$`, 'u'));
 	await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
-	await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Weight' }).click();
+	await openTable(page, 'Weight');
 	await expect(page.getByRole('heading', { name: 'Weight' })).toBeVisible();
 	await expect(page.getByText('0 rows')).toBeVisible();
 });
@@ -123,7 +130,11 @@ test('bases group the home only once there is more than one', async ({
 	await expect(page.getByRole('heading', { name: 'Money', level: 2 })).toBeVisible();
 });
 
-test('the floating tabs stay above a long table', async ({ page, context, account }) => {
+test('the table list filters as it is typed in, and opens with Ctrl P', async ({
+	page,
+	context,
+	account
+}) => {
 	void account;
 	const { lifts } = await seed(context.request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
@@ -140,7 +151,29 @@ test('the floating tabs stay above a long table', async ({ page, context, accoun
 	await page.goto(tablePath(lifts));
 	await expect(page.locator('tbody tr').nth(39)).toBeAttached();
 
-	await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'All' }).click();
+	const list = await tableList(page);
+	await expect(list.getByRole('option', { name: 'Lifts' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	await page.getByRole('combobox', { name: 'Jump to a table' }).fill('read');
+	await expect(list.getByRole('option', { name: 'Reading list' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	await expect(list.getByRole('option', { name: 'Expenses' })).toHaveCount(0);
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('heading', { name: 'Reading list' })).toBeVisible();
+	await expect(list).toBeHidden();
+
+	if (test.info().project.name === 'desktop') {
+		await page.keyboard.press('Control+p');
+		await page.keyboard.type('body');
+		await page.keyboard.press('Enter');
+		await expect(page.getByRole('heading', { name: 'Body weight' })).toBeVisible();
+	}
+
+	await (await tableList(page)).getByRole('option', { name: 'All tables' }).click();
 	await expect(page).toHaveURL(/\/app$/u);
 });
 
@@ -251,7 +284,7 @@ test('a sheet and the assistant keep room under their buttons', async ({
 	expect(await gapBelow(sheet, sheet.getByRole('button', { name: 'Save' }))).toBeGreaterThan(0);
 });
 
-test('the title renames the table, and the table menu opens view settings and adds a view', async ({
+test('the table menu renames the table, opens view settings and adds a view', async ({
 	page,
 	context,
 	account
@@ -261,10 +294,13 @@ test('the title renames the table, and the table menu opens view settings and ad
 	await page.goto(tablePath(lifts));
 	const dialog = page.getByRole('dialog');
 
-	await page.getByRole('heading', { name: 'Lifts' }).getByRole('button').click();
-	await page.getByRole('textbox', { name: 'Table name' }).fill('Sets');
+	await tableMenu(page, 'Rename table');
+	const name = page.getByRole('textbox', { name: 'Table name' });
+	await expect(name, 'the closing menu leaves the focus in the name').toBeFocused();
+	await page.keyboard.type('Sets');
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'Sets' })).toBeVisible();
+	await expect(page.getByRole('status')).toContainText('Table renamed');
 
 	await tableMenu(page, 'View settings');
 	await expect(dialog.getByRole('heading', { name: 'View settings' })).toBeVisible();
@@ -303,6 +339,7 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 	await expect(menu.getByRole('menuitem')).toHaveText([
 		'View settings',
 		'New view',
+		'Rename table',
 		'Import into this table',
 		'Delete table'
 	]);

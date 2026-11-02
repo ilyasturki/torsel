@@ -6,7 +6,7 @@
 	const missing = $derived(page.status === 404);
 </script>
 
-<div class="flex min-h-full flex-col items-start justify-center gap-3 p-6 pb-tabs-clear">
+<div class="flex min-h-full flex-col items-start justify-center gap-3 p-6">
 	<p class="text-hero leading-none font-semibold tighter text-ink-3">{page.status}</p>
 	<h2 class="text-xl font-semibold tight">
 		{missing ? 'Nothing at this address' : 'Something broke on this screen'}

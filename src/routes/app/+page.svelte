@@ -48,7 +48,7 @@
 	}
 </script>
 
-<div class="flex min-h-full flex-col pb-tabs-clear">
+<div class="flex min-h-full flex-col pb-4">
 	{#if empty}
 		<Empty text="No tables yet. Name one, drop a CSV here, or paste cells.">
 			<form

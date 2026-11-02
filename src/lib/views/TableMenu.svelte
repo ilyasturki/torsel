@@ -28,6 +28,8 @@
 		onnewview: () => void;
 	} = $props();
 
+	let renaming = false;
+
 	function run(action: () => void): void {
 		open = false;
 		action();
@@ -36,6 +38,18 @@
 	const importHere = (): void => {
 		shell.importing = { into: table.id };
 	};
+
+	function rename(): void {
+		renaming = true;
+		open = false;
+		shell.renamingTable = table.id;
+	}
+
+	// The rename input took the focus as the menu closed: handing it back to "…" would close it.
+	function keepRenameFocus(event: Event): void {
+		if (renaming) event.preventDefault();
+		renaming = false;
+	}
 
 	function remove(): void {
 		const label = `Table "${table.name}" deleted`;
@@ -47,17 +61,18 @@
 </script>
 
 {#if wide.current}
-	<Menu bind:open {anchor} label={table.name} align="end">
+	<Menu bind:open {anchor} label={table.name} align="end" onCloseAutoFocus={keepRenameFocus}>
 		{#if onviewsettings !== undefined}
 			<MenuItem icon="eye" onSelect={() => run(onviewsettings)}>View settings</MenuItem>
 		{/if}
 		<MenuItem icon="plus" onSelect={() => run(onnewview)}>New view</MenuItem>
+		<MenuItem icon="text" onSelect={rename}>Rename table</MenuItem>
 		<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>Import into this table</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={remove}>Delete table</MenuItem>
 	</Menu>
 {:else}
-	<Dialog bind:open title={table.name}>
+	<Dialog bind:open title={table.name} onCloseAutoFocus={keepRenameFocus}>
 		<div class="-mx-2 flex flex-col items-stretch">
 			{#if onviewsettings !== undefined}
 				<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
@@ -65,6 +80,7 @@
 				>
 			{/if}
 			<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
+			<Button variant="ghost" class="justify-start" onclick={rename}>Rename table</Button>
 			<Button variant="ghost" class="justify-start" onclick={() => run(importHere)}
 				>Import into this table</Button
 			>

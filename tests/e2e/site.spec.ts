@@ -100,7 +100,7 @@ test('keeps an unknown app address inside the app', async ({ page, account }) =>
 	void account;
 	await page.goto('/app/no-such-page');
 	await expect(page.getByRole('heading', { name: 'Nothing at this address' })).toBeVisible();
-	await expect(page.getByRole('group', { name: 'Tables' })).toBeVisible();
+	await expect(page.getByRole('banner').getByRole('link', { name: 'All tables' })).toBeVisible();
 
 	await page.getByRole('link', { name: 'Back to your tables' }).click();
 	await expect(page).toHaveURL(/\/app$/u);
