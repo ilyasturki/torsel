@@ -87,6 +87,10 @@ export function todayIso(now: Date = new Date()): string {
 	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+export function nowIso(now: Date = new Date()): string {
+	return `${todayIso(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
 /** The type fresh values read as. A word stays text: one sample can't tell a choice from a note. */
 export function typeOfValues(values: unknown[]): 'number' | 'date' | 'check' | 'text' {
 	if (values.every((value) => typeof value === 'boolean')) {

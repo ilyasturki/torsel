@@ -11,7 +11,7 @@
 		updateRecord
 	} from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
-	import { hasTime, parseDate, todayIso } from '#lib/core/values.ts';
+	import { hasTime, nowIso, parseDate, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
@@ -66,7 +66,7 @@
 
 	const timedFields = $derived(
 		new Set(
-			others
+			fields
 				.filter(
 					(field) => field.type === 'date' && ordered.some((row) => hasTime(row.data[field.id]))
 				)
@@ -110,7 +110,7 @@
 			values[field.id] = latest?.data[field.id] ?? null;
 		}
 		if (dateField !== undefined) {
-			values[dateField.id] = todayIso();
+			values[dateField.id] = timedFields.has(dateField.id) ? nowIso() : todayIso();
 		}
 	});
 
@@ -439,10 +439,10 @@
 					{dateField.name}
 					<input
 						class="{input} w-auto"
-						type="date"
-						value={String(values[dateField.id] ?? today).slice(0, 10)}
+						type={timedFields.has(dateField.id) ? 'datetime-local' : 'date'}
+						value={values[dateField.id] ?? today}
 						oninput={(event) => {
-							if (dateField) values[dateField.id] = event.currentTarget.value || today;
+							if (dateField) values[dateField.id] = parseDate(event.currentTarget.value) ?? today;
 						}}
 					/>
 				</label>
