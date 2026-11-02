@@ -21,6 +21,7 @@
 	import { checkbox, input, select } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
+	import { timedColumn } from './grid.ts';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
@@ -64,15 +65,10 @@
 
 	const today = todayIso();
 
-	const timedFields = $derived(
-		new Set(
-			fields
-				.filter(
-					(field) => field.type === 'date' && ordered.some((row) => hasTime(row.data[field.id]))
-				)
-				.map((field) => field.id)
-		)
-	);
+	const timedFields = $derived.by(() => {
+		void app.version;
+		return new Set(fields.filter((field) => timedColumn(app.ws, field)).map((field) => field.id));
+	});
 
 	const ordered = $derived.by(() => {
 		void app.version;
@@ -109,10 +105,11 @@
 				ordered.find((row) => keyed(row) && done(row)) ?? ordered.find((row) => keyed(row));
 			values[field.id] = latest?.data[field.id] ?? null;
 		}
-		if (dateField !== undefined) {
-			values[dateField.id] = timedFields.has(dateField.id) ? nowIso() : todayIso();
-		}
 	});
+
+	function stamp(field: FieldDef): string {
+		return timedFields.has(field.id) ? nowIso() : todayIso();
+	}
 
 	function shown(field: FieldDef): Value {
 		return touched[field.id]
@@ -194,7 +191,7 @@
 	function commit(): void {
 		const row: Record<string, Value> = {};
 		for (const field of keys) row[field.id] = values[field.id] ?? null;
-		if (dateField !== undefined) row[dateField.id] = values[dateField.id] ?? todayIso();
+		if (dateField !== undefined) row[dateField.id] = values[dateField.id] ?? stamp(dateField);
 		for (const field of others) row[field.id] = shown(field);
 
 		const { changes } = insertRows(app.ws, tableId, [row]);
@@ -440,9 +437,9 @@
 					<input
 						class="{input} w-auto"
 						type={timedFields.has(dateField.id) ? 'datetime-local' : 'date'}
-						value={values[dateField.id] ?? today}
+						value={values[dateField.id] ?? stamp(dateField)}
 						oninput={(event) => {
-							if (dateField) values[dateField.id] = parseDate(event.currentTarget.value) ?? today;
+							if (dateField) values[dateField.id] = parseDate(event.currentTarget.value);
 						}}
 					/>
 				</label>
