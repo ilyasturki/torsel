@@ -3,7 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh, ghostFields, ghostValue, isDoomed } from '#lib/client/assistant.svelte.ts';
-	import { editDate, formatDate, formatNumber } from '#lib/client/format.ts';
+	import { formatDate, formatNumber } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -18,7 +18,7 @@
 		Value,
 		ViewDef
 	} from '#lib/core/model.ts';
-	import { todayIso } from '#lib/core/values.ts';
+	import { hasTime, nowIso, todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -39,6 +39,7 @@
 		parseTsv,
 		pasteChanges,
 		sampleRows,
+		timedColumn,
 		toTsv
 	} from './grid.ts';
 	import GridColumnMenu from './GridColumnMenu.svelte';
@@ -510,12 +511,16 @@
 	}
 
 	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
-		const value = row === undefined && field.type === 'date' ? todayIso() : row?.data[field.id];
+		const timed = native && timedColumn(app.ws, field);
+		const fresh = timed ? nowIso() : todayIso();
+		const stored = row === undefined && field.type === 'date' ? fresh : row?.data[field.id];
+		const value =
+			timed && typeof stored === 'string' && !hasTime(stored) ? `${stored}T00:00` : stored;
 		if (field.type === 'number' && typeof value === 'number') {
 			return formatNumber(value, { edit: true });
 		}
 		if (field.type === 'date' && typeof value === 'string') {
-			return native ? value : editDate(value);
+			return native ? value : formatDate(value);
 		}
 		return typeof value === 'string' ? value : '';
 	}

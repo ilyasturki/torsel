@@ -79,6 +79,27 @@ for (const { locale, budget, edited, seen } of LOCALES) {
 			await expect(page.getByRole('gridcell', { name: seen, exact: true })).toBeVisible();
 		});
 
+		test('a tap on a timed date opens a picker with its time', async ({
+			page,
+			context,
+			account
+		}) => {
+			test.skip(test.info().project.name !== 'phone', 'the native picker opens on a touch');
+			void account;
+			await page.addInitScript(() => {
+				HTMLInputElement.prototype.showPicker = () => undefined;
+			});
+			const movies = await seedMovies(context.request);
+			await page.goto(movies.grid);
+
+			const stored = page.getByRole('gridcell', { name: seen, exact: true });
+			await stored.scrollIntoViewIfNeeded();
+			await stored.tap();
+			const picker = page.getByRole('gridcell').locator('input');
+			await expect(picker).toHaveAttribute('type', 'datetime-local');
+			await expect(picker).toHaveValue('2024-03-01T20:30');
+		});
+
 		test('the row sheet opens on what the grid shows and stores what was typed', async ({
 			page,
 			context,

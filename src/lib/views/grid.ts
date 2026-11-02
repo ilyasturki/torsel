@@ -5,7 +5,7 @@ import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
-import { parseCheck } from '#lib/core/values.ts';
+import { hasTime, parseCheck } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 import { nextChoice } from '#lib/ui/colors.ts';
 
@@ -102,6 +102,11 @@ export function copyText(ws: Workspace, field: FieldDef, value: Value | undefine
 		return value ? 'TRUE' : 'FALSE';
 	}
 	return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/** A date column holds times once any of its rows does. */
+export function timedColumn(ws: Workspace, field: FieldDef): boolean {
+	return field.type === 'date' && ws.rows(field.table).some((row) => hasTime(row.data[field.id]));
 }
 
 export type LinkOption = { id: string; label: string };

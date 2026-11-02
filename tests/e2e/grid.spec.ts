@@ -551,7 +551,11 @@ test.describe('new rows', () => {
 		desktopOnly();
 		void account;
 		await open(page, (await seedEveryType(context.request)).path);
-		const today = new Date().toLocaleDateString('en-US', { timeZone: 'UTC' });
+		const today = new Date().toLocaleDateString('en-US', {
+			timeZone: 'UTC',
+			month: 'short',
+			day: 'numeric'
+		});
 
 		await at(page, 1, 2).click();
 		await page.keyboard.press('Enter');

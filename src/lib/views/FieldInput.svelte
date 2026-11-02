@@ -5,6 +5,8 @@
 	import { hasTime, parseDate } from '#lib/core/values.ts';
 	import { checkbox, input, select } from '#lib/ui/styles.ts';
 
+	import { timedColumn } from './grid.ts';
+
 	let {
 		field,
 		value = $bindable(),
@@ -24,9 +26,9 @@
 	let timed = $state(false);
 
 	$effect.pre(() => {
-		if (field.type !== 'date' || timed) return;
+		if (timed) return;
 		void app.version;
-		timed = hasTime(value) || app.ws.rows(field.table).some((row) => hasTime(row.data[field.id]));
+		timed = hasTime(value) || timedColumn(app.ws, field);
 	});
 
 	const targets = $derived.by(() => {
