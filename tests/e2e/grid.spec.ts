@@ -223,7 +223,7 @@ test.describe('cells', () => {
 
 		await at(page, 0, 1).click();
 		await page.keyboard.press('Enter');
-		await expect(editor(page)).toHaveValue('1234567.25');
+		await expect(editor(page)).toHaveValue('1,234,567.25');
 		await page.keyboard.press('Enter');
 		await expect(at(page, 0, 1)).toHaveText('1,234,567.25');
 		await expect(at(page, 1, 1)).toHaveAttribute('aria-selected', 'true');
@@ -453,7 +453,7 @@ test.describe('ranges', () => {
 		await expect(page.getByText('3 rows')).toBeVisible();
 
 		const pasted =
-			'Deadlift\t1,100.5\tTempo\nRow\t80\tNew style\nCurl\tnot a number\tStrict\nDip\t40\t';
+			'Deadlift\t11,100.5\tTempo\nRow\t80\tNew style\nCurl\tnot a number\tStrict\nDip\t40\t';
 		await page.evaluate((text) => navigator.clipboard.writeText(text), pasted);
 
 		await at(page, 1, 0).click();
@@ -462,7 +462,7 @@ test.describe('ranges', () => {
 		await expect(page.getByText('5 rows')).toBeVisible();
 		await expect(page.getByRole('status')).toContainText('1 value');
 		await expect(at(page, 1, 0)).toHaveText('Deadlift');
-		await expect(at(page, 1, 1)).toHaveText('1,100.5');
+		await expect(at(page, 1, 1)).toHaveText('11,100.5');
 		await expect(at(page, 1, 2)).toHaveText('Tempo');
 		await expect(at(page, 2, 2)).toHaveText('New style');
 		await expect(at(page, 3, 0)).toHaveText('Curl');
@@ -551,7 +551,7 @@ test.describe('new rows', () => {
 		desktopOnly();
 		void account;
 		await open(page, (await seedEveryType(context.request)).path);
-		const today = new Date().toISOString().slice(0, 10);
+		const today = new Date().toLocaleDateString('en-US', { timeZone: 'UTC' });
 
 		await at(page, 1, 2).click();
 		await page.keyboard.press('Enter');

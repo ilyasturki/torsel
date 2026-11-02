@@ -433,7 +433,7 @@ test.describe('in another locale', () => {
 		void account;
 		const { lifts } = await seedTwoTables(context.request);
 		await page.goto(`/app/t/${lifts}`);
-		await expect(page.getByRole('gridcell', { name: '1.234,5' })).toBeVisible();
+		await expect(page.getByRole('gridcell', { name: '1234,5', exact: true })).toBeVisible();
 		await expect(page.getByRole('gridcell', { name: /30\. Okt/u })).toBeVisible();
 	});
 });
