@@ -17,7 +17,7 @@
 	} = $props();
 
 	const variants = {
-		primary: 'bg-fill text-on-fill hover:opacity-90 disabled:bg-tint-2 disabled:text-ink-3',
+		primary: 'bg-accent text-on-accent hover:opacity-90 disabled:bg-tint-2 disabled:text-ink-3',
 		secondary: 'bg-tint text-ink hover:bg-tint-2 disabled:text-ink-3',
 		ghost: 'text-ink-2 hover:bg-tint hover:text-ink disabled:text-ink-3'
 	};

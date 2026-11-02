@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/funnel-sans';
 
-/* The interface is monochrome; colour only ever comes from a person's own data (`--d-*`). */
+/* Monochrome but for one accent (selection, focus, the primary action); other colour comes from a person's own data (`--d-*`). */
 :root {
 	color-scheme: light dark;
 
@@ -17,8 +17,17 @@
 	--edge: rgb(17 18 22 / 0.16);
 	--fill: #16171b;
 	--on-fill: #ffffff;
+	--accent: #2f6bec;
+	--on-accent: #ffffff;
+	/* Opaque, so sticky header cells and the frozen column hide what scrolls under them. */
+	--rule: color-mix(in srgb, var(--ink) 10%, var(--raised));
+	--rule-col: color-mix(in srgb, var(--ink) 7%, var(--raised));
+	--rule-strong: color-mix(in srgb, var(--ink) 20%, var(--raised));
+	--band: color-mix(in srgb, var(--ink) 3.5%, var(--raised));
+	--selected: color-mix(in srgb, var(--accent) 10%, var(--raised));
+	--frame: color-mix(in srgb, var(--ink) 13%, var(--canvas));
 	--scrim: rgb(0 0 0 / 0.3);
-	--focus: var(--ink);
+	--focus: var(--accent);
 	--elevation-1: 0 0 0 1px rgb(17 18 22 / 0.05), 0 1px 2px rgb(17 18 22 / 0.04);
 	--elevation-2:
 		0 0 0 1px rgb(17 18 22 / 0.06), 0 2px 4px rgb(17 18 22 / 0.05), 0 12px 32px rgb(17 18 22 / 0.12);
@@ -80,6 +89,8 @@
 		--edge: rgb(255 255 255 / 0.22);
 		--fill: #ededf0;
 		--on-fill: #0d0e10;
+		--accent: #6f9bff;
+		--on-accent: #0d0e10;
 		--scrim: rgb(0 0 0 / 0.5);
 		--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 -.025'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
 		--elevation-1: 0 0 0 1px rgb(255 255 255 / 0.05);
@@ -206,6 +217,14 @@
 	--color-edge: var(--edge);
 	--color-fill: var(--fill);
 	--color-on-fill: var(--on-fill);
+	--color-accent: var(--accent);
+	--color-on-accent: var(--on-accent);
+	--color-rule: var(--rule);
+	--color-rule-col: var(--rule-col);
+	--color-rule-strong: var(--rule-strong);
+	--color-band: var(--band);
+	--color-selected: var(--selected);
+	--color-frame: var(--frame);
 	--color-scrim: var(--scrim);
 	--color-focus: var(--focus);
 	/* A diff's before and after: feedback, so the data palette's green and pink. */

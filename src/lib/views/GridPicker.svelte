@@ -107,7 +107,7 @@
 		node.focus();
 		node.setSelectionRange(node.value.length, node.value.length);
 	}}
-	class="absolute inset-0 z-1 h-full w-full bg-raised px-3 ring-2 ring-ink outline-none ring-inset"
+	class="absolute inset-y-0 -right-px left-0 z-1 h-full bg-raised px-3 ring-2 ring-accent outline-none ring-inset"
 	role="combobox"
 	aria-label={label}
 	aria-expanded="true"

@@ -18,7 +18,7 @@
 	</p>
 	<a
 		href={HOME}
-		class="inline-flex h-control items-center rounded-box bg-fill px-3 font-medium text-on-fill transition-opacity motion hover:opacity-90"
+		class="inline-flex h-control items-center rounded-box bg-accent px-3 font-medium text-on-accent transition-opacity motion hover:opacity-90"
 		>Back to your tables</a
 	>
 </div>

@@ -164,7 +164,6 @@
 	});
 
 	const stickyEnd = $derived(lefts[Math.min(1, fields.length)]);
-	const scrolledSideways = $derived(scrollLeft > 0);
 
 	// The window. `start` and `end` are numbers so a scroll inside one step reaches nothing below them.
 	const total = $derived(rows.length + 1);
@@ -991,17 +990,18 @@
 		aria-selected={inRange}
 		aria-readonly={field.type === 'formula'}
 		title={field.type === 'formula' ? formulaReason(field) : undefined}
-		class="h-row border-b border-hair p-0 {c === 0
-			? `sticky left-11 z-10 bg-raised max-sm:bg-canvas ${scrolledSideways ? 'border-r border-r-tint-2' : ''}`
-			: 'relative'}"
+		class="h-row border-r border-b border-b-rule p-0 {c === 0
+			? 'sticky left-11 z-10 border-r-rule-strong bg-raised'
+			: 'relative border-r-rule-col'}"
 	>
 		<div
 			class="absolute inset-0 flex items-center overflow-hidden px-3 transition-colors motion-slow group-hover:bg-tint {numeric
 				? 'justify-end'
-				: ''} {field.type === 'check' ? 'justify-center' : ''} {(inRange && isRange) ||
-			(row !== null && fresh.has(row.id))
-				? 'bg-tint-2'
-				: ''} {isActive ? `ring-2 ring-inset ${focused ? 'ring-ink' : 'ring-edge'}` : ''}"
+				: ''} {field.type === 'check' ? 'justify-center' : ''} {inRange && isRange
+				? 'bg-selected'
+				: row !== null && fresh.has(row.id)
+					? 'bg-tint-2'
+					: ''} {isActive ? `ring-2 ring-inset ${focused ? 'ring-accent' : 'ring-edge'}` : ''}"
 		>
 			{#if field.type === 'check'}
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
@@ -1041,7 +1041,7 @@
 							}
 						}
 					}}
-					class="absolute inset-0 z-1 h-full w-full bg-raised px-3 ring-2 ring-ink outline-none ring-inset {numeric
+					class="absolute inset-y-0 -right-px left-0 z-1 h-full bg-raised px-3 ring-2 ring-accent outline-none ring-inset {numeric
 						? 'text-right'
 						: ''}"
 					aria-label={field.name}
@@ -1119,7 +1119,7 @@
 				<thead>
 					<tr aria-rowindex={1}>
 						<th
-							class="sticky top-0 left-0 z-30 border-b border-hair bg-raised max-sm:bg-canvas"
+							class="sticky top-0 left-0 z-30 border-r border-b border-r-rule-col border-b-rule-strong bg-band"
 							aria-hidden="true"
 						></th>
 						{#each fields as field, index (field.id)}
@@ -1133,10 +1133,10 @@
 									: sorted === 'desc'
 										? 'descending'
 										: undefined}
-								class="sticky top-0 h-row border-b border-hair bg-raised p-0 text-sm font-medium text-ink-3 max-sm:bg-canvas {index ===
+								class="sticky top-0 h-row border-r border-b border-b-rule-strong bg-band p-0 text-sm font-medium text-ink-2 {index ===
 								0
-									? `left-11 z-30 ${scrolledSideways ? 'border-r border-r-tint-2' : ''}`
-									: 'z-20'} {columnDrag?.field === field.id ? 'text-ink' : ''}"
+									? 'left-11 z-30 border-r-rule-strong'
+									: 'z-20 border-r-rule-col'} {columnDrag?.field === field.id ? 'text-ink' : ''}"
 							>
 								<button
 									type="button"
@@ -1162,7 +1162,9 @@
 								></div>
 							</th>
 						{/each}
-						<th class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas">
+						<th
+							class="sticky top-0 z-20 border-r border-b border-r-rule-col border-b-rule-strong bg-band"
+						>
 							<AddField
 								{tableId}
 								bind:open={shell.addingField}
@@ -1174,9 +1176,7 @@
 								}}
 							/>
 						</th>
-						<th
-							class="sticky top-0 z-20 border-b border-hair bg-raised max-sm:bg-canvas"
-							aria-hidden="true"
+						<th class="sticky top-0 z-20 border-b border-rule-strong bg-band" aria-hidden="true"
 						></th>
 					</tr>
 				</thead>
@@ -1191,7 +1191,7 @@
 						<tr class="group" aria-rowindex={r + 2} data-fresh={fresh.has(row.id) || undefined}>
 							<td
 								role="rowheader"
-								class="sticky left-0 z-10 h-row border-b border-hair bg-raised p-0 max-sm:bg-canvas"
+								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
 							>
 								<button
 									type="button"
@@ -1206,8 +1206,8 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(row, r, field, c)}
 							{/each}
-							<td class="border-b border-hair" aria-hidden="true"></td>
-							<td class="border-b border-hair" aria-hidden="true"></td>
+							<td class="border-r border-b border-r-rule-col border-b-rule" aria-hidden="true"></td>
+							<td class="border-b border-rule" aria-hidden="true"></td>
 						</tr>
 					{/each}
 					{#if end < total}
@@ -1219,7 +1219,7 @@
 						<tr class="group" aria-rowindex={rows.length + 2}>
 							<td
 								role="rowheader"
-								class="sticky left-0 z-10 h-row border-b border-hair bg-raised p-0 max-sm:bg-canvas"
+								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
 							>
 								<button
 									type="button"
@@ -1234,8 +1234,8 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(null, rows.length, field, c)}
 							{/each}
-							<td class="border-b border-hair" aria-hidden="true"></td>
-							<td class="border-b border-hair" aria-hidden="true"></td>
+							<td class="border-r border-b border-r-rule-col border-b-rule" aria-hidden="true"></td>
+							<td class="border-b border-rule" aria-hidden="true"></td>
 						</tr>
 					{/if}
 				</tbody>
