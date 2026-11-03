@@ -410,8 +410,10 @@ export function localeFormats(locale?: string) {
 				return parseCheck(text) ?? undefined;
 			case 'choice':
 				return named(text);
-			case 'choices':
-				return [...new Set(splitChoices(text).map(named))];
+			case 'choices': {
+				const names = [...new Set(splitChoices(text).map(named))];
+				return names.length === 0 ? null : names;
+			}
 			case 'text':
 			case 'longtext':
 				return raw;

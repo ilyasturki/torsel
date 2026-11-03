@@ -233,7 +233,7 @@ export function pasteChanges(
 					}
 					return match?.name ?? String(name);
 				});
-				value = field.type === 'choices' ? names : names[0];
+				value = field.type === 'choices' ? [...new Set(names)] : names[0];
 			}
 			if (row === undefined ? value !== null : !sameValue(row.data[field.id], value)) {
 				values[field.id] = value;

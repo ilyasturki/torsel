@@ -1315,10 +1315,12 @@
 					label={field.name}
 					options={pickerOptions(field)}
 					value={typeof value === 'string' ? value : null}
-					values={field.type === 'choices' && Array.isArray(value) ? value.map(String) : null}
+					values={field.type === 'choices' ? (Array.isArray(value) ? value.map(String) : []) : null}
 					{seed}
 					creatable={hasChoices(field.type)}
-					onpick={(picked, down, across) => settle(target, picked, down, across, false)}
+					onpick={(picked, down, across) => {
+						if (editing === target) settle(target, picked, down, across, false);
+					}}
 					onkeep={(down, across) => settle(target, undefined, down, across, false)}
 					oncancel={() => {
 						if (editing === target) cancelEdit();

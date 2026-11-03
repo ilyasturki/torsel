@@ -720,7 +720,6 @@ export const TOOLS: Tool[] = [
 			const type = input.type ?? field.type;
 			const set: Record<string, Value> = {};
 			if (input.name !== undefined) set.name = input.name.trim();
-			if (input.choices !== undefined) set.choices = choicesOf(input.choices, field.choices);
 			if (input.description !== undefined) set.description = input.description;
 			let expr: string | null = null;
 			if (input.formula !== undefined) {
@@ -768,6 +767,9 @@ export const TOOLS: Tool[] = [
 					computed
 				);
 			}
+			// A retype's own field change already holds the given choices plus those found in values.
+			if (input.choices !== undefined && converted.changes.length === 0)
+				set.choices = choicesOf(input.choices, field.choices);
 			commit(ctx, {
 				summary: `Change field "${field.name}" in ${table.name}`,
 				changes: [...converted.changes, ...updateRecord(ctx.ws, field.id, set)]

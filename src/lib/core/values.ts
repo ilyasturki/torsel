@@ -139,6 +139,11 @@ export const CURRENCIES = [
 // Longest first: "R$" must win over "$".
 const SYMBOLS: [string, string][] = [
 	['HK$', 'HKD'],
+	['US$', 'USD'],
+	['CA$', 'CAD'],
+	['AU$', 'AUD'],
+	['NZ$', 'NZD'],
+	['MX$', 'MXN'],
 	['R$', 'BRL'],
 	['C$', 'CAD'],
 	['A$', 'AUD'],
@@ -304,6 +309,8 @@ export function formatDuration(seconds: number, withSeconds = false): string {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const SCHEME = /^[a-z][a-z\d+.-]*:\/\//iu;
+// Any other scheme, javascript:// among them, must never reach an href.
+const WEB = /^https?:\/\//iu;
 const DOMAIN = /^[^\s@/:]+\.[a-z]{2,}(?::\d+)?(?:[/?#]\S*)?$/iu;
 const PHONE = /^\+?[\d\s().\-/]+$/u;
 
@@ -312,7 +319,7 @@ export function isEmail(text: string): boolean {
 }
 
 export function isUrl(text: string): boolean {
-	return SCHEME.test(text) ? !/\s/u.test(text) : DOMAIN.test(text);
+	return SCHEME.test(text) ? WEB.test(text) && !/\s/u.test(text) : DOMAIN.test(text);
 }
 
 export function isPhone(text: string): boolean {
@@ -328,7 +335,7 @@ export function hrefOf(type: FieldType, value: string): string {
 	if (type === 'phone') {
 		return `tel:${value.replace(/[^\d+]/gu, '')}`;
 	}
-	return SCHEME.test(value) ? value : `https://${value}`;
+	return WEB.test(value) ? value : `https://${value}`;
 }
 
 export const CHOICES_JOIN = ', ';
@@ -347,7 +354,8 @@ export function typeOfValues(values: unknown[]): Detected {
 		return { type: 'number' };
 	}
 	if (values.every((value) => typeof value === 'string' || typeof value === 'number')) {
-		return detectType(values.map(String)) ?? { type: 'text' };
+		const detected = detectType(values.map(String));
+		return detected === null || detected.type === 'check' ? { type: 'text' } : detected;
 	}
 	return { type: 'text' };
 }

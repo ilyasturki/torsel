@@ -10,7 +10,7 @@
 	import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from '#lib/core/model.ts';
 	import { formatSet, hasChoices } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import { CURRENCIES, ratingScale } from '#lib/core/values.ts';
+	import { CURRENCIES, currencyOf, ratingScale } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
@@ -165,7 +165,7 @@
 			decimals = field?.decimals == null ? AUTO : String(field.decimals);
 			grouping = field?.grouping ?? true;
 			unit = field?.unit ?? '';
-			currency = field?.currency ?? localCurrency();
+			currency = field?.type === 'currency' ? currencyOf(field) : localCurrency();
 			const scale = ratingScale(field ?? {});
 			lowest = String(scale.min);
 			highest = String(scale.max);
