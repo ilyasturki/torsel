@@ -121,7 +121,7 @@ test.describe('in a build', () => {
 		const errors: string[] = [];
 		watchErrors(opened, errors);
 		await opened.goto(manifest.start_url);
-		await expect(opened.getByRole('heading', { name: 'Table 1' })).toBeVisible();
+		await expect(opened.locator('main').getByRole('link', { name: /Table 1/u })).toBeVisible();
 
 		await opened.goto('/app/settings');
 		await expect(opened.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
