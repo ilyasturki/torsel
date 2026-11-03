@@ -91,6 +91,14 @@ export function nowIso(now: Date = new Date()): string {
 	return `${todayIso(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
+/** What a new row starts with: today on a date, now on a date and time, else nothing. */
+export function freshValue(field: Pick<FieldFormat, 'type'>, now: Date = new Date()): Value {
+	if (field.type === 'date') {
+		return todayIso(now);
+	}
+	return field.type === 'datetime' ? nowIso(now) : null;
+}
+
 export const CURRENCIES = [
 	'EUR',
 	'USD',

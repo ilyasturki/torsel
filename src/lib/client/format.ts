@@ -1,9 +1,31 @@
-import type { FieldDef, Value } from '../core/model.ts';
-import { pad, parseDate, parseNumber, validDay } from '../core/values.ts';
+import type { Choice, FieldFormat, Value } from '../core/model.ts';
+import { isDated } from '../core/model.ts';
+import {
+	CHOICES_JOIN,
+	coerce,
+	currencyOf,
+	durationUnit,
+	formatDuration,
+	onScale,
+	pad,
+	parseAmount,
+	parseCheck,
+	parseDate,
+	parseDuration,
+	parseNumber,
+	parseRating,
+	ratingScale,
+	splitChoices,
+	validDay,
+	withoutUnit
+} from '../core/values.ts';
 
 export type NumberStyle = {
 	/** Every digit, for an editor: what it seeds reads back as the same number. */
 	edit?: boolean;
+	/** Exactly this many decimals shown; up to two when left out. */
+	decimals?: number | null;
+	grouping?: boolean;
 };
 
 export type DateStyle = { withYear?: boolean };
@@ -52,8 +74,72 @@ export function localeFormats(locale?: string) {
 			.replace(/\p{Nd}/gu, (digit) => nativeDigits.get(digit) ?? digit);
 	}
 
+	const numberFormats = new Map<string, Intl.NumberFormat>();
+
+	function numberFormat(options: Intl.NumberFormatOptions): Intl.NumberFormat {
+		const key = JSON.stringify(options);
+		let format = numberFormats.get(key);
+		if (format === undefined) {
+			format = new Intl.NumberFormat(locale, options);
+			numberFormats.set(key, format);
+		}
+		return format;
+	}
+
 	function formatNumber(value: number, style: NumberStyle = {}): string {
-		return (style.edit ? precise : shown).format(value);
+		const { edit = false, decimals = null, grouping = true } = style;
+		if (decimals === null && grouping) {
+			return (edit ? precise : shown).format(value);
+		}
+		return numberFormat({
+			minimumFractionDigits: decimals ?? 0,
+			maximumFractionDigits: edit ? 100 : (decimals ?? 2),
+			useGrouping: grouping ? 'min2' : false
+		}).format(value);
+	}
+
+	function currencyFormat(code: string, edit: boolean, decimals: number | null) {
+		const fixed = numberFormat({ style: 'currency', currency: code });
+		const digits = decimals ?? fixed.resolvedOptions().maximumFractionDigits ?? 2;
+		return numberFormat({
+			style: 'currency',
+			currency: code,
+			minimumFractionDigits: digits,
+			maximumFractionDigits: edit ? 100 : digits
+		});
+	}
+
+	function formatCurrency(value: number, field: FieldFormat, edit = false): string {
+		return currencyFormat(currencyOf(field), edit, field.decimals ?? null).format(value);
+	}
+
+	/** The amount with or without its symbol or code; a bare number counts in the field's currency. */
+	function readAmount(raw: string, code: string): number | null {
+		const symbols = currencyFormat(code, false, null)
+			.formatToParts(1)
+			.filter((part) => part.type === 'currency')
+			.map((part) => part.value);
+		let text = raw;
+		for (const symbol of [...symbols, code]) {
+			text = text.replaceAll(symbol, '');
+		}
+		const value = readNumber(text.replace(/\p{Sc}/gu, '').trim());
+		return value ?? parseAmount(raw);
+	}
+
+	const percentSign = numberFormat({ style: 'percent' })
+		.formatToParts(0.25)
+		.map((part) => (part.type === 'integer' ? '{n}' : part.value))
+		.join('');
+
+	function formatPercent(points: number, field: FieldFormat, edit = false): string {
+		const number = formatNumber(points, { edit, decimals: field.decimals ?? null });
+		return percentSign.replace('{n}', number);
+	}
+
+	function readRating(raw: string): number | null {
+		const over = /^(.+?)\s*\/\s*\d+(?:[.,]\d+)?$/u.exec(raw.trim());
+		return (over === null ? null : readNumber(over[1])) ?? readNumber(raw) ?? parseRating(raw);
 	}
 
 	/** The locale's own form exactly, else any form `parseNumber` tolerates. */
@@ -222,26 +308,182 @@ export function localeFormats(locale?: string) {
 		return `${day}T${pad(timed.hours)}:${pad(timed.minutes)}`;
 	}
 
-	function formatValue(
-		field: Pick<FieldDef, 'type'>,
-		value: Value | undefined,
-		now?: Date
-	): string {
+	/** How a number-held value reads; `edit` gives every digit, as its editor opens on it. */
+	function formatAmount(field: FieldFormat, value: number, edit = false): string {
+		switch (field.type) {
+			case 'currency':
+				return formatCurrency(value, field, edit);
+			case 'percent':
+				return formatPercent(value, field, edit);
+			case 'duration':
+				return formatDuration(value, field.seconds === true || (edit && value % 60 !== 0));
+			case 'rating': {
+				const shown = formatNumber(value, { edit });
+				return edit ? shown : `${shown}/${formatNumber(ratingScale(field).max)}`;
+			}
+			case 'check':
+				return value ? 'yes' : 'no';
+			case 'number': {
+				const shown = formatNumber(value, {
+					edit,
+					decimals: field.decimals ?? null,
+					grouping: field.grouping !== false
+				});
+				return field.unit ? `${shown} ${field.unit}` : shown;
+			}
+			default:
+				return formatNumber(value, { edit });
+		}
+	}
+
+	function formatValue(field: FieldFormat, value: Value | undefined, now?: Date): string {
 		if (value === null || value === undefined || value === '') {
 			return '';
 		}
 		if (typeof value === 'number') {
-			return field.type === 'check' ? (value ? 'yes' : 'no') : formatNumber(value);
+			return formatAmount(field, value);
 		}
 		if (typeof value === 'boolean') {
 			return value ? 'yes' : 'no';
 		}
+		if (Array.isArray(value)) {
+			return value.filter((item) => typeof item === 'string').join(CHOICES_JOIN);
+		}
 		if (typeof value === 'string') {
 			const dated =
-				field.type === 'date' || (field.type === 'formula' && ISO_LIKE.test(value.trim()));
+				isDated(field.type) || (field.type === 'formula' && ISO_LIKE.test(value.trim()));
+			if (field.type === 'url') {
+				return value.replace(/^https?:\/\/(?:www\.)?/iu, '').replace(/\/$/u, '');
+			}
 			return dated ? formatDate(value.trim(), {}, now) : value;
 		}
 		return JSON.stringify(value);
+	}
+
+	/** What an editor opens on: the shown form with every digit, read back by `readValue`. */
+	function editText(field: FieldFormat, value: Value | undefined): string {
+		if (typeof value === 'number') {
+			return formatAmount(field, value, true);
+		}
+		if (typeof value === 'string' && isDated(field.type)) {
+			return formatDate(value);
+		}
+		if (Array.isArray(value) || typeof value === 'boolean') {
+			return formatValue(field, value);
+		}
+		return typeof value === 'string' ? value : '';
+	}
+
+	/**
+	 * Typed or pasted text as a value of this field: null when blank, undefined when it is not one.
+	 * A link needs the workspace to find its row, so it is never read here.
+	 */
+	function readValue(field: FieldFormat & { choices?: Choice[] }, raw: string): Value | undefined {
+		const text = raw.trim();
+		if (field.type === 'formula' || field.type === 'link') {
+			return undefined;
+		}
+		if (text === '') {
+			return null;
+		}
+		const named = (name: string): string =>
+			field.choices?.find((choice) => choice.name.toLowerCase() === name.toLowerCase())?.name ??
+			name;
+		switch (field.type) {
+			case 'number':
+				return readNumber(withoutUnit(text, field.unit)) ?? undefined;
+			case 'currency':
+				return readAmount(text, currencyOf(field)) ?? undefined;
+			case 'percent':
+				return readNumber(text.replace(/[%٪]/gu, '').trim()) ?? undefined;
+			case 'rating': {
+				const value = readRating(text);
+				return value !== null && onScale(value, ratingScale(field)) ? value : undefined;
+			}
+			case 'duration':
+				return parseDuration(latin(text), durationUnit(field)) ?? undefined;
+			case 'date':
+				return readDate(text)?.slice(0, 10) ?? undefined;
+			case 'datetime':
+				return readDate(text) ?? undefined;
+			case 'check':
+				return parseCheck(text) ?? undefined;
+			case 'choice':
+				return named(text);
+			case 'choices':
+				return [...new Set(splitChoices(text).map(named))];
+			case 'text':
+			case 'longtext':
+				return raw;
+			case 'url':
+			case 'email':
+			case 'phone':
+				return coerce(field, text) ?? undefined;
+		}
+	}
+
+	/** The marks around an amount that a field draws beside its input: a symbol, a sign or a unit. */
+	function affixes(field: FieldFormat): { prefix: string; suffix: string } {
+		if (field.type === 'currency') {
+			const parts = currencyFormat(currencyOf(field), false, null).formatToParts(1);
+			const first = parts.findIndex((part) => part.type === 'integer');
+			const last = parts.findLastIndex(
+				(part) => part.type === 'integer' || part.type === 'fraction'
+			);
+			const join = (from: number, to: number): string =>
+				parts
+					.slice(from, to)
+					.map((part) => part.value)
+					.join('')
+					.trim();
+			return { prefix: join(0, first), suffix: join(last + 1, parts.length) };
+		}
+		if (field.type === 'percent') {
+			const [prefix, suffix] = percentSign.split('{n}').map((part) => part.trim());
+			return { prefix, suffix };
+		}
+		return { prefix: '', suffix: field.type === 'number' ? (field.unit ?? '') : '' };
+	}
+
+	/** What an input beside its affixes opens on: the editor's text without them. */
+	function bareText(field: FieldFormat, value: number): string {
+		if (field.type === 'currency') {
+			return currencyFormat(currencyOf(field), true, field.decimals ?? null)
+				.formatToParts(value)
+				.filter((part) =>
+					['minusSign', 'integer', 'group', 'decimal', 'fraction'].includes(part.type)
+				)
+				.map((part) => part.value)
+				.join('');
+		}
+		if (field.type === 'percent') {
+			return formatNumber(value, { edit: true, decimals: field.decimals ?? null });
+		}
+		if (field.type === 'number') {
+			return formatNumber(value, {
+				edit: true,
+				decimals: field.decimals ?? null,
+				grouping: field.grouping !== false
+			});
+		}
+		return formatAmount(field, value, true);
+	}
+
+	/** What a copied cell pastes as anywhere: every digit, ungrouped; an amount keeps its sign. */
+	function copyValue(field: FieldFormat, value: Value | undefined): string {
+		if (typeof value === 'number') {
+			if (field.type === 'currency' || field.type === 'percent' || field.type === 'duration') {
+				return formatAmount(field, value, true);
+			}
+			return plainNumber(value);
+		}
+		if (typeof value === 'boolean') {
+			return value ? 'TRUE' : 'FALSE';
+		}
+		if (Array.isArray(value)) {
+			return formatValue(field, value);
+		}
+		return typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value);
 	}
 
 	/** Every digit and no grouping: what a copied cell pastes as. */
@@ -256,11 +498,48 @@ export function localeFormats(locale?: string) {
 		formatDate,
 		formatMonth,
 		readDate,
-		formatValue
+		formatValue,
+		editText,
+		readValue,
+		copyValue,
+		affixes,
+		bareText
 	};
 }
 
 export type LocaleFormats = ReturnType<typeof localeFormats>;
+
+const REGION_CURRENCY: Record<string, string> = {
+	US: 'USD',
+	GB: 'GBP',
+	CH: 'CHF',
+	CA: 'CAD',
+	AU: 'AUD',
+	NZ: 'NZD',
+	JP: 'JPY',
+	CN: 'CNY',
+	HK: 'HKD',
+	SG: 'SGD',
+	KR: 'KRW',
+	IN: 'INR',
+	BR: 'BRL',
+	MX: 'MXN',
+	SE: 'SEK',
+	NO: 'NOK',
+	DK: 'DKK',
+	PL: 'PLN',
+	CZ: 'CZK',
+	TR: 'TRY',
+	MA: 'MAD',
+	ZA: 'ZAR',
+	AE: 'AED'
+};
+
+/** The currency of the locale's region, the euro where none is known. */
+export function localCurrency(locale?: string): string {
+	const tag = locale ?? new Intl.NumberFormat().resolvedOptions().locale;
+	return REGION_CURRENCY[new Intl.Locale(tag).maximize().region ?? ''] ?? 'EUR';
+}
 
 export const browserFormats = localeFormats();
 
@@ -271,5 +550,10 @@ export const {
 	formatDate,
 	formatMonth,
 	readDate,
-	formatValue
+	formatValue,
+	editText,
+	readValue,
+	copyValue,
+	affixes,
+	bareText
 } = browserFormats;
