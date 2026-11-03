@@ -182,6 +182,32 @@ describe('workspace', () => {
 		apply(ws, hlc, addField(ws, table.id, { name: 'Last', type: 'text' }).changes);
 		expect(names()).toEqual(['First', 'A', 'Between', 'B', 'Last']);
 	});
+
+	it('moves a table revision only on its own rows and fields', () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const base = createBase(ws, 'B');
+		apply(ws, hlc, base.changes);
+		const weights = createTable(ws, base.id, 'Weights', [{ name: 'Kg', type: 'number' }]);
+		apply(ws, hlc, weights.changes);
+		const sets = createTable(ws, base.id, 'Sets', [{ name: 'Reps', type: 'number' }]);
+		apply(ws, hlc, sets.changes);
+		const before = { weights: ws.revision(weights.id), sets: ws.revision(sets.id) };
+
+		apply(ws, hlc, insertRows(ws, weights.id, [{ [weights.fieldIds[0]]: 88 }]).changes);
+		expect(ws.revision(weights.id)).toBeGreaterThan(before.weights);
+		expect(ws.revision(sets.id)).toBe(before.sets);
+
+		const after = ws.revision(weights.id);
+		const [view] = ws.views(weights.id);
+		apply(ws, hlc, updateRecord(ws, view.id, { config: { widths: { a: 200 } } }));
+		apply(ws, hlc, updateRecord(ws, weights.id, { name: 'Weigh-ins' }));
+		expect(ws.revision(weights.id)).toBe(after);
+
+		apply(ws, hlc, addField(ws, sets.id, { name: 'Kg', type: 'number' }).changes);
+		expect(ws.revision(sets.id)).toBeGreaterThan(before.sets);
+		expect(ws.revision(weights.id)).toBe(after);
+	});
 });
 
 describe('home base', () => {

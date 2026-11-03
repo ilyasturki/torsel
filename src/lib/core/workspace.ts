@@ -116,6 +116,8 @@ export class Workspace {
 
 	private readonly children = new Map<string, Set<string>>();
 	private readonly inBase = new Map<string, Set<string>>();
+	private readonly revisions = new Map<string, number>();
+	private changes = 0;
 
 	public get(id: string): Rec | undefined {
 		return this.records.get(id);
@@ -156,8 +158,16 @@ export class Workspace {
 		if (existing === undefined) {
 			this.index(merged);
 		}
+		if (merged.kind === 'row' || merged.kind === 'field') {
+			this.revisions.set(merged.parent, (this.changes += 1));
+		}
 
 		return true;
+	}
+
+	/** Moves whenever a row or a field of the table changes: what its SQL copy is built from. */
+	public revision(tableId: string): number {
+		return this.revisions.get(tableId) ?? 0;
 	}
 
 	public stamp(change: Change, clock: Clock): Stamped {

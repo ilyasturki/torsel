@@ -458,9 +458,10 @@ class TorselApp {
 
 	private built_(tableId: string): MemoryEngine {
 		const engine = this.engine as MemoryEngine;
-		if (this.built.get(tableId) !== this.version) {
+		const revision = this.ws.revision(tableId);
+		if (this.built.get(tableId) !== revision) {
 			this.problems.set(tableId, materializeTable(engine, this.ws, tableId));
-			this.built.set(tableId, this.version);
+			this.built.set(tableId, revision);
 		}
 		return engine;
 	}
@@ -492,6 +493,7 @@ class TorselApp {
 
 		const engine = this.engine as MemoryEngine;
 		materializeTable(engine, ws, tableId);
+		this.built.delete(tableId);
 		return computedRows(engine, tableId, formulas);
 	}
 
