@@ -100,3 +100,25 @@ test('an unknown address lands on the home with a word why', async ({ page, acco
 	await expect(page).toHaveURL(/\/app$/u);
 	await expect(page.getByRole('status').filter({ hasText: 'Table not found' })).toBeVisible();
 });
+
+test('a name in another script keeps its letters in the address', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { courses } = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Tables');
+		commit(base.changes);
+		const made = createTable(ws, base.id, 'Курсы', [{ name: 'Name', type: 'text' }]);
+		commit(made.changes);
+		return { courses: made.id };
+	});
+
+	await page.goto(tablePath(courses));
+	await expect(page.getByRole('heading', { name: 'Курсы' })).toBeVisible();
+	await expect(page).toHaveURL(at(`/app/t/${encodeURIComponent('курсы')}`));
+	await page.reload();
+	await expect(page.getByRole('heading', { name: 'Курсы' })).toBeVisible();
+	await expect(page).toHaveURL(at(`/app/t/${encodeURIComponent('курсы')}`));
+});
