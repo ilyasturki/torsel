@@ -1071,7 +1071,7 @@ function seedSeries(request: APIRequestContext) {
 				{}
 			]).changes
 		);
-		return { path: `/app/t/${table.id}` };
+		return { path: tablePath(table.id) };
 	});
 }
 
@@ -1216,7 +1216,7 @@ test.describe('columns, by hand', () => {
 			commit(
 				insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat', [table.fieldIds[1]]: 5 }]).changes
 			);
-			return { path: `/app/t/${table.id}` };
+			return { path: tablePath(table.id) };
 		});
 		await open(page, path);
 		await expect.poll(async () => (await header(page, 'Reps').boundingBox())?.width).toBe(400);
