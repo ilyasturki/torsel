@@ -2,6 +2,7 @@ import { chartSetup } from './actions.ts';
 import type { ChartData } from './chart.ts';
 import { headline } from './chart.ts';
 import type { ChartConfig } from './model.ts';
+import { isDated } from './model.ts';
 import { pad } from './values.ts';
 import type { Workspace } from './workspace.ts';
 import { createdAt } from './workspace.ts';
@@ -47,7 +48,7 @@ export function tableFigure(
 		if (view.type !== 'chart') continue;
 		const config = chartSetup(fields, view.config);
 		const data = chart(config);
-		const byDate = ws.field(config.x ?? '')?.type === 'date';
+		const byDate = isDated(ws.field(config.x ?? '')?.type ?? 'text');
 		const lead = data === null ? null : headline(data, config, byDate);
 		if (data === null || lead === null) continue;
 		return {
@@ -75,7 +76,7 @@ export function tableFigure(
 /** The newest day a table holds: the latest value of its first date field, else the day its newest row was added. */
 export function lastEntry(ws: Workspace, tableId: string): string | null {
 	const rows = ws.rows(tableId);
-	const date = ws.fields(tableId).find((field) => field.type === 'date');
+	const date = ws.fields(tableId).find((field) => isDated(field.type));
 	let latest: string | null = null;
 	if (date !== undefined) {
 		for (const row of rows) {

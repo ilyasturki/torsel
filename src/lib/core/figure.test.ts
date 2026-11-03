@@ -82,6 +82,38 @@ describe('table figure', () => {
 		expect(lastEntry(at.ws, weighIns.id)).toBe('2026-10-28');
 	});
 
+	it('reads a date and time like a date', async () => {
+		const at = workspace();
+		const sleep = table(
+			at,
+			'Sommeil',
+			[
+				{ name: 'Night', type: 'datetime' },
+				{ name: 'Slept', type: 'duration' }
+			],
+			[
+				['2026-10-27T23:10', 25200],
+				['2026-10-28T23:40', 27000]
+			]
+		);
+		const [night, slept] = sleep.fieldIds;
+		at.apply(
+			createView(at.ws, sleep.id, {
+				name: 'Nights',
+				type: 'chart',
+				config: { kind: 'line', x: night, agg: 'avg', y: slept }
+			}).changes
+		);
+
+		expect(await figureOf(at.ws, sleep.id)).toMatchObject({
+			kind: 'chart',
+			byDate: true,
+			at: '2026-10-28',
+			value: 27000
+		});
+		expect(lastEntry(at.ws, sleep.id)).toBe('2026-10-28');
+	});
+
 	it('totals bars over something other than time, stacked series included', async () => {
 		const at = workspace();
 		const sets = table(

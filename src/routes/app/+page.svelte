@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
 	import { openingView } from '#lib/client/directory.svelte.ts';
-	import { formatDate, formatMonth, formatNumber } from '#lib/client/format.ts';
+	import { formatDate, formatMonth, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { lastTable } from '#lib/client/place.ts';
 	import { isTyping, pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
@@ -54,6 +54,13 @@
 		if (config.bucket === 'week') return `${label}, week of ${formatDate(at)}`;
 		if (config.bucket === 'month') return `${label}, ${formatMonth(at)}`;
 		return (config.rolling ?? 0) > 1 ? `${label}, ${config.rolling}-day rolling average` : label;
+	}
+
+	/** The headline as its field shows it: an amount, a percent, a clock. */
+	function amount(figure: Figure & { kind: 'chart' }): string {
+		const { agg, y } = figure.config;
+		const field = agg === 'count' || !y ? undefined : app.ws.field(y);
+		return field === undefined ? formatNumber(figure.value) : formatValue(field, figure.value);
 	}
 
 	function count(rows: number): string {
@@ -164,7 +171,7 @@
 					</span>
 					<span class="whitespace-nowrap max-sm:justify-self-end">
 						{#if figure?.kind === 'chart'}
-							<span class="text-lg font-semibold tight">{formatNumber(figure.value)}</span>
+							<span class="text-lg font-semibold tight">{amount(figure)}</span>
 						{:else if figure?.kind === 'check'}
 							<span class="text-lg font-semibold tight">{figure.done}</span>
 							<span class="text-ink-2">of {figure.total}</span>
