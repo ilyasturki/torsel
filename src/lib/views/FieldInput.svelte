@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
+	import { formatValue } from '#lib/client/format.ts';
+	import { updateRecord } from '#lib/core/actions.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
-	import { hasTime, parseDate } from '#lib/core/values.ts';
+	import { isContact, isNumeric } from '#lib/core/model.ts';
+	import { parseDate, ratingScale } from '#lib/core/values.ts';
+	import ChipPicker from '#lib/ui/ChipPicker.svelte';
+	import { nextChoice } from '#lib/ui/colors.ts';
+	import Rating from '#lib/ui/Rating.svelte';
 	import Select from '#lib/ui/Select.svelte';
 	import { checkbox, input } from '#lib/ui/styles.ts';
+	import Textarea from '#lib/ui/Textarea.svelte';
 
-	import { timedColumn } from './grid.ts';
+	import AmountInput from './AmountInput.svelte';
+	import ContactInput from './ContactInput.svelte';
 
 	let {
 		field,
@@ -14,23 +21,6 @@
 		computed = null,
 		id
 	}: { field: FieldDef; value?: Value; computed?: Value; id?: string } = $props();
-
-	let numberText = $state(typeof value === 'number' ? formatNumber(value, { edit: true }) : '');
-
-	$effect(() => {
-		const current = typeof value === 'number' ? value : null;
-		if (readNumber(numberText) !== current) {
-			numberText = current === null ? '' : formatNumber(current, { edit: true });
-		}
-	});
-
-	let timed = $state(false);
-
-	$effect.pre(() => {
-		if (timed) return;
-		void app.version;
-		timed = hasTime(value) || timedColumn(app.ws, field);
-	});
 
 	const targets = $derived.by(() => {
 		void app.version;
@@ -42,26 +32,44 @@
 			.map((row) => ({ id: row.id, title: app.ws.rowTitle(row.id) || row.id }))
 			.sort((a, b) => a.title.localeCompare(b.title));
 	});
+
+	function dateText(current: Value | undefined): string {
+		if (typeof current !== 'string') return '';
+		if (field.type === 'date') return current.slice(0, 10);
+		return current.length === 10 ? `${current}T00:00` : current;
+	}
+
+	function addChoice(name: string): void {
+		app.apply(
+			updateRecord(app.ws, field.id, {
+				choices: [...field.choices, nextChoice(field.choices, name)]
+			}),
+			`Choice "${name}" added`
+		);
+	}
 </script>
 
-{#if field.type === 'number'}
-	<input
+{#if field.type === 'rating'}
+	<Rating
 		{id}
-		class={input}
-		inputmode="decimal"
-		placeholder={field.name}
-		value={numberText}
-		oninput={(event) => {
-			numberText = event.currentTarget.value;
-			value = readNumber(numberText);
-		}}
+		label={field.name}
+		{...ratingScale(field)}
+		value={typeof value === 'number' ? value : null}
+		onchange={(next) => (value = next)}
 	/>
-{:else if field.type === 'date'}
+{:else if isNumeric(field.type)}
+	<AmountInput
+		{id}
+		{field}
+		bind:value
+		placeholder={field.type === 'duration' ? undefined : field.name}
+	/>
+{:else if field.type === 'date' || field.type === 'datetime'}
 	<input
 		{id}
 		class={input}
-		type={timed ? 'datetime-local' : 'date'}
-		value={typeof value === 'string' ? (timed && !hasTime(value) ? `${value}T00:00` : value) : ''}
+		type={field.type === 'datetime' ? 'datetime-local' : 'date'}
+		value={dateText(value)}
 		oninput={(event) => (value = parseDate(event.currentTarget.value))}
 	/>
 {:else if field.type === 'choice'}
@@ -78,6 +86,15 @@
 		value={typeof value === 'string' ? value : ''}
 		placeholder={field.name}
 		onchange={(picked) => (value = picked || null)}
+	/>
+{:else if field.type === 'choices'}
+	<ChipPicker
+		{id}
+		label={field.name}
+		options={field.choices}
+		value={Array.isArray(value) ? value.filter((name) => typeof name === 'string') : []}
+		onchange={(names) => (value = names.length === 0 ? null : names)}
+		oncreate={addChoice}
 	/>
 {:else if field.type === 'check'}
 	<input
@@ -102,6 +119,23 @@
 	<p class="flex h-control items-center rounded-box bg-tint px-2 text-ink-2">
 		{formatValue(field, computed ?? null)}
 	</p>
+{:else if field.type === 'longtext'}
+	<Textarea
+		{id}
+		rows={3}
+		maxRows={12}
+		placeholder={field.name}
+		value={typeof value === 'string' ? value : ''}
+		oninput={(event) =>
+			(value = event.currentTarget.value === '' ? null : event.currentTarget.value)}
+	/>
+{:else if isContact(field.type)}
+	<ContactInput
+		{id}
+		field={{ ...field, type: field.type as 'url' | 'email' | 'phone' }}
+		bind:value
+		placeholder={field.name}
+	/>
 {:else}
 	<input
 		{id}

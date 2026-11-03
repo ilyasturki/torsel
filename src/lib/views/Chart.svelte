@@ -5,6 +5,7 @@
 	import { chartSetup } from '#lib/core/actions.ts';
 	import { headline, totalled } from '#lib/core/chart.ts';
 	import type { ViewDef } from '#lib/core/model.ts';
+	import { isDated } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { strongColor } from '#lib/ui/colors.ts';
 	import Empty from '#lib/ui/Empty.svelte';
@@ -113,13 +114,13 @@
 	);
 
 	function label(x: string): string {
-		if (xField?.type === 'date') {
+		if (isDated(xField?.type ?? 'text')) {
 			return x.length === 7 ? formatMonth(x) : formatDate(x);
 		}
 		return x;
 	}
 
-	const byDate = $derived(xField?.type === 'date');
+	const byDate = $derived(isDated(xField?.type ?? 'text'));
 	const total = $derived(totalled(config, byDate));
 
 	const per = $derived(

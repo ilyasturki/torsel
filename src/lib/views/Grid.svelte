@@ -3,7 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh } from '#lib/client/assistant.svelte.ts';
-	import { formatDate, formatNumber } from '#lib/client/format.ts';
+	import { editText, formatValue } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -24,12 +24,13 @@
 		Value,
 		ViewDef
 	} from '#lib/core/model.ts';
-	import { CREATED } from '#lib/core/model.ts';
+	import { CREATED, hasChoices, isDated, isNumeric } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import { hasTime, nowIso, todayIso } from '#lib/core/values.ts';
+	import { freshValue, ratingScale } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
+	import Rating from '#lib/ui/Rating.svelte';
 	import { input as inputStyle } from '#lib/ui/styles.ts';
 
 	import AddField from './AddField.svelte';
@@ -51,7 +52,6 @@
 		parseTsv,
 		pasteChanges,
 		sampleRows,
-		timedColumn,
 		toTsv
 	} from './grid.ts';
 	import type { ColumnAction } from './GridColumnMenu.svelte';
@@ -306,7 +306,7 @@
 		// A row scrolled far enough away leaves the DOM, and its editor with it.
 		if (r === undefined || r < start || r >= end) {
 			const type = app.ws.field(target.field)?.type;
-			if (type === 'choice' || type === 'link') editing = null;
+			if (type === 'choice' || type === 'choices' || type === 'link') editing = null;
 			else commitDraft({ leaving: true });
 		}
 	}
@@ -407,20 +407,21 @@
 		return Object.fromEntries(
 			app.ws
 				.fields(tableId)
-				.filter((field) => field.type === 'date')
-				.map((field) => [field.id, todayIso()])
+				.filter((field) => isDated(field.type))
+				.map((field) => [field.id, freshValue(field)])
 		);
 	}
 
 	function newChoiceChanges(field: FieldDef, value: Value): Change[] {
-		if (
-			field.type !== 'choice' ||
-			typeof value !== 'string' ||
-			field.choices.some((choice) => choice.name === value)
-		) {
+		const names = Array.isArray(value) ? value : [value];
+		const fresh = names.filter(
+			(name): name is string =>
+				typeof name === 'string' && !field.choices.some((choice) => choice.name === name)
+		);
+		if (!hasChoices(field.type) || fresh.length === 0) {
 			return [];
 		}
-		const choices = [...field.choices, nextChoice(field.choices, value)];
+		const choices = fresh.reduce((list, name) => [...list, nextChoice(list, name)], field.choices);
 		return updateRecord(app.ws, field.id, {
 			choices: choices.map((choice) => ({ name: choice.name, color: choice.color }))
 		});
@@ -510,7 +511,7 @@
 		}
 		const value = cellReader(app.ws)(field, draft);
 		if (value === undefined) {
-			showToast(`"${draft}" isn't a ${field.type === 'number' ? 'number' : 'date'}.`);
+			showToast(`"${draft}" isn't ${invalidAs(field)}.`);
 			if (leaving) editing = null;
 			return;
 		}
@@ -522,19 +523,34 @@
 		table?.focus({ preventScroll: true });
 	}
 
+	/** What a value the editor refused should have been, after "isn't". */
+	function invalidAs(field: FieldDef): string {
+		if (field.type === 'rating') {
+			const { min, max } = ratingScale(field);
+			return `a rating from ${min} to ${max}`;
+		}
+		const names: Partial<Record<FieldDef['type'], string>> = {
+			number: 'a number',
+			currency: 'an amount',
+			percent: 'a percent',
+			duration: 'a duration',
+			date: 'a date',
+			datetime: 'a date and time',
+			url: 'a web address',
+			email: 'an email',
+			phone: 'a phone number',
+			link: `a row of ${field.name}`
+		};
+		return names[field.type] ?? 'valid';
+	}
+
 	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
-		const timed = native && timedColumn(app.ws, field);
-		const fresh = timed ? nowIso() : todayIso();
-		const stored = row === undefined && field.type === 'date' ? fresh : row?.data[field.id];
-		const value =
-			timed && typeof stored === 'string' && !hasTime(stored) ? `${stored}T00:00` : stored;
-		if (field.type === 'number' && typeof value === 'number') {
-			return formatNumber(value, { edit: true });
+		const value = row === undefined ? freshValue(field) : row.data[field.id];
+		if (native && typeof value === 'string') {
+			if (field.type === 'date') return value.slice(0, 10);
+			return value.length === 10 ? `${value}T00:00` : value;
 		}
-		if (field.type === 'date' && typeof value === 'string') {
-			return native ? value : formatDate(value);
-		}
-		return typeof value === 'string' ? value : '';
+		return editText(field, value);
 	}
 
 	function toggleCheck(rowKey: string, field: FieldDef): void {
@@ -561,11 +577,11 @@
 			toggleCheck(key, field);
 			return;
 		}
-		const native = touch && field.type === 'date';
+		const native = touch && isDated(field.type);
 		const initial = initialDraft(field, row, native);
 		flushSync(() => {
 			anchor = head;
-			nativeDate = native ? (initial.includes('T') ? 'datetime-local' : 'date') : null;
+			nativeDate = native ? (field.type === 'datetime' ? 'datetime-local' : 'date') : null;
 			seed = typed ?? '';
 			draft = typed ?? initial;
 			editing = {
@@ -676,7 +692,19 @@
 
 	function ondraftkeydown(event: KeyboardEvent): void {
 		const step = event.shiftKey ? -1 : 1;
-		if (event.key === 'Enter') {
+		const lines = editing !== null && app.ws.field(editing.field)?.type === 'longtext';
+		if (event.key === 'Enter' && lines && (event.shiftKey || event.altKey)) {
+			if (event.altKey && event.currentTarget instanceof HTMLTextAreaElement) {
+				event.preventDefault();
+				event.currentTarget.setRangeText(
+					'\n',
+					event.currentTarget.selectionStart,
+					event.currentTarget.selectionEnd,
+					'end'
+				);
+				draft = event.currentTarget.value;
+			}
+		} else if (event.key === 'Enter') {
 			event.preventDefault();
 			commitDraft({ down: step });
 		} else if (event.key === 'Tab') {
@@ -748,7 +776,7 @@
 			cell === null ||
 			event.pointerType === 'touch' ||
 			event.button !== 0 ||
-			(event.target as Element).closest('input') !== null
+			(event.target as Element).closest('input, textarea') !== null
 		) {
 			return;
 		}
@@ -782,7 +810,10 @@
 	}
 
 	function onbodymousedown(event: MouseEvent): void {
-		if (cellFrom(event.target) !== null && (event.target as Element).closest('input') === null) {
+		if (
+			cellFrom(event.target) !== null &&
+			(event.target as Element).closest('input, textarea') === null
+		) {
 			event.preventDefault();
 			if (pointerKind !== 'touch') table?.focus({ preventScroll: true });
 		}
@@ -790,9 +821,26 @@
 
 	function onbodyclick(event: MouseEvent): void {
 		const cell = cellFrom(event.target);
-		if (cell === null || (event.target as Element).closest('input') !== null) return;
+		const target = event.target as Element;
+		if (cell === null || target.closest('input, textarea, a[href]') !== null) return;
 		const field = fields[cell.c];
 		if (field === undefined) return;
+
+		const stars = target.closest<HTMLElement>('[data-stars]');
+		if (field.type === 'rating' && stars !== null && !dragged && !event.shiftKey) {
+			const row = rows[cell.r] as Rec | undefined;
+			const picked = starAt(field, stars, event.clientX);
+			const created = writeCell(
+				row?.id ?? BLANK,
+				field,
+				picked === row?.data[field.id] ? null : picked
+			);
+			if (created !== null) {
+				flushSync();
+				selectPos(created, field.id);
+			}
+			return;
+		}
 
 		if (pointerKind === 'touch') {
 			commitDraft({ leaving: true });
@@ -804,11 +852,20 @@
 		if (
 			field.type === 'check' ||
 			field.type === 'choice' ||
+			field.type === 'choices' ||
 			field.type === 'link' ||
 			clickedActive
 		) {
 			beginEdit();
 		}
+	}
+
+	function starAt(field: FieldDef, stars: HTMLElement, x: number): number {
+		const { min, max, step } = ratingScale(field);
+		const box = stars.getBoundingClientRect();
+		const at = ((x - box.left) / box.width) * max;
+		const picked = step === 0.5 ? Math.ceil(at * 2) / 2 : Math.ceil(at);
+		return Math.min(max, Math.max(min === 0 ? step : min, picked));
 	}
 
 	function rangeTsv(): string {
@@ -1197,7 +1254,7 @@
 	const pickerOptions = (
 		field: FieldDef
 	): { id: string; label: string; color?: string | null }[] =>
-		field.type === 'choice'
+		hasChoices(field.type)
 			? field.choices.map((choice) => ({
 					id: choice.name,
 					label: choice.name,
@@ -1212,7 +1269,7 @@
 	{@const key = row?.id ?? BLANK}
 	{@const isEditing = editing?.row === key && editing.field === field.id}
 	{@const value = row === null ? null : cellValue(row, field, computed)}
-	{@const numeric = field.type === 'number' || field.type === 'formula'}
+	{@const numeric = (isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
 	<td
 		id={cellId(r, c)}
 		data-r={r}
@@ -1238,8 +1295,12 @@
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
 					<CellValue {field} {value} />
 				</span>
-			{:else if row === null && field.type === 'date'}
-				<span class="truncate text-ink-3">{formatDate(todayIso())}</span>
+			{:else if row === null && isDated(field.type)}
+				<span class="truncate text-ink-3">{formatValue(field, freshValue(field))}</span>
+			{:else if field.type === 'rating' && value == null}
+				<span class="flex opacity-0 group-hover:opacity-100 {isActive ? 'opacity-100' : ''}">
+					<Rating {...ratingScale(field)} value={null} size="sm" />
+				</span>
 			{:else if row === null && field.type !== 'formula'}
 				<span class="truncate text-ink-3">{field.name}</span>
 			{:else}
@@ -1247,20 +1308,33 @@
 			{/if}
 		</div>
 		{#if isEditing && editing !== null}
-			{#if field.type === 'choice' || field.type === 'link'}
+			{#if field.type === 'choice' || field.type === 'choices' || field.type === 'link'}
 				{@const target = editing}
 				<GridPicker
 					label={field.name}
 					options={pickerOptions(field)}
 					value={typeof value === 'string' ? value : null}
+					values={field.type === 'choices' && Array.isArray(value) ? value.map(String) : null}
 					{seed}
-					creatable={field.type === 'choice'}
+					creatable={hasChoices(field.type)}
 					onpick={(picked, down, across) => settle(target, picked, down, across, false)}
 					onkeep={(down, across) => settle(target, undefined, down, across, false)}
 					oncancel={() => {
 						if (editing === target) cancelEdit();
 					}}
 				/>
+			{:else if field.type === 'longtext'}
+				<textarea
+					{@attach (node: HTMLTextAreaElement) => {
+						node.focus();
+						node.setSelectionRange(node.value.length, node.value.length);
+					}}
+					class="absolute top-0 left-0 z-20 h-32 w-full min-w-64 resize-none bg-raised px-3 py-2 shadow-float ring-2 ring-ink outline-none ring-inset"
+					aria-label={field.name}
+					autocomplete="off"
+					bind:value={draft}
+					onkeydown={ondraftkeydown}
+					onblur={() => commitDraft({ leaving: true })}></textarea>
 			{:else}
 				<input
 					{@attach (node: HTMLInputElement) => {
@@ -1280,7 +1354,7 @@
 					aria-label={field.name}
 					placeholder={field.name}
 					type={nativeDate ?? 'text'}
-					inputmode={field.type === 'number' ? 'decimal' : undefined}
+					inputmode={numeric && field.type !== 'duration' ? 'decimal' : undefined}
 					enterkeyhint="done"
 					autocomplete="off"
 					bind:value={draft}
@@ -1365,7 +1439,8 @@
 							aria-hidden="true"
 						></th>
 						{#each fields as field, index (field.id)}
-							{@const numeric = field.type === 'number' || field.type === 'formula'}
+							{@const numeric =
+								(isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
 							{@const sorted = view.config.sort?.field === field.id ? view.config.sort.dir : null}
 							<th
 								scope="col"

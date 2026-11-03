@@ -21,7 +21,7 @@ function seedMovies(request: APIRequestContext): Promise<Movies> {
 			{ name: 'Title', type: 'text' },
 			{ name: 'Year', type: 'number' },
 			{ name: 'Budget', type: 'number' },
-			{ name: 'Seen', type: 'date' }
+			{ name: 'Seen', type: 'datetime' }
 		]);
 		commit(table.changes);
 		const [title, year, budget, seen] = table.fieldIds;

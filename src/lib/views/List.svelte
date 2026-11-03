@@ -5,6 +5,7 @@
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { listLayout } from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
+	import { isDated } from '#lib/core/model.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Chip from '#lib/ui/Chip.svelte';
@@ -43,12 +44,13 @@
 		if (group === undefined) return '';
 		const value = row.data[group.id];
 		if (value === null || value === undefined) return '';
-		return group.type === 'date' ? String(value).slice(0, 10) : String(value);
+		return isDated(group.type) ? String(value).slice(0, 10) : String(value);
 	}
 
 	function groupLabel(key: string): string {
 		if (key === '') return group === undefined ? '' : 'No value';
-		if (group?.type === 'date') return key.length === 7 ? formatMonth(key) : formatDate(key);
+		if (isDated(group?.type ?? 'text'))
+			return key.length === 7 ? formatMonth(key) : formatDate(key);
 		if (group?.type === 'link') return app.ws.rowTitle(key);
 		return key;
 	}
@@ -56,7 +58,7 @@
 	const groups = $derived.by(() => {
 		void app.version;
 		const rows = [...app.ws.rows(tableId)].sort((a, b) => {
-			if (group?.type === 'date') {
+			if (isDated(group?.type ?? 'text')) {
 				const order = groupKey(b).localeCompare(groupKey(a));
 				if (order !== 0) return order;
 			}

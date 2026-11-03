@@ -18,6 +18,7 @@
 		updateRecord
 	} from '#lib/core/actions.ts';
 	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
+	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import Field from '#lib/ui/Field.svelte';
@@ -98,7 +99,7 @@
 	);
 	const fallbackMatch = $derived(defaultMatch(entryFields(fields, config)));
 	const numeric = $derived(
-		fields.filter((field) => field.type === 'number' || field.type === 'formula')
+		fields.filter((field) => isNumeric(field.type) || field.type === 'formula')
 	);
 	const choices = $derived(fields.filter((field) => field.type === 'choice'));
 	const layout = $derived(listLayout(fields, config));
@@ -349,7 +350,7 @@
 					onchange={(x) => setChart('x', x || null)}
 				/>
 			</Field>
-			{#if xField?.type === 'date'}
+			{#if isDated(xField?.type ?? 'text')}
 				<Field label="Group dates by">
 					<Select
 						options={[
@@ -392,7 +393,7 @@
 					onchange={(color) => setChart('color', color || null)}
 				/>
 			</Field>
-			{#if (config.kind ?? 'bar') === 'line' && xField?.type === 'date'}
+			{#if (config.kind ?? 'bar') === 'line' && isDated(xField?.type ?? 'text')}
 				<Field label="Rolling average (days)">
 					<input
 						class={input}

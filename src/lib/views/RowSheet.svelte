@@ -3,7 +3,7 @@
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords, insertRows, updateRow } from '#lib/core/actions.ts';
 	import type { Value } from '#lib/core/model.ts';
-	import { todayIso } from '#lib/core/values.ts';
+	import { freshValue } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 
@@ -45,8 +45,7 @@
 			const row = rowId === null ? undefined : app.ws.live(rowId);
 			const start: Record<string, Value> = {};
 			for (const field of app.ws.fields(tableId)) {
-				start[field.id] =
-					rowId === null && field.type === 'date' ? todayIso() : (row?.data[field.id] ?? null);
+				start[field.id] = rowId === null ? freshValue(field) : (row?.data[field.id] ?? null);
 			}
 			values = { ...start };
 			original = start;

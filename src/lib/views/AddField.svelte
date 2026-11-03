@@ -3,14 +3,16 @@
 	import { tick } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { localCurrency } from '#lib/client/format.ts';
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { addField } from '#lib/core/actions.ts';
 	import type { FieldType } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Select from '#lib/ui/Select.svelte';
 	import { input } from '#lib/ui/styles.ts';
+
+	import { needsSettings, typeOptions } from './field-types.ts';
 
 	let {
 		tableId,
@@ -34,17 +36,9 @@
 
 	const TYPES = [
 		{ value: AUTO, label: 'From the first value' },
-		...(
-			[
-				['text', 'Text'],
-				['number', 'Number'],
-				['date', 'Date'],
-				['check', 'Checkbox'],
-				['choice', 'Choice…'],
-				['link', 'Link to a table…'],
-				['formula', 'Formula…']
-			] as const
-		).map(([value, label]) => ({ value, label, icon: fieldIcon(value) }))
+		...typeOptions().map((option) =>
+			needsSettings(option.value) ? { ...option, label: `${option.label}…` } : option
+		)
 	];
 
 	let name = $state('');
@@ -59,7 +53,7 @@
 			return;
 		}
 
-		if (type === 'choice' || type === 'link' || type === 'formula') {
+		if (type !== AUTO && needsSettings(type)) {
 			onmore(label, type, at);
 			name = '';
 			type = AUTO;
@@ -70,7 +64,12 @@
 		const { changes } = addField(
 			app.ws,
 			tableId,
-			{ name: label, type: type === AUTO ? 'text' : type, auto: type === AUTO },
+			{
+				name: label,
+				type: type === AUTO ? 'text' : type,
+				currency: type === 'currency' ? localCurrency() : undefined,
+				auto: type === AUTO
+			},
 			at
 		);
 		applyWithUndo(changes, `Field "${label}" added`);

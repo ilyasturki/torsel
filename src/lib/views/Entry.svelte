@@ -11,7 +11,8 @@
 		updateRecord
 	} from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
-	import { hasTime, nowIso, parseDate, todayIso } from '#lib/core/values.ts';
+	import { isDated, isNumeric } from '#lib/core/model.ts';
+	import { nowIso, parseDate, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
@@ -19,10 +20,10 @@
 	import Icon from '#lib/ui/Icon.svelte';
 	import Stepper from '#lib/ui/Stepper.svelte';
 	import Select, { type Option } from '#lib/ui/Select.svelte';
-	import { checkbox, input } from '#lib/ui/styles.ts';
+	import { checkbox, chip, chipOff, chipOn, input } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
-	import { timedColumn } from './grid.ts';
+	import FieldInput from './FieldInput.svelte';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
@@ -45,13 +46,11 @@
 	});
 
 	const keys = $derived(fields.filter((field) => keyIds.has(field.id)));
-	const dateField = $derived(
-		fields.find((field) => field.type === 'date' && !keyIds.has(field.id))
-	);
+	const dateField = $derived(fields.find((field) => isDated(field.type) && !keyIds.has(field.id)));
 	const others = $derived(
 		fields
 			.filter((field) => !keyIds.has(field.id) && field.id !== dateField?.id)
-			.sort((a, b) => Number(b.type === 'number') - Number(a.type === 'number'))
+			.sort((a, b) => Number(isNumeric(b.type)) - Number(isNumeric(a.type)))
 	);
 
 	let values = $state<Record<string, Value>>({});
@@ -65,11 +64,6 @@
 	let rowId = $state<string | null>(null);
 
 	const today = todayIso();
-
-	const timedFields = $derived.by(() => {
-		void app.version;
-		return new Set(fields.filter((field) => timedColumn(app.ws, field)).map((field) => field.id));
-	});
 
 	const ordered = $derived.by(() => {
 		void app.version;
@@ -109,7 +103,13 @@
 	});
 
 	function stamp(field: FieldDef): string {
-		return timedFields.has(field.id) ? nowIso() : todayIso();
+		return field.type === 'datetime' ? nowIso() : todayIso();
+	}
+
+	function dateText(field: FieldDef, value: Value | undefined): string {
+		if (typeof value !== 'string') return '';
+		if (field.type === 'date') return value.slice(0, 10);
+		return value.length === 10 ? `${value}T00:00` : value;
 	}
 
 	function shown(field: FieldDef): Value {
@@ -216,7 +216,10 @@
 			.join(' · ');
 	}
 
-	const numbers = $derived(others.filter((field) => field.type === 'number'));
+	const numbers = $derived(
+		others.filter((field) => isNumeric(field.type) && field.type !== 'rating')
+	);
+	const steppers = $derived(numbers.filter((field) => field.type === 'number'));
 
 	const recent = $derived.by(() => {
 		let previous: string | null = null;
@@ -233,11 +236,7 @@
 			});
 	});
 
-	const stepperSize = $derived(numbers.length === 1 ? 'lg' : numbers.length === 2 ? 'md' : 'sm');
-	const chip =
-		'motion inline-flex h-control shrink-0 items-center gap-2 rounded-box px-3 font-medium transition-colors';
-	const chipOff = 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink';
-	const chipOn = 'bg-fill text-on-fill';
+	const stepperSize = $derived(steppers.length === 1 ? 'lg' : steppers.length === 2 ? 'md' : 'sm');
 </script>
 
 {#if fields.length === 0}
@@ -405,20 +404,15 @@
 						value={typeof value === 'string' ? value : ''}
 						onchange={(picked) => set(field, picked || null)}
 					/>
-				{:else if field.type === 'date'}
-					{@const timed = timedFields.has(field.id)}
+				{:else if isDated(field.type)}
 					<input
 						class={input}
-						type={timed ? 'datetime-local' : 'date'}
+						type={field.type === 'datetime' ? 'datetime-local' : 'date'}
 						aria-label={field.name}
-						value={typeof value === 'string'
-							? timed && !hasTime(value)
-								? `${value}T00:00`
-								: value
-							: ''}
+						value={dateText(field, value)}
 						oninput={(event) => set(field, parseDate(event.currentTarget.value))}
 					/>
-				{:else}
+				{:else if field.type === 'text'}
 					<input
 						class={input}
 						aria-label={field.name}
@@ -426,6 +420,16 @@
 						value={typeof value === 'string' ? value : ''}
 						oninput={(event) => set(field, event.currentTarget.value || null)}
 					/>
+				{:else}
+					<div class="flex flex-col gap-1">
+						<label for="entry-{field.id}" class="text-sm font-medium text-ink-2">{field.name}</label
+						>
+						<FieldInput
+							id="entry-{field.id}"
+							{field}
+							bind:value={() => value, (next) => set(field, next ?? null)}
+						/>
+					</div>
 				{/if}
 			{/each}
 
@@ -434,8 +438,8 @@
 					{dateField.name}
 					<input
 						class="{input} w-auto"
-						type={timedFields.has(dateField.id) ? 'datetime-local' : 'date'}
-						value={values[dateField.id] ?? stamp(dateField)}
+						type={dateField.type === 'datetime' ? 'datetime-local' : 'date'}
+						value={dateText(dateField, values[dateField.id] ?? stamp(dateField))}
 						oninput={(event) => {
 							if (dateField) values[dateField.id] = parseDate(event.currentTarget.value);
 						}}

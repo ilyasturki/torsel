@@ -1,11 +1,12 @@
 import type { LocaleFormats } from '#lib/client/format.ts';
-import { browserFormats, formatValue, plainNumber } from '#lib/client/format.ts';
+import { browserFormats, formatValue } from '#lib/client/format.ts';
 import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
+import { hasChoices } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
-import { hasTime, parseCheck } from '#lib/core/values.ts';
+import { currencyOf, formatDuration } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 import { nextChoice } from '#lib/ui/colors.ts';
 
@@ -58,7 +59,8 @@ export function gridRows(
 	const direction = sort.dir === 'asc' ? 1 : -1;
 	const keyed = rows.map((row) => {
 		const value = cellValue(row, sorted, computed);
-		return { row, value: sorted.type === 'link' ? cellText(ws, sorted, value) : value };
+		const byText = sorted.type === 'link' || Array.isArray(value);
+		return { row, value: byText ? cellText(ws, sorted, value) : value };
 	});
 	keyed.sort((a, b) => {
 		if (isBlank(a.value) || isBlank(b.value)) {
@@ -82,20 +84,16 @@ export function toTsv(cells: string[][]): string {
 }
 
 /** A cell as a spreadsheet reads it: every digit, an ISO date, TRUE or FALSE, a link's title. */
-export function copyText(ws: Workspace, field: FieldDef, value: Value | undefined): string {
+export function copyText(
+	ws: Workspace,
+	field: FieldDef,
+	value: Value | undefined,
+	formats: LocaleFormats = browserFormats
+): string {
 	if (isBlank(value)) {
 		return '';
 	}
-	if (field.type === 'link') {
-		return ws.rowTitle(String(value));
-	}
-	if (typeof value === 'number') {
-		return plainNumber(value);
-	}
-	if (typeof value === 'boolean') {
-		return value ? 'TRUE' : 'FALSE';
-	}
-	return typeof value === 'string' ? value : JSON.stringify(value);
+	return field.type === 'link' ? ws.rowTitle(String(value)) : formats.copyValue(field, value);
 }
 
 /** Numbers keep a dot for decimals whatever the locale, so the file reads back anywhere. */
@@ -114,15 +112,24 @@ export function viewCells(
 		...rows.map((row) =>
 			fields.map((field) => {
 				const value = cellValue(row, field, computed);
-				return typeof value === 'number' ? String(value) : copyText(ws, field, value);
+				return typeof value === 'number' ? fileNumber(field, value) : copyText(ws, field, value);
 			})
 		)
 	];
 }
 
-/** A date column holds times once any of its rows does. */
-export function timedColumn(ws: Workspace, field: FieldDef): boolean {
-	return field.type === 'date' && ws.rows(field.table).some((row) => hasTime(row.data[field.id]));
+/** A number as a file holds it: the sign or code its type reads back by, never the locale's. */
+function fileNumber(field: FieldDef, value: number): string {
+	switch (field.type) {
+		case 'currency':
+			return `${value} ${currencyOf(field)}`;
+		case 'percent':
+			return `${value}%`;
+		case 'duration':
+			return formatDuration(value, field.seconds || value % 60 !== 0);
+		default:
+			return String(value);
+	}
 }
 
 export type LinkOption = { id: string; label: string };
@@ -160,30 +167,13 @@ export function cellReader(
 	}
 
 	return (field, raw) => {
-		const text = raw.trim();
-		if (field.type === 'formula') {
-			return undefined;
+		if (field.type !== 'link') {
+			return formats.readValue(field, raw);
 		}
-		if (text === '') {
+		if (raw.trim() === '') {
 			return null;
 		}
-		switch (field.type) {
-			case 'number':
-				return formats.readNumber(text) ?? undefined;
-			case 'date':
-				return formats.readDate(text) ?? undefined;
-			case 'check':
-				return parseCheck(text) ?? undefined;
-			case 'choice':
-				return (
-					field.choices.find((choice) => choice.name.toLowerCase() === text.toLowerCase())?.name ??
-					text
-				);
-			case 'link':
-				return field.target === null ? undefined : linkId(field.target, text);
-			case 'text':
-				return raw;
-		}
+		return field.target === null ? undefined : linkId(field.target, raw);
 	};
 }
 
@@ -231,14 +221,18 @@ export function pasteChanges(
 				skipped += raw.trim() === '' ? 0 : 1;
 				return;
 			}
-			if (field.type === 'choice' && typeof value === 'string') {
-				const known = choices.get(field.id) ?? field.choices;
-				const name = value.toLowerCase();
-				const match = known.find((choice) => choice.name.toLowerCase() === name);
-				value = match?.name ?? value;
-				if (match === undefined) {
-					choices.set(field.id, [...known, nextChoice(known, value)]);
-				}
+			if (hasChoices(field.type) && value !== null) {
+				const names = (Array.isArray(value) ? value : [value]).map((name) => {
+					const known = choices.get(field.id) ?? field.choices;
+					const match = known.find(
+						(choice) => choice.name.toLowerCase() === String(name).toLowerCase()
+					);
+					if (match === undefined) {
+						choices.set(field.id, [...known, nextChoice(known, String(name))]);
+					}
+					return match?.name ?? String(name);
+				});
+				value = field.type === 'choices' ? names : names[0];
 			}
 			if (row === undefined ? value !== null : !sameValue(row.data[field.id], value)) {
 				values[field.id] = value;
@@ -330,7 +324,7 @@ export function fitWidth(
 	const body =
 		widest === 0
 			? FLOOR[field.type].empty
-			: widest + CELL_PADDING + (field.type === 'choice' ? CHIP_MARK : 0);
+			: widest + CELL_PADDING + (hasChoices(field.type) ? CHIP_MARK : 0);
 	const header =
 		measure.header(field.name) +
 		CELL_PADDING +

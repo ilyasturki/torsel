@@ -21,7 +21,7 @@
 		parseCsv,
 		withHeader
 	} from '#lib/core/csv.ts';
-	import type { FieldType, Rec } from '#lib/core/model.ts';
+	import type { Rec } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -29,15 +29,9 @@
 	import Select from '#lib/ui/Select.svelte';
 	import { input, textarea } from '#lib/ui/styles.ts';
 
-	const TYPES = (
-		[
-			['text', 'Text'],
-			['number', 'Number'],
-			['date', 'Date'],
-			['choice', 'Choice'],
-			['check', 'Checkbox']
-		] as const
-	).map(([value, label]) => ({ value: value as FieldType, label, icon: fieldIcon(value) }));
+	import { typeOptions } from './field-types.ts';
+
+	const TYPES = typeOptions((type) => type !== 'link' && type !== 'formula');
 
 	const NEW_TABLE = '';
 

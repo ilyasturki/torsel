@@ -11,7 +11,7 @@ import type {
 	ViewConfig,
 	ViewType
 } from './model.ts';
-import { CREATED, DELETED, FORMAT_OF, hasChoices } from './model.ts';
+import { CREATED, DELETED, FORMAT_OF, hasChoices, isDated } from './model.ts';
 import { coerce, typeOfValues } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -165,7 +165,7 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 		config.group === null
 			? undefined
 			: config.group === undefined
-				? (fields.find((field) => field.type === 'date') ??
+				? (fields.find((field) => isDated(field.type)) ??
 					fields.find((field) => field.type === 'choice'))
 				: byId.get(config.group);
 	const title = config.title
@@ -182,7 +182,7 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 }
 
 export function chartAxis(fields: FieldDef[], config: ViewConfig): string | null {
-	return config.x ?? fields.find((field) => field.type === 'date')?.id ?? fields[0]?.id ?? null;
+	return config.x ?? fields.find((field) => isDated(field.type))?.id ?? fields[0]?.id ?? null;
 }
 
 /** The chart a view draws: its own settings over the defaults. */

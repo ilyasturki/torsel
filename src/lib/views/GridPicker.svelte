@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 
 	import Chip from '#lib/ui/Chip.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 
 	type PickerOption = { id: string; label: string; color?: string | null };
 
@@ -10,6 +11,7 @@
 		label,
 		options,
 		value,
+		values = null,
 		seed,
 		creatable,
 		onpick,
@@ -19,9 +21,11 @@
 		label: string;
 		options: PickerOption[];
 		value: string | null;
+		/** Several picks, toggled in place and kept when the picker closes. */
+		values?: string[] | null;
 		seed: string;
 		creatable: boolean;
-		onpick: (value: string | null, down: number, right: number) => void;
+		onpick: (value: string | string[] | null, down: number, right: number) => void;
 		onkeep: (down: number, right: number) => void;
 		oncancel: () => void;
 	} = $props();
@@ -34,13 +38,19 @@
 	type Item = { key: string; value: string | null; label: string; color?: string | null };
 
 	let query = $state(untrack(() => seed));
+	const multiple = untrack(() => values !== null);
+	let picked = $state(untrack(() => values ?? []));
 	let input = $state<HTMLInputElement>();
 	let list = $state<HTMLElement>();
 
 	const needle = $derived(query.trim().toLowerCase());
 
 	const items = $derived.by((): Item[] => {
-		const matching = options
+		const known = new Set(options.map((option) => option.id));
+		const added = picked
+			.filter((name) => !known.has(name))
+			.map((name) => ({ id: name, label: name, color: null }));
+		const matching = [...options, ...added]
 			.filter((option) => needle === '' || option.label.toLowerCase().includes(needle))
 			.slice(0, SHOWN)
 			.map((option) => ({
@@ -50,13 +60,32 @@
 				color: option.color
 			}));
 		const clear =
-			needle === '' && value !== null ? [{ key: 'clear', value: null, label: 'Clear' }] : [];
+			needle === '' && value !== null && !multiple
+				? [{ key: 'clear', value: null, label: 'Clear' }]
+				: [];
 		const create =
 			creatable && needle !== '' && !options.some((option) => option.label.toLowerCase() === needle)
 				? [{ key: 'create', value: query.trim(), label: `Add "${query.trim()}"` }]
 				: [];
 		return [...clear, ...matching, ...create];
 	});
+
+	/** Several picks: an item goes in or out, and the list stays for the next. */
+	function toggle(item: Item): void {
+		const name = item.value;
+		if (name === null) return;
+		picked = picked.includes(name) ? picked.filter((one) => one !== name) : [...picked, name];
+		query = '';
+	}
+
+	function choose(item: Item, down: number, right: number): void {
+		if (multiple) toggle(item);
+		else onpick(item.value, down, right);
+	}
+
+	function done(down: number, right: number): void {
+		onpick(picked.length === 0 ? null : picked, down, right);
+	}
 
 	let active = $state(0);
 
@@ -84,18 +113,21 @@
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
 			const item = items.at(active);
-			if (item === undefined) oncancel();
-			else onpick(item.value, event.shiftKey ? -1 : 1, 0);
+			if (item !== undefined) choose(item, event.shiftKey ? -1 : 1, 0);
+			else if (multiple) done(0, 0);
+			else oncancel();
 		} else if (event.key === 'Tab') {
 			event.preventDefault();
 			const item = items.at(active);
 			const right = event.shiftKey ? -1 : 1;
-			if (needle !== '' && item !== undefined) onpick(item.value, 0, right);
+			if (multiple) done(0, right);
+			else if (needle !== '' && item !== undefined) onpick(item.value, 0, right);
 			else onkeep(0, right);
 		} else if (event.key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
-			oncancel();
+			if (multiple) done(0, 0);
+			else oncancel();
 		}
 	}
 </script>
@@ -115,9 +147,11 @@
 	aria-controls="grid-picker"
 	aria-activedescendant="grid-picker-{active}"
 	inputmode={options.length <= NO_KEYBOARD ? 'none' : undefined}
-	placeholder={options.find((option) => option.id === value)?.label ?? label}
+	placeholder={multiple
+		? picked.join(', ') || label
+		: (options.find((option) => option.id === value)?.label ?? label)}
 	{onkeydown}
-	onblur={oncancel}
+	onblur={() => (multiple ? done(0, 0) : oncancel())}
 />
 
 {#if input}
@@ -140,6 +174,7 @@
 					id="grid-picker"
 					role="listbox"
 					aria-label={label}
+					aria-multiselectable={multiple}
 					tabindex="-1"
 					class="max-h-64 overflow-y-auto p-1"
 					onmousedown={(event) => event.preventDefault()}
@@ -149,18 +184,23 @@
 							type="button"
 							id="grid-picker-{index}"
 							role="option"
-							aria-selected={index === active}
+							aria-selected={multiple
+								? item.value !== null && picked.includes(item.value)
+								: index === active}
 							tabindex="-1"
 							class="flex h-control w-full min-w-0 items-center rounded-box px-2 text-left {index ===
 							active
 								? 'bg-tint-2'
 								: 'hover:bg-tint'} {item.value === null ? 'text-ink-3' : ''}"
-							onclick={() => onpick(item.value, 0, 0)}
+							onclick={() => choose(item, 0, 0)}
 						>
 							{#if !item.key.startsWith('option')}
 								<span class="truncate">{item.label}</span>
 							{:else}
 								<Chip name={item.label} color={item.color ?? null} />
+							{/if}
+							{#if multiple && item.value !== null && picked.includes(item.value)}
+								<Icon name="check" class="ml-auto size-4 text-ink-2" />
 							{/if}
 						</button>
 					{:else}
