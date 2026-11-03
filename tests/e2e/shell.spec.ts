@@ -366,7 +366,9 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 		'View settings',
 		'New view',
 		'Rename table',
+		'Fit all columns',
 		'Import into this table',
+		'Export as CSV',
 		'Delete table'
 	]);
 	await expect(page.getByRole('dialog')).toHaveCount(0);

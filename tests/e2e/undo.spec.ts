@@ -153,8 +153,7 @@ test('a field added from the header', async ({ page }) => {
 
 test('a sort, from its toast', async ({ page }) => {
 	const kg = page.getByRole('columnheader', { name: 'Kg' });
-	await kg.getByRole('button').click();
-	await page.getByRole('button', { name: 'Sort descending' }).click();
+	await columnMenu(page, 'Kg', 'Sort descending');
 	await expect(kg).toHaveAttribute('aria-sort', 'descending');
 	await expect(page.getByRole('status')).toContainText('Sort changed');
 	await toastButton(page, 'Undo').click();
