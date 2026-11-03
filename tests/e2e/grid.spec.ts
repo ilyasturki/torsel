@@ -1251,7 +1251,7 @@ test.describe('columns, by hand', () => {
 
 		await columnMenu(page, 'Style', 'Hide');
 		await expect(names).toHaveText(['Lift', 'Sets', 'Kg', 'Done', 'ƒ Volume']);
-		await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+		await toastButton(page, 'Undo').click();
 		await expect(names).toHaveText(['Lift', 'Sets', 'Kg', 'Style', 'Done', 'ƒ Volume']);
 
 		await columnMenu(page, 'Done', 'Delete');
@@ -1351,7 +1351,7 @@ test.describe('rows, by hand', () => {
 		await at(page, 2, 0).click({ button: 'right' });
 		await page.getByRole('menuitem', { name: 'Delete 2 rows' }).click();
 		await expect.poll(() => first(3)).toEqual(['Exercise 1', '', '']);
-		await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+		await toastButton(page, 'Undo').click();
 		await expect.poll(() => first(5)).toEqual(['Exercise 1', '', 'Exercise 2', 'Exercise 3', '']);
 	});
 

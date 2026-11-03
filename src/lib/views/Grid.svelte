@@ -926,9 +926,7 @@
 	function applyFill(from: Box, to: Box, series: boolean): void {
 		const fill = fillChanges(app.ws, tableId, fields, rows, computed, from, to, series);
 		if (fill.cells === 0) return;
-		const label = `${fill.cells} ${fill.cells === 1 ? 'cell' : 'cells'} filled`;
-		const group = app.apply(fill.changes, label);
-		showToast(`Filled ${fill.cells} ${fill.cells === 1 ? 'cell' : 'cells'}`, group?.id ?? null);
+		applyWithUndo(fill.changes, `Filled ${fill.cells} ${fill.cells === 1 ? 'cell' : 'cells'}`);
 	}
 
 	/** Ctrl+D and Ctrl+R: the first row or column copied over the rest, or the one before a single line. */
@@ -1017,8 +1015,7 @@
 			fitAll();
 		} else {
 			const label = `Field "${field.name}" deleted`;
-			const group = app.apply(deleteRecords(app.ws, [field.id]), label);
-			showToast(label, group?.id ?? null);
+			applyWithUndo(deleteRecords(app.ws, [field.id]), label);
 		}
 	}
 
@@ -1051,7 +1048,7 @@
 		const name = renameDraft.trim();
 		renaming = null;
 		if (name !== '' && name !== field.name) {
-			app.apply(updateRecord(app.ws, field.id, { name }), `Field "${name}" renamed`);
+			applyWithUndo(updateRecord(app.ws, field.id, { name }), `Field "${name}" renamed`);
 		}
 		table?.focus({ preventScroll: true });
 	}
@@ -1085,7 +1082,7 @@
 		const next = created(ordered[index + (below ? 1 : -1)]);
 		const at = next === undefined ? here + (below ? 1 : -1) : (here + next) / 2;
 		const made = insertRows(app.ws, tableId, [todayDates()], at);
-		app.apply(made.changes, 'Row added');
+		applyWithUndo(made.changes, 'Row added');
 		flushSync();
 		selectPos(made.ids[0], fields[Math.max(0, headCol)]?.id ?? '');
 	}
@@ -1094,8 +1091,7 @@
 		const ids = rangeRows().map((row) => row.id);
 		if (ids.length === 0) return;
 		const label = ids.length === 1 ? 'Row deleted' : `${ids.length} rows deleted`;
-		const group = app.apply(deleteRecords(app.ws, ids), label);
-		showToast(label, group?.id ?? null);
+		applyWithUndo(deleteRecords(app.ws, ids), label);
 		flushSync();
 		select(Math.min(Math.max(0, top), rows.length), Math.max(0, headCol));
 	}
@@ -1296,7 +1292,7 @@
 		{#if r === bottom && c === right && row !== null && editing === null && filling === null}
 			<div
 				aria-hidden="true"
-				class="absolute -right-1 -bottom-1 z-5 size-2 cursor-crosshair bg-ink ring-2 ring-raised pointer-coarse:hidden"
+				class="absolute -right-1 -bottom-1 z-5 size-2 cursor-crosshair bg-accent ring-2 ring-raised pointer-coarse:hidden"
 				onpointerdown={onfilldown}
 			></div>
 		{/if}
@@ -1529,7 +1525,7 @@
 			{#if filling !== null}
 				<div
 					aria-hidden="true"
-					class="pointer-events-none absolute z-15 border border-dashed border-ink"
+					class="pointer-events-none absolute z-15 border border-dashed border-accent"
 					style="top: {rowHeight * (filling.top + 1)}px; left: {lefts[
 						filling.left
 					]}px; width: {lefts[filling.right + 1] - lefts[filling.left]}px; height: {rowHeight *

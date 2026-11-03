@@ -4,7 +4,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { readFormula } from '#lib/client/formula.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
 	import { completeName, nameAt, namesFor, toDisplay } from '#lib/core/formula.ts';
 	import type { FieldDef } from '#lib/core/model.ts';
@@ -62,8 +62,7 @@
 			return false;
 		}
 		const label = `${field.name} formula changed`;
-		const group = app.apply(updateRecord(app.ws, field.id, { expr: read.expr }), label);
-		showToast(label, group?.id ?? null);
+		applyWithUndo(updateRecord(app.ws, field.id, { expr: read.expr }), label);
 		onclose();
 		return true;
 	}
