@@ -26,6 +26,8 @@
 	import AddField from './AddField.svelte';
 	import CellValue from './CellValue.svelte';
 	import FieldSheet from './FieldSheet.svelte';
+	import type { Box } from './fill.ts';
+	import { fillChanges, fillTarget } from './fill.ts';
 	import {
 		cellReader,
 		cellText,
@@ -92,6 +94,7 @@
 	let menuField = $state<string | null>(null);
 	let menuAnchor = $state<HTMLElement | null>(null);
 	let liveFilter = $state<string | null>(null);
+	let filling = $state.raw<Box | null>(null);
 
 	let fitted = $state.raw<Record<string, number>>({});
 	let fontsReady = $state(0);
@@ -618,6 +621,14 @@
 		} else if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault();
 			clearRange();
+		} else if (
+			command &&
+			!event.altKey &&
+			!event.shiftKey &&
+			['d', 'r'].includes(event.key.toLowerCase())
+		) {
+			event.preventDefault();
+			fillFromEdge(event.key.toLowerCase() === 'd');
 		} else if (command && !event.altKey && ['c', 'x'].includes(event.key.toLowerCase())) {
 			if (!event.shiftKey) armCatcher(rangeTsv());
 		} else if (command && !event.altKey && event.key.toLowerCase() === 'v') {
@@ -873,6 +884,60 @@
 		}
 	}
 
+	function applyFill(from: Box, to: Box, series: boolean): void {
+		const fill = fillChanges(app.ws, tableId, fields, rows, computed, from, to, series);
+		if (fill.cells === 0) return;
+		const label = `${fill.cells} ${fill.cells === 1 ? 'cell' : 'cells'} filled`;
+		const group = app.apply(fill.changes, label);
+		showToast(`Filled ${fill.cells} ${fill.cells === 1 ? 'cell' : 'cells'}`, group?.id ?? null);
+	}
+
+	/** Ctrl+D and Ctrl+R: the first row or column copied over the rest, or the one before a single line. */
+	function fillFromEdge(down: boolean): void {
+		const box = { top: Math.max(0, top), bottom: Math.min(rows.length - 1, bottom), left, right };
+		if (box.top > box.bottom) return;
+		const [start, end] = down ? (['top', 'bottom'] as const) : (['left', 'right'] as const);
+		if (box[start] === box[end]) {
+			if (box[start] === 0) return;
+			applyFill({ ...box, [start]: box[start] - 1, [end]: box[start] - 1 }, box, false);
+		} else {
+			applyFill({ ...box, [end]: box[start] }, { ...box, [start]: box[start] + 1 }, false);
+		}
+	}
+
+	function onfilldown(event: PointerEvent): void {
+		if (event.button !== 0) return;
+		event.preventDefault();
+		event.stopPropagation();
+		dragged = true;
+		const from = { top, bottom, left, right };
+		const last = { top: 0, bottom: rows.length - 1, left: 0, right: fields.length - 1 };
+		const pointer = { x: event.clientX, y: event.clientY };
+		const update = (): void => {
+			filling = fillTarget(from, cellAtPoint(pointer.x, pointer.y), last);
+		};
+		const stopScroll = scrollWhileDragging(pointer, update);
+		const onmove = (move: PointerEvent): void => {
+			pointer.x = move.clientX;
+			pointer.y = move.clientY;
+			update();
+		};
+		const onup = (): void => {
+			stopScroll();
+			window.removeEventListener('pointermove', onmove);
+			window.removeEventListener('pointerup', onup);
+			const to = filling;
+			filling = null;
+			if (to === null) return;
+			applyFill(from, to, true);
+			flushSync();
+			select(Math.min(from.top, to.top), Math.min(from.left, to.left));
+			select(Math.max(from.bottom, to.bottom), Math.max(from.right, to.right), true);
+		};
+		window.addEventListener('pointermove', onmove);
+		window.addEventListener('pointerup', onup);
+	}
+
 	function dropIndex(clientX: number): number {
 		const box = (scroller as HTMLElement).getBoundingClientRect();
 		const inside = clientX - box.left;
@@ -1054,6 +1119,13 @@
 					onblur={() => commitDraft({ leaving: true })}
 				/>
 			{/if}
+		{/if}
+		{#if r === bottom && c === right && row !== null && editing === null && filling === null}
+			<div
+				aria-hidden="true"
+				class="absolute -right-1 -bottom-1 z-5 size-2 cursor-crosshair bg-ink ring-2 ring-raised pointer-coarse:hidden"
+				onpointerdown={onfilldown}
+			></div>
 		{/if}
 	</td>
 {/snippet}
@@ -1246,6 +1318,16 @@
 					class="pointer-events-none absolute ring-1 ring-accent ring-inset"
 					style="left: {lefts[left]}px; top: {(top + 1) * rowHeight}px; width: {lefts[right + 1] -
 						lefts[left]}px; height: {(bottom - top + 1) * rowHeight}px"
+				></div>
+			{/if}
+			{#if filling !== null}
+				<div
+					aria-hidden="true"
+					class="pointer-events-none absolute z-15 border border-dashed border-ink"
+					style="top: {rowHeight * (filling.top + 1)}px; left: {lefts[
+						filling.left
+					]}px; width: {lefts[filling.right + 1] - lefts[filling.left]}px; height: {rowHeight *
+						(filling.bottom - filling.top + 1)}px"
 				></div>
 			{/if}
 			{#if columnDrag !== null}

@@ -1029,3 +1029,112 @@ test.describe('phone', () => {
 		await expect(at(page, 4, 0).locator('input')).toHaveCount(0);
 	});
 });
+
+/** Plan: Day (date), N (number), Name (text); values in the first two of six rows only. */
+function seedSeries(request: APIRequestContext) {
+	return seed(request, (ws, commit) => {
+		const base = createBase(ws, 'Gym');
+		commit(base.changes);
+		const table = createTable(ws, base.id, 'Plan', [
+			{ name: 'Day', type: 'date' },
+			{ name: 'N', type: 'number' },
+			{ name: 'Name', type: 'text' }
+		]);
+		commit(table.changes);
+		const [day, n, name] = table.fieldIds;
+		commit(
+			insertRows(ws, table.id, [
+				{ [day]: '2024-11-04', [n]: 1, [name]: 'Set 1' },
+				{ [day]: '2024-11-11', [n]: 2 },
+				{},
+				{},
+				{},
+				{}
+			]).changes
+		);
+		return { path: `/app/t/${table.id}` };
+	});
+}
+
+async function dragFill(page: Page, from: Locator, to: Locator): Promise<void> {
+	const handle = from.locator('.cursor-crosshair');
+	const start = await handle.boundingBox();
+	const end = await to.boundingBox();
+	await page.mouse.move((start?.x ?? 0) + 3, (start?.y ?? 0) + 3);
+	await page.mouse.down();
+	await page.mouse.move((end?.x ?? 0) + 10, (end?.y ?? 0) + 10, { steps: 6 });
+	await page.mouse.up();
+}
+
+const column = (page: Page, col: number, count: number): Promise<string[]> =>
+	Promise.all(Array.from({ length: count }, (_, row) => at(page, row, col).innerText()));
+
+test.describe('filling', () => {
+	test('the handle copies one value and continues a series, each in one undo step', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly('the handle is for a mouse');
+		void account;
+		await open(page, (await seedSeries(context.request)).path);
+
+		await at(page, 0, 1).click();
+		await dragFill(page, at(page, 0, 1), at(page, 2, 1));
+		await expect.poll(() => column(page, 1, 4)).toEqual(['1', '1', '1', '']);
+		await expect(page.getByRole('status')).toContainText('Filled 2 cells');
+		await page.keyboard.press('Control+z');
+		await expect.poll(() => column(page, 1, 4)).toEqual(['1', '2', '', '']);
+
+		await at(page, 0, 0).click();
+		await at(page, 1, 1).click({ modifiers: ['Shift'] });
+		await dragFill(page, at(page, 1, 1), at(page, 4, 1));
+		await expect.poll(() => column(page, 1, 6)).toEqual(['1', '2', '3', '4', '5', '']);
+		await expect
+			.poll(() => column(page, 0, 5))
+			.toEqual(['Nov 4, 2024', 'Nov 11, 2024', 'Nov 18, 2024', 'Nov 25, 2024', 'Dec 2, 2024']);
+		await expect(selected(page)).toHaveCount(10);
+
+		await page.keyboard.press('Control+z');
+		await expect.poll(() => column(page, 1, 4)).toEqual(['1', '2', '', '']);
+		await expect(at(page, 2, 0)).toHaveText('');
+	});
+
+	test('Ctrl+D and Ctrl+R copy the first row down and the first column across', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly();
+		void account;
+		await open(page, (await seedSeries(context.request)).path);
+
+		await at(page, 0, 1).click();
+		await at(page, 3, 1).click({ modifiers: ['Shift'] });
+		await page.keyboard.press('Control+d');
+		await expect.poll(() => column(page, 1, 5)).toEqual(['1', '1', '1', '1', '']);
+
+		await at(page, 4, 1).click();
+		await page.keyboard.press('Control+d');
+		await expect(at(page, 4, 1)).toHaveText('1');
+
+		await at(page, 0, 2).click();
+		await page.keyboard.press('Control+z');
+		await page.keyboard.press('Control+z');
+		await expect.poll(() => column(page, 1, 3)).toEqual(['1', '2', '']);
+
+		await at(page, 1, 1).click();
+		await at(page, 1, 2).click({ modifiers: ['Shift'] });
+		await page.keyboard.press('Control+r');
+		await expect(at(page, 1, 2)).toHaveText('2');
+	});
+
+	test('a phone shows no fill handle', async ({ page, context, account }) => {
+		test.skip(!isPhone(), 'the handle needs a mouse');
+		void account;
+		await open(page, (await seedSeries(context.request)).path);
+		await at(page, 0, 1).tap();
+		await page.getByRole('gridcell').getByRole('textbox').press('Escape');
+		await expect(at(page, 0, 1).locator('.cursor-crosshair')).toBeHidden();
+	});
+});
