@@ -28,8 +28,10 @@
 	import PasswordInput from '#lib/ui/PasswordInput.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 	import Select, { type Option } from '#lib/ui/Select.svelte';
+	import Spark from '#lib/ui/Spark.svelte';
 	import Stepper from '#lib/ui/Stepper.svelte';
 	import { checkbox, fieldFocusWithin, input, textarea } from '#lib/ui/styles.ts';
+	import Tally from '#lib/ui/Tally.svelte';
 	import Textarea from '#lib/ui/Textarea.svelte';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 	import CellValue from '#lib/views/CellValue.svelte';
@@ -68,6 +70,8 @@
 				'PasswordInput',
 				'CodeInput',
 				'Chip',
+				'Spark',
+				'Tally',
 				'Empty',
 				'Markdown',
 				'Logo'
@@ -753,6 +757,37 @@
 			{/each}
 			<Specimen label="long name">
 				<div class="w-32"><Chip name="Accessory work for the posterior chain" color="teal" /></div>
+			</Specimen>
+		</Section>
+
+		<Section name="Spark" from="ui/Spark.svelte">
+			<Specimen label="line: a 7-day rolling average">
+				<Spark values={[88.4, 88.25, 88.13, 88.1]} label="Trend" />
+			</Specimen>
+			<Specimen label="bar: weekly totals">
+				<Spark
+					kind="bar"
+					values={[1679, 28082, 24875, 14602, 12053, 9930, 2822, 4078, 2484, 1420]}
+					label="Trend"
+				/>
+			</Specimen>
+			<Specimen label="bar: a month at zero">
+				<Spark kind="bar" values={[3, 0, 2]} label="Trend" />
+			</Specimen>
+			<Specimen label="one value">
+				<Spark values={[81.5]} label="Trend" />
+			</Specimen>
+		</Section>
+
+		<Section name="Tally" from="ui/Tally.svelte">
+			<Specimen label="3 of 10: a tick per row">
+				<Tally done={3} total={10} />
+			</Specimen>
+			<Specimen label="41 of 120: two parts">
+				<Tally done={41} total={120} />
+			</Specimen>
+			<Specimen label="none ticked">
+				<Tally done={0} total={6} />
 			</Specimen>
 		</Section>
 

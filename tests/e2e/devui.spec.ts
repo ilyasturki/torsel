@@ -27,7 +27,9 @@ test('the design system shows every section, stays out of search, and fits the s
 		'entry',
 		'list',
 		'chart',
-		'changecard'
+		'changecard',
+		'spark',
+		'tally'
 	]) {
 		await expect(page.locator(`section#${id}`)).toBeAttached();
 	}
