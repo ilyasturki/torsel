@@ -130,7 +130,7 @@
 		>
 		{#if link !== null}
 			<a
-				class="text-sm text-ink-2 underline hover:text-ink"
+				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 				href={link}
 				onclick={() => {
 					markFresh(action);
@@ -141,14 +141,14 @@
 		{#if action.status === 'applied'}
 			<button
 				type="button"
-				class="text-sm text-ink-2 underline hover:text-ink"
+				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 				aria-label="Undo {action.summary}"
 				onclick={() => undoChange(action)}>Undo</button
 			>
 		{:else if undone}
 			<button
 				type="button"
-				class="text-sm text-ink-2 underline hover:text-ink"
+				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 				aria-label="Redo {action.summary}"
 				onclick={() => redoChange(action)}>Redo</button
 			>

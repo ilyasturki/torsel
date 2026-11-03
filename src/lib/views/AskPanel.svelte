@@ -402,7 +402,7 @@
 						<div class="flex items-center justify-end">
 							<button
 								type="button"
-								class="text-sm text-ink-2 underline hover:text-ink"
+								class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 								onclick={() => (undone ? redoTurn(turn) : undoTurn(turn))}
 								>{undone ? 'Redo all' : 'Undo all'}</button
 							>
@@ -419,7 +419,7 @@
 						{#if item === lastItem && !assistant.busy && item.event !== 'declined'}
 							<button
 								type="button"
-								class="text-sm text-ink-2 underline hover:text-ink"
+								class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 								onclick={() => void retry()}>Retry</button
 							>
 						{/if}
