@@ -1260,7 +1260,7 @@ test.describe('columns, by hand', () => {
 		if (!isPhone()) {
 			await header(page, 'Kg').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Type' }).hover();
-			await page.getByRole('menuitem', { name: 'Text' }).click();
+			await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
 			await expect(page.getByRole('status')).toContainText('Kg retyped');
 			await expect(at(page, 0, 2)).toHaveText('10');
 			await expect(at(page, 0, 2).locator('div').first()).not.toHaveClass(/justify-end/u);

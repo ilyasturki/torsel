@@ -4,7 +4,7 @@ import type { FieldSpec } from '../../src/lib/core/actions.ts';
 import { addField, createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
 import type { Rec, Value } from '../../src/lib/core/model.ts';
-import { expect, script, seed, tablePath, test } from './harness.ts';
+import { columnMenu, expect, script, seed, tablePath, test } from './harness.ts';
 
 const FIELDS: FieldSpec[] = [
 	{ name: 'Title', type: 'text' },
@@ -536,8 +536,7 @@ test.describe('the type picker', () => {
 		const movies = await seedMovies(context.request);
 		await page.goto(movies.grid);
 
-		await page.getByRole('columnheader', { name: 'Score' }).getByRole('button').click();
-		await page.getByRole('button', { name: 'Field settings' }).click();
+		await columnMenu(page, 'Score', 'Field settings');
 		const sheet = page.getByRole('dialog', { name: 'Field', exact: true });
 		const type = sheet.getByRole('combobox').first();
 		await expect(type).toHaveValue('Rating');
