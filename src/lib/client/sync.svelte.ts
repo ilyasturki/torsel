@@ -8,7 +8,13 @@ import { forgetAccount, me } from './session.svelte.ts';
 
 export type SyncStatus = 'idle' | 'offline' | 'signed-out' | 'other-account' | 'error';
 
-export const sync = $state({ status: 'idle' as SyncStatus });
+// `pulled`: this session has asked the server for its records at least once, answered or not.
+export const sync = $state({ status: 'idle' as SyncStatus, pulled: false });
+
+/** Whether the tables this device will see soon are here: an address none of them answers to is unknown. */
+export function caughtUp(): boolean {
+	return me.asked && (!me.account || sync.pulled || sync.status !== 'idle');
+}
 
 const DEBOUNCE_MS = 1500;
 const ROUNDS = 10;
@@ -76,6 +82,7 @@ export async function syncNow(): Promise<void> {
 		} while (again);
 	})().finally(() => {
 		running = undefined;
+		sync.pulled = true;
 	});
 
 	return running;

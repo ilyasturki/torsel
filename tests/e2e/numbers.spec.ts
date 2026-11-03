@@ -2,7 +2,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import type { Rec } from '../../src/lib/core/model.ts';
-import { expect, seed, test } from './harness.ts';
+import { expect, seed, tablePath, test } from './harness.ts';
 
 type Movies = {
 	grid: string;
@@ -30,10 +30,9 @@ function seedMovies(request: APIRequestContext): Promise<Movies> {
 				{ [title]: 'Dune', [year]: 2024, [budget]: 190000, [seen]: '2024-03-01T20:30' }
 			]).changes
 		);
-		const path = `/app/t/${table.id}`;
 		return {
-			grid: `${path}?v=${table.viewIds[0]}`,
-			entry: `${path}?v=${table.viewIds[1]}`,
+			grid: tablePath(table.id, table.viewIds[0]),
+			entry: tablePath(table.id, table.viewIds[1]),
 			table: table.id,
 			year,
 			budget,

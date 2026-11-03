@@ -3,7 +3,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { addField, createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import type { FieldSpec } from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
-import { expect, seed, test } from './harness.ts';
+import { expect, seed, tablePath, test } from './harness.ts';
 
 const LONG = 'A value far longer than any column could ever show on one line of a grid';
 
@@ -49,7 +49,7 @@ function seedEveryType(request: APIRequestContext) {
 			]).changes
 		);
 
-		return { path: `/app/t/${table.id}` };
+		return { path: tablePath(table.id) };
 	});
 }
 
@@ -91,7 +91,7 @@ function seedLifts(request: APIRequestContext, count = 3) {
 				}))
 			).changes
 		);
-		return { path: `/app/t/${table.id}`, fieldIds: table.fieldIds };
+		return { path: tablePath(table.id), fieldIds: table.fieldIds };
 	});
 }
 
@@ -117,7 +117,7 @@ function seedPlain(request: APIRequestContext, count: number) {
 				}))
 			).changes
 		);
-		return { path: `/app/t/${table.id}` };
+		return { path: tablePath(table.id) };
 	});
 }
 

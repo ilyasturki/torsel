@@ -1,7 +1,16 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, redoButton, script, seed, tableMenu, test, undoButton } from './harness.ts';
+import {
+	expect,
+	redoButton,
+	script,
+	seed,
+	tableMenu,
+	tablePath,
+	test,
+	undoButton
+} from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -19,7 +28,7 @@ function seedLifts(request: APIRequestContext) {
 		const other = createBase(ws, 'Money');
 		commit(other.changes);
 		commit(createTable(ws, other.id, 'Expenses', [{ name: 'Amount', type: 'number' }]).changes);
-		return `/app/t/${lifts.id}`;
+		return tablePath(lifts.id);
 	});
 }
 

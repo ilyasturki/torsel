@@ -7,9 +7,10 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { assistant, checkAvailability, resumeThread } from '#lib/client/assistant.svelte.ts';
+	import { tableBySlug, viewBySlug } from '#lib/client/directory.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
-	import { viewToOpen, visitHome, visitTable } from '#lib/client/place.ts';
+	import { visitHome, visitTable } from '#lib/client/place.ts';
 	import { me } from '#lib/client/session.svelte.ts';
 	import { pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
@@ -53,7 +54,9 @@
 
 	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
 	const onSettings = $derived(page.url.pathname === SETTINGS);
-	const tableId = $derived(page.params.table ?? null);
+	const tableId = $derived(
+		page.params.table === undefined ? null : (tableBySlug(page.params.table) ?? null)
+	);
 
 	const table = $derived.by(() => {
 		void app.version;
@@ -66,8 +69,10 @@
 	});
 
 	const view = $derived.by(() => {
-		const requested = page.url.searchParams.get('v');
-		return table === undefined ? undefined : viewToOpen(views, table.id, requested);
+		if (table === undefined) return undefined;
+		const segment = page.params.view;
+		const requested = segment === undefined ? undefined : viewBySlug(table.id, segment);
+		return views.find((item) => item.id === requested) ?? views[0];
 	});
 
 	$effect(() => {

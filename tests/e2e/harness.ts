@@ -9,8 +9,10 @@ import { test as base, expect } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import { Hlc } from '../../src/lib/core/clock.ts';
+import { isId } from '../../src/lib/core/ids.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
 import { MAX_PUSH } from '../../src/lib/core/protocol.ts';
+import { slugify } from '../../src/lib/core/slug.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
 import type { FakeStep } from './fake-anthropic.ts';
 
@@ -129,6 +131,14 @@ export async function script(request: APIRequestContext, steps: FakeStep[]): Pro
 	return key;
 }
 
+/** A table's address, from ids or names: an id stays as is, a name is spelled as the app spells it. */
+export function tablePath(table: string, view?: string): string {
+	const segment = (part: string): string => (isId(part) ? part : slugify(part));
+	return view === undefined
+		? `/app/t/${segment(table)}`
+		: `/app/t/${segment(table)}/${segment(view)}`;
+}
+
 export async function seed<T>(
 	request: APIRequestContext,
 	build: (ws: Workspace, commit: (changes: Change[]) => void) => T
@@ -166,7 +176,7 @@ export function seedLifts(request: APIRequestContext): Promise<string> {
 		commit(
 			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes
 		);
-		return `/app/t/${lifts.id}`;
+		return tablePath(lifts.id);
 	});
 }
 

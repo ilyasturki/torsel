@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { HOME, LOGIN } from '#lib/client/nav.ts';
+	import { HOME, LOGIN } from '#lib/client/paths.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 
 	import { REPOSITORY } from './site.ts';

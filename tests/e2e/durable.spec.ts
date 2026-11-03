@@ -16,6 +16,7 @@ import {
 	seed,
 	seedLifts,
 	tableMenu,
+	tablePath,
 	test,
 	undoButton,
 	watchErrors
@@ -469,7 +470,7 @@ test('a record whose save failed still lands, before the watermark passes it', a
 		const made = createTable(ws, base.id, 'More', [{ name: 'Exercise', type: 'text' }]);
 		commit(made.changes);
 		commit(insertRows(ws, made.id, [{ [made.fieldIds[0]]: 'Deadlift' }]).changes);
-		return `/app/t/${made.id}`;
+		return tablePath(made.id);
 	});
 	const status = page.getByRole('status');
 

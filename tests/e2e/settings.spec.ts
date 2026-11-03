@@ -1,7 +1,16 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAccount, passwordSignIn, RETRY_RESET, seed, signIn, test } from './harness.ts';
+import {
+	expect,
+	newAccount,
+	passwordSignIn,
+	RETRY_RESET,
+	seed,
+	signIn,
+	tablePath,
+	test
+} from './harness.ts';
 
 function seedRow(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -10,7 +19,7 @@ function seedRow(request: APIRequestContext) {
 		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }]);
 		commit(table.changes);
 		commit(insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat' }]).changes);
-		return `/app/t/${table.id}`;
+		return tablePath(table.id);
 	});
 }
 

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { cell, expect, RETRY_RESET, seed, test, watchErrors } from './harness.ts';
+import { cell, expect, RETRY_RESET, seed, tablePath, test, watchErrors } from './harness.ts';
 
 const DEV = process.env.TORSEL_TEST_DEV === '1';
 const ROOT = join(import.meta.dirname, '../..');
@@ -29,7 +29,7 @@ function seedLifts(request: APIRequestContext) {
 		commit(
 			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes
 		);
-		return `/app/t/${lifts.id}`;
+		return tablePath(lifts.id);
 	});
 }
 

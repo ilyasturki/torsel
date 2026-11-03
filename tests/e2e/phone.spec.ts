@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, pick, seed, tableMenu, test } from './harness.ts';
+import { expect, pick, seed, tableMenu, tablePath, test } from './harness.ts';
 
 test.beforeEach(() => {
 	test.skip(test.info().project.name !== 'phone', 'a phone-sized screen is the point here');
@@ -63,12 +63,12 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 	void account;
 	const { table, entry } = await seedSpending(context.request);
 
-	await page.goto(`/app/t/${table}?v=${entry}`);
+	await page.goto(tablePath(table, entry));
 	const addRow = page.getByRole('button', { name: 'Add row' });
 	const day = page.locator('label').filter({ hasText: 'Day' }).locator('input');
 	expect(await clearOf(day, addRow), 'Entry: Day above Add row').toBe(true);
 
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await tableMenu(page, 'New view');
 	const sheet = page.getByRole('dialog');
 	await sheet.getByRole('button', { name: /^Chart/u }).click();
@@ -112,7 +112,7 @@ test('the keyboard stays down until a field is tapped, and the tabs make way for
 	await expect(sheet.getByRole('textbox', { name: 'Cells to import' })).not.toBeFocused();
 	await sheet.getByRole('button', { name: 'Close' }).click();
 
-	await page.goto(`/app/t/${table}?v=${entry}`);
+	await page.goto(tablePath(table, entry));
 	const tabs = page.getByRole('group', { name: 'Tables' });
 	await expect(tabs).toBeVisible();
 	const amount = page.getByRole('textbox', { name: 'Amount' });

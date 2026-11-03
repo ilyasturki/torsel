@@ -56,13 +56,9 @@ function onPhone(): boolean {
 	return matchMedia('(pointer: coarse), (max-width: 40rem)').matches;
 }
 
-export function viewToOpen(
-	views: ViewDef[],
-	table: string,
-	requested: string | null
-): ViewDef | undefined {
+export function viewToOpen(views: ViewDef[], table: string): ViewDef | undefined {
 	const place = read();
-	const candidates = [requested, onPhone() ? place.logged[table] : undefined, place.views[table]];
+	const candidates = [onPhone() ? place.logged[table] : undefined, place.views[table]];
 
 	for (const id of candidates) {
 		const view = views.find((item) => item.id === id);

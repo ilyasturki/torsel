@@ -1,10 +1,15 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { HOME } from '#lib/client/nav.ts';
-	import { viewToOpen } from '#lib/client/place.ts';
+	import { tableBySlug, viewBySlug } from '#lib/client/directory.svelte.ts';
+	import { HOME, tableUrl } from '#lib/client/nav.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
+	import { caughtUp } from '#lib/client/sync.svelte.ts';
+	import { showToast } from '#lib/client/toast.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Chart from '#lib/views/Chart.svelte';
@@ -12,7 +17,7 @@
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
 
-	const tableId = $derived(page.params.table ?? '');
+	const tableId = $derived(tableBySlug(page.params.table ?? '') ?? '');
 
 	const table = $derived.by(() => {
 		void app.version;
@@ -24,9 +29,36 @@
 		return app.ws.views(tableId);
 	});
 
-	const requested = $derived(page.url.searchParams.get('v'));
+	const requested = $derived(
+		page.params.view === undefined ? undefined : viewBySlug(tableId, page.params.view)
+	);
 
-	const view = $derived(viewToOpen(views, tableId, requested));
+	const view = $derived(views.find((item) => item.id === requested) ?? views[0]);
+
+	// An id, an old name or the first view's own slug: the address bar shows the current one.
+	$effect(() => {
+		if (table === undefined) return;
+		const canonical = tableUrl(table.id, view?.id);
+		if (page.url.pathname !== canonical) {
+			void goto(canonical, { replace: true, reset: false });
+		}
+	});
+
+	// The address a table was last shown at: losing it there is not landing on an unknown one.
+	let shown: string | undefined;
+	let lost = $state(false);
+	$effect(() => {
+		const segment = page.params.table;
+		lost = false;
+		if (table !== undefined) {
+			shown = segment;
+		} else if (segment === shown) {
+			lost = true;
+		} else if (app.ready && caughtUp()) {
+			untrack(() => showToast('Table not found'));
+			void goto(HOME, { replace: true });
+		}
+	});
 
 	const blank = $derived.by(() => {
 		void app.version;
@@ -43,7 +75,7 @@
 </script>
 
 {#if table === undefined}
-	{#if app.ready}
+	{#if lost}
 		<Empty text="This table no longer exists.">
 			<a href={HOME} class="underline">See your tables</a>
 		</Empty>

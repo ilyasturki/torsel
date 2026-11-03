@@ -169,5 +169,6 @@ test('an erase in one tab empties the other', async ({ page, context, pageErrors
 	await page.getByRole('button', { name: 'Erase this device' }).click();
 	await page.getByRole('button', { name: 'Erase for good' }).click();
 
-	await expect(other.getByText('This table no longer exists.')).toBeVisible();
+	await expect(other).toHaveURL(/\/app$/u);
+	await expect(other.getByText(/^No tables yet/u)).toBeVisible();
 });

@@ -11,6 +11,7 @@ import {
 	seed,
 	signIn,
 	tableMenu,
+	tablePath,
 	test
 } from './harness.ts';
 
@@ -73,7 +74,7 @@ function seedGym(request: APIRequestContext) {
 			entry: table.viewIds[1],
 			chart: chart.id,
 			list: list.id,
-			path: `/app/t/${table.id}`
+			path: tablePath(table.id)
 		};
 	});
 }
@@ -343,11 +344,11 @@ test.describe('opening where you left off', () => {
 		await page.goto('/app');
 		await expect(page.getByRole('heading', { name: 'Tables' })).toBeVisible();
 
-		await page.goto(`/app/t/${table}?v=${chart}`);
+		await page.goto(tablePath(table, chart));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
 		await page.goto('/app');
-		await expect(page).toHaveURL(new RegExp(`/app/t/${table}`, 'u'));
+		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Volume')}$`, 'u'));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
 		const tabs = page.getByRole('group', { name: 'Tables' });
@@ -367,13 +368,16 @@ test.describe('opening where you left off', () => {
 		account
 	}) => {
 		void account;
-		const { path, list } = await seedGym(context.request);
-		await page.goto(`${path}?v=${list}`);
+		const { table, list } = await seedGym(context.request);
+		await page.goto(tablePath(table, list));
 		await expect(
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sets' })
 		).toHaveAttribute('aria-current', 'page');
 
-		await page.goto(path);
+		const tabs = page.getByRole('group', { name: 'Tables' });
+		await tabs.getByRole('link', { name: 'All' }).click();
+		await tabs.getByRole('link', { name: 'Lifts' }).click();
+		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Sets')}$`, 'u'));
 		await expect(
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sets' })
 		).toHaveAttribute('aria-current', 'page');
@@ -387,16 +391,16 @@ test.describe('opening where you left off', () => {
 		test.skip(!onPhone(), 'the audit counts this job on a phone');
 		void account;
 		const { table, entry, grid } = await seedGym(context.request);
-		await page.goto(`/app/t/${table}?v=${entry}`);
+		await page.goto(tablePath(table, entry));
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await expect(page.getByText('3 rows')).toBeVisible();
 
-		await page.goto(`/app/t/${table}?v=${grid}`);
+		await page.goto(tablePath(table, grid));
 		await expect(cell(page, 'Squat').first()).toBeVisible();
 
 		await page.goto('/app');
 		await expect(page.getByRole('button', { name: 'Add row' })).toBeVisible();
-		await expect(page).toHaveURL(new RegExp(`/app/t/${table}`, 'u'));
+		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Entry')}$`, 'u'));
 		const taps = await countTaps(page);
 
 		await page.getByRole('button', { name: 'Bench', exact: true }).click();
@@ -416,7 +420,7 @@ test.describe('adding and correcting rows', () => {
 		account
 	}) => {
 		void account;
-		const { path, grid, list, chart } = await seedGym(context.request);
+		const { table, grid, list, chart } = await seedGym(context.request);
 		const sheet = page.getByRole('dialog', { name: 'New row' });
 		const today = new Date().toISOString().slice(0, 10);
 
@@ -425,7 +429,7 @@ test.describe('adding and correcting rows', () => {
 			[list, 'New row'],
 			[chart, 'New row']
 		]) {
-			await page.goto(`${path}?v=${view}`);
+			await page.goto(tablePath(table, view));
 			const taps = await countTaps(page);
 			await page.getByRole('button', { name: button }).click();
 			await expect(sheet.getByLabel('Date')).toHaveValue(today);
@@ -450,7 +454,7 @@ test.describe('adding and correcting rows', () => {
 		});
 
 		for (const view of [list, chart]) {
-			await page.goto(`/app/t/${table}?v=${view}`);
+			await page.goto(tablePath(table, view));
 			await page.getByRole('button', { name: 'Add a row' }).click();
 			await expect(page.getByRole('dialog', { name: 'New row' })).toBeVisible();
 			await page.keyboard.press('Escape');
@@ -459,8 +463,8 @@ test.describe('adding and correcting rows', () => {
 
 	test('a recent row in Entry opens for correction', async ({ page, context, account }) => {
 		void account;
-		const { path, entry } = await seedGym(context.request);
-		await page.goto(`${path}?v=${entry}`);
+		const { table, entry } = await seedGym(context.request);
+		await page.goto(tablePath(table, entry));
 
 		const latest = page.getByRole('listitem').getByRole('button').last();
 		await latest.click();
@@ -478,8 +482,8 @@ test.describe('adding and correcting rows', () => {
 		account
 	}) => {
 		void account;
-		const { path, entry } = await seedGym(context.request);
-		await page.goto(`${path}?v=${entry}`);
+		const { table, entry } = await seedGym(context.request);
+		await page.goto(tablePath(table, entry));
 		const lastTime = page.getByText(/^Last time/u);
 		await expect(lastTime).toContainText('Oct 22');
 
@@ -508,7 +512,7 @@ test.describe('fields and views', () => {
 				insertRows(ws, table.id, [{ [table.fieldIds[0]]: '12' }, { [table.fieldIds[0]]: 'plenty' }])
 					.changes
 			);
-			return { path: `/app/t/${table.id}` };
+			return { path: tablePath(table.id) };
 		});
 		await page.goto(path);
 		await openField(page, 'Value');
@@ -527,8 +531,8 @@ test.describe('fields and views', () => {
 
 	test('fields and views move, and each move undoes', async ({ page, context, account }) => {
 		void account;
-		const { path, list } = await seedGym(context.request);
-		await page.goto(path);
+		const { table, list } = await seedGym(context.request);
+		await page.goto(tablePath(table));
 
 		const names = (): Promise<string[]> =>
 			page
@@ -546,7 +550,7 @@ test.describe('fields and views', () => {
 		await headerButton(page, 'Undo').click();
 		await expect.poll(names).toEqual(['Date', 'Exercise', 'Kg', 'Reps']);
 
-		await page.goto(`${path}?v=${list}`);
+		await page.goto(tablePath(table, list));
 		const views = page.getByRole('group', { name: 'Views' }).getByRole('link');
 		await expect(views).toHaveText(['Grid', 'Entry', 'Volume', 'Sets']);
 		await tableMenu(page, 'View settings');
@@ -593,15 +597,15 @@ test.describe('fields and views', () => {
 
 	test('a view changes type and keeps its place', async ({ page, context, account }) => {
 		void account;
-		const { path, list } = await seedGym(context.request);
-		await page.goto(`${path}?v=${list}`);
+		const { table, list } = await seedGym(context.request);
+		await page.goto(tablePath(table, list));
 		await tableMenu(page, 'View settings');
 
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await sheet.getByRole('button', { name: /^Chart/u }).click();
 		await sheet.getByRole('button', { name: 'Save' }).click();
 
-		await expect(page).toHaveURL(new RegExp(`v=${list}`, 'u'));
+		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Sets')}$`, 'u'));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 		await headerButton(page, 'Undo').click();
 		await expect(page.getByRole('img', { name: /per Date/u })).toHaveCount(0);
@@ -613,13 +617,13 @@ test.describe('fields and views', () => {
 		account
 	}) => {
 		void account;
-		const { path, list, chart } = await seedGym(context.request);
+		const { table, list, chart } = await seedGym(context.request);
 		const open = async (): Promise<Locator> => {
 			await tableMenu(page, 'View settings');
 			return page.getByRole('dialog', { name: 'View settings' });
 		};
 
-		await page.goto(`${path}?v=${list}`);
+		await page.goto(tablePath(table, list));
 		let sheet = await open();
 		await expect(sheet.getByRole('combobox', { name: 'Group by' })).toHaveValue('Automatic (Date)');
 		await expect(sheet.getByRole('checkbox', { name: 'Kg' })).toBeChecked();
@@ -630,7 +634,7 @@ test.describe('fields and views', () => {
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
 
-		await page.goto(`${path}?v=${chart}`);
+		await page.goto(tablePath(table, chart));
 		sheet = await open();
 		await expect(sheet.getByRole('combobox', { name: 'Horizontal axis' })).toHaveValue('Date');
 	});
@@ -936,8 +940,8 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 
 	test('add a row: was 2 on the grid and in Entry', async ({ page, context, account }) => {
 		void account;
-		const { path, entry } = await seedGym(context.request);
-		await page.goto(path);
+		const { table, entry } = await seedGym(context.request);
+		await page.goto(tablePath(table));
 		await expect(page.getByText('2 rows')).toBeVisible();
 		let taps = await countTaps(page);
 
@@ -946,7 +950,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		await expect(page.getByText('3 rows')).toBeVisible();
 		expect(await taps()).toBe(1);
 
-		await page.goto(`${path}?v=${entry}`);
+		await page.goto(tablePath(table, entry));
 		await expect(page.getByRole('button', { name: 'Add row' })).toBeVisible();
 		taps = await countTaps(page);
 		await page.getByRole('button', { name: 'Add row' }).click();
@@ -988,7 +992,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 			]);
 			commit(table.changes);
 			commit(insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat' }]).changes);
-			return { path: `/app/t/${table.id}` };
+			return { path: tablePath(table.id) };
 		});
 		await page.goto(path);
 		await expect(cell(page, 'Squat')).toBeVisible();

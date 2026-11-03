@@ -13,6 +13,7 @@ import {
 	RETRY_RESET,
 	seed,
 	signIn,
+	tablePath,
 	test,
 	watchErrors
 } from './harness.ts';
@@ -427,7 +428,7 @@ test.describe('local data at sign-in', () => {
 	}) => {
 		void account;
 		const table = await seedLifts(page);
-		await page.goto(`/app/t/${table}`);
+		await page.goto(tablePath(table));
 		await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 
 		await page.goto('/app/settings');
@@ -440,7 +441,7 @@ test.describe('local data at sign-in', () => {
 		await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
 
-		await page.goto(`/app/t/${table}`);
+		await page.goto(tablePath(table));
 		await expect(page.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
 	});

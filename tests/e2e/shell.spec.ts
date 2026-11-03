@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, RETRY_RESET, seed, tableMenu, test } from './harness.ts';
+import { expect, RETRY_RESET, seed, tableMenu, tablePath, test } from './harness.ts';
 
 function seedTwoTables(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -88,15 +88,15 @@ test('tabs change the table and the view strip changes the view', async ({
 	account
 }) => {
 	void account;
-	const { lifts, chart } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(tablePath(lifts));
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 
 	const views = page.getByRole('group', { name: 'Views' });
 	await views.getByRole('link', { name: 'Entry' }).click();
 	await expect(page.getByRole('button', { name: 'Add row' })).toBeVisible();
 	await views.getByRole('link', { name: 'Volume' }).click();
-	await expect(page).toHaveURL(new RegExp(`v=${chart}`, 'u'));
+	await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Volume')}$`, 'u'));
 	await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
 	await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'Weight' }).click();
@@ -137,7 +137,7 @@ test('the floating tabs stay above a long table', async ({ page, context, accoun
 		}
 		return { lifts: table.id };
 	});
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 	await expect(page.locator('tbody tr').nth(39)).toBeAttached();
 
 	await page.getByRole('group', { name: 'Tables' }).getByRole('link', { name: 'All' }).click();
@@ -151,7 +151,7 @@ test('the assistant stays out of the way until it is opened', async ({
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 
 	const input = page.getByPlaceholder('Ask about your tables');
@@ -176,7 +176,7 @@ test('a sheet focuses its first field and never drops a half-filled row', async 
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	const dialog = page.getByRole('dialog');
@@ -208,7 +208,7 @@ test('the closed assistant gives the shell no room to slide sideways', async ({
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 	const heading = page.getByRole('heading', { name: 'Lifts' });
 	await expect(heading).toBeVisible();
 	const before = await heading.boundingBox();
@@ -227,7 +227,7 @@ test('a sheet and the assistant keep room under their buttons', async ({
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 
 	const gapBelow = async (outer: Locator, inner: Locator): Promise<number> => {
 		await expect(inner).toBeVisible();
@@ -258,7 +258,7 @@ test('the title renames the table, and the table menu opens view settings and ad
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 	const dialog = page.getByRole('dialog');
 
 	await page.getByRole('heading', { name: 'Lifts' }).getByRole('button').click();
@@ -340,7 +340,7 @@ test('settings can be reached from the home and from a table', async ({
 	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Settings' }), 'not on its own page').toHaveCount(0);
 
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 	const more = page.getByRole('button', { name: 'More' });
 	if (test.info().project.name === 'phone') {
 		await more.click();
@@ -356,12 +356,12 @@ test('undo takes back the last change, and the keyboard changes the view', async
 }) => {
 	test.skip(test.info().project.name === 'phone', 'a phone has no keyboard shortcut');
 	void account;
-	const { lifts, entry } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(tablePath(lifts));
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 
 	await page.keyboard.press('Alt+2');
-	await expect(page).toHaveURL(new RegExp(`v=${entry}`, 'u'));
+	await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Entry')}$`, 'u'));
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await expect(page.getByText('2 rows')).toBeVisible();
@@ -372,7 +372,7 @@ test('undo takes back the last change, and the keyboard changes the view', async
 test('a number typed in a sheet stays and is saved', async ({ page, context, account }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	const reps = page.getByRole('dialog').getByLabel('Reps');
@@ -387,7 +387,7 @@ test('entry steps a value and adds the row', async ({ page, context, account }) 
 	void account;
 	const { lifts, entry } = await seedTwoTables(context.request);
 	await page.clock.install();
-	await page.goto(`/app/t/${lifts}?v=${entry}`);
+	await page.goto(tablePath(lifts, entry));
 
 	await page.getByRole('button', { name: 'Reps plus' }).click();
 	await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('9');
@@ -450,7 +450,7 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 				row('2026-10-24', 'Dip', null, null)
 			]).changes
 		);
-		return { path: `/app/t/${sets.id}?v=${sets.viewIds[1]}` };
+		return { path: tablePath(sets.id, sets.viewIds[1]) };
 	});
 	await page.goto(path);
 
@@ -475,7 +475,7 @@ test.describe('in another locale', () => {
 	test('numbers and dates follow the browser', async ({ page, context, account }) => {
 		void account;
 		const { lifts } = await seedTwoTables(context.request);
-		await page.goto(`/app/t/${lifts}`);
+		await page.goto(tablePath(lifts));
 		await expect(page.getByRole('gridcell', { name: '1234,5', exact: true })).toBeVisible();
 		await expect(page.getByRole('gridcell', { name: /30\. Okt/u })).toBeVisible();
 	});

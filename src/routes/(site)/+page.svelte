@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { HOME } from '#lib/client/nav.ts';
+	import { HOME } from '#lib/client/paths.ts';
 	import AssistantCards from '#lib/site/landing/AssistantCards.svelte';
 	import Stage from '#lib/site/landing/Stage.svelte';
 	import Versus from '#lib/site/landing/Versus.svelte';

@@ -189,13 +189,14 @@ export function createTable(
 	views?: (fieldIds: { id: string; type: FieldType }[]) => ViewSpec[]
 ): { id: string; fieldIds: string[]; viewIds: string[]; changes: Change[] } {
 	const id = newId('t');
+	const now = Date.now();
 	const changes: Change[] = [
 		{
 			id,
 			kind: 'table',
 			base: baseId,
 			parent: baseId,
-			set: { name: name.trim(), order: ws.nextOrder(baseId, 'table') }
+			set: { name: name.trim(), order: ws.nextOrder(baseId, 'table'), [CREATED]: now }
 		}
 	];
 
@@ -218,7 +219,13 @@ export function createTable(
 			kind: 'view',
 			base: baseId,
 			parent: id,
-			set: { name: spec.name, type: spec.type, order, config: spec.config ?? {} }
+			set: {
+				name: spec.name,
+				type: spec.type,
+				order,
+				config: spec.config ?? {},
+				[CREATED]: now + order / 1000
+			}
 		});
 		return viewId;
 	});
@@ -417,7 +424,8 @@ export function createView(
 					name: spec.name.trim(),
 					type: spec.type,
 					order: ws.nextOrder(tableId, 'view'),
-					config: spec.config ?? {}
+					config: spec.config ?? {},
+					[CREATED]: Date.now()
 				}
 			}
 		]

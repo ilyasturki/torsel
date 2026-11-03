@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, test } from './harness.ts';
+import { expect, script, seed, tablePath, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -106,7 +106,7 @@ test('every change applies at once, shows its before and after, and undoes alone
 		{ blocks: [{ type: 'text', text: 'Done.' }] },
 		{ blocks: [{ type: 'text', text: 'Noted.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await ask(page, `${key} log a deadlift, squat was 110, and drop reps`);
 
 	await expect(thread(page).getByText('Done.')).toBeVisible();
@@ -177,7 +177,7 @@ test('the request says what is on screen, and the assistant can open what it mad
 		{ blocks: [{ type: 'text', text: 'Ready.' }] },
 		{ blocks: [{ type: 'text', text: 'Settings it is.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await page.getByRole('gridcell', { name: 'Bench' }).click();
 	await page.getByRole('gridcell', { name: '5', exact: true }).click({ modifiers: ['Shift'] });
 	await openAsk(page);
@@ -213,7 +213,7 @@ test('past conversations list by title and date, rename, delete, and reopen wher
 		{ blocks: [{ type: 'text', text: 'First answer.' }] },
 		{ blocks: [{ type: 'text', text: 'Second answer.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await ask(page, `${key} first question`);
 	await expect(thread(page).getByText('First answer.')).toBeVisible();
 
@@ -266,7 +266,7 @@ test('a reply that failed or was stopped runs again from where it was', async ({
 		},
 		{ blocks: [{ type: 'text', text: 'Shorter now.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await ask(page, `${key} go`);
 
 	await expect(thread(page).getByRole('alert')).toHaveText(
@@ -323,7 +323,7 @@ test('editing the last message takes back what its turn did and asks again', asy
 		},
 		{ blocks: [{ type: 'text', text: 'Logged the row.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await ask(page, `${key} log a deadlift`);
 	await expect(thread(page).getByText('Logged the deadlift.')).toBeVisible();
 
@@ -367,7 +367,7 @@ test('files attach to a message, reach the model, import whole, and stay with th
 		},
 		{ blocks: [{ type: 'text', text: 'Imported.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await openAsk(page);
 	await panel(page)
 		.locator('input[type=file]')
@@ -417,7 +417,7 @@ test('the composer grows with its lines; Enter sends and Shift+Enter breaks a li
 	void account;
 	const { table } = await seedLifts(context.request);
 	const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Two lines.' }] }]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await openAsk(page);
 	const field = composer(page);
 	const one = (await field.boundingBox())?.height ?? 0;
@@ -488,7 +488,7 @@ test('a thread replays byte for byte after a reload, its words on the way to a t
 		{ blocks: [{ type: 'text', text: 'Two rows in **Lifts**.' }] },
 		{ blocks: [{ type: 'text', text: 'Still two.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await ask(page, `${key} how many`);
 	await expect(thread(page).locator('strong', { hasText: 'Lifts' })).toBeVisible();
 	await expect(thread(page).getByText('Reading first.')).toHaveCount(0);
@@ -523,7 +523,7 @@ test('a declined message leaves the model’s history, and what the turn did sta
 		{ blocks: [], stop: 'refusal' },
 		{ blocks: [{ type: 'text', text: 'Back on track.' }] }
 	]);
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await ask(page, `${key} the message that gets declined`);
 	await expect(thread(page).getByText('The assistant declined this request.')).toBeVisible();
 	await expect(thread(page).getByRole('button', { name: 'Retry' })).toHaveCount(0);
@@ -545,7 +545,7 @@ test('with no key on the server there is no entry at all, and the app still work
 		const response = await route.fetch();
 		await route.fulfill({ response, json: { ...(await response.json()), assistant: false } });
 	});
-	await page.goto(`/app/t/${table}`);
+	await page.goto(tablePath(table));
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 	await expect(page.getByRole('gridcell', { name: 'Bench' })).toBeVisible();
 	await expect(page.getByRole('button', { name: /^Ask/u })).toHaveCount(0);
