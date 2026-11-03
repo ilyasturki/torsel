@@ -66,7 +66,7 @@
 			<MenuItem icon="eye" onSelect={() => run(onviewsettings)}>View settings</MenuItem>
 		{/if}
 		<MenuItem icon="plus" onSelect={() => run(onnewview)}>New view</MenuItem>
-		<MenuItem icon="text" onSelect={rename}>Rename table</MenuItem>
+		<MenuItem icon="pencil" onSelect={rename}>Rename table</MenuItem>
 		<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>Import into this table</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={remove}>Delete table</MenuItem>
