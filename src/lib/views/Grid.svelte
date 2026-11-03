@@ -1062,9 +1062,8 @@
 		const header = target.closest<HTMLElement>('td[role="rowheader"]');
 		const cell =
 			cellFrom(target) ?? (header === null ? null : { r: Number(header.dataset.r), c: 0 });
-		if (cell === null) return;
+		if (cell === null || cell.r >= rows.length) return;
 		event.preventDefault();
-		if (cell.r >= rows.length) return;
 		commitDraft({ leaving: true });
 		const inside =
 			head !== null && cell.r >= top && cell.r <= bottom && cell.c >= left && cell.c <= right;
