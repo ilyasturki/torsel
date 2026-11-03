@@ -424,7 +424,6 @@ export function localeFormats(locale?: string) {
 		}
 	}
 
-	/** The marks around an amount that a field draws beside its input: a symbol, a sign or a unit. */
 	function affixes(field: FieldFormat): { prefix: string; suffix: string } {
 		if (field.type === 'currency') {
 			const parts = currencyFormat(currencyOf(field), false, null).formatToParts(1);
@@ -447,7 +446,6 @@ export function localeFormats(locale?: string) {
 		return { prefix: '', suffix: field.type === 'number' ? (field.unit ?? '') : '' };
 	}
 
-	/** What an input beside its affixes opens on: the editor's text without them. */
 	function bareText(field: FieldFormat, value: number): string {
 		if (field.type === 'currency') {
 			return currencyFormat(currencyOf(field), true, field.decimals ?? null)

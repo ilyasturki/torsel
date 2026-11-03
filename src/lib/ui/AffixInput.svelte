@@ -15,11 +15,8 @@
 	}: Omit<HTMLInputAttributes, 'value'> & {
 		value?: string;
 		ref?: HTMLInputElement;
-		/** A mark before the text, such as a currency symbol. */
 		prefix?: string;
-		/** A mark after the text, such as a unit or a percent sign. */
 		suffix?: string;
-		/** A control at the end of the field, inside its surface. */
 		end?: Snippet;
 	} = $props();
 </script>

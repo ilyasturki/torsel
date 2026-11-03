@@ -2,7 +2,6 @@ import type { FieldType } from '#lib/core/model.ts';
 import { fieldIcon } from '#lib/ui/field-icons.ts';
 import type { Option } from '#lib/ui/Select.svelte';
 
-/** Every type a person picks from, grouped by what the field holds. */
 export const TYPE_GROUPS: { name: string; types: [FieldType, string][] }[] = [
 	{
 		name: 'Text',

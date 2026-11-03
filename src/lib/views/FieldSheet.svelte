@@ -82,7 +82,6 @@
 			format: format()
 		});
 
-	/** The format the sheet's controls describe, for the type picked. */
 	function format(): Partial<Pick<FieldDef, FormatKey>> {
 		const stepValue = readNumber(step);
 		const options: Partial<Pick<FieldDef, FormatKey>> = {
@@ -122,7 +121,6 @@
 		return app.ws.fields(tableId).map((field) => field.id);
 	});
 
-	/** A rating's new scale can leave values off it, as a new type can. */
 	function rescaled(): boolean {
 		if (existing === undefined || type !== 'rating' || existing.type !== 'rating') return false;
 		const before = ratingScale(existing);

@@ -70,7 +70,6 @@
 		return [...clear, ...matching, ...create];
 	});
 
-	/** Several picks: an item goes in or out, and the list stays for the next. */
 	function toggle(item: Item): void {
 		const name = item.value;
 		if (name === null) return;

@@ -14,7 +14,6 @@
 		id
 	}: {
 		options: Named[];
-		/** The names picked, in the order they were. */
 		value: string[];
 		onchange: (value: string[]) => void;
 		/** Offers a new name, picked once made; left out, only the options can be picked. */

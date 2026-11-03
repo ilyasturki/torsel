@@ -71,7 +71,6 @@ export function hasChoices(type: FieldType): boolean {
 	return type === 'choice' || type === 'choices';
 }
 
-/** Held as one line of text a person can follow: a web address, a mailbox, a phone. */
 export function isContact(type: FieldType): boolean {
 	return type === 'url' || type === 'email' || type === 'phone';
 }

@@ -92,7 +92,6 @@ export function seedFixture(ws: Workspace, commit: (changes: Change[]) => void):
 	};
 }
 
-/** One row holding a value of every type, for each type's cell and input. */
 function seedTypes(
 	ws: Workspace,
 	commit: (changes: Change[]) => void,

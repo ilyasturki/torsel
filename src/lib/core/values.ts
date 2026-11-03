@@ -91,7 +91,6 @@ export function nowIso(now: Date = new Date()): string {
 	return `${todayIso(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
-/** What a new row starts with: today on a date, now on a date and time, else nothing. */
 export function freshValue(field: Pick<FieldFormat, 'type'>, now: Date = new Date()): Value {
 	if (field.type === 'date') {
 		return todayIso(now);
@@ -164,7 +163,6 @@ export function currencyOf(field: Pick<FieldFormat, 'currency'>): string {
 	return field.currency ?? 'EUR';
 }
 
-/** The currency a written amount names by its code or its symbol, or null. */
 export function currencyIn(raw: string): string | null {
 	const code = CODE.exec(raw)?.[1];
 	if (code !== undefined && (CURRENCIES as readonly string[]).includes(code)) {
@@ -327,7 +325,6 @@ export function isPhone(text: string): boolean {
 	return PHONE.test(text) && digits >= 3 && digits <= 20;
 }
 
-/** Where a URL, email or phone value leads. */
 export function hrefOf(type: FieldType, value: string): string {
 	if (type === 'email') {
 		return `mailto:${value}`;
@@ -340,7 +337,6 @@ export function hrefOf(type: FieldType, value: string): string {
 
 export const CHOICES_JOIN = ', ';
 
-/** A multiple choice written out: names split by commas or semicolons. */
 export function splitChoices(raw: string): string[] {
 	return [...new Set(raw.split(/[,;]/u).map((name) => name.trim()))].filter((name) => name !== '');
 }
