@@ -1,6 +1,6 @@
 import type { Named } from '../core/slug.ts';
 import { resolveSlug, slugsOf } from '../core/slug.ts';
-import { createdAt } from '../core/workspace.ts';
+import { createdAt, tableDef, viewDef } from '../core/workspace.ts';
 import { app } from './app.svelte.ts';
 import { viewToOpen } from './place.ts';
 
@@ -10,13 +10,13 @@ type Level = { items: Named[]; slugs: Map<string, string>; first: string | undef
 const handed = new Map<string, string>();
 const former = new Map<string, string>();
 
-function level(scope: string, real: Named[]): Level {
+// `ever` holds deleted ones too: a twin keeps its suffix when the older one goes.
+function level(scope: string, live: Named[], ever: Named[]): Level {
 	const at = (item: Named): number => {
 		const rec = app.ws.get(item.id);
 		return rec === undefined ? 0 : createdAt(rec);
 	};
-	const items = real.toSorted((a, b) => at(a) - at(b) || a.id.localeCompare(b.id));
-	const slugs = slugsOf(items);
+	const slugs = slugsOf(ever.toSorted((a, b) => at(a) - at(b) || a.id.localeCompare(b.id)));
 
 	for (const [id, slug] of slugs) {
 		const old = handed.get(`${scope}/${id}`);
@@ -24,20 +24,28 @@ function level(scope: string, real: Named[]): Level {
 		handed.set(`${scope}/${id}`, slug);
 	}
 
-	return { items, slugs, first: real[0]?.id };
+	return { items: live, slugs, first: live[0]?.id };
 }
 
 const tables = $derived.by(() => {
 	void app.version;
 	return level(
 		'',
-		app.ws.bases().flatMap((base) => app.ws.tables(base.id))
+		app.ws.bases().flatMap((base) => app.ws.tables(base.id)),
+		app.ws
+			.everChildren('', 'base')
+			.flatMap((base) => app.ws.everChildren(base.id, 'table').map(tableDef))
 	);
 });
 
 const views = $derived.by(() => {
 	void app.version;
-	return new Map(tables.items.map((table) => [table.id, level(table.id, app.ws.views(table.id))]));
+	return new Map(
+		tables.items.map((table) => [
+			table.id,
+			level(table.id, app.ws.views(table.id), app.ws.everChildren(table.id, 'view').map(viewDef))
+		])
+	);
 });
 
 function resolve(scope: string, segment: string, at: Level | undefined): string | undefined {

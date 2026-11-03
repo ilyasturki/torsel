@@ -92,6 +92,19 @@ test('two tables with one name each get their own address', async ({ page, conte
 		);
 	}
 	expect(shown.toSorted()).toEqual(['Boulder', 'Squat']);
+
+	const twin = hrefs.find((href) => href !== '/app/t/sets') ?? '';
+	await page.goto('/app/t/sets');
+	await page.getByRole('button', { name: 'More' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Delete table' }).click();
+	await expect(page).toHaveURL(/\/app$/u);
+	await expect(page.getByRole('main').getByRole('link', { name: /^Sets/u })).toHaveAttribute(
+		'href',
+		twin
+	);
+	await page.goto(twin);
+	await expect(page.getByRole('heading', { name: 'Sets' })).toBeVisible();
+	await expect(page).toHaveURL(at(twin));
 });
 
 test('an unknown address lands on the home with a word why', async ({ page, account }) => {

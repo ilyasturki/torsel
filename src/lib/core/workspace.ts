@@ -211,6 +211,20 @@ export class Workspace {
 		return out;
 	}
 
+	/** Deleted ones included: what a name once held stays held. */
+	public everChildren(parent: string, kind: Rec['kind']): Rec[] {
+		const out: Rec[] = [];
+
+		for (const id of this.children.get(`${parent}/${kind}`) ?? []) {
+			const rec = this.records.get(id);
+			if (rec !== undefined) {
+				out.push(rec);
+			}
+		}
+
+		return out;
+	}
+
 	public bases(): BaseDef[] {
 		return this.liveChildren('', 'base').map(baseDef).sort(byOrder);
 	}
