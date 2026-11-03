@@ -12,7 +12,7 @@
 	} from '#lib/core/actions.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
-	import { nowIso, parseDate, todayIso } from '#lib/core/values.ts';
+	import { nativeDateText, nowIso, parseDate, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
@@ -104,12 +104,6 @@
 
 	function stamp(field: FieldDef): string {
 		return field.type === 'datetime' ? nowIso() : todayIso();
-	}
-
-	function dateText(field: FieldDef, value: Value | undefined): string {
-		if (typeof value !== 'string') return '';
-		if (field.type === 'date') return value.slice(0, 10);
-		return value.length === 10 ? `${value}T00:00` : value;
 	}
 
 	function shown(field: FieldDef): Value {
@@ -409,7 +403,7 @@
 						class={input}
 						type={field.type === 'datetime' ? 'datetime-local' : 'date'}
 						aria-label={field.name}
-						value={dateText(field, value)}
+						value={nativeDateText(field, value)}
 						oninput={(event) => set(field, parseDate(event.currentTarget.value))}
 					/>
 				{:else if field.type === 'text'}
@@ -439,7 +433,7 @@
 					<input
 						class="{input} w-auto"
 						type={dateField.type === 'datetime' ? 'datetime-local' : 'date'}
-						value={dateText(dateField, values[dateField.id] ?? stamp(dateField))}
+						value={nativeDateText(dateField, values[dateField.id] ?? stamp(dateField))}
 						oninput={(event) => {
 							if (dateField) values[dateField.id] = parseDate(event.currentTarget.value);
 						}}

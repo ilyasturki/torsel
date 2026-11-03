@@ -4,7 +4,7 @@
 	import { updateRecord } from '#lib/core/actions.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { isContact, isNumeric } from '#lib/core/model.ts';
-	import { parseDate, ratingScale } from '#lib/core/values.ts';
+	import { nativeDateText, parseDate, ratingScale } from '#lib/core/values.ts';
 	import ChipPicker from '#lib/ui/ChipPicker.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Rating from '#lib/ui/Rating.svelte';
@@ -32,12 +32,6 @@
 			.map((row) => ({ id: row.id, title: app.ws.rowTitle(row.id) || row.id }))
 			.sort((a, b) => a.title.localeCompare(b.title));
 	});
-
-	function dateText(current: Value | undefined): string {
-		if (typeof current !== 'string') return '';
-		if (field.type === 'date') return current.slice(0, 10);
-		return current.length === 10 ? `${current}T00:00` : current;
-	}
 
 	function addChoice(name: string): void {
 		app.apply(
@@ -69,7 +63,7 @@
 		{id}
 		class={input}
 		type={field.type === 'datetime' ? 'datetime-local' : 'date'}
-		value={dateText(value)}
+		value={nativeDateText(field, value)}
 		oninput={(event) => (value = parseDate(event.currentTarget.value))}
 	/>
 {:else if field.type === 'choice'}

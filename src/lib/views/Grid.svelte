@@ -26,7 +26,7 @@
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import { freshValue, ratingScale } from '#lib/core/values.ts';
+	import { freshValue, nativeDateText, ratingScale } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -546,11 +546,7 @@
 
 	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
 		const value = row === undefined ? freshValue(field) : row.data[field.id];
-		if (native && typeof value === 'string') {
-			if (field.type === 'date') return value.slice(0, 10);
-			return value.length === 10 ? `${value}T00:00` : value;
-		}
-		return editText(field, value);
+		return native ? nativeDateText(field, value) : editText(field, value);
 	}
 
 	function toggleCheck(rowKey: string, field: FieldDef): void {
