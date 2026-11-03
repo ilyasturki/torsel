@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	export type ColumnAction =
-		'rename' | 'formula' | 'insert-left' | 'insert-right' | 'hide' | 'settings' | 'delete';
+		'rename' | 'formula' | 'insert-left' | 'insert-right' | 'hide' | 'fit' | 'settings' | 'delete';
 </script>
 
 <script lang="ts">
@@ -62,6 +62,7 @@
 		{ action: 'insert-right', label: 'Insert right', icon: 'arrow-right' },
 		'gap',
 		{ action: 'hide', label: 'Hide', icon: 'eye-off' },
+		{ action: 'fit', label: 'Fit all columns', icon: 'fit' },
 		{ action: 'settings', label: 'Field settings', icon: 'settings' },
 		'gap',
 		{ action: 'delete', label: 'Delete', icon: 'x' }

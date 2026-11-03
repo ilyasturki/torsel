@@ -1,2 +1,2 @@
-// The shell's New row button sits outside the grid it sends you to the end of.
-export const gridJump = $state({ blankRow: 0 });
+// The shell's buttons sit outside the grid they act on.
+export const gridJump = $state({ blankRow: 0, fitAll: 0 });

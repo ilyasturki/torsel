@@ -2,11 +2,12 @@
 	import { goto } from '$app/navigation';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, SETTINGS } from '#lib/client/nav.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
-	import type { TableDef } from '#lib/core/model.ts';
+	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import { wide } from '#lib/ui/media.svelte.ts';
@@ -18,12 +19,14 @@
 		open = $bindable(false),
 		anchor = null,
 		table,
+		view,
 		onviewsettings,
 		onnewview
 	}: {
 		open?: boolean;
 		anchor?: HTMLElement | null;
 		table: TableDef;
+		view?: ViewDef;
 		onviewsettings?: () => void;
 		onnewview: () => void;
 	} = $props();
@@ -51,6 +54,10 @@
 		renaming = false;
 	}
 
+	const fitAll = (): void => {
+		gridJump.fitAll += 1;
+	};
+
 	function remove(): void {
 		const label = `Table "${table.name}" deleted`;
 		const group = app.apply(deleteRecords(app.ws, [table.id]), label);
@@ -67,6 +74,10 @@
 		{/if}
 		<MenuItem icon="plus" onSelect={() => run(onnewview)}>New view</MenuItem>
 		<MenuItem icon="pencil" onSelect={rename}>Rename table</MenuItem>
+		{#if view?.type === 'grid'}
+			<MenuItem icon="fit" onSelect={() => run(fitAll)}>Fit all columns</MenuItem>
+		{/if}
+		<MenuSeparator />
 		<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>Import into this table</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={remove}>Delete table</MenuItem>
@@ -81,6 +92,11 @@
 			{/if}
 			<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
 			<Button variant="ghost" class="justify-start" onclick={rename}>Rename table</Button>
+			{#if view?.type === 'grid'}
+				<Button variant="ghost" class="justify-start" onclick={() => run(fitAll)}
+					>Fit all columns</Button
+				>
+			{/if}
 			<Button variant="ghost" class="justify-start" onclick={() => run(importHere)}
 				>Import into this table</Button
 			>

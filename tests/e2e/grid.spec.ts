@@ -3,7 +3,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { addField, createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import type { FieldSpec } from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
-import { columnMenu, expect, seed, tablePath, test, toastButton } from './harness.ts';
+import { columnMenu, expect, seed, tableMenu, tablePath, test, toastButton } from './harness.ts';
 
 const LONG = 'A value far longer than any column could ever show on one line of a grid';
 
@@ -1159,6 +1159,73 @@ test.describe('filling', () => {
 });
 
 test.describe('columns, by hand', () => {
+	test('fit all resets every width, from a column menu and the table menu', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly('a resize handle is for a mouse');
+		void account;
+		await open(page, (await seedPlain(context.request, 3)).path);
+		const width = async (name: string): Promise<number> =>
+			(await header(page, name).boundingBox())?.width ?? 0;
+		const fitted = await width('Name');
+
+		const widen = async (): Promise<void> => {
+			const box = await header(page, 'Name').locator('div[aria-hidden="true"]').boundingBox();
+			await page.mouse.move((box?.x ?? 0) + 1, (box?.y ?? 0) + 5);
+			await page.mouse.down();
+			await page.mouse.move((box?.x ?? 0) + 120, (box?.y ?? 0) + 5, { steps: 4 });
+			await page.mouse.up();
+			await expect.poll(() => width('Name')).toBeGreaterThan(fitted + 100);
+		};
+
+		await widen();
+		await columnMenu(page, 'Reps', 'Fit all columns');
+		await expect.poll(() => width('Name')).toBe(fitted);
+		await page.keyboard.press('Control+z');
+		await expect.poll(() => width('Name')).toBeGreaterThan(fitted + 100);
+
+		await tableMenu(page, 'Fit all columns');
+		await expect.poll(() => width('Name')).toBe(fitted);
+		await page.reload();
+		await expect.poll(() => width('Name')).toBe(fitted);
+	});
+
+	test('a saved width gives way to the fit on a phone too', async ({ page, context, account }) => {
+		test.skip(!isPhone(), 'the desktop resizes by hand above');
+		void account;
+		const { path } = await seed(context.request, (ws, commit) => {
+			const base = createBase(ws, 'Gym');
+			commit(base.changes);
+			const table = createTable(ws, base.id, 'Sets', [
+				{ name: 'Name', type: 'text' },
+				{ name: 'Reps', type: 'number' }
+			]);
+			commit(table.changes);
+			const view = ws.views(table.id)[0];
+			commit([
+				{
+					id: view.id,
+					kind: 'view',
+					base: base.id,
+					parent: table.id,
+					set: { config: { widths: { [table.fieldIds[1]]: 400 } } }
+				}
+			]);
+			commit(
+				insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat', [table.fieldIds[1]]: 5 }]).changes
+			);
+			return { path: `/app/t/${table.id}` };
+		});
+		await open(page, path);
+		await expect.poll(async () => (await header(page, 'Reps').boundingBox())?.width).toBe(400);
+		await tableMenu(page, 'Fit all columns');
+		await expect
+			.poll(async () => (await header(page, 'Reps').boundingBox())?.width ?? 0)
+			.toBeLessThan(200);
+	});
+
 	test('a column menu renames in place, retypes, inserts, hides and deletes', async ({
 		page,
 		context,

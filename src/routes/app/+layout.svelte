@@ -342,6 +342,7 @@
 			bind:open={menuOpen}
 			anchor={menuAnchor}
 			{table}
+			{view}
 			onviewsettings={() => (viewSettings = true)}
 			onnewview={() => (viewCreating = true)}
 		/>

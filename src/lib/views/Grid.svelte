@@ -267,6 +267,15 @@
 	});
 
 	$effect(() => {
+		if (gridJump.fitAll !== 0) {
+			untrack(() => {
+				gridJump.fitAll = 0;
+				fitAll();
+			});
+		}
+	});
+
+	$effect(() => {
 		if (!menuOpen) untrack(settleFilter);
 	});
 
@@ -901,6 +910,19 @@
 		}
 	}
 
+	function fitAll(): void {
+		const measure = fitMeasure();
+		if (measure !== null) {
+			const sample = sampleRows(allRows);
+			fitted = Object.fromEntries(
+				app.ws.fields(tableId).map((field) => [field.id, fitOf(field, sample, measure)])
+			);
+		}
+		if (Object.keys(view.config.widths ?? {}).length > 0) {
+			setConfig({ widths: {} }, 'Columns fitted');
+		}
+	}
+
 	function applyFill(from: Box, to: Box, series: boolean): void {
 		const fill = fillChanges(app.ws, tableId, fields, rows, computed, from, to, series);
 		if (fill.cells === 0) return;
@@ -991,6 +1013,8 @@
 			};
 		} else if (action === 'hide') {
 			setConfig({ hidden: [...(view.config.hidden ?? []), field.id] }, `${field.name} hidden`);
+		} else if (action === 'fit') {
+			fitAll();
 		} else {
 			const label = `Field "${field.name}" deleted`;
 			const group = app.apply(deleteRecords(app.ws, [field.id]), label);
