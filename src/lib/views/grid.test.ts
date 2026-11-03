@@ -318,7 +318,7 @@ describe('fitting a column', () => {
 		expect(fitWidth({ ...note, type: 'rating', name: 'A long score header' }, [''], measure)).toBe(
 			158
 		);
-		expect(fitWidth({ ...note, type: 'choices' }, ['Epic, Desert'], measure)).toBe(84 + 38 + 26);
+		expect(fitWidth({ ...note, type: 'choices' }, ['Epic, Desert'], measure)).toBe(84 + 32 + 26);
 	});
 
 	it('gives an empty column room to type in', () => {

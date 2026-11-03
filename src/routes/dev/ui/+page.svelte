@@ -977,11 +977,7 @@
 					<Button onclick={() => (typesOpen = true)}>Open every type</Button>
 				</Specimen>
 				<RowSheet bind:open={rowOpen} tableId={table} rowId={fixture.rows[0]} />
-				<RowSheet
-					bind:open={typesOpen}
-					tableId={fixture.types.table}
-					rowId={fixture.types.row}
-				/>
+				<RowSheet bind:open={typesOpen} tableId={fixture.types.table} rowId={fixture.types.row} />
 				<RowSheet bind:open={newRowOpen} tableId={table} />
 			</Section>
 

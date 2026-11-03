@@ -24,7 +24,7 @@
 {:else if field.type === 'choice'}
 	<Chip name={String(value)} color={colorOf(String(value))} />
 {:else if field.type === 'choices' && Array.isArray(value)}
-	<span class="flex min-w-0 items-center gap-3 overflow-hidden">
+	<span class="flex min-w-0 items-center gap-1 overflow-hidden">
 		{#each value as name, at (at)}
 			<span class="shrink-0"><Chip name={String(name)} color={colorOf(String(name))} /></span>
 		{/each}

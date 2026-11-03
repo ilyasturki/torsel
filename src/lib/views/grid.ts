@@ -293,8 +293,6 @@ export function sampleRows(rows: Rec[]): Rec[] {
 
 const CELL_PADDING = 26;
 const CHIP_MARK = 16;
-// The gap between two chips, less the ", " it replaces in the measured text.
-const CHIP_GAP = 6;
 // A small star and the pixel after it.
 const STAR = 15;
 const HEADER_MARKS = 18;
@@ -327,7 +325,7 @@ export function fitWidth(
 ): number {
 	const marks = (text: string): number =>
 		field.type === 'choices'
-			? text.split(CHOICES_JOIN).length * (CHIP_MARK + CHIP_GAP) - CHIP_GAP
+			? text.split(CHOICES_JOIN).length * CHIP_MARK
 			: hasChoices(field.type)
 				? CHIP_MARK
 				: 0;
