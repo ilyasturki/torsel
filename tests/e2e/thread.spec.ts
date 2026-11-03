@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, tablePath, test } from './harness.ts';
+import { expect, openTable, script, seed, tablePath, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -401,7 +401,7 @@ test('files attach to a message, reach the model, import whole, and stay with th
 	expect(told).toContain('date,kg\\n2026-01-1,70');
 
 	await seeTable(page);
-	await page.getByRole('link', { name: 'weigh-ins', exact: true }).click();
+	await openTable(page, 'weigh-ins');
 	await expect(page.getByText('30000 rows')).toBeVisible();
 
 	await page.reload();
