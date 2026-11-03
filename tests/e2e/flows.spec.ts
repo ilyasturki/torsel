@@ -4,6 +4,7 @@ import { createBase, createTable, createView, insertRows } from '../../src/lib/c
 import {
 	allTables,
 	cell,
+	columnMenu,
 	expect,
 	expectListed,
 	newAccount,
@@ -37,8 +38,7 @@ async function editCell(page: Page, from: string, to: string): Promise<void> {
 }
 
 async function openField(page: Page, name: string): Promise<Locator> {
-	await header(page, name).getByRole('button').click();
-	await page.getByRole('button', { name: 'Field settings' }).click();
+	await columnMenu(page, name, 'Field settings');
 	return page.getByRole('dialog', { name: 'Field', exact: true });
 }
 

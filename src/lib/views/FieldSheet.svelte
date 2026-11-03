@@ -27,7 +27,7 @@
 		open?: boolean;
 		tableId: string;
 		fieldId?: string | null;
-		preset?: { name: string; type: FieldType } | null;
+		preset?: { name: string; type: FieldType; at?: number } | null;
 	} = $props();
 
 	const TYPES = (
@@ -100,7 +100,7 @@
 			const field = fieldId === null ? undefined : app.ws.field(fieldId);
 			const wanted = untrack(() => preset);
 			name = field?.name ?? wanted?.name ?? '';
-			type = field?.type ?? wanted?.type ?? 'text';
+			type = wanted?.type ?? field?.type ?? 'text';
 			choices = field?.choices.map((choice) => ({ ...choice })) ?? [];
 			target = field?.target ?? '';
 			formula = field?.expr ? toDisplay(field.expr, app.ws.fields(tableId)) : '';
@@ -171,9 +171,14 @@
 		}
 
 		if (existing === undefined) {
-			const { changes } = addField(app.ws, tableId, { name: name.trim(), type });
+			const [made, ...moves] = addField(
+				app.ws,
+				tableId,
+				{ name: name.trim(), type },
+				preset?.at
+			).changes;
 			applyWithUndo(
-				[{ ...changes[0], set: { ...changes[0].set, ...set } }],
+				[{ ...made, set: { ...made.set, ...set } }, ...moves],
 				`Field "${name.trim()}" added`
 			);
 		} else {

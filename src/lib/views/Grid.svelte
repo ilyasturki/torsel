@@ -8,7 +8,13 @@
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
-	import { insertRows, reorder, updateRecord, updateRow } from '#lib/core/actions.ts';
+	import {
+		deleteRecords,
+		insertRows,
+		reorder,
+		updateRecord,
+		updateRow
+	} from '#lib/core/actions.ts';
 	import type {
 		Change,
 		FieldDef,
@@ -18,10 +24,13 @@
 		Value,
 		ViewDef
 	} from '#lib/core/model.ts';
+	import { CREATED } from '#lib/core/model.ts';
+	import { retypeField } from '#lib/core/retype.ts';
 	import { hasTime, nowIso, todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
+	import { input as inputStyle } from '#lib/ui/styles.ts';
 
 	import AddField from './AddField.svelte';
 	import CellValue from './CellValue.svelte';
@@ -45,8 +54,10 @@
 		timedColumn,
 		toTsv
 	} from './grid.ts';
+	import type { ColumnAction } from './GridColumnMenu.svelte';
 	import GridColumnMenu from './GridColumnMenu.svelte';
 	import GridPicker from './GridPicker.svelte';
+	import GridRowMenu from './GridRowMenu.svelte';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
@@ -90,12 +101,19 @@
 	let rowId = $state<string | null>(null);
 	let fieldOpen = $state(false);
 	let fieldId = $state<string | null>(null);
-	let preset = $state<{ name: string; type: FieldType } | null>(null);
+	let preset = $state<{ name: string; type: FieldType; at?: number } | null>(null);
 	let menuOpen = $state(false);
 	let menuField = $state<string | null>(null);
 	let menuAnchor = $state<HTMLElement | null>(null);
 	let liveFilter = $state<string | null>(null);
+	let renaming = $state<string | null>(null);
+	let renameDraft = $state('');
 	let formulaEdit = $state.raw<{ field: string; anchor: HTMLElement; typed: string } | null>(null);
+	let inserting = $state(false);
+	let insertAt = $state.raw<{ anchor: HTMLElement; at: number } | null>(null);
+	let rowMenuOpen = $state(false);
+	let point = $state({ x: 0, y: 0 });
+	let pointAnchor = $state<HTMLElement | null>(null);
 	let filling = $state.raw<Box | null>(null);
 
 	let fitted = $state.raw<Record<string, number>>({});
@@ -937,6 +955,138 @@
 		window.addEventListener('pointerup', onup);
 	}
 
+	// Set by a menu item that opens something of its own, run once the menu has let focus go.
+	let afterMenu: (() => void) | null = null;
+
+	function onmenuclosed(event: Event): void {
+		event.preventDefault();
+		const next = afterMenu;
+		afterMenu = null;
+		if (next === null) table?.focus({ preventScroll: true });
+		else next();
+	}
+
+	function columnAction(action: ColumnAction): void {
+		const field = menuFieldDef;
+		const anchor = menuAnchor;
+		if (field === undefined || anchor === null) return;
+		const index = app.ws.fields(tableId).findIndex((other) => other.id === field.id);
+		if (action === 'rename') {
+			afterMenu = () => {
+				renameDraft = field.name;
+				renaming = field.id;
+			};
+		} else if (action === 'formula') {
+			afterMenu = () => (formulaEdit = { field: field.id, anchor, typed: '' });
+		} else if (action === 'insert-left' || action === 'insert-right') {
+			afterMenu = () => {
+				insertAt = { anchor, at: index + (action === 'insert-right' ? 1 : 0) };
+				inserting = true;
+			};
+		} else if (action === 'settings') {
+			afterMenu = () => {
+				fieldId = field.id;
+				preset = null;
+				fieldOpen = true;
+			};
+		} else if (action === 'hide') {
+			setConfig({ hidden: [...(view.config.hidden ?? []), field.id] }, `${field.name} hidden`);
+		} else {
+			const label = `Field "${field.name}" deleted`;
+			const group = app.apply(deleteRecords(app.ws, [field.id]), label);
+			showToast(label, group?.id ?? null);
+		}
+	}
+
+	function retype(type: FieldType): void {
+		const field = menuFieldDef;
+		if (field === undefined) return;
+		if (type === 'link' || type === 'formula') {
+			afterMenu = () => {
+				fieldId = field.id;
+				preset = { name: field.name, type };
+				fieldOpen = true;
+			};
+			return;
+		}
+		const { changes, lost } = retypeField(
+			app.ws,
+			field.id,
+			{ type },
+			field.type === 'formula' ? computed : undefined
+		);
+		const label = `${field.name} retyped`;
+		const group = app.apply(changes, label);
+		showToast(
+			lost === 0 ? label : `${label}, ${lost} ${lost === 1 ? 'value' : 'values'} cleared`,
+			group?.id ?? null
+		);
+	}
+
+	function renameField(field: FieldDef): void {
+		const name = renameDraft.trim();
+		renaming = null;
+		if (name !== '' && name !== field.name) {
+			app.apply(updateRecord(app.ws, field.id, { name }), `Field "${name}" renamed`);
+		}
+		table?.focus({ preventScroll: true });
+	}
+
+	function onbodycontextmenu(event: MouseEvent): void {
+		const target = event.target as Element;
+		if (target.closest('input, textarea, thead') !== null) return;
+		const header = target.closest<HTMLElement>('td[role="rowheader"]');
+		const cell =
+			cellFrom(target) ?? (header === null ? null : { r: Number(header.dataset.r), c: 0 });
+		if (cell === null) return;
+		event.preventDefault();
+		if (cell.r >= rows.length) return;
+		commitDraft({ leaving: true });
+		const inside =
+			head !== null && cell.r >= top && cell.r <= bottom && cell.c >= left && cell.c <= right;
+		if (!inside) select(cell.r, cell.c);
+		point = { x: event.clientX, y: event.clientY };
+		rowMenuOpen = true;
+	}
+
+	function insertRow(below: boolean): void {
+		const near = rows[below ? Math.min(bottom, rows.length - 1) : Math.max(0, top)];
+		if (near === undefined) return;
+		const ordered = app.ws.rows(tableId);
+		const index = ordered.findIndex((row) => row.id === near.id);
+		const created = (row: Rec | undefined): number | undefined => {
+			const at = row?.data[CREATED];
+			return typeof at === 'number' ? at : undefined;
+		};
+		const here = created(near) ?? Date.now();
+		const next = created(ordered[index + (below ? 1 : -1)]);
+		const at = next === undefined ? here + (below ? 1 : -1) : (here + next) / 2;
+		const made = insertRows(app.ws, tableId, [todayDates()], at);
+		app.apply(made.changes, 'Row added');
+		flushSync();
+		selectPos(made.ids[0], fields[Math.max(0, headCol)]?.id ?? '');
+	}
+
+	function deleteRows(): void {
+		const ids = rangeRows().map((row) => row.id);
+		if (ids.length === 0) return;
+		const label = ids.length === 1 ? 'Row deleted' : `${ids.length} rows deleted`;
+		const group = app.apply(deleteRecords(app.ws, ids), label);
+		showToast(label, group?.id ?? null);
+		flushSync();
+		select(Math.min(Math.max(0, top), rows.length), Math.max(0, headCol));
+	}
+
+	async function copyRange(): Promise<void> {
+		const count = rangeRows().length * rangeFields().length;
+		try {
+			await navigator.clipboard.writeText(rangeTsv());
+			showToast(`Copied ${count} ${count === 1 ? 'cell' : 'cells'}`);
+		} catch {
+			showToast("Couldn't copy");
+		}
+	}
+
 	function dropIndex(clientX: number): number {
 		const box = (scroller as HTMLElement).getBoundingClientRect();
 		const inside = clientX - box.left;
@@ -1179,6 +1329,7 @@
 				onpointerdown={onbodypointerdown}
 				onmousedown={onbodymousedown}
 				onclick={onbodyclick}
+				oncontextmenu={onbodycontextmenu}
 			>
 				<colgroup>
 					<col style="width: {NUMBER_WIDTH}px" />
@@ -1210,22 +1361,53 @@
 									? 'left-11 z-30 border-r-rule-strong'
 									: 'z-20 border-r-rule-col'} {columnDrag?.field === field.id ? 'text-ink' : ''}"
 							>
-								<button
-									type="button"
-									class="absolute inset-0 flex items-center gap-1 px-3 whitespace-nowrap transition-colors motion hover:text-ink {numeric
-										? 'justify-end'
-										: field.type === 'check'
-											? 'justify-center'
-											: ''}"
-									onpointerdown={(event) => onheaderdown(event, field)}
-									onclick={(event) => openMenu(event, field)}
-								>
-									{#if field.type === 'formula'}<span>ƒ</span>{/if}
-									<span class="min-w-0 truncate">{field.name}</span>
-									{#if sorted !== null}
-										<Icon name={sorted === 'asc' ? 'arrow-up' : 'arrow-down'} class="size-3" />
-									{/if}
-								</button>
+								{#if renaming === field.id}
+									<input
+										{@attach (node: HTMLInputElement) => {
+											node.focus();
+											node.select();
+										}}
+										class="{inputStyle} absolute inset-0 h-full rounded-none font-medium"
+										aria-label="Name of {field.name}"
+										placeholder={field.name}
+										autocomplete="off"
+										bind:value={renameDraft}
+										onkeydown={(event) => {
+											if (event.key === 'Enter') {
+												event.preventDefault();
+												renameField(field);
+											} else if (event.key === 'Escape') {
+												event.preventDefault();
+												renaming = null;
+												table?.focus({ preventScroll: true });
+											}
+										}}
+										onblur={() => {
+											if (renaming === field.id) renameField(field);
+										}}
+									/>
+								{:else}
+									<button
+										type="button"
+										class="absolute inset-0 flex items-center gap-1 px-3 whitespace-nowrap transition-colors motion hover:text-ink {numeric
+											? 'justify-end'
+											: field.type === 'check'
+												? 'justify-center'
+												: ''}"
+										onpointerdown={(event) => onheaderdown(event, field)}
+										onclick={(event) => openMenu(event, field)}
+										oncontextmenu={(event) => {
+											event.preventDefault();
+											openMenu(event, field);
+										}}
+									>
+										{#if field.type === 'formula'}<span>ƒ</span>{/if}
+										<span class="min-w-0 truncate">{field.name}</span>
+										{#if sorted !== null}
+											<Icon name={sorted === 'asc' ? 'arrow-up' : 'arrow-down'} class="size-3" />
+										{/if}
+									</button>
+								{/if}
 								<div
 									aria-hidden="true"
 									class="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none hover:bg-tint-2 pointer-coarse:hidden"
@@ -1241,9 +1423,9 @@
 								{tableId}
 								bind:open={shell.addingField}
 								class="absolute inset-0 flex items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
-								onmore={(name, type) => {
+								onmore={(name, type, at) => {
 									fieldId = null;
-									preset = { name, type };
+									preset = { name, type, at };
 									fieldOpen = true;
 								}}
 							/>
@@ -1263,6 +1445,7 @@
 						<tr class="group" aria-rowindex={r + 2} data-fresh={fresh.has(row.id) || undefined}>
 							<td
 								role="rowheader"
+								data-r={r}
 								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
 							>
 								<button
@@ -1353,12 +1536,39 @@
 		if (menuFieldDef) sortBy(menuFieldDef, dir);
 	}}
 	onfilter={(text) => (liveFilter = text)}
-	onedit={() => {
-		fieldId = menuField;
-		preset = null;
-		fieldOpen = true;
-	}}
+	onretype={retype}
+	onaction={columnAction}
+	onCloseAutoFocus={onmenuclosed}
 />
+<div
+	bind:this={pointAnchor}
+	aria-hidden="true"
+	class="pointer-events-none fixed size-0"
+	style="left: {point.x}px; top: {point.y}px"
+></div>
+<GridRowMenu
+	bind:open={rowMenuOpen}
+	anchor={pointAnchor}
+	rows={rangeRows().length}
+	cells={rangeRows().length * rangeFields().length}
+	oninsert={insertRow}
+	ondelete={deleteRows}
+	oncopy={() => void copyRange()}
+	onCloseAutoFocus={onmenuclosed}
+/>
+{#if insertAt !== null}
+	<AddField
+		{tableId}
+		bind:open={inserting}
+		anchor={insertAt.anchor}
+		at={insertAt.at}
+		onmore={(name, type, at) => {
+			fieldId = null;
+			preset = { name, type, at };
+			fieldOpen = true;
+		}}
+	/>
+{/if}
 {#if formulaEdit !== null}
 	{@const edited = app.ws.field(formulaEdit.field)}
 	{#if edited !== undefined}

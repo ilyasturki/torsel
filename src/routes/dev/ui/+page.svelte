@@ -632,7 +632,7 @@
 						>New view</MenuItem
 					>
 					<MenuSub label="Move to" icon="arrow-right">
-						<MenuItem onSelect={() => (menuChoice = 'Moved to Gym')}>Gym</MenuItem>
+						<MenuItem checked onSelect={() => (menuChoice = 'Moved to Gym')}>Gym</MenuItem>
 						<MenuItem onSelect={() => (menuChoice = 'Moved to Money')}>Money</MenuItem>
 					</MenuSub>
 					<MenuItem icon="arrow-down" disabled>Export (disabled)</MenuItem>

@@ -2,6 +2,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import {
+	columnMenu,
 	expect,
 	expectListed,
 	redo,
@@ -57,8 +58,7 @@ async function undoAndRedoInToast(page: Page, before: Locator, after: Locator): 
 }
 
 async function openField(page: Page, name: string): Promise<Locator> {
-	await page.getByRole('columnheader', { name }).getByRole('button').click();
-	await page.getByRole('button', { name: 'Field settings' }).click();
+	await columnMenu(page, name, 'Field settings');
 	return page.getByRole('dialog');
 }
 

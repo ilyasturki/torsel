@@ -233,10 +233,12 @@ export function createTable(
 	return { id, fieldIds: made.map((field) => field.id), viewIds, changes };
 }
 
+/** Placed last, or at index `at` among the table's fields with the ones after it moved along. */
 export function addField(
 	ws: Workspace,
 	tableId: string,
-	spec: FieldSpec
+	spec: FieldSpec,
+	at?: number
 ): { id: string; changes: Change[] } {
 	const table = ws.table(tableId);
 	if (table === undefined) {
@@ -244,6 +246,15 @@ export function addField(
 	}
 
 	const id = newId('f');
+	const others = ws.fields(tableId).map((field) => field.id);
+	const place = at === undefined ? null : Math.max(0, Math.min(at, others.length));
+	const moves =
+		place === null
+			? []
+			: others.flatMap((other, index) => {
+					const order = index < place ? index : index + 1;
+					return ws.live(other)?.data.order === order ? [] : updateRecord(ws, other, { order });
+				});
 
 	return {
 		id,
@@ -253,8 +264,9 @@ export function addField(
 				kind: 'field',
 				base: table.base,
 				parent: tableId,
-				set: fieldSet(spec, ws.nextOrder(tableId, 'field'))
-			}
+				set: fieldSet(spec, place ?? ws.nextOrder(tableId, 'field'))
+			},
+			...moves
 		]
 	};
 }

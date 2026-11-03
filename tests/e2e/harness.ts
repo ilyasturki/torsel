@@ -79,6 +79,18 @@ export async function tableMenu(page: Page, item: string): Promise<void> {
 		.click();
 }
 
+/** An item of an anchored menu from `sm` up, a sheet's button on a phone. */
+export const menuItem = (page: Page, item: string): Locator =>
+	page
+		.getByRole('menuitem', { name: item, exact: true })
+		.or(page.getByRole('dialog').getByRole('button', { name: item, exact: true }));
+
+/** Picks from a column header's menu. */
+export async function columnMenu(page: Page, column: string, item: string): Promise<void> {
+	await page.getByRole('columnheader', { name: column, exact: true }).getByRole('button').click();
+	await menuItem(page, item).click();
+}
+
 /** Picks an option of the app's Select, found by its label. */
 export async function pick(select: Locator, option: string | RegExp): Promise<void> {
 	await select.click();

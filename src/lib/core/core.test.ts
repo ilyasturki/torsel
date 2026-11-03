@@ -163,6 +163,25 @@ describe('workspace', () => {
 		expect(ws.bases()).toHaveLength(0);
 		expect(ws.table(table.id)).toBeUndefined();
 	});
+
+	it('adds a field at a place among the others, last without one', () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const base = createBase(ws, 'B');
+		apply(ws, hlc, base.changes);
+		const table = createTable(ws, base.id, 'T', [
+			{ name: 'A', type: 'text' },
+			{ name: 'B', type: 'text' }
+		]);
+		apply(ws, hlc, table.changes);
+		const names = (): string[] => ws.fields(table.id).map((field) => field.name);
+
+		apply(ws, hlc, addField(ws, table.id, { name: 'Between', type: 'text' }, 1).changes);
+		expect(names()).toEqual(['A', 'Between', 'B']);
+		apply(ws, hlc, addField(ws, table.id, { name: 'First', type: 'text' }, 0).changes);
+		apply(ws, hlc, addField(ws, table.id, { name: 'Last', type: 'text' }).changes);
+		expect(names()).toEqual(['First', 'A', 'Between', 'B', 'Last']);
+	});
 });
 
 describe('home base', () => {

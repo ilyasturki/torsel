@@ -3,7 +3,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { addField, createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
 import type { FieldSpec } from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
-import { expect, seed, tablePath, test, toastButton } from './harness.ts';
+import { columnMenu, expect, seed, tablePath, test, toastButton } from './harness.ts';
 
 const LONG = 'A value far longer than any column could ever show on one line of a grid';
 
@@ -719,7 +719,7 @@ test.describe('columns', () => {
 		await header(page, 'Reps').getByRole('button').click();
 		await page.keyboard.press('Escape');
 		await expect(names).toHaveText(['Name', 'Reps', 'Note']);
-		await expect(page.getByRole('button', { name: 'Sort ascending' })).toHaveCount(0);
+		await expect(page.getByRole('menuitem', { name: 'Sort ascending' })).toHaveCount(0);
 
 		const note = await header(page, 'Note').boundingBox();
 		await page.mouse.move((reps?.x ?? 0) + 10, (reps?.y ?? 0) + 10);
@@ -730,7 +730,7 @@ test.describe('columns', () => {
 		await page.mouse.up();
 		await expect(names).toHaveText(['Name', 'Note', 'Reps']);
 		await expect(at(page, 0, 2)).toHaveText('1');
-		await expect(page.getByRole('button', { name: 'Sort ascending' })).toHaveCount(0);
+		await expect(page.getByRole('menuitem', { name: 'Sort ascending' })).toHaveCount(0);
 
 		await page.reload();
 		await expect(names).toHaveText(['Name', 'Note', 'Reps']);
@@ -880,8 +880,7 @@ test.describe('scale', () => {
 		await page.keyboard.press('Control+z');
 		await expect(page.getByText('10001 rows')).toBeVisible();
 
-		await header(page, 'Reps').getByRole('button').click();
-		await page.getByRole('button', { name: 'Sort descending' }).click();
+		await columnMenu(page, 'Reps', 'Sort descending');
 		await expect(at(page, 0, 1)).toHaveText('10,000');
 	});
 });
@@ -893,16 +892,14 @@ test.describe('sorting', () => {
 		const reps = header(page, 'Reps');
 		await expect(at(page, 0, 1)).toHaveText('1');
 
-		await reps.getByRole('button').click();
-		await page.getByRole('button', { name: 'Sort descending' }).click();
+		await columnMenu(page, 'Reps', 'Sort descending');
 		await expect(at(page, 0, 1)).toHaveText('5');
 		await expect(reps).toHaveAttribute('aria-sort', 'descending');
 
 		await page.reload();
 		await expect(at(page, 0, 1)).toHaveText('5');
 
-		await reps.getByRole('button').click();
-		await page.getByRole('button', { name: 'Clear sort' }).click();
+		await columnMenu(page, 'Reps', 'Clear sort');
 		await expect(at(page, 0, 1)).toHaveText('1');
 		await expect(reps).not.toHaveAttribute('aria-sort', /./u);
 	});
@@ -910,18 +907,15 @@ test.describe('sorting', () => {
 	test('blank values stay last whichever way it sorts', async ({ page, context, account }) => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);
-		const kg = header(page, 'Kg');
 
 		await at(page, 0, 1).dblclick();
 		await editor(page).fill('');
 		await editor(page).press('Enter');
 		await expect(at(page, 0, 1)).toHaveText('');
 
-		await kg.getByRole('button').click();
-		await page.getByRole('button', { name: 'Sort ascending' }).click();
+		await columnMenu(page, 'Kg', 'Sort ascending');
 		await expect(at(page, 2, 1)).toHaveText('');
-		await kg.getByRole('button').click();
-		await page.getByRole('button', { name: 'Sort descending' }).click();
+		await columnMenu(page, 'Kg', 'Sort descending');
 		await expect(at(page, 0, 1)).toHaveText('30');
 		await expect(at(page, 2, 1)).toHaveText('');
 	});
@@ -1165,6 +1159,47 @@ test.describe('filling', () => {
 });
 
 test.describe('columns, by hand', () => {
+	test('a column menu renames in place, retypes, inserts, hides and deletes', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+		const names = page.locator('thead th[scope="col"]');
+		await expect(names).toHaveText(['Exercise', 'Kg', 'Style', 'Done', 'ƒ Volume']);
+
+		await columnMenu(page, 'Exercise', 'Rename');
+		const rename = page.getByRole('textbox', { name: 'Name of Exercise' });
+		await expect(rename).toBeFocused();
+		await rename.fill('Lift');
+		await rename.press('Enter');
+		await expect(names).toHaveText(['Lift', 'Kg', 'Style', 'Done', 'ƒ Volume']);
+
+		await columnMenu(page, 'Kg', 'Insert left');
+		const adding = page.getByRole('dialog', { name: 'Add a field' });
+		await adding.getByRole('textbox', { name: 'Field name' }).fill('Sets');
+		await adding.getByRole('textbox', { name: 'Field name' }).press('Enter');
+		await expect(names).toHaveText(['Lift', 'Sets', 'Kg', 'Style', 'Done', 'ƒ Volume']);
+
+		await columnMenu(page, 'Style', 'Hide');
+		await expect(names).toHaveText(['Lift', 'Sets', 'Kg', 'Done', 'ƒ Volume']);
+		await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+		await expect(names).toHaveText(['Lift', 'Sets', 'Kg', 'Style', 'Done', 'ƒ Volume']);
+
+		await columnMenu(page, 'Done', 'Delete');
+		await expect(names).toHaveText(['Lift', 'Sets', 'Kg', 'Style', 'ƒ Volume']);
+
+		if (!isPhone()) {
+			await header(page, 'Kg').click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Type' }).hover();
+			await page.getByRole('menuitem', { name: 'Text' }).click();
+			await expect(page.getByRole('status')).toContainText('Kg retyped');
+			await expect(at(page, 0, 2)).toHaveText('10');
+			await expect(at(page, 0, 2).locator('div').first()).not.toHaveClass(/justify-end/u);
+		}
+	});
+
 	test('the blank row and the editors show each field name until filled', async ({
 		page,
 		context,
@@ -1185,5 +1220,62 @@ test.describe('columns, by hand', () => {
 		await page.getByRole('button', { name: 'Add row' }).click();
 		const sheet = page.getByRole('dialog', { name: 'New row' });
 		await expect(sheet.getByPlaceholder('Kg', { exact: true })).toBeVisible();
+	});
+});
+
+test.describe('rows, by hand', () => {
+	test('a right-click inserts above and below, copies and deletes the selected rows', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly('a right-click belongs to the desktop');
+		void account;
+		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		await open(page, (await seedLifts(context.request)).path);
+		const first = (count: number): Promise<string[]> => column(page, 0, count);
+
+		await at(page, 1, 1).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert row above' }).click();
+		await expect.poll(() => first(4)).toEqual(['Exercise 1', '', 'Exercise 2', 'Exercise 3']);
+		await expect(at(page, 1, 1)).toHaveAttribute('aria-selected', 'true');
+
+		await at(page, 3, 0).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert row below' }).click();
+		await expect.poll(() => first(5)).toEqual(['Exercise 1', '', 'Exercise 2', 'Exercise 3', '']);
+
+		await at(page, 0, 0).click();
+		await at(page, 0, 1).click({ modifiers: ['Shift'] });
+		await at(page, 0, 1).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Copy 2 cells' }).click();
+		await expect
+			.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+			.toBe('Exercise 1\t10');
+
+		await at(page, 2, 0).click();
+		await at(page, 3, 0).click({ modifiers: ['Shift'] });
+		await at(page, 2, 0).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Delete 2 rows' }).click();
+		await expect.poll(() => first(3)).toEqual(['Exercise 1', '', '']);
+		await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+		await expect.poll(() => first(5)).toEqual(['Exercise 1', '', 'Exercise 2', 'Exercise 3', '']);
+	});
+
+	test('a long press opens the row actions on a phone', async ({ page, context, account }) => {
+		test.skip(!isPhone(), 'the desktop right-clicks above');
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+		await at(page, 1, 0).dispatchEvent('contextmenu', { bubbles: true, cancelable: true });
+		const sheet = page.getByRole('dialog', { name: 'Row' });
+		await sheet.getByRole('button', { name: 'Insert row above' }).click();
+		await expect
+			.poll(() => column(page, 0, 4))
+			.toEqual(['Exercise 1', '', 'Exercise 2', 'Exercise 3']);
+		await at(page, 2, 0).dispatchEvent('contextmenu', { bubbles: true, cancelable: true });
+		await page
+			.getByRole('dialog', { name: 'Row' })
+			.getByRole('button', { name: 'Delete row' })
+			.click();
+		await expect.poll(() => column(page, 0, 3)).toEqual(['Exercise 1', '', 'Exercise 3']);
 	});
 });

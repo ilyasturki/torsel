@@ -16,12 +16,18 @@
 		tableId,
 		open = $bindable(false),
 		class: extra = '',
+		anchor = null,
+		at,
 		onmore
 	}: {
 		tableId: string;
 		open?: boolean;
 		class?: string;
-		onmore: (name: string, type: FieldType) => void;
+		/** Opens from this element instead of its own "+" button. */
+		anchor?: HTMLElement | null;
+		/** Where the new field goes among the table's fields; last when left out. */
+		at?: number;
+		onmore: (name: string, type: FieldType, at: number | undefined) => void;
 	} = $props();
 
 	const AUTO = 'auto';
@@ -54,21 +60,26 @@
 		}
 
 		if (type === 'choice' || type === 'link' || type === 'formula') {
-			onmore(label, type);
+			onmore(label, type, at);
 			name = '';
 			type = AUTO;
 			open = false;
 			return;
 		}
 
-		const { changes } = addField(app.ws, tableId, {
-			name: label,
-			type: type === AUTO ? 'text' : type,
-			auto: type === AUTO
-		});
+		const { changes } = addField(
+			app.ws,
+			tableId,
+			{ name: label, type: type === AUTO ? 'text' : type, auto: type === AUTO },
+			at
+		);
 		applyWithUndo(changes, `Field "${label}" added`);
 		name = '';
 		type = AUTO;
+		if (anchor !== null) {
+			open = false;
+			return;
+		}
 		field?.focus();
 		void tick().then(() => {
 			const nearest = { block: 'nearest', inline: 'nearest' } as const;
@@ -79,14 +90,17 @@
 </script>
 
 <Popover.Root bind:open>
-	<Popover.Trigger bind:ref={trigger} class={extra} aria-label="Add a field">
-		<Icon name="plus" />
-	</Popover.Trigger>
+	{#if anchor === null}
+		<Popover.Trigger bind:ref={trigger} class={extra} aria-label="Add a field">
+			<Icon name="plus" />
+		</Popover.Trigger>
+	{/if}
 	<Popover.Portal>
 		<Popover.Content
 			role="dialog"
 			aria-label="Add a field"
-			align="end"
+			customAnchor={anchor}
+			align={anchor === null ? 'end' : 'start'}
 			sideOffset={4}
 			collisionPadding={8}
 			sticky="always"
