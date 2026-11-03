@@ -1,6 +1,7 @@
 import { newId } from './ids.ts';
 import type {
 	Change,
+	ChartConfig,
 	Choice,
 	FieldDef,
 	FieldType,
@@ -179,6 +180,16 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 
 export function chartAxis(fields: FieldDef[], config: ViewConfig): string | null {
 	return config.x ?? fields.find((field) => field.type === 'date')?.id ?? fields[0]?.id ?? null;
+}
+
+/** The chart a view draws: its own settings over the defaults. */
+export function chartSetup(fields: FieldDef[], config: ViewConfig): ChartConfig {
+	return {
+		...config,
+		x: chartAxis(fields, config),
+		kind: config.kind ?? 'bar',
+		agg: config.agg ?? 'count'
+	};
 }
 
 export function createTable(

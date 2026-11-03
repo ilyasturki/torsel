@@ -2,7 +2,8 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatMonth, formatNumber } from '#lib/client/format.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
-	import { chartAxis } from '#lib/core/actions.ts';
+	import { chartSetup } from '#lib/core/actions.ts';
+	import { headline, totalled } from '#lib/core/chart.ts';
 	import type { ViewDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { strongColor } from '#lib/ui/colors.ts';
@@ -17,8 +18,7 @@
 
 	const config = $derived.by(() => {
 		void app.version;
-		const x = chartAxis(app.ws.fields(tableId), view.config);
-		return { ...view.config, x, kind: view.config.kind ?? 'bar', agg: view.config.agg ?? 'count' };
+		return chartSetup(app.ws.fields(tableId), view.config);
 	});
 
 	const data = $derived.by(() => {
@@ -120,9 +120,7 @@
 	}
 
 	const byDate = $derived(xField?.type === 'date');
-	const totalled = $derived(
-		!byDate && config.kind === 'bar' && (config.agg === 'sum' || config.agg === 'count')
-	);
+	const total = $derived(totalled(config, byDate));
 
 	const per = $derived(
 		byDate && config.bucket === 'week'
@@ -131,7 +129,7 @@
 				? 'per month'
 				: byDate
 					? ''
-					: `${totalled ? 'by' : 'per'} ${(data?.xLabel ?? '').toLowerCase()}`
+					: `${total ? 'by' : 'per'} ${(data?.xLabel ?? '').toLowerCase()}`
 	);
 	const ticks = $derived([yMin, (yMin + yMax.max) / 2, yMax.max]);
 	const xTicks = $derived(
@@ -140,20 +138,7 @@
 			: [0, Math.floor((xs.length - 1) / 2), xs.length - 1]
 	);
 
-	const latest = $derived.by(() => {
-		const last = xs.at(-1);
-		if (last === undefined) return null;
-		if (totalled) {
-			return { x: '', y: [...stacked.values()].reduce((sum, value) => sum + value, 0) };
-		}
-		return {
-			x: last,
-			y:
-				config.kind === 'bar'
-					? (stacked.get(last) ?? 0)
-					: (data?.points.filter((point) => point.x === last).at(-1)?.y ?? 0)
-		};
-	});
+	const latest = $derived(data === null ? null : headline(data, config, byDate));
 </script>
 
 <div class="flex min-h-full flex-col gap-1 p-6 max-sm:p-4">

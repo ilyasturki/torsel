@@ -65,6 +65,29 @@ export function chartQuery(ws: Workspace, tableId: string, config: ChartConfig):
 	return `${grouped} order by 1`;
 }
 
+/** Bars that add up across something other than time lead with their grand total. */
+export function totalled(config: ChartConfig, byDate: boolean): boolean {
+	return !byDate && config.kind === 'bar' && (config.agg === 'sum' || config.agg === 'count');
+}
+
+/** The number a chart leads with: its value at the latest x, else its grand total; `x` is empty for a total. */
+export function headline(
+	data: ChartData,
+	config: ChartConfig,
+	byDate: boolean
+): { x: string; y: number } | null {
+	const last = data.points.at(-1)?.x;
+	if (last === undefined) {
+		return null;
+	}
+	const sum = (points: ChartPoint[]): number => points.reduce((total, point) => total + point.y, 0);
+	if (totalled(config, byDate)) {
+		return { x: '', y: sum(data.points) };
+	}
+	const latest = data.points.filter((point) => point.x === last);
+	return { x: last, y: config.kind === 'bar' ? sum(latest) : (latest.at(-1)?.y ?? 0) };
+}
+
 export function chartData(
 	engine: Engine,
 	ws: Workspace,
