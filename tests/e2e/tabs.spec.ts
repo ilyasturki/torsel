@@ -87,7 +87,7 @@ test('history a stale tab held never brings back what the other undid', async ({
 
 	await page.reload();
 	await askButton(page).click();
-	await expect(page.getByTestId('thread').getByText('Undone', { exact: true })).toBeVisible();
+	await expect(page.getByTestId('thread').locator('[data-status="undone"]')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await expect(redoButton(page)).toBeDisabled();
 });
@@ -100,11 +100,11 @@ test('a decision in one tab reaches the thread open in the other', async ({
 	await askAddsDeadlift(page, context.request);
 	const other = await secondTab(page, context, pageErrors);
 	await askButton(other).click();
-	await expect(other.getByTestId('thread').getByText('Applied', { exact: true })).toBeVisible();
+	await expect(other.getByTestId('thread').locator('[data-status="applied"]')).toBeVisible();
 
 	await page.getByTestId('thread').getByRole('button', { name: 'Undo' }).click();
 
-	await expect(other.getByTestId('thread').getByText('Undone', { exact: true })).toBeVisible();
+	await expect(other.getByTestId('thread').locator('[data-status="undone"]')).toBeVisible();
 });
 
 test('two tabs editing one row, with no server to mend it, keep both edits on disk', async ({

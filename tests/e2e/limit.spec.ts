@@ -49,8 +49,8 @@ test('past the daily limit a prompt never reaches the model, and the thread says
 	await panel.getByRole('button', { name: 'New', exact: true }).click();
 	await ask(page, 'a fresh start');
 	await expect(rows.getByRole('alert')).toHaveText(REFUSED);
-	await panel.getByRole('button', { name: 'Threads' }).click();
-	await expect(panel.getByRole('button', { name: /question 1/u })).toBeVisible();
+	await panel.getByRole('button', { name: 'History' }).click();
+	await expect(panel.getByRole('button', { name: /^script-.* question 1/u })).toBeVisible();
 	await expect(panel.getByRole('button', { name: /a fresh start/u })).toHaveCount(0);
 
 	await panel.getByRole('button', { name: 'Close' }).click();

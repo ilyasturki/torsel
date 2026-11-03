@@ -82,7 +82,7 @@ test('the assistant offers sign-in once a server is connected, and not before', 
 	await page.getByRole('button', { name: /^Ask/u }).click();
 
 	const panel = page.locator('aside[aria-label="Ask"]');
-	await expect(panel.getByRole('link', { name: 'Sign in to use it' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Sign in to use the assistant' })).toBeVisible();
 	await expect(panel.getByPlaceholder('Ask about your tables')).toHaveCount(0);
 });
 

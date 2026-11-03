@@ -217,25 +217,27 @@ test('what the assistant applied undoes after a reload, and the model hears', as
 	await expect(page.getByText('2 rows')).toBeVisible();
 	await page.reload();
 	await ask.click();
-	await expect(thread.getByText('Applied', { exact: true })).toBeVisible();
+	await expect(thread.locator('[data-status="applied"]')).toBeVisible();
 	await close.click();
 
 	await undoButton(page).first().click();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await ask.click();
-	await expect(thread.getByText('Undone', { exact: true })).toBeVisible();
+	await expect(thread.locator('[data-status="undone"]')).toBeVisible();
 
 	await page.getByPlaceholder('Ask about your tables').fill(`${key} what is left`);
 	await page.getByRole('button', { name: 'Send' }).click();
 	await expect(thread.getByText('Understood.')).toBeVisible();
 	const seen = await context.request.get(`${process.env.TORSEL_TEST_FAKE}/__seen?key=${key}`);
-	expect(JSON.stringify((await seen.json()).requests.at(-1).messages)).toContain('Undone: ');
+	expect(JSON.stringify((await seen.json()).requests.at(-1).messages)).toContain(
+		'Undone by the person since your last reply'
+	);
 	await close.click();
 
 	await redoButton(page).click();
 	await expect(page.getByText('2 rows')).toBeVisible();
 	await ask.click();
-	await expect(thread.getByText('Applied', { exact: true })).toBeVisible();
+	await expect(thread.locator('[data-status="applied"]')).toBeVisible();
 });
 
 test('the history survives a reload', async ({ page }) => {

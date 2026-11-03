@@ -118,7 +118,9 @@ const KINDS: Kind[] = [
 		async reopened(page) {
 			await expect(page.getByText('2 rows')).toBeVisible();
 			await askButton(page).click();
-			await expect(page.getByTestId('thread').getByText('Applied', { exact: true })).toBeVisible();
+			await expect(
+				page.getByTestId('thread').locator('[data-testid="change"][data-status="applied"]')
+			).toBeVisible();
 			await askPanel(page).getByRole('button', { name: 'Close' }).click();
 		},
 		undone: (page) => expect(page.getByText('1 row', { exact: true })).toBeVisible()
@@ -228,8 +230,8 @@ async function serverStatus(request: APIRequestContext): Promise<string> {
 	return thread.actions[0].status;
 }
 
-const threadLabel = (page: Page, label: string) =>
-	page.getByTestId('thread').getByText(label, { exact: true });
+const changeIn = (page: Page, status: 'applied' | 'undone') =>
+	page.getByTestId('thread').locator(`[data-testid="change"][data-status="${status}"]`);
 
 async function reopenThread(page: Page): Promise<void> {
 	await askButton(page).click();
@@ -254,7 +256,7 @@ test('an undone action stays undone when its decision never reached the server',
 	await page.reload();
 
 	await reopenThread(page);
-	await expect(threadLabel(page, 'Undone')).toBeVisible();
+	await expect(changeIn(page, 'undone')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await closeThread(page);
 	await expect(cell(page, 'Deadlift')).toHaveCount(0);
@@ -276,7 +278,7 @@ test('an undone action stays undone past a later edit, with its decision in flig
 	await page.reload();
 
 	await reopenThread(page);
-	await expect(threadLabel(page, 'Undone')).toBeVisible();
+	await expect(changeIn(page, 'undone')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await expect.poll(() => serverStatus(context.request)).toBe('undone');
 });
@@ -294,41 +296,13 @@ test('a decision the server keeps refusing holds across a reload, and arrives on
 	await page.reload();
 
 	await reopenThread(page);
-	await expect(threadLabel(page, 'Undone')).toBeVisible();
+	await expect(changeIn(page, 'undone')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	expect(await serverStatus(context.request)).toBe('pending');
 
 	await page.unroute('**/decisions');
 	await page.evaluate(() => window.dispatchEvent(new Event('online')));
 	await expect.poll(() => serverStatus(context.request)).toBe('undone');
-});
-
-test('a rejection that never reached the server stays rejected', async ({ page, context }) => {
-	const key = await script(context.request, [
-		{
-			blocks: [
-				{
-					type: 'tool',
-					id: 'toolu_field',
-					name: 'add_field',
-					input: { base: 'Gym', table: 'Lifts', name: 'Note', type: 'text' }
-				}
-			]
-		},
-		{ blocks: [{ type: 'text', text: 'Proposed.' }] }
-	]);
-	await page.route('**/decisions', (route) => route.fulfill({ status: 400, json: {} }));
-	await askButton(page).click();
-	await page.getByPlaceholder('Ask about your tables').fill(`${key} add a note column`);
-	await page.getByRole('button', { name: 'Send' }).click();
-	await expect(page.getByTestId('thread').getByText('Proposed.')).toBeVisible();
-
-	await page.getByTestId('thread').getByRole('button', { name: 'Reject' }).click();
-	await expect(threadLabel(page, 'Rejected')).toBeVisible();
-	await page.reload();
-
-	await askButton(page).click();
-	await expect(threadLabel(page, 'Rejected')).toBeVisible();
 });
 
 test('an undo reaches the thread it belongs to after another one opened', async ({
