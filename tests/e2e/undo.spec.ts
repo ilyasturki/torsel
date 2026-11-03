@@ -59,7 +59,7 @@ async function undoAndRedoInToast(page: Page, before: Locator, after: Locator): 
 
 async function openField(page: Page, name: string): Promise<Locator> {
 	await columnMenu(page, name, 'Field settings');
-	return page.getByRole('dialog');
+	return page.getByRole('dialog', { name: 'Field', exact: true });
 }
 
 test.beforeEach(async ({ page, context, account }) => {
