@@ -8,6 +8,7 @@ export type Fixture = {
 	fields: FieldDef[];
 	rows: string[];
 	views: { grid: string; entry: string; list: string; chart: string };
+	types: { table: string; row: string };
 };
 
 /** Real records in memory, never saved: what /dev/ui renders its views on. */
@@ -86,6 +87,73 @@ export function seedFixture(ws: Workspace, commit: (changes: Change[]) => void):
 		table: sets.id,
 		fields: ws.fields(sets.id),
 		rows: rows.ids,
-		views: { grid: sets.viewIds[0], entry: sets.viewIds[1], list: list.id, chart: chart.id }
+		views: { grid: sets.viewIds[0], entry: sets.viewIds[1], list: list.id, chart: chart.id },
+		types: seedTypes(ws, commit, base.id, exercises.id, lifts.ids[0])
 	};
+}
+
+/** One row holding a value of every type, for each type's cell and input. */
+function seedTypes(
+	ws: Workspace,
+	commit: (changes: Change[]) => void,
+	baseId: string,
+	linked: string,
+	linkedRow: string
+): { table: string; row: string } {
+	const table = createTable(ws, baseId, 'Every type', [
+		{ name: 'Text', type: 'text' },
+		{ name: 'Long text', type: 'longtext' },
+		{ name: 'Number', type: 'number', unit: 'kg' },
+		{ name: 'Currency', type: 'currency', currency: 'EUR' },
+		{ name: 'Percent', type: 'percent' },
+		{ name: 'Rating', type: 'rating', max: 5 },
+		{ name: 'Duration', type: 'duration' },
+		{ name: 'Date', type: 'date' },
+		{ name: 'Date and time', type: 'datetime' },
+		{ name: 'Choice', type: 'choice', choices: [{ name: 'Legs', color: 'green' }] },
+		{
+			name: 'Multiple choice',
+			type: 'choices',
+			choices: [
+				{ name: 'Strength', color: 'violet' },
+				{ name: 'Outdoors', color: 'teal' },
+				{ name: 'Morning', color: 'amber' }
+			]
+		},
+		{ name: 'Check', type: 'check' },
+		{ name: 'Link', type: 'link', target: linked },
+		{ name: 'URL', type: 'url' },
+		{ name: 'Email', type: 'email' },
+		{ name: 'Phone', type: 'phone' }
+	]);
+	commit(table.changes);
+	const formula = addField(ws, table.id, {
+		name: 'Formula',
+		type: 'formula',
+		expr: toStored('"Currency" * 12', ws.fields(table.id))
+	});
+	commit(formula.changes);
+	const values = [
+		'Squat day',
+		'Warm up on the bike.\nThree heavy sets.',
+		102.5,
+		49.9,
+		12.5,
+		4,
+		4500,
+		'2026-10-27',
+		'2026-10-27T18:30',
+		'Legs',
+		['Strength', 'Morning'],
+		true,
+		linkedRow,
+		'https://torsel.app',
+		'coach@torsel.app',
+		'+33 6 12 34 56 78'
+	];
+	const row = insertRows(ws, table.id, [
+		Object.fromEntries(table.fieldIds.map((id, at) => [id, values[at]]))
+	]);
+	commit(row.changes);
+	return { table: table.id, row: row.ids[0] };
 }

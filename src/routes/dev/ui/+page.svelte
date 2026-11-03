@@ -8,8 +8,10 @@
 	import Section from '#lib/dev/Section.svelte';
 	import Specimen from '#lib/dev/Specimen.svelte';
 	import { forceTheme, type Theme } from '#lib/dev/theme.ts';
+	import AffixInput from '#lib/ui/AffixInput.svelte';
 	import Button from '#lib/ui/Button.svelte';
 	import Chip from '#lib/ui/Chip.svelte';
+	import ChipPicker from '#lib/ui/ChipPicker.svelte';
 	import CodeInput from '#lib/ui/CodeInput.svelte';
 	import { DATA_COLORS } from '#lib/ui/colors.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
@@ -26,6 +28,7 @@
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
 	import MenuSub from '#lib/ui/MenuSub.svelte';
 	import PasswordInput from '#lib/ui/PasswordInput.svelte';
+	import Rating from '#lib/ui/Rating.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 	import Select, { type Option } from '#lib/ui/Select.svelte';
 	import Spark from '#lib/ui/Spark.svelte';
@@ -40,6 +43,7 @@
 	import Entry from '#lib/views/Entry.svelte';
 	import FieldInput from '#lib/views/FieldInput.svelte';
 	import FieldSheet from '#lib/views/FieldSheet.svelte';
+	import { typeOptions } from '#lib/views/field-types.ts';
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
 	import RowSheet from '#lib/views/RowSheet.svelte';
@@ -61,7 +65,10 @@
 				'Field icons',
 				'Fields',
 				'Textarea',
+				'AffixInput',
 				'Select',
+				'Rating',
+				'ChipPicker',
 				'Menu',
 				'ContextMenu',
 				'Dialog',
@@ -273,22 +280,27 @@
 		return fixture === null ? [] : app.ws.fields(fixture.table);
 	});
 
+	const typed = $derived.by(() => {
+		void app.version;
+		if (fixture === null) return { fields: [], row: undefined, computed: undefined };
+		const { table, row } = fixture.types;
+		return {
+			fields: app.ws.fields(table),
+			row: app.ws.live(row),
+			computed: app.computed(table).get(row)
+		};
+	});
+
+	let fieldType = $state('rating');
+	let stars = $state<number | null>(3);
+	let halves = $state<number | null>(7.5);
+	let tags = $state(['Strength']);
+	let amount = $state('49.90');
+
 	const view = (id: string | undefined) => {
 		void app.version;
 		return id === undefined ? undefined : app.ws.view(id);
 	};
-
-	const firstRow = $derived.by(() => {
-		void app.version;
-		return fixture === null ? undefined : app.ws.live(fixture.rows[0]);
-	});
-
-	const computed = $derived.by(() => {
-		void app.version;
-		return fixture === null || firstRow === undefined
-			? undefined
-			: app.computed(fixture.table).get(firstRow.id);
-	});
 
 	function readTokens(): void {
 		const style = getComputedStyle(document.documentElement);
@@ -591,8 +603,25 @@
 			</div>
 		</Section>
 
+		<Section name="AffixInput" from="ui/AffixInput.svelte">
+			<div class="grid w-full gap-6 sm:grid-cols-3">
+				<Specimen label="prefix" wide>
+					<AffixInput bind:value={amount} prefix="€" aria-label="Amount" inputmode="decimal" />
+				</Specimen>
+				<Specimen label="suffix" wide>
+					<AffixInput value="102.5" suffix="kg" aria-label="Weight" />
+				</Specimen>
+				<Specimen label="empty, with a placeholder" wide>
+					<AffixInput suffix="%" placeholder="Share" aria-label="Share" />
+				</Specimen>
+			</div>
+		</Section>
+
 		<Section name="Select" from="ui/Select.svelte">
 			<div class="grid w-full gap-6 sm:grid-cols-3">
+				<Specimen label="grouped, as the field types" wide>
+					<Select aria-label="Field type" options={typeOptions()} bind:value={fieldType} />
+				</Specimen>
 				<Specimen label="a few options, with icons" wide>
 					<Select
 						aria-label="Order"
@@ -621,6 +650,55 @@
 					<Select aria-label="Disabled select" options={SESSIONS} value="Push" disabled />
 				</Specimen>
 			</div>
+		</Section>
+
+		<Section name="Rating" from="ui/Rating.svelte">
+			<Specimen label="input, 1 to 5">
+				<Rating label="Mood" value={stars} onchange={(next) => (stars = next)} />
+			</Specimen>
+			<Specimen label="input, 0 to 10 by halves">
+				<Rating
+					label="Score"
+					min={0}
+					max={10}
+					step={0.5}
+					value={halves}
+					onchange={(next) => (halves = next)}
+				/>
+			</Specimen>
+			<Specimen label="input, empty">
+				<Rating label="Empty rating" value={null} onchange={() => undefined} />
+			</Specimen>
+			<Specimen label="shown, in a cell">
+				<Rating value={3.5} max={5} step={0.5} size="sm" />
+			</Specimen>
+		</Section>
+
+		<Section name="ChipPicker" from="ui/ChipPicker.svelte">
+			<Specimen label="several picks, a new one on the way">
+				<ChipPicker
+					label="Tags"
+					options={[
+						{ name: 'Strength', color: 'violet' },
+						{ name: 'Outdoors', color: 'teal' },
+						{ name: 'Morning', color: 'amber' }
+					]}
+					value={tags}
+					onchange={(next) => (tags = next)}
+					oncreate={() => undefined}
+				/>
+			</Specimen>
+			<Specimen label="nothing picked, no new ones">
+				<ChipPicker
+					label="Sessions"
+					options={[
+						{ name: 'Push', color: 'orange' },
+						{ name: 'Pull', color: 'blue' }
+					]}
+					value={[]}
+					onchange={() => undefined}
+				/>
+			</Specimen>
 		</Section>
 
 		<Section name="Menu" from="ui/Menu.svelte, MenuItem, MenuSub, MenuSeparator">
@@ -817,14 +895,14 @@
 		{:else}
 			{@const table = fixture.table}
 			<Section name="CellValue" from="views/CellValue.svelte">
-				{#each fields as item (item.id)}
+				{#each typed.fields as item (item.id)}
 					<Specimen label={item.type}>
 						<span class="flex h-row min-w-24 items-center rounded-box bg-raised px-3 shadow-raised">
 							<CellValue
 								field={item}
 								value={item.type === 'formula'
-									? (computed?.[item.id] ?? null)
-									: firstRow?.data[item.id]}
+									? (typed.computed?.[item.id] ?? null)
+									: typed.row?.data[item.id]}
 							/>
 						</span>
 					</Specimen>
@@ -838,15 +916,19 @@
 
 			<Section name="FieldInput" from="views/FieldInput.svelte">
 				<div class="grid w-full gap-6 sm:grid-cols-4">
-					{#each fields as item (item.id)}
+					{#each typed.fields as item (item.id)}
 						<Specimen label={item.type} wide>
-							<Field label={item.name}>
+							<div class="flex w-full flex-col gap-1">
+								<label for="type-{item.id}" class="text-sm font-medium text-ink-2"
+									>{item.name}</label
+								>
 								<FieldInput
+									id="type-{item.id}"
 									field={item}
-									value={firstRow?.data[item.id] ?? null}
-									computed={computed?.[item.id] ?? null}
+									value={typed.row?.data[item.id] ?? null}
+									computed={typed.computed?.[item.id] ?? null}
 								/>
-							</Field>
+							</div>
 						</Specimen>
 					{/each}
 				</div>
