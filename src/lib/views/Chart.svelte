@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatDate, formatMonth, formatNumber } from '#lib/client/format.ts';
+	import { formatDate, formatMonth, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { chartSetup } from '#lib/core/actions.ts';
 	import { headline, totalled } from '#lib/core/chart.ts';
@@ -29,6 +29,15 @@
 
 	const xField = $derived(config.x ? app.ws.field(config.x) : undefined);
 	const colorField = $derived(config.color ? app.ws.field(config.color) : undefined);
+	const yField = $derived(config.agg !== 'count' && config.y ? app.ws.field(config.y) : undefined);
+
+	/** An amount as its field shows it; an axis tick stays short, so only a clock or a percent there. */
+	function amount(value: number, tick = false): string {
+		const short = yField?.type === 'duration' || yField?.type === 'percent';
+		return yField === undefined || (tick && !short)
+			? formatNumber(value)
+			: formatValue(yField, value);
+	}
 
 	const xs = $derived([...new Set((data?.points ?? []).map((point) => point.x))]);
 
@@ -97,7 +106,7 @@
 				y: top,
 				h: yPos(base) - top,
 				color: series.find((item) => item.name === point.series)?.color ?? 'var(--ink)',
-				label: `${label(point.x)}: ${formatNumber(point.y)}`
+				label: `${label(point.x)}: ${amount(point.y)}`
 			});
 		}
 		return out;
@@ -148,7 +157,7 @@
 	{:else}
 		<span class="font-medium text-ink-3">{data.yLabel}</span>
 		{#if latest !== null}
-			<p class="text-hero-lg leading-none font-semibold tighter">{formatNumber(latest.y)}</p>
+			<p class="text-hero-lg leading-none font-semibold tighter">{amount(latest.y)}</p>
 		{/if}
 		<p class="mb-3 text-ink-2">
 			{[
@@ -187,7 +196,7 @@
 							y={yPos(tick) + 4}
 							text-anchor="end"
 							font-size="11.5"
-							fill="var(--ink-3)">{formatNumber(Math.round(tick * 10) / 10)}</text
+							fill="var(--ink-3)">{amount(Math.round(tick * 10) / 10, true)}</text
 						>
 					{/each}
 
