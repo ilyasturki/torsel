@@ -5,9 +5,8 @@ import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
 import { hasChoices } from '#lib/core/model.ts';
-import { CHOICES_JOIN, ratingScale } from '#lib/core/values.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
-import { currencyOf, formatDuration } from '#lib/core/values.ts';
+import { CHOICES_JOIN, currencyOf, formatDuration, ratingScale } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 import { nextChoice } from '#lib/ui/colors.ts';
 

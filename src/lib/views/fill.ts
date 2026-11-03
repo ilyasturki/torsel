@@ -1,6 +1,7 @@
 import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, writeRows } from '#lib/core/actions.ts';
 import type { Change, Choice, FieldDef, FieldType, Rec, Value } from '#lib/core/model.ts';
+import { hasChoices, isDated, isNumeric } from '#lib/core/model.ts';
 import { coerce, pad } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 import { nextChoice } from '#lib/ui/colors.ts';
@@ -133,9 +134,9 @@ export function nextValues(type: FieldType | null, source: Value[], count: numbe
 	const series =
 		type === null || source.some(blank)
 			? null
-			: type === 'number'
+			: isNumeric(type)
 				? numberSeries(source)
-				: type === 'date'
+				: isDated(type)
 					? dateSeries(source)
 					: type === 'text'
 						? textSeries(source)
@@ -206,10 +207,10 @@ export function fillChanges(
 			const value = linked ? coerce(field, raw) : null;
 			if (value === null && raw !== null && raw !== '') return;
 			cells += 1;
-			if (field.type === 'choice' && typeof value === 'string') {
+			for (const name of hasChoices(field.type) ? [value].flat() : []) {
 				const known = choices.get(field.id) ?? field.choices;
-				if (!known.some((choice) => choice.name === value)) {
-					choices.set(field.id, [...known, nextChoice(known, value)]);
+				if (typeof name === 'string' && !known.some((choice) => choice.name === name)) {
+					choices.set(field.id, [...known, nextChoice(known, name)]);
 				}
 			}
 			if (JSON.stringify(row.data[field.id] ?? null) !== JSON.stringify(value)) {

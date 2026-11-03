@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { addField, createBase, createTable, insertRows, reorder } from '#lib/core/actions.ts';
 import { Hlc } from '#lib/core/clock.ts';
-import { parseCells, toCsv } from '#lib/core/csv.ts';
+import { guessColumns, parseCells, parseCsv, toCsv } from '#lib/core/csv.ts';
 import type { Change, FieldDef } from '#lib/core/model.ts';
 import { parseNumber } from '#lib/core/values.ts';
 import { Workspace } from '#lib/core/workspace.ts';
@@ -101,6 +101,61 @@ describe('exporting a view', () => {
 			['Note', 'Kg', 'Day', 'Lift', 'Done', 'Sum'],
 			['light', '1234.5', '2026-10-30', 'Squat', '', ''],
 			['heavy', '140', '', '', 'TRUE', '2']
+		]);
+	});
+
+	it('writes each type so a file import reads it back as that type', () => {
+		const { ws, commit, tableId } = fixture();
+		const specs = [
+			{ name: 'Price', type: 'currency', currency: 'USD' },
+			{ name: 'Share', type: 'percent' },
+			{ name: 'Rest', type: 'duration', seconds: true },
+			{ name: 'Seen', type: 'datetime' },
+			{ name: 'Tags', type: 'choices' }
+		] as const;
+		const [price, share, rest, seen, tags] = specs.map((spec) => {
+			const made = addField(ws, tableId, spec);
+			commit(made.changes);
+			return made.id;
+		});
+		commit(
+			insertRows(ws, tableId, [
+				{
+					[price]: 12.5,
+					[share]: 40,
+					[rest]: 90,
+					[seen]: '2026-11-03T18:30',
+					[tags]: ['Drama', 'Noir']
+				},
+				{
+					[price]: 3,
+					[share]: 2.5,
+					[rest]: 3600,
+					[seen]: '2026-11-04T07:00',
+					[tags]: ['Noir', 'Heist']
+				},
+				{ [tags]: ['Drama'] }
+			]).changes
+		);
+		const view = ws.views(tableId).find((item) => item.type === 'grid');
+		if (view === undefined) throw new Error('no grid view');
+
+		const cells = viewCells(ws, tableId, view, new Map());
+		const columns = guessColumns(parseCsv(toCsv(cells))).slice(-5);
+		expect(columns.map((column) => column.type)).toEqual([
+			'currency',
+			'percent',
+			'duration',
+			'datetime',
+			'choices'
+		]);
+		expect(columns[0].currency).toBe('USD');
+		expect(cells[1].slice(-5)).toEqual([
+			'12.5 USD',
+			'40%',
+			'0:01:30',
+			'2026-11-03T18:30',
+			'Drama, Noir'
 		]);
 	});
 });

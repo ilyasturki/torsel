@@ -3,7 +3,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh } from '#lib/client/assistant.svelte.ts';
-	import { editText, formatValue } from '#lib/client/format.ts';
+	import { editText, formatValue, localCurrency } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -1091,7 +1091,7 @@
 		const { changes, lost } = retypeField(
 			app.ws,
 			field.id,
-			{ type },
+			{ type, currency: type === 'currency' ? localCurrency() : undefined },
 			field.type === 'formula' ? computed : undefined
 		);
 		const label = `${field.name} retyped`;
@@ -1332,8 +1332,9 @@
 						node.focus();
 						node.setSelectionRange(node.value.length, node.value.length);
 					}}
-					class="absolute top-0 left-0 z-20 h-32 w-full min-w-64 resize-none bg-raised px-3 py-2 shadow-float ring-2 ring-ink outline-none ring-inset"
+					class="absolute top-0 left-0 z-20 h-32 w-full min-w-64 resize-none bg-raised px-3 py-2 shadow-float ring-2 ring-accent outline-none ring-inset"
 					aria-label={field.name}
+					placeholder={field.name}
 					autocomplete="off"
 					bind:value={draft}
 					onkeydown={ondraftkeydown}

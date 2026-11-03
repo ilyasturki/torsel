@@ -55,6 +55,18 @@ describe('series', () => {
 		expect(nextValues('text', ['Set 1', 'Rep 2'], 2)).toEqual(['Set 1', 'Rep 2']);
 	});
 
+	it('continues every type held as a number, and a date and time', () => {
+		expect(nextValues('currency', [9.5, 10], 2)).toEqual([10.5, 11]);
+		expect(nextValues('percent', [10, 20], 1)).toEqual([30]);
+		expect(nextValues('duration', [600, 1200], 1)).toEqual([1800]);
+		expect(nextValues('rating', [1, 2], 2)).toEqual([3, 4]);
+		expect(nextValues('datetime', ['2026-11-03T18:30'], 1)).toEqual(['2026-11-04T18:30']);
+		expect(nextValues('choices', [['Drama', 'Noir']], 2)).toEqual([
+			['Drama', 'Noir'],
+			['Drama', 'Noir']
+		]);
+	});
+
 	it('runs backwards from reversed cells', () => {
 		expect(nextValues('number', [3, 2], 2)).toEqual([1, 0]);
 	});

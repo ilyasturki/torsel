@@ -16,6 +16,8 @@
 	import MenuSub from '#lib/ui/MenuSub.svelte';
 	import { input } from '#lib/ui/styles.ts';
 
+	import { typeOptions } from './field-types.ts';
+
 	let {
 		open = $bindable(false),
 		anchor,
@@ -40,17 +42,11 @@
 		onCloseAutoFocus?: (event: Event) => void;
 	} = $props();
 
-	const TYPES = (
-		[
-			['text', 'Text'],
-			['number', 'Number'],
-			['date', 'Date'],
-			['choice', 'Choice'],
-			['check', 'Checkbox'],
-			['link', 'Link to a table…'],
-			['formula', 'Formula…']
-		] as const
-	).map(([type, label]) => ({ type: type as FieldType, label, icon: fieldIcon(type) }));
+	// Link and formula ask for a table or an expression first, in the field sheet.
+	const TYPES = typeOptions().map((option) => ({
+		...option,
+		label: option.value === 'link' || option.value === 'formula' ? `${option.label}…` : option.label
+	}));
 
 	type Entry = { action: ColumnAction; label: string; icon: IconName } | 'gap';
 
@@ -109,12 +105,13 @@
 		<MenuSeparator />
 		<MenuItem icon="pencil" onSelect={() => onaction('rename')}>Rename</MenuItem>
 		<MenuSub label="Type" icon={fieldIcon(field.type)}>
-			{#each TYPES as option (option.type)}
+			{#each TYPES as option, at (option.value)}
+				{#if at > 0 && TYPES[at - 1].group !== option.group}<MenuSeparator />{/if}
 				<MenuItem
 					icon={option.icon}
-					checked={option.type === field.type}
+					checked={option.value === field.type}
 					onSelect={() => {
-						if (option.type !== field.type) onretype(option.type);
+						if (option.value !== field.type) onretype(option.value);
 					}}>{option.label}</MenuItem
 				>
 			{/each}
