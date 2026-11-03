@@ -270,4 +270,81 @@ describe('assistant tools', () => {
 		expect(ctx.ws.rows(made.id).map((row) => row.data[weight?.id ?? ''])).toContain(85);
 		expect(await call('import_file', { file: 'missing' })).toEqual({ error: expect.any(String) });
 	});
+
+	it('types each field with its format, and retypes one with what its values become', async () => {
+		const { ctx, call } = session();
+
+		await call('create_table', {
+			name: 'Movies',
+			fields: [
+				{ name: 'Title', type: 'text' },
+				{ name: 'Year', type: 'number', grouping: false },
+				{ name: 'Rating', type: 'rating', max: 10, step: 0.5 },
+				{ name: 'Price', type: 'currency', currency: 'USD' },
+				{ name: 'Runtime', type: 'duration' },
+				{ name: 'Genres', type: 'choices', choices: ['Drama'] },
+				{ name: 'Score', type: 'number' }
+			]
+		});
+		const table = ctx.ws.tables(ctx.ws.bases()[0].id)[0];
+		const field = (name: string) =>
+			ctx.ws.fields(table.id).find((candidate) => candidate.name === name);
+		expect(field('Year')).toMatchObject({ type: 'number', grouping: false });
+		expect(field('Rating')).toMatchObject({ type: 'rating', max: 10, step: 0.5, min: null });
+		expect(field('Price')).toMatchObject({ currency: 'USD' });
+
+		await call('add_rows', {
+			base: 'Tables',
+			table: 'Movies',
+			rows: [
+				{
+					Title: 'Dune',
+					Year: 2021,
+					Rating: 8.5,
+					Price: '$12.50',
+					Runtime: '2:35:00',
+					Genres: ['Drama', 'Sci-fi'],
+					Score: 8
+				},
+				{ Title: 'Cats', Year: 2019, Rating: 2, Score: 12 }
+			]
+		});
+		const [dune] = ctx.ws.rows(table.id);
+		expect(dune.data[field('Runtime')?.id ?? '']).toBe(9300);
+		expect(dune.data[field('Genres')?.id ?? '']).toEqual(['Drama', 'Sci-fi']);
+		expect(field('Genres')?.choices.map((choice) => choice.name)).toEqual(['Drama', 'Sci-fi']);
+
+		const schema = (await call('describe_base', { base: 'Tables' })) as {
+			tables: { fields: Record<string, unknown>[] }[];
+		};
+		expect(schema.tables[0].fields.find((one) => one.name === 'Year')).toMatchObject({
+			type: 'number',
+			grouping: false
+		});
+		expect(schema.tables[0].fields.find((one) => one.name === 'Rating')).toMatchObject({
+			max: 10,
+			step: 0.5
+		});
+
+		expect(
+			await call('update_field', {
+				base: 'Tables',
+				table: 'Movies',
+				field: 'Score',
+				type: 'rating',
+				max: 10
+			})
+		).toEqual({ updated: field('Score')?.id, lost: 1 });
+		expect(field('Score')).toMatchObject({ type: 'rating', max: 10 });
+		expect(ctx.ws.rows(table.id).map((row) => row.data[field('Score')?.id ?? ''])).toEqual([
+			8,
+			null
+		]);
+
+		const query = (await call('query', {
+			base: 'Tables',
+			sql: `select count(*) as n from "Movies", json_each("Movies"."Genres") where json_each.value = 'Sci-fi'`
+		})) as { rows: unknown[] };
+		expect(query.rows).toEqual([{ n: 1 }]);
+	});
 });

@@ -15,7 +15,7 @@ import type {
 	TurnEvent
 } from '../../core/thread.ts';
 import { afterFallback, droppedSeqs, echoable } from '../../core/thread.ts';
-import { todayIso } from '../../core/values.ts';
+import { currencyOf, ratingScale, todayIso } from '../../core/values.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { anthropicKey } from '../config.ts';
 import type { Database } from '../db/client.ts';
@@ -79,13 +79,17 @@ export class AssistantUnavailable extends Error {}
 
 function fieldLine(ws: Workspace, field: FieldDef): string {
 	const extra =
-		field.type === 'choice'
+		field.type === 'choice' || field.type === 'choices'
 			? `: ${field.choices.map((choice) => choice.name).join(', ') || 'no choices yet'}`
-			: field.type === 'link' && field.target !== null
-				? ` to "${ws.table(field.target)?.name ?? field.target}"`
-				: field.type === 'formula' && field.expr !== null
-					? `: ${toDisplay(field.expr, ws.fields(field.table))}`
-					: '';
+			: field.type === 'rating'
+				? ` from ${ratingScale(field).min} to ${ratingScale(field).max}`
+				: field.type === 'currency'
+					? ` in ${currencyOf(field)}`
+					: field.type === 'link' && field.target !== null
+						? ` to "${ws.table(field.target)?.name ?? field.target}"`
+						: field.type === 'formula' && field.expr !== null
+							? `: ${toDisplay(field.expr, ws.fields(field.table))}`
+							: '';
 	const about = field.description === null ? '' : `, "${field.description}"`;
 	return `${field.name} (${field.id}, ${field.type}${extra}${about})`;
 }

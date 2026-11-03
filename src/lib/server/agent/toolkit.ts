@@ -17,9 +17,19 @@ import { appendRows, guessColumns, guessTargets, importTable } from '../../core/
 import type { MemoryEngine } from '../../core/engine.ts';
 import { openEngine } from '../../core/engine.ts';
 import { FormulaError, toDisplay, toStored } from '../../core/formula.ts';
-import type { Change, Choice, FieldDef, TableDef, Value, ViewConfig } from '../../core/model.ts';
-import { FIELD_TYPES, VIEW_TYPES } from '../../core/model.ts';
-import { formulaProblem, materializeBase, readQuery } from '../../core/sql.ts';
+import type {
+	Change,
+	Choice,
+	FieldDef,
+	FormatKey,
+	TableDef,
+	Value,
+	ViewConfig
+} from '../../core/model.ts';
+import { FIELD_TYPES, FORMAT_OF, VIEW_TYPES, hasChoices } from '../../core/model.ts';
+import { retypeField } from '../../core/retype.ts';
+import { formulaProblem, formulaValues, materializeBase, readQuery } from '../../core/sql.ts';
+import { coerce } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { nextChoice } from '../../ui/colors.ts';
@@ -185,13 +195,65 @@ const TABLE = z.string().describe('name or id of the table');
 const ROW_VALUES = z
 	.record(z.string(), z.unknown())
 	.describe(
-		'values by field name: a number, text, a YYYY-MM-DD date, a boolean for a check, the choice text, the main text of the linked row'
+		'values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text'
+	);
+
+const FORMAT = {
+	decimals: z
+		.number()
+		.int()
+		.min(0)
+		.max(6)
+		.optional()
+		.describe('number, currency, percent: the decimals shown; leave out for automatic'),
+	grouping: z
+		.boolean()
+		.optional()
+		.describe('number: false for a year, an ID or a code, so 12345 never reads 12,345'),
+	unit: z.string().optional().describe('number: shown after it, such as kg or km'),
+	currency: z
+		.string()
+		.regex(/^[A-Z]{3}$/u)
+		.optional()
+		.describe('currency: the ISO code, such as EUR or USD'),
+	min: z.number().int().min(0).max(1).optional().describe('rating: the lowest score, 0 or 1'),
+	max: z
+		.number()
+		.int()
+		.min(2)
+		.max(10)
+		.optional()
+		.describe('rating: the highest score, 5 when left out'),
+	step: z
+		.number()
+		.positive()
+		.optional()
+		.describe("number: the step of the entry form's plus and minus; rating: 0.5 for half points"),
+	seconds: z.boolean().optional().describe('duration: shown as h:mm:ss rather than h:mm')
+};
+
+type FormatInput = { [key in FormatKey]?: FieldDef[key] };
+
+/** The format keys given for this type, with what the field had for the rest. */
+function formatOf(type: FieldDef['type'], input: FormatInput, field?: FieldDef): FormatInput {
+	const out: Record<string, unknown> = {};
+	for (const key of FORMAT_OF[type]) {
+		out[key] = input[key] ?? (field?.type === type ? field[key] : undefined);
+	}
+	return out as FormatInput;
+}
+
+const TYPE = z
+	.enum(FIELD_TYPES)
+	.describe(
+		'text; longtext for notes over several lines; number for counts, measures and years (a year without grouping); currency for money; percent; rating for a score on a scale, such as stars or out of 10; duration for a length of time; date; datetime when the time of day matters; choice for one label out of a few; choices for several labels, such as tags; check for yes or no; link to a row of another table; url; email; phone; formula for a computed value'
 	);
 
 const FIELD = z.object({
 	name: z.string().min(1),
-	type: z.enum(FIELD_TYPES),
-	choices: z.array(z.string()).optional().describe('for a choice field'),
+	type: TYPE,
+	...FORMAT,
+	choices: z.array(z.string()).optional().describe('for a choice or choices field'),
 	target: z.string().optional().describe('for a link field: the linked table'),
 	formula: z
 		.string()
@@ -208,10 +270,11 @@ function fieldSpec(ws: Workspace, baseId: string, input: FieldInput, tableId?: s
 	const spec: FieldSpec = {
 		name: input.name,
 		type: input.type,
-		description: input.description ?? null
+		description: input.description ?? null,
+		...formatOf(input.type, input)
 	};
 
-	if (input.type === 'choice') {
+	if (hasChoices(input.type)) {
 		spec.choices = choicesOf(input.choices);
 	}
 	if (input.type === 'link') {
@@ -345,14 +408,15 @@ function rowsByName(
 			if (field.type === 'formula') {
 				continue;
 			}
-			if (field.type === 'choice' && typeof value === 'string' && value.trim() !== '') {
-				if (!field.choices.some((choice) => choice.name === value.trim())) {
+			const picked = hasChoices(field.type) ? coerce(field, value) : null;
+			for (const name of Array.isArray(picked) ? picked : picked === null ? [] : [picked]) {
+				if (typeof name === 'string' && !field.choices.some((choice) => choice.name === name)) {
 					let names = added.get(field.id);
 					if (names === undefined) {
 						names = new Set();
 						added.set(field.id, names);
 					}
-					names.add(value.trim());
+					names.add(name);
 				}
 			}
 			row[field.id] = linkValue(ws, field, value);
@@ -375,7 +439,10 @@ function rowsByName(
 function describeField(ws: Workspace, field: FieldDef): Record<string, unknown> {
 	const out: Record<string, unknown> = { id: field.id, name: field.name, type: field.type };
 
-	if (field.type === 'choice') out.choices = field.choices.map((choice) => choice.name);
+	for (const key of FORMAT_OF[field.type]) {
+		if (field[key] !== null && !(key === 'grouping' && field[key])) out[key] = field[key];
+	}
+	if (hasChoices(field.type)) out.choices = field.choices.map((choice) => choice.name);
 	if (field.type === 'link' && field.target !== null)
 		out.target = ws.table(field.target)?.name ?? null;
 	if (field.type === 'formula' && field.expr !== null)
@@ -457,7 +524,7 @@ export const TOOLS: Tool[] = [
 		name: 'query',
 		title: TITLES.query,
 		description:
-			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text, checks are 0 or 1, a link reads as the text of the linked row. 200 rows at most.',
+			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. 200 rows at most.',
 		input: z.object({ base: BASE, sql: z.string().min(1) }),
 		kind: 'read',
 		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {
@@ -576,11 +643,7 @@ export const TOOLS: Tool[] = [
 			),
 			name: z.string().min(1),
 			fields: z
-				.array(
-					FIELD.omit({ formula: true }).extend({
-						type: z.enum(['text', 'number', 'date', 'choice', 'check', 'link'])
-					})
-				)
+				.array(FIELD.omit({ formula: true }).extend({ type: TYPE.exclude(['formula']) }))
 				.min(1)
 		}),
 		run: (ctx, input: { base?: string; name: string; fields: FieldInput[] }) => {
@@ -622,24 +685,30 @@ export const TOOLS: Tool[] = [
 	{
 		name: 'update_field',
 		title: TITLES.update_field,
-		description: 'Renames a field, or changes its choices, formula or description.',
+		description:
+			'Renames a field, or changes its type, format, choices, formula or description. A new type or scale converts every value; `lost` counts those it cannot hold, now empty.',
 		kind: 'write',
 		input: z.object({
 			base: BASE,
 			table: TABLE,
 			field: z.string(),
 			name: z.string().min(1).optional(),
+			type: TYPE.optional(),
+			...FORMAT,
+			target: z.string().optional().describe('for a field becoming a link: the linked table'),
 			choices: z.array(z.string()).optional(),
 			formula: z.string().optional(),
 			description: z.string().optional()
 		}),
 		run: async (
 			ctx,
-			input: {
+			input: FormatInput & {
 				base: string;
 				table: string;
 				field: string;
 				name?: string;
+				type?: FieldDef['type'];
+				target?: string;
 				choices?: string[];
 				formula?: string;
 				description?: string;
@@ -648,21 +717,62 @@ export const TOOLS: Tool[] = [
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			const field = findField(ctx.ws, table.id, input.field);
+			const type = input.type ?? field.type;
 			const set: Record<string, Value> = {};
 			if (input.name !== undefined) set.name = input.name.trim();
 			if (input.choices !== undefined) set.choices = choicesOf(input.choices, field.choices);
 			if (input.description !== undefined) set.description = input.description;
+			let expr: string | null = null;
 			if (input.formula !== undefined) {
-				if (field.type !== 'formula')
-					throw new ToolError(`"${field.name}" is not a computed field`);
-				set.expr = storedFormula(ctx.ws, table.id, input.formula);
-				await validateFormula(ctx.ws, table.id, set.expr);
+				if (type !== 'formula') throw new ToolError(`"${field.name}" is not a computed field`);
+				expr = storedFormula(
+					ctx.ws,
+					table.id,
+					input.formula,
+					ctx.ws.fields(table.id).filter((other) => other.id !== field.id)
+				);
+				await validateFormula(ctx.ws, table.id, expr);
+				set.expr = expr;
+			}
+
+			const format = formatOf(type, input, field);
+			const reformat = FORMAT_OF[type].some((key) => input[key] !== undefined);
+			let converted: { changes: Change[]; lost: number } = { changes: [], lost: 0 };
+			if (type !== field.type || reformat) {
+				if (type === 'formula' && expr === null && field.type !== 'formula')
+					throw new ToolError('a formula field needs formula');
+				if (type === 'link' && input.target === undefined && field.type !== 'link')
+					throw new ToolError('a link field needs target');
+				const computed =
+					field.type === 'formula' && field.expr !== null
+						? new Map(
+								[
+									...formulaValues(await engineFor(ctx.ws, base.id), ctx.ws, table.id, field.expr)
+								].map(([row, value]) => [row, { [field.id]: value }])
+							)
+						: undefined;
+				converted = retypeField(
+					ctx.ws,
+					field.id,
+					{
+						type,
+						...format,
+						target:
+							input.target === undefined
+								? field.target
+								: findTable(ctx.ws, base.id, input.target).id,
+						expr: expr ?? field.expr,
+						choices:
+							input.choices === undefined ? undefined : choicesOf(input.choices, field.choices)
+					},
+					computed
+				);
 			}
 			commit(ctx, {
 				summary: `Change field "${field.name}" in ${table.name}`,
-				changes: updateRecord(ctx.ws, field.id, set)
+				changes: [...converted.changes, ...updateRecord(ctx.ws, field.id, set)]
 			});
-			return { updated: field.id };
+			return { updated: field.id, lost: converted.lost };
 		}
 	},
 	{
