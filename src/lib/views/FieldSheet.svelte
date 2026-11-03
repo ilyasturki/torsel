@@ -85,6 +85,7 @@
 	}
 
 	const retypeHint = $derived.by(() => {
+		void app.version;
 		const result = open ? conversion() : null;
 		if (result === null) return undefined;
 		if (type === 'formula') return 'The values here give way to the formula.';
