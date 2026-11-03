@@ -8,7 +8,7 @@ export type Fixture = {
 	fields: FieldDef[];
 	rows: string[];
 	views: { grid: string; entry: string; list: string; chart: string };
-	types: { table: string; row: string };
+	types: { table: string; row: string; grid: string };
 };
 
 /** Real records in memory, never saved: what /dev/ui renders its views on. */
@@ -99,7 +99,7 @@ function seedTypes(
 	baseId: string,
 	linked: string,
 	linkedRow: string
-): { table: string; row: string } {
+): { table: string; row: string; grid: string } {
 	const table = createTable(ws, baseId, 'Every type', [
 		{ name: 'Text', type: 'text' },
 		{ name: 'Long text', type: 'longtext' },
@@ -155,5 +155,5 @@ function seedTypes(
 		Object.fromEntries(table.fieldIds.map((id, at) => [id, values[at]]))
 	]);
 	commit(row.changes);
-	return { table: table.id, row: row.ids[0] };
+	return { table: table.id, row: row.ids[0], grid: table.viewIds[0] };
 }

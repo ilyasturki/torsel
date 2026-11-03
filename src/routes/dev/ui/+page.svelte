@@ -292,6 +292,7 @@
 	});
 
 	let fieldType = $state('rating');
+	let typesOpen = $state(false);
 	let stars = $state<number | null>(3);
 	let halves = $state<number | null>(7.5);
 	let tags = $state(['Strength']);
@@ -620,7 +621,7 @@
 		<Section name="Select" from="ui/Select.svelte">
 			<div class="grid w-full gap-6 sm:grid-cols-3">
 				<Specimen label="grouped, as the field types" wide>
-					<Select aria-label="Field type" options={typeOptions()} bind:value={fieldType} />
+					<Select aria-label="Type" options={typeOptions()} bind:value={fieldType} />
 				</Specimen>
 				<Specimen label="a few options, with icons" wide>
 					<Select
@@ -952,6 +953,16 @@
 							{/if}
 						</div>
 					</Specimen>
+					{#if shown.name === 'Grid'}
+						{@const every = view(fixture.types.grid)}
+						<Specimen label="every type" wide>
+							<div class="h-48 w-full overflow-auto rounded-panel bg-raised shadow-raised">
+								{#if every !== undefined}
+									<Grid tableId={fixture.types.table} view={every} />
+								{/if}
+							</div>
+						</Specimen>
+					{/if}
 				</Section>
 			{/each}
 
@@ -962,7 +973,15 @@
 				<Specimen label="a new row">
 					<Button onclick={() => (newRowOpen = true)}>New row</Button>
 				</Specimen>
+				<Specimen label="every type">
+					<Button onclick={() => (typesOpen = true)}>Open every type</Button>
+				</Specimen>
 				<RowSheet bind:open={rowOpen} tableId={table} rowId={fixture.rows[0]} />
+				<RowSheet
+					bind:open={typesOpen}
+					tableId={fixture.types.table}
+					rowId={fixture.types.row}
+				/>
 				<RowSheet bind:open={newRowOpen} tableId={table} />
 			</Section>
 
