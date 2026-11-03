@@ -158,7 +158,7 @@ test.describe('every type in the grid', () => {
 			['Released', 'Oct 22, 2021'],
 			['Seen', 'Mar 1, 2024 8:30 PM'],
 			['Genre', 'Sci-fi'],
-			['Tags', 'Epic Desert'],
+			['Tags', 'EpicDesert'],
 			['Site', 'dunemovie.com'],
 			['Contact', 'press@dune.film'],
 			['Phone', '+1 555 010 2030'],
@@ -288,7 +288,7 @@ test.describe('every type in the grid', () => {
 			'true'
 		);
 		await page.getByRole('combobox', { name: 'Tags' }).press('Escape');
-		await expect(tags).toHaveText('Epic Spice');
+		await expect(tags).toHaveText('EpicSpice');
 
 		await expect
 			.poll(() => stored(page, movies))
