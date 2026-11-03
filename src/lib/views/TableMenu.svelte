@@ -4,9 +4,10 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, SETTINGS } from '#lib/client/nav.ts';
-	import { shell } from '#lib/client/shell.svelte.ts';
+	import { download, shell } from '#lib/client/shell.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
+	import { toCsv } from '#lib/core/csv.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -14,6 +15,8 @@
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
+
+	import { viewCells } from './grid.ts';
 
 	let {
 		open = $bindable(false),
@@ -54,6 +57,17 @@
 		renaming = false;
 	}
 
+	function exportHere(): void {
+		if (view === undefined) return;
+		const cells = viewCells(app.ws, table.id, view, app.computed(table.id));
+		// A byte-order mark is how Excel knows the file is UTF-8.
+		download(
+			`${table.name.replace(/[\\/:*?"<>|]/gu, '-')}.csv`,
+			`\uFEFF${toCsv(cells)}`,
+			'text/csv'
+		);
+	}
+
 	const fitAll = (): void => {
 		gridJump.fitAll += 1;
 	};
@@ -79,6 +93,9 @@
 		{/if}
 		<MenuSeparator />
 		<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>Import into this table</MenuItem>
+		{#if view !== undefined}
+			<MenuItem icon="arrow-up" onSelect={() => run(exportHere)}>Export as CSV</MenuItem>
+		{/if}
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={remove}>Delete table</MenuItem>
 	</Menu>
@@ -100,6 +117,11 @@
 			<Button variant="ghost" class="justify-start" onclick={() => run(importHere)}
 				>Import into this table</Button
 			>
+			{#if view !== undefined}
+				<Button variant="ghost" class="justify-start" onclick={() => run(exportHere)}
+					>Export as CSV</Button
+				>
+			{/if}
 			<a
 				href={SETTINGS}
 				class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink"

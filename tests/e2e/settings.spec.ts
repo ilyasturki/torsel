@@ -40,7 +40,7 @@ test('holds the strict minimum, and says nothing about a sync that works', async
 	await expect(page.getByText(account.email)).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Agents (MCP)' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Export as JSON' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 	await expect(page.getByText('Torsel 0.0.0')).toBeVisible();
 
 	await expect(page.getByLabel('Server address')).toHaveCount(0);

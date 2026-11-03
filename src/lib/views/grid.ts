@@ -2,8 +2,8 @@ import type { LocaleFormats } from '#lib/client/format.ts';
 import { browserFormats, formatValue, plainNumber } from '#lib/client/format.ts';
 import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
-import { parseCells } from '#lib/core/csv.ts';
-import type { Change, Choice, FieldDef, GridConfig, Rec, Value } from '#lib/core/model.ts';
+import { parseCells, writeCells } from '#lib/core/csv.ts';
+import type { Change, Choice, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
 import { hasTime, parseCheck } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
@@ -78,13 +78,7 @@ export function parseTsv(text: string): string[][] {
 }
 
 export function toTsv(cells: string[][]): string {
-	return cells
-		.map((line) =>
-			line
-				.map((cell) => (/[\t\r\n"]/u.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell))
-				.join('\t')
-		)
-		.join('\n');
+	return writeCells(cells, '\t');
 }
 
 /** A cell as a spreadsheet reads it: every digit, an ISO date, TRUE or FALSE, a link's title. */
@@ -102,6 +96,28 @@ export function copyText(ws: Workspace, field: FieldDef, value: Value | undefine
 		return value ? 'TRUE' : 'FALSE';
 	}
 	return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/** Numbers keep a dot for decimals whatever the locale, so the file reads back anywhere. */
+export function viewCells(
+	ws: Workspace,
+	tableId: string,
+	view: ViewDef,
+	computed: Computed
+): string[][] {
+	const config = view.type === 'grid' ? view.config : {};
+	const hidden = new Set(config.hidden ?? []);
+	const fields = ws.fields(tableId).filter((field) => !hidden.has(field.id));
+	const rows = gridRows(ws, tableId, config, computed);
+	return [
+		fields.map((field) => field.name),
+		...rows.map((row) =>
+			fields.map((field) => {
+				const value = cellValue(row, field, computed);
+				return typeof value === 'number' ? String(value) : copyText(ws, field, value);
+			})
+		)
+	];
 }
 
 /** A date column holds times once any of its rows does. */

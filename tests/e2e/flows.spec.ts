@@ -804,7 +804,7 @@ test.describe('importing', () => {
 		await page.goto('/app/settings');
 		await expectListed(page, 'Lifts');
 		const downloading = page.waitForEvent('download');
-		await page.getByRole('button', { name: 'Export as JSON' }).click();
+		await page.getByRole('button', { name: 'Export', exact: true }).click();
 		await (await downloading).saveAs(file);
 	}
 

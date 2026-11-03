@@ -35,11 +35,19 @@ export function startTable(baseId?: string, name?: string): void {
 	void goto(tableUrl(made.id, made.viewIds[0]));
 }
 
-export function downloadBackup(): void {
-	const url = URL.createObjectURL(new Blob([exportOf(app.ws)], { type: 'application/json' }));
+export function download(name: string, content: string, type: string): void {
+	const url = URL.createObjectURL(new Blob([content], { type }));
 	const link = document.createElement('a');
 	link.href = url;
-	link.download = `torsel-${new Date().toISOString().slice(0, 10)}.json`;
+	link.download = name;
 	link.click();
 	URL.revokeObjectURL(url);
+}
+
+export function downloadBackup(): void {
+	download(
+		`torsel-${new Date().toISOString().slice(0, 10)}.json`,
+		exportOf(app.ws),
+		'application/json'
+	);
 }

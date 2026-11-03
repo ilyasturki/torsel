@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { addField, createBase, createTable, insertRows, reorder } from '#lib/core/actions.ts';
 import { Hlc } from '#lib/core/clock.ts';
+import { parseCells, toCsv } from '#lib/core/csv.ts';
 import type { Change, FieldDef } from '#lib/core/model.ts';
 import { parseNumber } from '#lib/core/values.ts';
 import { Workspace } from '#lib/core/workspace.ts';
@@ -17,7 +18,8 @@ import {
 	parseTsv,
 	pasteChanges,
 	sampleRows,
-	toTsv
+	toTsv,
+	viewCells
 } from './grid.ts';
 
 function fixture() {
@@ -60,6 +62,46 @@ describe('tsv', () => {
 			['two\nlines', 'say "hi"']
 		];
 		expect(parseTsv(toTsv(cells))).toEqual(cells);
+	});
+});
+
+describe('exporting a view', () => {
+	it('quotes what a CSV reader would split on, and reads back as it was', () => {
+		const cells = [
+			['Note', 'Kg'],
+			['a, b', '12.5'],
+			['two\nlines', 'say "hi"'],
+			['', '']
+		];
+		const text = toCsv(cells);
+		expect(text).toBe('Note,Kg\r\n"a, b",12.5\r\n"two\nlines","say ""hi"""\r\n,\r\n');
+		expect(parseCells(text, ',')).toEqual(cells);
+	});
+
+	it('writes the shown columns and rows in the view order, numbers with a dot', () => {
+		const { ws, commit, tableId, note, kg, day, done, lift, target } = fixture();
+		const squat = ws.rows(target.id)[0].id;
+		commit(
+			insertRows(ws, tableId, [
+				{ [note.id]: 'light', [kg.id]: 1234.5, [day.id]: '2026-10-30', [lift.id]: squat },
+				{ [note.id]: 'heavy', [kg.id]: 140, [done.id]: true },
+				{ [note.id]: 'skipped' }
+			]).changes
+		);
+		const view = ws.views(tableId).find((item) => item.type === 'grid');
+		if (view === undefined) throw new Error('no grid view');
+		const config = {
+			hidden: [ws.fields(tableId).find((field) => field.name === 'Style')?.id ?? ''],
+			sort: { field: kg.id, dir: 'desc' as const },
+			filter: { field: note.id, text: 'h' }
+		};
+		const computed = new Map([[ws.rows(tableId)[1].id, { [ws.fields(tableId)[6].id]: 2 }]]);
+
+		expect(viewCells(ws, tableId, { ...view, config }, computed)).toEqual([
+			['Note', 'Kg', 'Day', 'Lift', 'Done', 'Sum'],
+			['light', '1234.5', '2026-10-30', 'Squat', '', ''],
+			['heavy', '140', '', '', 'TRUE', '2']
+		]);
 	});
 });
 

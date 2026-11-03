@@ -65,6 +65,21 @@ export function parseCells(input: string, delimiter: string): string[][] {
 	return rows;
 }
 
+export function writeCells(cells: string[][], delimiter: string, newline = '\n'): string {
+	const special = new RegExp(`[${delimiter === '\t' ? '\\t' : delimiter}\\r\\n"]`, 'u');
+	return cells
+		.map((line) =>
+			line
+				.map((cell) => (special.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell))
+				.join(delimiter)
+		)
+		.join(newline);
+}
+
+export function toCsv(cells: string[][]): string {
+	return `${writeCells(cells, ',', '\r\n')}\r\n`;
+}
+
 export function parseCsv(input: string, delimiter: string = detectDelimiter(input)): string[][] {
 	return parseCells(input, delimiter).filter((cells) => cells.some((value) => value.trim() !== ''));
 }

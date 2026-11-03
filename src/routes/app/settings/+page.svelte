@@ -212,7 +212,7 @@
 		<h2 class="{rowName} max-sm:flex-1 max-sm:font-normal">All data on this device</h2>
 		<div class="flex gap-3">
 			<Button onclick={() => (shell.importing = { into: null })}>Import</Button>
-			<Button onclick={downloadBackup}>Export as JSON</Button>
+			<Button onclick={downloadBackup}>Export</Button>
 		</div>
 	</section>
 

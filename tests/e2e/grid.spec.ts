@@ -1290,6 +1290,33 @@ test.describe('columns, by hand', () => {
 	});
 });
 
+test.describe('export', () => {
+	test('the table menu writes the view as CSV: its columns, its order, raw values', async ({
+		page,
+		context,
+		account
+	}, info) => {
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+		await columnMenu(page, 'Kg', 'Sort descending');
+		await columnMenu(page, 'Done', 'Hide');
+
+		const downloading = page.waitForEvent('download');
+		await tableMenu(page, 'Export as CSV');
+		const file = await downloading;
+		expect(file.suggestedFilename()).toBe('Lifts.csv');
+		const target = info.outputPath('lifts.csv');
+		await file.saveAs(target);
+		const { readFileSync } = await import('node:fs');
+		expect(readFileSync(target, 'utf8')).toBe(
+			'\uFEFFExercise,Kg,Style,Volume\r\n' +
+				'Exercise 3,30,Strict,60\r\n' +
+				'Exercise 2,20,Strict,40\r\n' +
+				'Exercise 1,10,Strict,20\r\n'
+		);
+	});
+});
+
 test.describe('rows, by hand', () => {
 	test('a right-click inserts above and below, copies and deletes the selected rows', async ({
 		page,
