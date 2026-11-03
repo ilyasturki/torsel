@@ -430,6 +430,34 @@ test('the composer grows with its lines; Enter sends and Shift+Enter breaks a li
 	await expect(field).toHaveValue(`${key}\nsecond line\nthird line`);
 	expect((await field.boundingBox())?.height ?? 0).toBeGreaterThan(one * 1.8);
 
+	// A file dropped on the panel or pasted into the field attaches to the message, never the import sheet.
+	await panel(page).evaluate((node) => {
+		const files = new DataTransfer();
+		files.items.add(new File(['kg\n80\n'], 'dropped.csv', { type: 'text/csv' }));
+		node.dispatchEvent(
+			new DragEvent('dragover', { dataTransfer: files, bubbles: true, cancelable: true })
+		);
+		node.dispatchEvent(
+			new DragEvent('drop', { dataTransfer: files, bubbles: true, cancelable: true })
+		);
+	});
+	await field.evaluate((node) => {
+		const files = new DataTransfer();
+		files.items.add(new File(['a note'], 'pasted.txt', { type: 'text/plain' }));
+		node.dispatchEvent(
+			new ClipboardEvent('paste', { clipboardData: files, bubbles: true, cancelable: true })
+		);
+	});
+	const attached = panel(page).getByRole('list', { name: 'Attached files' });
+	await expect(attached.getByRole('listitem')).toHaveCount(2);
+	await expect(attached).toContainText('dropped.csv');
+	await expect(attached).toContainText('pasted.txt');
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(field).toHaveValue(`${key}\nsecond line\nthird line`);
+	await attached.getByRole('button', { name: 'Remove dropped.csv' }).click();
+	await attached.getByRole('button', { name: 'Remove pasted.txt' }).click();
+	await expect(attached).toHaveCount(0);
+
 	await field.press('Enter');
 	await expect(thread(page).getByText('Two lines.')).toBeVisible();
 	await expect(field).toHaveValue('');
