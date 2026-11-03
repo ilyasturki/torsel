@@ -64,7 +64,6 @@
 	let pinned = $state(true);
 	let renaming = $state<string | null>(null);
 	let title = $state('');
-	let deleting = $state<string | null>(null);
 
 	const selected = $derived(table !== null && selection.table === table.id ? selection.rows : []);
 
@@ -282,14 +281,12 @@
 		if (me.account && hasFiles(event)) {
 			event.preventDefault();
 			event.stopPropagation();
-			void attach(event.dataTransfer?.files ?? []);
+			void attach([...(event.dataTransfer?.files ?? [])]);
 		}
 	}}
 >
 	<div class="flex h-11 shrink-0 items-center gap-1 pr-1.5 pl-4">
-		<span class="min-w-0 flex-1 truncate font-semibold"
-			>{assistant.listing ? 'History' : assistant.title || 'Ask'}</span
-		>
+		<span class="min-w-0 flex-1 truncate font-semibold">{assistant.title || 'Ask'}</span>
 		{#if me.account}
 			<Button
 				variant="ghost"
@@ -340,32 +337,21 @@
 							<span class="min-w-0 flex-1 truncate">{thread.title}</span>
 							<span class="shrink-0 text-sm text-ink-3">{when(thread.updatedAt)}</span>
 						</button>
-						{#if deleting === thread.id}
-							<Button
-								variant="primary"
-								onblur={() => (deleting = null)}
-								onclick={() => {
-									deleting = null;
-									void deleteThread(thread.id);
-								}}>Delete</Button
-							>
-						{:else}
-							<button
-								type="button"
-								class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
-								aria-label="Rename {thread.title}"
-								onclick={() => {
-									title = thread.title;
-									renaming = thread.id;
-								}}><Icon name="pencil" /></button
-							>
-							<button
-								type="button"
-								class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
-								aria-label="Delete {thread.title}"
-								onclick={() => (deleting = thread.id)}><Icon name="x" /></button
-							>
-						{/if}
+						<button
+							type="button"
+							class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
+							aria-label="Rename {thread.title}"
+							onclick={() => {
+								title = thread.title;
+								renaming = thread.id;
+							}}><Icon name="pencil" /></button
+						>
+						<button
+							type="button"
+							class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
+							aria-label="Delete {thread.title}"
+							onclick={() => deleteThread(thread.id)}><Icon name="x" /></button
+						>
 					{/if}
 				</li>
 			{:else}
@@ -508,7 +494,8 @@
 					accept={ATTACHABLE}
 					class="hidden"
 					onchange={(event) => {
-						void attach(event.currentTarget.files ?? []);
+						// The list empties with the input, and the uploads read it one by one.
+						void attach([...(event.currentTarget.files ?? [])]);
 						event.currentTarget.value = '';
 					}}
 				/>
@@ -516,6 +503,7 @@
 					variant="ghost"
 					class="w-control shrink-0 px-0"
 					aria-label="Attach files"
+					title={pending.length >= MAX_FILES ? `${MAX_FILES} files at most` : undefined}
 					disabled={pending.length >= MAX_FILES}
 					onclick={() => picker?.click()}><Icon name="attach" /></Button
 				>
@@ -526,6 +514,7 @@
 						variant="primary"
 						class="shrink-0"
 						type="submit"
+						title={uploading ? 'Waiting for the files to upload' : undefined}
 						disabled={prompt.trim() === '' || uploading}>{editing ? 'Save' : 'Send'}</Button
 					>
 				{/if}

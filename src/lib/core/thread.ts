@@ -145,9 +145,12 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 				});
 			}
 		} else {
-			blocks(row.content).forEach((block, index) => {
+			const content = blocks(row.content);
+			// What a reply says on its way to a tool call is progress, not the answer.
+			const acting = content.some((block) => block?.type === 'tool_use');
+			content.forEach((block, index) => {
 				if (block === undefined) return;
-				if (block.type === 'text' && block.text !== '') {
+				if (block.type === 'text' && block.text !== '' && !acting) {
 					items.push({ kind: 'text', key: `${at}.${index}`, text: block.text });
 				} else if (block.type === 'tool_use') {
 					const action = byId.get(block.id);

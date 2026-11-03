@@ -14,7 +14,7 @@ import type {
 	TurnEvent
 } from '../core/thread.ts';
 import { MAX_FILE_BYTES, UPLOAD_PART, droppedSeqs } from '../core/thread.ts';
-import { ApiError, NO_SERVER, OFFLINE, apiBase, request, streamLines } from './api.ts';
+import { ApiError, NO_SERVER, OFFLINE, apiBase, deviceToken, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
 import { limitMessage, limitOf } from './limit.ts';
@@ -338,6 +338,7 @@ async function run(mode: Mode, message: Message | null): Promise<void> {
 	controller = new AbortController();
 	const { signal } = controller;
 	let decisions: Decision[] = [];
+	let answered = false;
 
 	try {
 		// Only edits not yet on the server need a sync first: the model reads the server's copy.
@@ -375,6 +376,7 @@ async function run(mode: Mode, message: Message | null): Promise<void> {
 			},
 			onEvent
 		);
+		answered = true;
 		void app.delivered(decisions);
 	} catch (error) {
 		if (signal.aborted) {
@@ -386,8 +388,8 @@ async function run(mode: Mode, message: Message | null): Promise<void> {
 		assistant.busy = false;
 		controller = null;
 	}
-	// The server's rows carry the seqs a later edit or retry names.
-	if (assistant.id !== null && !signal.aborted) {
+	// The server's rows carry the seqs a later edit or retry names; a refused send left none there.
+	if (assistant.id !== null && answered) {
 		await refresh(assistant.id);
 	}
 }
@@ -527,14 +529,61 @@ export async function renameThread(id: string, title: string): Promise<void> {
 	if (assistant.id === id) assistant.title = renamed.title;
 }
 
-export async function deleteThread(id: string): Promise<void> {
-	await request(`/api/ai/threads/${id}`, { method: 'DELETE' });
+// As long as the toast offering its undo stays up.
+const DELETE_AFTER_MS = 6000;
+
+const deleting = new Map<string, ReturnType<typeof setTimeout>>();
+
+function sendDelete(id: string, keepalive = false): void {
+	deleting.delete(id);
+	const base = apiBase();
+	const token = deviceToken();
+	if (base === null) return;
+	// Plain fetch: only it outlives the page, and a reload must not bring the thread back.
+	void fetch(`${base}/api/ai/threads/${id}`, {
+		method: 'DELETE',
+		keepalive,
+		headers: {
+			'content-type': 'application/json',
+			...(token === null ? {} : { authorization: `Bearer ${token}` })
+		}
+	}).catch(() => undefined);
+}
+
+if (typeof window !== 'undefined') {
+	window.addEventListener('pagehide', () => {
+		for (const [id, timer] of deleting) {
+			clearTimeout(timer);
+			sendDelete(id, true);
+		}
+	});
+}
+
+/** Leaves the list at once, and the server once the toast's undo has passed. */
+export function deleteThread(id: string): void {
+	const at = assistant.threads.findIndex((thread) => thread.id === id);
+	const removed = assistant.threads[at];
+	if (removed === undefined) return;
+	const wasOpen = assistant.id === id;
 	assistant.threads = assistant.threads.filter((thread) => thread.id !== id);
-	if (assistant.id === id) {
+	if (wasOpen) {
 		newThread();
 		assistant.listing = true;
 	}
-	showToast('Thread deleted');
+	deleting.set(
+		id,
+		setTimeout(() => sendDelete(id), DELETE_AFTER_MS)
+	);
+	showToast('Thread deleted', () => {
+		clearTimeout(deleting.get(id));
+		deleting.delete(id);
+		assistant.threads = [
+			...assistant.threads.slice(0, at),
+			removed,
+			...assistant.threads.slice(at)
+		];
+		if (wasOpen) void openThread(id).then(() => (assistant.listing = true));
+	});
 }
 
 /** The last thread comes back with the app. */

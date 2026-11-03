@@ -1,10 +1,11 @@
 import { app } from './app.svelte.ts';
 
-export const toast = $state({ text: '', undo: null as number | null, seq: 0 });
+// An undo is a step of the history, or what takes back a change kept out of it.
+export const toast = $state({ text: '', undo: null as number | (() => void) | null, seq: 0 });
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-export function showToast(text: string, undo: number | null = null): void {
+export function showToast(text: string, undo: number | (() => void) | null = null): void {
 	toast.text = text;
 	toast.undo = undo;
 	toast.seq += 1;
@@ -16,7 +17,12 @@ export function showToast(text: string, undo: number | null = null): void {
 }
 
 export function undoToast(): void {
-	if (toast.undo !== null) {
+	if (typeof toast.undo === 'function') {
+		const undo = toast.undo;
+		toast.text = '';
+		toast.undo = null;
+		undo();
+	} else if (toast.undo !== null) {
 		const group = app.undo(toast.undo);
 		showToast(group === undefined ? 'Nothing to undo' : `Undid: ${group.label}`);
 	}

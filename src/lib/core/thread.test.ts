@@ -24,7 +24,7 @@ describe('toItems', () => {
 		]);
 	});
 
-	it('shows a write as its change, and leaves reads, failures and notes out', () => {
+	it('shows a write as its change, and leaves reads, notes and words on the way out', () => {
 		const rows: ThreadRow[] = [
 			prompt,
 			{
@@ -33,11 +33,12 @@ describe('toItems', () => {
 				content: [
 					{ type: 'thinking', thinking: 'Checking the volume.' },
 					{ type: 'tool_use', id: 'a', name: 'query', input: { sql: 'select 1' } },
-					{ type: 'tool_use', id: 'b', name: 'add_rows', input: {} },
-					{ type: 'text', text: 'Done.' }
+					{ type: 'text', text: 'Let me add them.' },
+					{ type: 'tool_use', id: 'b', name: 'add_rows', input: {} }
 				],
 				meta: null
-			}
+			},
+			{ seq: 3, role: 'assistant', content: [{ type: 'text', text: 'Done.' }], meta: null }
 		];
 		const items = toItems(rows, [action('b')]);
 		expect(items.map((item) => item.kind)).toEqual(['user', 'change', 'text']);

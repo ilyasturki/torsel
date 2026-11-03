@@ -50,7 +50,7 @@ const SYSTEM = `You are the assistant inside Torsel, a data app: bases of typed 
 
 Act at once with the tools. Every change applies immediately and the person sees it as a diff they can undo, so never ask for confirmation, deletions included. Ask only when you cannot tell what they mean.
 
-Read each request against the screen. "This", "here" and "these" mean the open table, view or selection. A word that could name a feature or data means the feature when the screen makes it one: on a grid, "placeholders" are input hints, not rows. Never invent data: add sample rows only when asked for examples, and leave a value you were not given empty. When Torsel has nothing for what they ask, say so in one sentence and offer the closest thing.
+Read each request against the screen. "This", "here" and "these" mean the open table, view or selection. A word that could name a feature or data means the feature when the screen makes it one: on a grid, "add placeholders" asks for input hints, not rows, and Torsel's empty inputs already show each field's name as their hint. Never invent data: add sample rows only when asked for examples or sample data, and leave a value you were not given empty. When Torsel has nothing for what they ask, say so in one sentence and offer the closest thing.
 
 The open table's schema is in the note: write to it without reading it first. Reuse its names and choices ("bench press", not "Bench Press", if that is what the table holds). Read values with query, a read-only SQLite SELECT over views named like the tables and fields, and other bases with describe_base. "3x8 at 80 on bench" means three rows of 8 reps at 80 kg on the matching exercise, dated today; "same as last time" is read from the history with query.
 
@@ -60,7 +60,7 @@ Files they attach come with their message: images and PDFs as themselves, tables
 
 For a computed field, write an SQLite expression over the row's fields, names in double quotes. For a view, pick the type that answers the request: chart for a progression, entry for fast input, list for browsing.
 
-Reply in the person's language, in one or two short sentences, after acting. The app shows each change with its before and after, so never restate what you changed, never describe your steps or plans, and use no lists or tables unless asked. A question gets the answer itself: the number, the date, the name.`;
+Reply in the language of the person's message, never that of their data. The app shows each change you make with its before and after, so after changes reply with one short sentence that adds what the diff can't show, or with "Done." when nothing needs adding: never restate what you made or changed, never list fields or views, never mention what you left alone, never describe your steps or plans. Write nothing before or between tool calls. No lists or tables unless asked, and offer nothing more unless asked. A question gets the answer itself: the number, the date, the name.`;
 
 function inputSchema(schema: z.ZodObject): Anthropic.Beta.BetaTool.InputSchema {
 	const { $schema: _, ...json } = z.toJSONSchema(schema) as Record<string, unknown>;
@@ -312,15 +312,14 @@ export async function runTurn(turn: Turn): Promise<void> {
 			userSeq = appendPrompt(db, threadId, previous.content, previous.meta);
 		} else {
 			userSeq = previous.seq;
-			// A reply cut short is kept as plain text, and the model can't go on from its own last words.
+			// The failure leaves the thread, and the model goes on from what came before it.
 			const dropped = droppedSeqs(rows);
-			const last = rows.findLast((row) => row.role !== 'event' && !dropped(row.seq));
-			if (last !== undefined && last.role === 'assistant') {
-				appendEvent(db, threadId, {
-					kind: 'replaced',
-					message: '',
-					drops: { from: last.seq, to: last.seq }
-				});
+			const kept = rows.filter((row) => !dropped(row.seq));
+			let at = kept.length;
+			while (at > 0 && kept[at - 1].role === 'event') at -= 1;
+			const from = kept[at]?.seq;
+			if (from !== undefined) {
+				appendEvent(db, threadId, { kind: 'replaced', message: '', drops: { from, to: end } });
 			}
 		}
 	} else {
@@ -375,12 +374,8 @@ export async function runTurn(turn: Turn): Promise<void> {
 		}
 	};
 
-	let partial = '';
-
 	try {
 		for (let round = 0; round < MAX_ROUNDS; round += 1) {
-			partial = '';
-
 			const stream = client.beta.messages.stream(
 				{
 					model,
@@ -404,21 +399,16 @@ export async function runTurn(turn: Turn): Promise<void> {
 			for await (const event of stream) {
 				if (event.type === 'message_start') {
 					emit({ type: 'assistant' });
-				} else if (event.type === 'content_block_start') {
+				} else if (
+					event.type === 'content_block_start' &&
+					event.content_block.type === 'tool_use'
+				) {
 					const block = event.content_block;
 					emit({
 						type: 'block',
 						index: event.index,
-						block:
-							block.type === 'tool_use'
-								? { type: block.type, id: block.id, name: block.name }
-								: { type: block.type }
+						block: { type: block.type, id: block.id, name: block.name }
 					});
-				} else if (event.type === 'content_block_delta') {
-					if (event.delta.type === 'text_delta') {
-						partial += event.delta.text;
-						emit({ type: 'text', index: event.index, text: event.delta.text });
-					}
 				} else if (event.type === 'content_block_stop') {
 					const block = stream.currentMessage?.content[event.index];
 					if (block?.type === 'tool_use') {
@@ -453,6 +443,13 @@ export async function runTurn(turn: Turn): Promise<void> {
 			const content = echoable(message.content);
 
 			if (uses.length === 0) {
+				// Words reach the screen only in the reply that ends the turn: on the way to a tool call they are progress.
+				for (const [index, block] of content.entries()) {
+					if (block.type === 'text') {
+						emit({ type: 'block', index, block: { type: 'text' } });
+						emit({ type: 'text', index, text: block.text });
+					}
+				}
 				appendMessages(db, threadId, [{ role: 'assistant', content }]);
 				return;
 			}
@@ -532,7 +529,6 @@ export async function runTurn(turn: Turn): Promise<void> {
 				{ role: 'user', content: results }
 			]);
 			messages.push({ role: 'assistant', content }, { role: 'user', content: results });
-			partial = '';
 
 			if (signal.aborted) {
 				finish({ kind: 'stopped', message: 'Stopped.' });
@@ -545,13 +541,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 			message: `Stopped after ${MAX_ROUNDS} steps. Ask again to carry on.`
 		});
 	} catch (thrown) {
-		// What the person already read stays, as plain text: no half thinking or tool block can replay.
-		const kept = partial.trim();
-		if (kept !== '') {
-			appendMessages(db, threadId, [
-				{ role: 'assistant', content: [{ type: 'text', text: kept }] }
-			]);
-		}
+		// Nothing of a reply cut short reached the screen, so nothing of it is kept.
 		if (signal.aborted || thrown instanceof Anthropic.APIUserAbortError) {
 			finish({ kind: 'stopped', message: 'Stopped.' });
 		} else {

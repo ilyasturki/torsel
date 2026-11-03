@@ -847,7 +847,7 @@ export const TOOLS: Tool[] = [
 		name: 'open',
 		title: TITLES.open,
 		description:
-			'Shows the person a table (and one of its views), their home page with every table, or the settings page.',
+			'Shows the person a table (and one of its views), their home page with every table, or the settings page: one they ask to see, or a table you just made. Never the screen already open.',
 		input: z.object({
 			table: z.string().optional().describe('name or id of the table'),
 			view: z.string().optional().describe('name or id of one of its views'),
