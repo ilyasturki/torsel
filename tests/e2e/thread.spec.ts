@@ -329,6 +329,7 @@ test('editing the last message takes back what its turn did and asks again', asy
 
 	await thread(page).getByRole('button', { name: 'Edit' }).click();
 	await expect(composer(page)).toHaveValue(`${key} log a deadlift`);
+	await expect(composer(page)).toBeFocused();
 	await composer(page).fill(`${key} log a row instead`);
 	await panel(page).getByRole('button', { name: 'Save' }).click();
 	await expect(thread(page).getByText('Logged the row.')).toBeVisible();

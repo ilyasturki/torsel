@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+
 	import { page } from '$app/state';
 
 	import { shrinkImage } from '#lib/client/attach.ts';
@@ -154,7 +156,8 @@
 	function startEdit(text: string): void {
 		editing = true;
 		prompt = text;
-		requestAnimationFrame(() => {
+		// Within the task: a frame later, the caret would jump past what was typed meanwhile.
+		void tick().then(() => {
 			field?.focus();
 			field?.setSelectionRange(prompt.length, prompt.length);
 		});
