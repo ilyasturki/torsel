@@ -22,7 +22,7 @@ function write(place: Place): void {
 	try {
 		localStorage.setItem(KEY, JSON.stringify(place));
 	} catch {
-		// Private windows can refuse storage: the app then just opens on its home.
+		// Private windows can refuse storage: the app then remembers no table or view.
 	}
 }
 
@@ -30,13 +30,6 @@ export function visitTable(table: string, view: string): void {
 	const place = read();
 	if (place.table !== table || place.views[table] !== view) {
 		write({ ...place, table, views: { ...place.views, [table]: view } });
-	}
-}
-
-export function visitHome(): void {
-	const place = read();
-	if (place.table !== null) {
-		write({ ...place, table: null });
 	}
 }
 

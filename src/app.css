@@ -292,6 +292,19 @@
 	letter-spacing: -0.035em;
 }
 
+/* The home's columns: on a phone name over label, figure over trend; then table, figure, label, trend, rows, and from lg the last entry. */
+@utility grid-cols-home {
+	grid-template-columns: minmax(0, 1fr) auto;
+
+	@media (width >= 40rem) {
+		grid-template-columns: minmax(8rem, 18rem) 7rem minmax(0, 1fr) 7.5rem 5.5rem;
+	}
+
+	@media (width >= 64rem) {
+		grid-template-columns: minmax(8rem, 18rem) 8rem minmax(0, 1fr) 7.5rem 7rem 5.5rem;
+	}
+}
+
 html,
 body {
 	background: var(--canvas);

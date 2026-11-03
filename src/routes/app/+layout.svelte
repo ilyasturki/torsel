@@ -10,9 +10,9 @@
 	import { tableBySlug, viewBySlug } from '#lib/client/directory.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
-	import { visitHome, visitTable } from '#lib/client/place.ts';
+	import { visitTable } from '#lib/client/place.ts';
 	import { me } from '#lib/client/session.svelte.ts';
-	import { pastedCells, shell } from '#lib/client/shell.svelte.ts';
+	import { isTyping, pastedCells, shell } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
 	import { redoChange, undoChange } from '#lib/client/toast.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -99,8 +99,6 @@
 	$effect(() => {
 		if (table !== undefined && view !== undefined) {
 			visitTable(table.id, view.id);
-		} else if (page.url.pathname === HOME) {
-			visitHome();
 		}
 	});
 
@@ -119,13 +117,6 @@
 	let viewSettings = $state(false);
 	let viewCreating = $state(false);
 	let dropping = $state(false);
-
-	function isTyping(target: EventTarget | null): boolean {
-		return (
-			target instanceof HTMLElement &&
-			(target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-		);
-	}
 
 	function hasFiles(event: DragEvent): boolean {
 		return event.dataTransfer?.types.includes('Files') === true;

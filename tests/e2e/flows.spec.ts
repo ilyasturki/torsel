@@ -336,7 +336,7 @@ test.describe('the first table', () => {
 });
 
 test.describe('opening where you left off', () => {
-	test('a cold open returns to the last table and view, and All stays on All', async ({
+	test('a cold open stays home, the last table one click from its view', async ({
 		page,
 		context,
 		account
@@ -350,14 +350,12 @@ test.describe('opening where you left off', () => {
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
 		await page.goto('/app');
+		await expect(page).toHaveURL(/\/app$/u);
+		await page.locator('main').getByRole('link', { name: /Lifts/u }).click();
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Volume')}$`, 'u'));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
 		await allTables(page).click();
-		await expect(page).toHaveURL(/\/app$/u);
-		await expect(page.getByRole('heading', { name: 'Tables' })).toBeVisible();
-
-		await page.goto('/app');
 		await expect(page).toHaveURL(/\/app$/u);
 		await openTable(page, 'Lifts');
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
@@ -383,7 +381,7 @@ test.describe('opening where you left off', () => {
 		).toHaveAttribute('aria-current', 'page');
 	});
 
-	test('on a phone, a cold open logs a set in three taps at most', async ({
+	test('on a phone, a cold open logs a set in four taps at most', async ({
 		page,
 		context,
 		account
@@ -399,16 +397,17 @@ test.describe('opening where you left off', () => {
 		await expect(cell(page, 'Squat').first()).toBeVisible();
 
 		await page.goto('/app');
+		const taps = await countTaps(page);
+		await page.locator('main').getByRole('link', { name: /Lifts/u }).click();
 		await expect(page.getByRole('button', { name: 'Add row' })).toBeVisible();
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Entry')}$`, 'u'));
-		const taps = await countTaps(page);
 
 		await page.getByRole('button', { name: 'Bench', exact: true }).click();
 		await page.getByRole('button', { name: 'Kg plus' }).click();
 		await page.getByRole('button', { name: 'Add row' }).click();
 
 		await expect(page.getByText('4 rows')).toBeVisible();
-		expect(await taps()).toBeLessThanOrEqual(3);
+		expect(await taps()).toBeLessThanOrEqual(4);
 		await expect(page.getByRole('textbox', { name: 'Kg' })).toHaveValue('82.5');
 	});
 });
@@ -1176,6 +1175,10 @@ test.describe('a boot the server does not answer', () => {
 		await expect(page.getByRole('status')).toHaveCount(0);
 
 		await page.goto('/app');
+		await page
+			.locator('main')
+			.getByRole('link', { name: /Weigh-ins/u })
+			.click();
 		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
 		await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 		await expect(page.getByRole('status')).toHaveCount(0);

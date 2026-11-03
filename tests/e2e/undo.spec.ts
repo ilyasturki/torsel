@@ -194,7 +194,8 @@ test('a table deleted, and a base deleted', async ({ page }) => {
 	await expectListed(page, 'Lifts');
 
 	const money = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Money' }) });
-	await money.last().getByRole('button', { name: 'Delete' }).click();
+	await money.last().getByRole('button', { name: 'More' }).click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await expectListed(page, 'Expenses', 0);
 	await toastButton(page, 'Undo').click();
 	await expectListed(page, 'Expenses');

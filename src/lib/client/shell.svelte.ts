@@ -17,6 +17,13 @@ export const shell = $state({
 	renamingTable: null as string | null
 });
 
+export function isTyping(target: EventTarget | null): boolean {
+	return (
+		target instanceof HTMLElement &&
+		(target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+	);
+}
+
 /** The text of a paste holding more than one cell, null for a plain word to type in. */
 export function pastedCells(event: ClipboardEvent): string | null {
 	const text = event.clipboardData?.getData('text/plain') ?? '';
