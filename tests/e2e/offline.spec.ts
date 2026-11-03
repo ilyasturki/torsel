@@ -49,6 +49,19 @@ function cachedPaths(page: Page): Promise<string[]> {
 	});
 }
 
+// Chromium writes a script's code cache back into the cache that served it, recreating it empty after a delete.
+function filledCaches(page: Page): Promise<string[]> {
+	return page.evaluate(async () => {
+		const filled: string[] = [];
+		for (const name of await caches.keys()) {
+			if ((await (await caches.open(name)).keys()).length > 0) {
+				filled.push(name);
+			}
+		}
+		return filled;
+	});
+}
+
 async function newLocalTable(page: Page): Promise<void> {
 	await page.goto('/app');
 	await page.getByRole('button', { name: 'New table' }).first().click();
@@ -270,7 +283,7 @@ test.describe('in a build', () => {
 			expect(loaded.some((path) => !inBuild(PREVIOUS_BUILD)(path))).toBe(true);
 
 			await expect
-				.poll(() => page.evaluate(() => caches.keys()))
+				.poll(() => filledCaches(page))
 				.toEqual([`shell-${builtVersion(CURRENT_BUILD)}`]);
 
 			loaded.length = 0;
