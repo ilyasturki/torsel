@@ -282,6 +282,51 @@ test('the title renames the table, and the table menu opens view settings and ad
 	).toBeVisible();
 });
 
+test('the table menu hangs from its button on desktop and is a sheet on a phone', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(`/app/t/${lifts}`);
+
+	const more = page.getByRole('button', { name: 'More' });
+	await more.click();
+	if (test.info().project.name === 'phone') {
+		await expect(page.getByRole('dialog', { name: 'Lifts' })).toBeVisible();
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		return;
+	}
+
+	const menu = page.getByRole('menu');
+	await expect(menu.getByRole('menuitem')).toHaveText([
+		'View settings',
+		'New view',
+		'Import into this table',
+		'Delete table'
+	]);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	const [button, list] = await Promise.all([more.boundingBox(), menu.boundingBox()]);
+	expect(
+		Math.abs((list?.x ?? 0) + (list?.width ?? 0) - (button?.x ?? 0) - (button?.width ?? 0))
+	).toBeLessThan(2);
+	expect(list?.y ?? 0).toBeGreaterThan(button?.y ?? 0);
+
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('dialog', { name: 'New view' })).toBeVisible();
+	await page.keyboard.press('Escape');
+
+	await more.click();
+	await expect(menu).toBeVisible();
+	const again = await more.boundingBox();
+	await page.mouse.click((again?.x ?? 0) + 4, (again?.y ?? 0) + 4);
+	await expect(menu).toHaveCount(0);
+	await expect(more).toBeFocused();
+});
+
 test('settings can be reached from the home and from a table', async ({
 	page,
 	context,
