@@ -15,7 +15,7 @@ import {
 import { Hlc, formatClock } from './clock.ts';
 import { guessColumns, importTable, parseCsv } from './csv.ts';
 import { openEngine } from './engine.ts';
-import { FormulaError, toDisplay, toStored } from './formula.ts';
+import { FormulaError, completeName, nameAt, namesFor, toDisplay, toStored } from './formula.ts';
 import { merge, sameRec } from './merge.ts';
 import type { Change, FieldDef, Rec } from './model.ts';
 import { isDeleted } from './model.ts';
@@ -242,6 +242,41 @@ describe('formulas', () => {
 	it('refuses an unknown field and a second statement', () => {
 		expect(() => toStored('"Tonnage" * 2', fields)).toThrow(FormulaError);
 		expect(() => toStored('1; drop table x', fields)).toThrow(FormulaError);
+	});
+
+	it('finds the name being typed, quoted or bare, but not inside text or a comment', () => {
+		expect(nameAt('"Kg" * re', 9)).toEqual({ from: 7, query: 're', quoted: false });
+		expect(nameAt('"Kg" * "Date wa', 15)).toEqual({ from: 7, query: 'Date wa', quoted: true });
+		expect(nameAt('"Kg" * ', 7)).toBeNull();
+		expect(nameAt("'re", 3)).toBeNull();
+		expect(nameAt('1 -- re', 7)).toBeNull();
+		expect(nameAt('x2', 2)).toEqual({ from: 0, query: 'x2', quoted: false });
+		expect(nameAt('2x', 2)).toBeNull();
+	});
+
+	it('offers the names that start with it first, and none for a bare word already a name', () => {
+		const names = ['Reps', 'Rest', 'Pre-reps', 'Kg'];
+		expect(namesFor({ from: 0, query: 're', quoted: false }, names)).toEqual([
+			'Reps',
+			'Rest',
+			'Pre-reps'
+		]);
+		expect(namesFor({ from: 0, query: 'reps', quoted: false }, names)).toEqual([]);
+		expect(namesFor({ from: 0, query: 'reps', quoted: true }, names)).toEqual(['Reps', 'Pre-reps']);
+		expect(namesFor({ from: 0, query: '', quoted: true }, names)).toEqual(names);
+	});
+
+	it('writes the picked name quoted in place of what was typed', () => {
+		const at = { from: 7, query: 're', quoted: false };
+		expect(completeName('"Kg" * re + 1', 9, at, 'Reps')).toEqual({
+			text: '"Kg" * "Reps" + 1',
+			caret: 13
+		});
+		const open = { from: 0, query: 'Da', quoted: true };
+		expect(completeName('"Da" + 1', 3, open, 'Day "1"')).toEqual({
+			text: '"Day ""1""" + 1',
+			caret: 11
+		});
 	});
 });
 

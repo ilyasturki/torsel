@@ -119,3 +119,51 @@ export function toDisplay(stored: string, fields: Named[]): string {
 export function toSql(stored: string, columnOf: (fieldId: string) => string): string {
 	return stored.replace(TOKEN, (_, id: string) => columnOf(id));
 }
+
+export type NameAt = { from: number; query: string; quoted: boolean };
+
+/** The field name being typed before `caret`: an open `"…"` or a bare word, never inside text or a comment. */
+export function nameAt(expr: string, caret: number): NameAt | null {
+	let i = 0;
+	while (i < caret) {
+		const char = expr[i];
+		if (char === "'" || char === '"') {
+			const close = expr.indexOf(char, i + 1);
+			if (close < 0 || close >= caret) {
+				return char === '"' ? { from: i, query: expr.slice(i + 1, caret), quoted: true } : null;
+			}
+			i = close + 1;
+		} else if (char === '-' && expr[i + 1] === '-') {
+			const end = expr.indexOf('\n', i);
+			if (end < 0 || end >= caret) return null;
+			i = end + 1;
+		} else {
+			i += 1;
+		}
+	}
+	const word = /(?<![\p{L}\p{N}_])[\p{L}_][\p{L}\p{N}_]*$/u.exec(expr.slice(0, caret));
+	return word === null ? null : { from: caret - word[0].length, query: word[0], quoted: false };
+}
+
+/** Names starting with what was typed first, then the ones holding it; a bare word that already names one needs none. */
+export function namesFor(at: NameAt, names: string[]): string[] {
+	const needle = normal(at.query);
+	if (!at.quoted && names.some((name) => normal(name) === needle)) return [];
+	const starting = names.filter((name) => normal(name).startsWith(needle));
+	const holding = names.filter(
+		(name) => !normal(name).startsWith(needle) && normal(name).includes(needle)
+	);
+	return [...starting, ...holding];
+}
+
+export function completeName(
+	expr: string,
+	caret: number,
+	at: NameAt,
+	name: string
+): { text: string; caret: number } {
+	const quoted = `"${name.replaceAll('"', '""')}"`;
+	const rest = expr.slice(caret);
+	const tail = at.quoted ? rest.replace(/^[^"\n]*"?/u, '') : rest.replace(/^[\p{L}\p{N}_]*/u, '');
+	return { text: expr.slice(0, at.from) + quoted + tail, caret: at.from + quoted.length };
+}

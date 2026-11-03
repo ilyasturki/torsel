@@ -28,6 +28,7 @@
 	import FieldSheet from './FieldSheet.svelte';
 	import type { Box } from './fill.ts';
 	import { fillChanges, fillTarget } from './fill.ts';
+	import FormulaEditor from './FormulaEditor.svelte';
 	import {
 		cellReader,
 		cellText,
@@ -94,6 +95,7 @@
 	let menuField = $state<string | null>(null);
 	let menuAnchor = $state<HTMLElement | null>(null);
 	let liveFilter = $state<string | null>(null);
+	let formulaEdit = $state.raw<{ field: string; anchor: HTMLElement; typed: string } | null>(null);
 	let filling = $state.raw<Box | null>(null);
 
 	let fitted = $state.raw<Record<string, number>>({});
@@ -493,10 +495,6 @@
 		table?.focus({ preventScroll: true });
 	}
 
-	function formulaReason(field: FieldDef): string {
-		return `${field.name} is calculated by a formula, so it can't be edited.`;
-	}
-
 	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
 		const timed = native && timedColumn(app.ws, field);
 		const fresh = timed ? nowIso() : todayIso();
@@ -528,7 +526,8 @@
 		const row = rows[headRow] as Rec | undefined;
 		const key = row?.id ?? BLANK;
 		if (field.type === 'formula') {
-			showToast(formulaReason(field));
+			const cell = document.getElementById(cellId(headRow, headCol));
+			if (cell !== null) formulaEdit = { field: field.id, anchor: cell, typed: typed ?? '' };
 			return;
 		}
 		if (field.type === 'check') {
@@ -1051,8 +1050,6 @@
 		data-c={c}
 		aria-colindex={c + 2}
 		aria-selected={inRange}
-		aria-readonly={field.type === 'formula'}
-		title={field.type === 'formula' ? formulaReason(field) : undefined}
 		class="h-row border-r border-b border-b-rule p-0 {c === 0
 			? 'sticky left-11 z-10 border-r-rule-strong bg-raised'
 			: 'relative border-r-rule-col'}"
@@ -1359,5 +1356,19 @@
 		fieldOpen = true;
 	}}
 />
+{#if formulaEdit !== null}
+	{@const edited = app.ws.field(formulaEdit.field)}
+	{#if edited !== undefined}
+		<FormulaEditor
+			field={edited}
+			anchor={formulaEdit.anchor}
+			typed={formulaEdit.typed}
+			onclose={() => {
+				formulaEdit = null;
+				table?.focus({ preventScroll: true });
+			}}
+		/>
+	{/if}
+{/if}
 <RowSheet bind:open={rowOpen} {tableId} {rowId} />
 <FieldSheet bind:open={fieldOpen} {tableId} {fieldId} {preset} />

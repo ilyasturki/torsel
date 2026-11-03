@@ -291,7 +291,7 @@ test.describe('cells', () => {
 		}
 	});
 
-	test('a formula cell selects and says why it cannot be edited', async ({
+	test('a formula opens in place with names, says what is wrong, and changes the whole column', async ({
 		page,
 		context,
 		account
@@ -301,17 +301,42 @@ test.describe('cells', () => {
 
 		const cell = at(page, 0, 4);
 		await expect(cell).toHaveText('20');
-		await press(cell);
-		await expect(cell).toHaveAttribute('aria-selected', 'true');
-		await expect(cell).toHaveAttribute('aria-readonly', 'true');
-		if (!isPhone()) {
-			await page.keyboard.press('Enter');
+		if (isPhone()) {
+			await cell.tap();
+		} else {
+			await cell.dblclick();
 		}
-		await expect(page.getByRole('status')).toContainText(
-			"Volume is calculated by a formula, so it can't be edited."
-		);
-		await expect(cell.locator('input')).toHaveCount(0);
+		const formula = page.getByRole('textbox', { name: 'Formula of Volume' });
+		await expect(formula).toBeFocused();
+		await expect(formula).toHaveValue('"Kg" * 2');
+		await expect(page.getByText('Applies to the whole column')).toBeVisible();
+
+		await formula.fill('"Kilos" * 3');
+		await formula.press('Enter');
+		await expect(page.getByRole('alert')).toHaveText('unknown field: "Kilos"');
+		await expect(formula).toBeVisible();
 		await expect(cell).toHaveText('20');
+
+		await formula.fill('');
+		await formula.pressSequentially('k');
+		await expect(page.getByRole('option', { name: 'Kg' })).toBeVisible();
+		await formula.press('Enter');
+		await expect(formula).toHaveValue('"Kg"');
+		await formula.pressSequentially(' * 3');
+		await formula.press('Enter');
+		await expect(formula).toHaveCount(0);
+		await expect(cell).toHaveText('30');
+		await expect(at(page, 2, 4)).toHaveText('90');
+
+		if (!isPhone()) {
+			await page.keyboard.press('Control+z');
+			await expect(cell).toHaveText('20');
+			await page.keyboard.press('Enter');
+			await expect(formula).toHaveValue('"Kg" * 2');
+			await formula.press('Escape');
+			await expect(formula).toHaveCount(0);
+			await expect(grid(page)).toBeFocused();
+		}
 	});
 
 	test('a choice opens on the first click and filters by typing', async ({

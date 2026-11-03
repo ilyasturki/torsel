@@ -3,9 +3,10 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatNumber, readNumber } from '#lib/client/format.ts';
+	import { readFormula } from '#lib/client/formula.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
-	import { FormulaError, toDisplay, toStored } from '#lib/core/formula.ts';
+	import { toDisplay } from '#lib/core/formula.ts';
 	import type { Change, Choice, FieldType, Value } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -147,20 +148,12 @@
 
 		let expr: string | null = null;
 		if (type === 'formula') {
-			try {
-				expr = toStored(
-					formula,
-					app.ws.fields(tableId).filter((field) => field.id !== fieldId)
-				);
-			} catch (error) {
-				problem = error instanceof FormulaError ? error.message : String(error);
+			const read = readFormula(tableId, fieldId, formula);
+			if ('problem' in read) {
+				problem = read.problem;
 				return;
 			}
-			const refused = app.checkFormula(tableId, expr);
-			if (refused !== null) {
-				problem = `SQLite refused the formula: ${refused}`;
-				return;
-			}
+			expr = read.expr;
 		}
 
 		const stepValue = readNumber(step);
@@ -277,11 +270,12 @@
 		{/if}
 
 		{#if type === 'formula'}
-			<Field
-				label="SQL formula"
-				hint="A SQLite expression on the row's fields, names in double quotes: &quot;Weight&quot; * (1 + &quot;Reps&quot; / 30.0)"
-			>
-				<textarea class="{textarea} h-24" bind:value={formula} spellcheck="false"></textarea>
+			<Field label="Formula">
+				<textarea
+					class="{textarea} h-24"
+					bind:value={formula}
+					spellcheck="false"
+					placeholder={'"Weight" * (1 + "Reps" / 30.0)'}></textarea>
 			</Field>
 		{/if}
 
