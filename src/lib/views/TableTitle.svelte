@@ -3,6 +3,7 @@
 	import { pastedCells, shell } from '#lib/client/shell.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
 	import type { TableDef } from '#lib/core/model.ts';
+	import { fieldFocus } from '#lib/ui/styles.ts';
 
 	let { table, rows }: { table: TableDef; rows: number } = $props();
 
@@ -44,7 +45,7 @@
 	{#if editing}
 		<input
 			use:select
-			class="w-full min-w-0 rounded-box bg-tint px-1 outline-none"
+			class="w-full min-w-0 rounded-box bg-tint px-1 {fieldFocus}"
 			aria-label="Table name"
 			bind:value={draft}
 			onblur={commit}

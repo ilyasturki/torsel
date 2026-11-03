@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { fieldFocusWithin } from './styles.ts';
 
 	let {
 		label,
@@ -24,7 +25,7 @@
 		'motion flex w-18 shrink-0 items-center justify-center rounded-box text-ink transition-colors hover:bg-tint-2';
 </script>
 
-<div class="flex rounded-box bg-tint {sizes[size]}">
+<div class="flex rounded-box bg-tint {fieldFocusWithin} {sizes[size]}">
 	<button type="button" class={side} aria-label="{label} minus" onclick={() => onstep(-1)}>
 		<Icon name="minus" class="size-5" />
 	</button>

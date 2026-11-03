@@ -49,10 +49,10 @@
 {#if wide.current}
 	<Menu bind:open {anchor} label={table.name} align="end">
 		{#if onviewsettings !== undefined}
-			<MenuItem onSelect={() => run(onviewsettings)}>View settings</MenuItem>
+			<MenuItem icon="eye" onSelect={() => run(onviewsettings)}>View settings</MenuItem>
 		{/if}
 		<MenuItem icon="plus" onSelect={() => run(onnewview)}>New view</MenuItem>
-		<MenuItem onSelect={() => run(importHere)}>Import into this table</MenuItem>
+		<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>Import into this table</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={remove}>Delete table</MenuItem>
 	</Menu>

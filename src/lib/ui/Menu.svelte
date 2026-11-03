@@ -11,8 +11,11 @@
 		side = 'bottom',
 		align = 'start',
 		trigger,
+		onCloseAutoFocus,
 		children
 	}: {
+		/** Where focus goes once it closes; `preventDefault` keeps it where an item put it. */
+		onCloseAutoFocus?: (event: Event) => void;
 		open?: boolean;
 		/** Without `trigger`: the element the menu hangs from, which keeps its own click handler. */
 		anchor?: HTMLElement | null;
@@ -47,7 +50,8 @@
 				}
 			}}
 			onCloseAutoFocus={(event) => {
-				if (!trigger && anchor !== null) {
+				onCloseAutoFocus?.(event);
+				if (!event.defaultPrevented && !trigger && anchor !== null) {
 					event.preventDefault();
 					anchor.focus();
 				}
