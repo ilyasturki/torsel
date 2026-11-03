@@ -19,13 +19,13 @@
 	--on-fill: #ffffff;
 	--accent: #2f6bec;
 	--on-accent: #ffffff;
-	/* Opaque, so sticky header cells and the frozen column hide what scrolls under them. */
-	--rule: color-mix(in srgb, var(--ink) 10%, var(--raised));
-	--rule-col: color-mix(in srgb, var(--ink) 7%, var(--raised));
-	--rule-strong: color-mix(in srgb, var(--ink) 20%, var(--raised));
-	--band: color-mix(in srgb, var(--ink) 3.5%, var(--raised));
-	--selected: color-mix(in srgb, var(--accent) 10%, var(--raised));
-	--frame: color-mix(in srgb, var(--ink) 13%, var(--canvas));
+	/* Ink (accent for selected) at 10, 7, 20, 3.5 and 10% over raised, frame at 13% over canvas: opaque, so sticky cells hide what scrolls under them. */
+	--rule: #e8e8e8;
+	--rule-col: #efefef;
+	--rule-strong: #d0d1d1;
+	--band: #f7f7f7;
+	--selected: #eaf0fd;
+	--frame: #d9d9db;
 	--scrim: rgb(0 0 0 / 0.3);
 	--focus: var(--accent);
 	--elevation-1: 0 0 0 1px rgb(17 18 22 / 0.05), 0 1px 2px rgb(17 18 22 / 0.04);
@@ -90,6 +90,12 @@
 		--on-fill: #0d0e10;
 		--accent: #6f9bff;
 		--on-accent: #0d0e10;
+		--rule: #2c2c30;
+		--rule-col: #25262a;
+		--rule-strong: #414246;
+		--band: #1e1e22;
+		--selected: #1f2432;
+		--frame: #2a2b2d;
 		--scrim: rgb(0 0 0 / 0.5);
 		--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 -.025'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
 		--elevation-1: 0 0 0 1px rgb(255 255 255 / 0.05);
