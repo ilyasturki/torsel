@@ -210,7 +210,7 @@ test('Escape closes the table list and leaves the Ask panel open', async ({
 	test.skip(test.info().project.name === 'phone', 'on a phone the Ask panel covers the header');
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 	const input = page.getByPlaceholder('Ask about your tables');
 	await page.getByRole('button', { name: /^Ask/u }).click();
 	await expect(input).toBeVisible();
@@ -351,7 +351,7 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);
-	await page.goto(`/app/t/${lifts}`);
+	await page.goto(tablePath(lifts));
 
 	const more = page.getByRole('button', { name: 'More' });
 	await more.click();
@@ -421,7 +421,7 @@ test('settings opens from the home and a table, and its slot turns into Back in 
 	await page.getByRole('link', { name: 'Settings' }).click();
 	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 	await back.click();
-	await expect(page).toHaveURL((url) => url.pathname.startsWith(tablePath(lifts)));
+	await expect(page).toHaveURL((url) => url.pathname.startsWith(tablePath('Lifts')));
 });
 
 test('undo takes back the last change, and the keyboard changes the view', async ({

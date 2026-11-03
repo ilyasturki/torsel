@@ -47,7 +47,7 @@ test('a rename moves the address, and the old one still leads there', async ({
 	await seedSeries(context.request);
 	await page.goto('/app/t/series/date-watched');
 
-	await page.getByRole('heading', { name: 'Séries' }).getByRole('button').click();
+	await tableMenu(page, 'Rename table');
 	await page.getByRole('textbox', { name: 'Table name' }).fill('Shows to watch');
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'Shows to watch' })).toBeVisible();

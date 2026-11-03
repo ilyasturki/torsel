@@ -375,9 +375,8 @@ test.describe('opening where you left off', () => {
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sets' })
 		).toHaveAttribute('aria-current', 'page');
 
-		const tabs = page.getByRole('group', { name: 'Tables' });
-		await tabs.getByRole('link', { name: 'All' }).click();
-		await tabs.getByRole('link', { name: 'Lifts' }).click();
+		await allTables(page).click();
+		await openTable(page, 'Lifts');
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Sets')}$`, 'u'));
 		await expect(
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sets' })
