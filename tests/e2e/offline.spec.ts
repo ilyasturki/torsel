@@ -264,6 +264,25 @@ test.describe('in a build', () => {
 			await oldTab.goto(page.url());
 			await expect(oldTab.getByRole('heading', { name: 'Table 1' })).toBeVisible();
 
+			const devtools = await context.newCDPSession(page);
+			let installed = false;
+			let lameDuck: string | undefined;
+			let restarted = false;
+			devtools.on('ServiceWorker.workerVersionUpdated', ({ versions }) => {
+				installed ||= versions.some(({ status }) => status === 'installed');
+				for (const { versionId, status, runningStatus } of versions) {
+					// With two tabs controlled, only skipWaiting() makes Chromium stop the active worker.
+					if (installed && status === 'activated' && runningStatus === 'stopping') {
+						lameDuck ??= versionId;
+					}
+					if (versionId === lameDuck) {
+						restarted =
+							status === 'activated' && (runningStatus === 'starting' || runningStatus === 'running');
+					}
+				}
+			});
+			await devtools.send('ServiceWorker.enable');
+
 			previous.kill();
 			await once(previous, 'exit');
 			await serve(CURRENT_BUILD, port, database);
@@ -282,8 +301,15 @@ test.describe('in a build', () => {
 			expect(loaded.filter((path) => !inBuild(CURRENT_BUILD)(path))).toEqual([]);
 			expect(loaded.some((path) => !inBuild(PREVIOUS_BUILD)(path))).toBe(true);
 
+			await expect.poll(() => lameDuck).toBeDefined();
 			await expect
-				.poll(() => filledCaches(page))
+				.poll(async () => {
+					// A fetch that restarts the old worker clears Chromium's stop-when-idle, which only DevTools needs: this re-arms it.
+					if (restarted) {
+						await devtools.send('ServiceWorker.skipWaiting', { scopeURL: `${base}/app` });
+					}
+					return filledCaches(page);
+				})
 				.toEqual([`shell-${builtVersion(CURRENT_BUILD)}`]);
 
 			loaded.length = 0;
