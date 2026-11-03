@@ -77,14 +77,20 @@
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
 			pick(items.at(active));
-		} else if (event.key === 'Escape') {
-			// Closes the list only: the Ask panel listens for Escape on the window.
+		}
+	}
+
+	// Escape closes the list only, wherever the focus is: the Ask panel listens for it on the window too.
+	function onescape(event: KeyboardEvent): void {
+		if (shell.switching && event.key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
 			shell.switching = false;
 		}
 	}
 </script>
+
+<svelte:window onkeydowncapture={onescape} />
 
 <Popover.Root
 	bind:open={shell.switching}

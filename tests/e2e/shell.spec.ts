@@ -202,6 +202,32 @@ test('the assistant stays out of the way until it is opened', async ({
 	await expect(input).toBeVisible();
 });
 
+test('Escape closes the table list and leaves the Ask panel open', async ({
+	page,
+	context,
+	account
+}) => {
+	test.skip(test.info().project.name === 'phone', 'on a phone the Ask panel covers the header');
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(`/app/t/${lifts}`);
+	const input = page.getByPlaceholder('Ask about your tables');
+	await page.getByRole('button', { name: /^Ask/u }).click();
+	await expect(input).toBeVisible();
+
+	const list = page.getByRole('listbox', { name: 'Tables' });
+	await page.getByRole('banner').getByRole('heading').getByRole('button').click();
+	await page.keyboard.press('Escape');
+	await expect(list).toBeHidden();
+	await expect(input, 'before the search takes the focus').toBeVisible();
+
+	await tableList(page);
+	await expect(page.getByRole('combobox', { name: 'Jump to a table' })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(list).toBeHidden();
+	await expect(input, 'from the search').toBeVisible();
+});
+
 test('a sheet focuses its first field and never drops a half-filled row', async ({
 	page,
 	context,
