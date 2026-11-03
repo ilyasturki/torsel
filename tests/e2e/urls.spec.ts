@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, seed, tablePath, test, undoButton } from './harness.ts';
+import { expect, seed, tableMenu, tablePath, test, undoButton } from './harness.ts';
 
 const at = (path: string): RegExp => new RegExp(`${path}$`, 'u');
 
@@ -95,8 +95,7 @@ test('two tables with one name each get their own address', async ({ page, conte
 
 	const twin = hrefs.find((href) => href !== '/app/t/sets') ?? '';
 	await page.goto('/app/t/sets');
-	await page.getByRole('button', { name: 'More' }).click();
-	await page.getByRole('dialog').getByRole('button', { name: 'Delete table' }).click();
+	await tableMenu(page, 'Delete table');
 	await expect(page).toHaveURL(/\/app$/u);
 	await expect(page.getByRole('main').getByRole('link', { name: /^Sets/u })).toHaveAttribute(
 		'href',
