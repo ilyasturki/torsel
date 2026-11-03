@@ -17,6 +17,11 @@ export const checkbox = `size-4 shrink-0 accent-current ${focus}`;
 
 export const legend = 'mb-1 text-sm font-medium text-ink-2';
 
+/** A choice to tap in a form: pressed, it fills. */
+export const chip = `motion inline-flex h-control shrink-0 items-center gap-2 rounded-box px-3 font-medium transition-colors ${focus}`;
+export const chipOff = 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink';
+export const chipOn = 'bg-fill text-on-fill';
+
 /** A row of a menu or a list of options; bits-ui marks the one under the pointer or the keys. */
 export const menuItem =
 	'motion flex h-control w-full cursor-default items-center gap-2 rounded-box px-2 text-ink outline-none transition-colors select-none data-disabled:text-ink-3 data-highlighted:bg-tint-2';

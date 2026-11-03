@@ -7,6 +7,8 @@
 		icon?: IconName;
 		/** A data colour, drawn as the choice's swatch. */
 		color?: string | null;
+		/** Options sharing a group sit under its name, in the order they come. */
+		group?: string;
 	};
 </script>
 
@@ -54,6 +56,15 @@
 			? options
 			: options.filter((option) => option.label.toLocaleLowerCase().includes(needle));
 	});
+	const groups = $derived.by(() => {
+		const out: { name: string | undefined; options: Option<T>[] }[] = [];
+		for (const option of shown) {
+			const last = out.at(-1);
+			if (last !== undefined && last.name === option.group) last.options.push(option);
+			else out.push({ name: option.group, options: [option] });
+		}
+		return out;
+	});
 	const items = $derived(
 		options.map((option) => ({ value: key(option.value), label: option.label }))
 	);
@@ -69,6 +80,20 @@
 		onchange?.(option.value);
 	}
 </script>
+
+{#snippet item(option: Option<T>)}
+	<Combobox.Item value={key(option.value)} label={option.label} class={menuItem}>
+		{#snippet children({ selected: picked })}
+			{#if option.icon}
+				<Icon name={option.icon} class="size-4 text-ink-2" />
+			{:else if option.color !== undefined}
+				<span class="size-mark shrink-0 rounded-box" style={swatch(option.color)}></span>
+			{/if}
+			<span class="min-w-0 flex-1 truncate">{option.label || ' '}</span>
+			{#if picked}<Icon name="check" class="size-4 text-ink-2" />{/if}
+		{/snippet}
+	</Combobox.Item>
+{/snippet}
 
 <Combobox.Root
 	type="single"
@@ -125,18 +150,19 @@
 			class="{popup} flex max-h-(--bits-combobox-content-available-height) w-(--bits-combobox-anchor-width) min-w-48 flex-col"
 		>
 			<Combobox.Viewport class="max-h-80">
-				{#each shown as option (option.value)}
-					<Combobox.Item value={key(option.value)} label={option.label} class={menuItem}>
-						{#snippet children({ selected: picked })}
-							{#if option.icon}
-								<Icon name={option.icon} class="size-4 text-ink-2" />
-							{:else if option.color !== undefined}
-								<span class="size-mark shrink-0 rounded-box" style={swatch(option.color)}></span>
-							{/if}
-							<span class="min-w-0 flex-1 truncate">{option.label || ' '}</span>
-							{#if picked}<Icon name="check" class="size-4 text-ink-2" />{/if}
-						{/snippet}
-					</Combobox.Item>
+				{#each groups as group, at (group.name ?? at)}
+					{#if group.name === undefined}
+						{#each group.options as option (option.value)}{@render item(option)}{/each}
+					{:else}
+						<Combobox.Group>
+							<Combobox.GroupHeading
+								class="flex h-control items-center px-2 text-sm font-medium text-ink-3"
+							>
+								{group.name}
+							</Combobox.GroupHeading>
+							{#each group.options as option (option.value)}{@render item(option)}{/each}
+						</Combobox.Group>
+					{/if}
 				{:else}
 					<p class="flex h-control items-center px-2 text-ink-3">No match</p>
 				{/each}
