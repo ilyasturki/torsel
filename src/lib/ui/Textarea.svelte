@@ -5,7 +5,7 @@
 
 	let {
 		value = $bindable(''),
-		ref = $bindable(null),
+		ref = $bindable(),
 		rows = 1,
 		maxRows = 8,
 		bare = false,
@@ -13,7 +13,7 @@
 		...rest
 	}: Omit<HTMLTextareaAttributes, 'value'> & {
 		value?: string;
-		ref?: HTMLTextAreaElement | null;
+		ref?: HTMLTextAreaElement;
 		rows?: number;
 		/** The height it grows to before it scrolls. */
 		maxRows?: number;
@@ -24,7 +24,7 @@
 	let height = $state<number | null>(null);
 
 	function measure(): void {
-		if (ref === null) return;
+		if (ref === undefined) return;
 		const style = getComputedStyle(ref);
 		const line = parseFloat(style.lineHeight);
 		const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
@@ -42,7 +42,7 @@
 	});
 
 	$effect(() => {
-		if (ref === null) return;
+		if (ref === undefined) return;
 		let width = 0;
 		// Only a new width rewraps the text; reacting to the height it sets would loop.
 		const observer = new ResizeObserver(([entry]) => {

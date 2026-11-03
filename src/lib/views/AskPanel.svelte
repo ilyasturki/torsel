@@ -19,6 +19,8 @@
 	import { MAX_CONTEXT_ROWS, MAX_PROMPT, toItems } from '#lib/core/thread.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Markdown from '#lib/ui/Markdown.svelte';
+	import { fieldFocusWithin } from '#lib/ui/styles.ts';
+	import Textarea from '#lib/ui/Textarea.svelte';
 
 	import ThreadTool from './ThreadTool.svelte';
 
@@ -217,21 +219,23 @@
 		</div>
 
 		<form
-			class="m-2 mt-0 flex shrink-0 items-end gap-2 rounded-box bg-tint p-2"
+			class="m-2 mt-0 flex shrink-0 items-end gap-2 rounded-box bg-tint p-2 {fieldFocusWithin}"
 			onsubmit={(event) => {
 				event.preventDefault();
 				submit();
 			}}
 		>
 			<label for="ask-input" class="sr-only">Ask about your tables</label>
-			<textarea
+			<Textarea
 				id="ask-input"
-				bind:this={field}
+				bare
+				bind:ref={field}
 				bind:value={prompt}
-				rows="2"
+				rows={2}
 				maxlength={MAX_PROMPT}
-				class="min-w-0 flex-1 resize-none bg-transparent outline-none placeholder:text-ink-3"
-				placeholder="Ask about your tables"></textarea>
+				class="flex-1"
+				placeholder="Ask about your tables"
+			/>
 			{#if assistant.busy}
 				<Button onclick={stop}>Stop</Button>
 			{:else}
