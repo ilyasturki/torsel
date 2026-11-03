@@ -312,6 +312,15 @@ describe('fitting a column', () => {
 		expect(fitWidth(done, ['yes'], measure)).toBe(68);
 	});
 
+	it('fits every star of a rating and every chip of several choices', () => {
+		const { note } = fixture();
+		expect(fitWidth({ ...note, type: 'rating', max: 10 }, [''], measure)).toBe(176);
+		expect(fitWidth({ ...note, type: 'rating', name: 'A long score header' }, [''], measure)).toBe(
+			158
+		);
+		expect(fitWidth({ ...note, type: 'choices' }, ['Epic, Desert'], measure)).toBe(84 + 38 + 26);
+	});
+
 	it('gives an empty column room to type in', () => {
 		const { note } = fixture();
 		expect(fitWidth(note, ['', ''], measure)).toBe(180);

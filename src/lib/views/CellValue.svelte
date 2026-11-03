@@ -26,7 +26,7 @@
 {:else if field.type === 'choices' && Array.isArray(value)}
 	<span class="flex min-w-0 items-center gap-3 overflow-hidden">
 		{#each value as name, at (at)}
-			<Chip name={String(name)} color={colorOf(String(name))} />
+			<span class="shrink-0"><Chip name={String(name)} color={colorOf(String(name))} /></span>
 		{/each}
 	</span>
 {:else if field.type === 'check'}

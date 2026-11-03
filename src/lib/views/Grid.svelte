@@ -822,9 +822,14 @@
 	function onbodyclick(event: MouseEvent): void {
 		const cell = cellFrom(event.target);
 		const target = event.target as Element;
-		if (cell === null || target.closest('input, textarea, a[href]') !== null) return;
+		if (cell === null || target.closest('input, textarea') !== null) return;
 		const field = fields[cell.c];
 		if (field === undefined) return;
+		// A mouse follows a link in a cell; a tap edits it, as it edits any cell.
+		if (target.closest('a[href]') !== null) {
+			if (pointerKind !== 'touch') return;
+			event.preventDefault();
+		}
 
 		const stars = target.closest<HTMLElement>('[data-stars]');
 		if (field.type === 'rating' && stars !== null && !dragged && !event.shiftKey) {

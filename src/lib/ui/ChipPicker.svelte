@@ -74,23 +74,26 @@
 		{/each}
 		{#if oncreate !== undefined}
 			{#if adding}
-				<form
-					class="shrink-0"
-					onsubmit={(event) => {
-						event.preventDefault();
-						create();
+				<!-- A form here would nest in the row sheet's own and submit it. -->
+				<!-- svelte-ignore a11y_autofocus -->
+				<input
+					class="{input} w-40 shrink-0"
+					bind:value={fresh}
+					placeholder="New choice"
+					aria-label="New choice"
+					autofocus
+					onkeydown={(event) => {
+						if (event.key === 'Enter') {
+							event.preventDefault();
+							create();
+						} else if (event.key === 'Escape') {
+							event.stopPropagation();
+							fresh = '';
+							adding = false;
+						}
 					}}
-				>
-					<!-- svelte-ignore a11y_autofocus -->
-					<input
-						class="{input} w-40"
-						bind:value={fresh}
-						placeholder="New choice"
-						aria-label="New choice"
-						autofocus
-						onblur={create}
-					/>
-				</form>
+					onblur={create}
+				/>
 			{:else}
 				<button type="button" class="{chip} {chipOff}" onclick={() => (adding = true)}>
 					<Icon name="plus" /> New

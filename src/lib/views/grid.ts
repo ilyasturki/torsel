@@ -5,6 +5,7 @@ import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
 import { hasChoices } from '#lib/core/model.ts';
+import { CHOICES_JOIN, ratingScale } from '#lib/core/values.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
 import { currencyOf, formatDuration } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
@@ -292,6 +293,10 @@ export function sampleRows(rows: Rec[]): Rec[] {
 
 const CELL_PADDING = 26;
 const CHIP_MARK = 16;
+// The gap between two chips, less the ", " it replaces in the measured text.
+const CHIP_GAP = 6;
+// A small star and the pixel after it.
+const STAR = 15;
 const HEADER_MARKS = 18;
 const FORMULA_MARK = 12;
 const FLOOR: Record<FieldDef['type'], { empty: number; filled: number }> = {
@@ -309,7 +314,7 @@ const FLOOR: Record<FieldDef['type'], { empty: number; filled: number }> = {
 	currency: { empty: 112, filled: 80 },
 	percent: { empty: 96, filled: 72 },
 	duration: { empty: 96, filled: 72 },
-	rating: { empty: 120, filled: 120 },
+	rating: { empty: 0, filled: 0 },
 	formula: { empty: 96, filled: 72 },
 	check: { empty: 64, filled: 64 }
 };
@@ -320,11 +325,22 @@ export function fitWidth(
 	texts: string[],
 	measure: { body: (text: string) => number; header: (text: string) => number }
 ): number {
-	const widest = Math.max(0, ...texts.map((text) => (text === '' ? 0 : measure.body(text))));
+	const marks = (text: string): number =>
+		field.type === 'choices'
+			? text.split(CHOICES_JOIN).length * (CHIP_MARK + CHIP_GAP) - CHIP_GAP
+			: hasChoices(field.type)
+				? CHIP_MARK
+				: 0;
+	const widest = Math.max(
+		0,
+		...texts.map((text) => (text === '' ? 0 : measure.body(text) + marks(text)))
+	);
 	const body =
-		widest === 0
-			? FLOOR[field.type].empty
-			: widest + CELL_PADDING + (hasChoices(field.type) ? CHIP_MARK : 0);
+		field.type === 'rating'
+			? ratingScale(field).max * STAR + CELL_PADDING
+			: widest === 0
+				? FLOOR[field.type].empty
+				: widest + CELL_PADDING;
 	const header =
 		measure.header(field.name) +
 		CELL_PADDING +
