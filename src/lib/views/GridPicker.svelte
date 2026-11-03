@@ -115,7 +115,7 @@
 	aria-controls="grid-picker"
 	aria-activedescendant="grid-picker-{active}"
 	inputmode={options.length <= NO_KEYBOARD ? 'none' : undefined}
-	placeholder={options.find((option) => option.id === value)?.label ?? ''}
+	placeholder={options.find((option) => option.id === value)?.label ?? label}
 	{onkeydown}
 	onblur={oncancel}
 />

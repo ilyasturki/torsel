@@ -49,6 +49,7 @@
 		{id}
 		class={input}
 		inputmode="decimal"
+		placeholder={field.name}
 		value={numberText}
 		oninput={(event) => {
 			numberText = event.currentTarget.value;
@@ -105,6 +106,7 @@
 	<input
 		{id}
 		class={input}
+		placeholder={field.name}
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) =>
 			(value = event.currentTarget.value === '' ? null : event.currentTarget.value)}

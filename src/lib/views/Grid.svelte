@@ -1071,6 +1071,8 @@
 				</span>
 			{:else if row === null && field.type === 'date'}
 				<span class="truncate text-ink-3">{formatDate(todayIso())}</span>
+			{:else if row === null && field.type !== 'formula'}
+				<span class="truncate text-ink-3">{field.name}</span>
 			{:else}
 				<CellValue {field} {value} />
 			{/if}
@@ -1107,6 +1109,7 @@
 						? 'text-right'
 						: ''}"
 					aria-label={field.name}
+					placeholder={field.name}
 					type={nativeDate ?? 'text'}
 					inputmode={field.type === 'number' ? 'decimal' : undefined}
 					enterkeyhint="done"

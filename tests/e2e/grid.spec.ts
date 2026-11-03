@@ -1163,3 +1163,27 @@ test.describe('filling', () => {
 		await expect(at(page, 0, 1).locator('.cursor-crosshair')).toBeHidden();
 	});
 });
+
+test.describe('columns, by hand', () => {
+	test('the blank row and the editors show each field name until filled', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+		await expect(at(page, 3, 0)).toHaveText('Exercise');
+		await expect(at(page, 3, 1)).toHaveText('Kg');
+		await expect(at(page, 3, 2)).toHaveText('Style');
+		await expect(at(page, 3, 4)).toHaveText('');
+
+		await press(at(page, 3, 0));
+		if (!isPhone()) await page.keyboard.press('Enter');
+		await expect(editor(page)).toHaveAttribute('placeholder', 'Exercise');
+		await editor(page).press('Escape');
+
+		await page.getByRole('button', { name: 'Add row' }).click();
+		const sheet = page.getByRole('dialog', { name: 'New row' });
+		await expect(sheet.getByPlaceholder('Kg', { exact: true })).toBeVisible();
+	});
+});
