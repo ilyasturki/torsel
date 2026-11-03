@@ -1,5 +1,6 @@
-import type { Change, Choice, FieldDef, FieldType, Value } from './model.ts';
-import { parseCheck, parseDate, parseNumber } from './values.ts';
+import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from './model.ts';
+import { formatSet, hasChoices, isNumeric } from './model.ts';
+import { CHOICES_JOIN, coerce, durationUnit, formatDuration } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
 export type Retype = {
@@ -7,19 +8,31 @@ export type Retype = {
 	target?: string | null;
 	expr?: string | null;
 	choices?: Choice[];
-};
+} & Partial<Pick<FieldDef, FormatKey>>;
 
+/** A value as the person reads it, without a locale: what a text field keeps of it. */
 function asText(ws: Workspace, field: FieldDef, value: Value): string | null {
 	if (typeof value === 'boolean') {
 		return value ? 'yes' : 'no';
 	}
 	if (typeof value === 'number') {
-		return String(value);
+		if (field.type === 'duration') {
+			return formatDuration(value, field.seconds || value % 60 !== 0);
+		}
+		return field.type === 'percent' ? `${value}%` : String(value);
+	}
+	if (Array.isArray(value)) {
+		return value.filter((item) => typeof item === 'string').join(CHOICES_JOIN) || null;
 	}
 	if (typeof value !== 'string') {
 		return null;
 	}
 	return field.type === 'link' ? ws.rowTitle(value) || null : value;
+}
+
+/** A number in the unit the person reads: a duration counts in its field's smallest unit. */
+function asNumber(field: Pick<FieldDef, 'type' | 'seconds'>, value: number): number {
+	return field.type === 'duration' ? value / durationUnit(field) : value;
 }
 
 function convert(
@@ -32,32 +45,25 @@ function convert(
 	if (to.type === 'formula') {
 		return null;
 	}
-	if (to.type === 'number' && typeof value !== 'string') {
-		return typeof value === 'number' ? value : value === true ? 1 : 0;
+	if (from.type === 'duration' && to.type === 'duration') {
+		return coerce(to, value);
+	}
+	if (isNumeric(to.type) && (typeof value === 'number' || typeof value === 'boolean')) {
+		const number = typeof value === 'number' ? asNumber(from, value) : value ? 1 : 0;
+		return coerce(to, to.type === 'duration' ? number * durationUnit(to) : number);
 	}
 	if (to.type === 'check' && typeof value !== 'string') {
 		return typeof value === 'boolean' ? value : value !== 0;
+	}
+	if (to.type === 'choices' && typeof value === 'string' && from.type === 'choice') {
+		return [value];
 	}
 
 	const text = asText(ws, from, value);
 	if (text === null) {
 		return null;
 	}
-
-	switch (to.type) {
-		case 'number':
-			return parseNumber(text);
-		case 'date':
-			return parseDate(text);
-		case 'check':
-			return parseCheck(text);
-		case 'link':
-			return titles.get(text.trim().toLowerCase()) ?? null;
-		case 'choice':
-			return text.trim() === '' ? null : text.trim();
-		default:
-			return text;
-	}
+	return to.type === 'link' ? (titles.get(text.trim().toLowerCase()) ?? null) : coerce(to, text);
 }
 
 function linkTitles(ws: Workspace, target: string | null | undefined): Map<string, string> {
@@ -74,13 +80,13 @@ function linkTitles(ws: Workspace, target: string | null | undefined): Map<strin
 }
 
 function unchanged(a: Value | undefined, b: Value): boolean {
-	return (a ?? null) === b;
+	return JSON.stringify(a ?? null) === JSON.stringify(b);
 }
 
 /**
- * The changes turning a field into another type, every value converted in one undo step, and how
- * many values have no form in the new type and are cleared. `computed` holds a formula's current
- * results by row, which become the values when it stops being a formula.
+ * The changes turning a field into another type or format, every value converted in one undo step,
+ * and how many values have no form in the new one and are cleared. `computed` holds a formula's
+ * current results by row, which become the values when it stops being a formula.
  */
 export function retypeField(
 	ws: Workspace,
@@ -95,8 +101,9 @@ export function retypeField(
 
 	const titles = to.type === 'link' ? linkTitles(ws, to.target) : new Map<string, string>();
 	const changes: Change[] = [];
-	const named = new Set((to.choices ?? field.choices).map((choice) => choice.name));
-	const found: Choice[] = [...(to.choices ?? field.choices)];
+	const known = to.choices ?? field.choices;
+	const named = new Set(known.map((choice) => choice.name));
+	const found: Choice[] = [...known];
 	let lost = 0;
 
 	for (const row of ws.rows(field.table)) {
@@ -109,9 +116,11 @@ export function retypeField(
 		if (next === null && to.type !== 'formula') {
 			lost += 1;
 		}
-		if (to.type === 'choice' && typeof next === 'string' && !named.has(next)) {
-			named.add(next);
-			found.push({ name: next, color: null });
+		for (const name of typeof next === 'string' ? [next] : Array.isArray(next) ? next : []) {
+			if (hasChoices(to.type) && typeof name === 'string' && !named.has(name)) {
+				named.add(name);
+				found.push({ name, color: null });
+			}
 		}
 		if (!unchanged(row.data[field.id], next)) {
 			changes.push({
@@ -124,8 +133,8 @@ export function retypeField(
 		}
 	}
 
-	const set: Record<string, Value> = { type: to.type, auto: null };
-	if (to.type === 'choice') {
+	const set: Record<string, Value> = { type: to.type, auto: null, ...formatSet(to.type, to) };
+	if (hasChoices(to.type)) {
 		set.choices = found.map((choice) => ({ name: choice.name, color: choice.color }));
 	}
 	if (to.type === 'link') {

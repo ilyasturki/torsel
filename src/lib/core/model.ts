@@ -36,15 +36,45 @@ export function isDeleted(rec: Rec): boolean {
 
 export const FIELD_TYPES = [
 	'text',
+	'longtext',
 	'number',
+	'currency',
+	'percent',
+	'rating',
+	'duration',
 	'date',
+	'datetime',
 	'choice',
+	'choices',
 	'check',
 	'link',
+	'url',
+	'email',
+	'phone',
 	'formula'
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
+
+const NUMERIC: readonly FieldType[] = ['number', 'currency', 'percent', 'rating', 'duration'];
+
+/** Held as a number: right-aligned, summed and charted. */
+export function isNumeric(type: FieldType): boolean {
+	return NUMERIC.includes(type);
+}
+
+export function isDated(type: FieldType): boolean {
+	return type === 'date' || type === 'datetime';
+}
+
+export function hasChoices(type: FieldType): boolean {
+	return type === 'choice' || type === 'choices';
+}
+
+/** Held as one line of text a person can follow: a web address, a mailbox, a phone. */
+export function isContact(type: FieldType): boolean {
+	return type === 'url' || type === 'email' || type === 'phone';
+}
 
 export const VIEW_TYPES = ['grid', 'entry', 'list', 'chart'] as const;
 
@@ -67,10 +97,66 @@ export type FieldDef = {
 	target: string | null;
 	expr: string | null;
 	description: string | null;
+	// The plus and minus of a number, the smallest move of a rating.
 	step: number | null;
+	decimals: number | null;
+	grouping: boolean;
+	unit: string | null;
+	currency: string | null;
+	min: number | null;
+	max: number | null;
+	seconds: boolean;
 	// Nobody has chosen a type yet: the first values settle it.
 	auto: boolean;
 };
+
+export const FORMAT_KEYS = [
+	'step',
+	'decimals',
+	'grouping',
+	'unit',
+	'currency',
+	'min',
+	'max',
+	'seconds'
+] as const;
+
+export type FormatKey = (typeof FORMAT_KEYS)[number];
+
+export type FieldFormat = Pick<FieldDef, 'type'> & Partial<Pick<FieldDef, FormatKey>>;
+
+/** The format keys each type reads; the rest stay null on it. */
+export const FORMAT_OF: Record<FieldType, readonly FormatKey[]> = {
+	text: [],
+	longtext: [],
+	number: ['decimals', 'grouping', 'unit', 'step'],
+	currency: ['currency', 'decimals'],
+	percent: ['decimals'],
+	rating: ['min', 'max', 'step'],
+	duration: ['seconds'],
+	date: [],
+	datetime: [],
+	choice: [],
+	choices: [],
+	check: [],
+	link: [],
+	url: [],
+	email: [],
+	phone: [],
+	formula: []
+};
+
+/** A type's format keys from `options`, every other key cleared so no stale one comes back. */
+export function formatSet(
+	type: FieldType,
+	options: Partial<Pick<FieldDef, FormatKey>>
+): Record<FormatKey, Value> {
+	const set = Object.fromEntries(FORMAT_KEYS.map((key) => [key, null])) as Record<FormatKey, Value>;
+	for (const key of FORMAT_OF[type]) {
+		set[key] = options[key] ?? null;
+	}
+	return set;
+}
 
 export type GridConfig = {
 	hidden?: string[];

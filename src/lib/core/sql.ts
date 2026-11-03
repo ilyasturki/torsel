@@ -1,6 +1,6 @@
 import { FormulaError, toSql } from './formula.ts';
 import type { FieldDef, Rec, Value } from './model.ts';
-import { CREATED } from './model.ts';
+import { CREATED, isNumeric } from './model.ts';
 import type { Workspace } from './workspace.ts';
 
 export type SqlValue = string | number | null;
@@ -17,7 +17,7 @@ export function quote(name: string): string {
 }
 
 function affinity(field: FieldDef): string {
-	if (field.type === 'number') {
+	if (isNumeric(field.type)) {
 		return 'REAL';
 	}
 	return field.type === 'check' ? 'INTEGER' : 'TEXT';

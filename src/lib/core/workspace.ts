@@ -45,6 +45,12 @@ function choicesOf(value: Value | undefined): Choice[] {
 	return out;
 }
 
+function decimalsOf(value: Value | undefined): number | null {
+	return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6
+		? value
+		: null;
+}
+
 function fieldType(value: Value | undefined): FieldType {
 	return (FIELD_TYPES as readonly Value[]).includes(value ?? null) ? (value as FieldType) : 'text';
 }
@@ -89,6 +95,13 @@ export function fieldDef(rec: Rec): FieldDef {
 		expr: nullableText(rec.data.expr),
 		description: nullableText(rec.data.description),
 		step: typeof rec.data.step === 'number' && rec.data.step > 0 ? rec.data.step : null,
+		decimals: decimalsOf(rec.data.decimals),
+		grouping: rec.data.grouping !== false,
+		unit: nullableText(rec.data.unit),
+		currency: nullableText(rec.data.currency),
+		min: typeof rec.data.min === 'number' ? rec.data.min : null,
+		max: typeof rec.data.max === 'number' ? rec.data.max : null,
+		seconds: rec.data.seconds === true,
 		auto: rec.data.auto === true
 	};
 }

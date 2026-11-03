@@ -1,4 +1,5 @@
 import type { ChartConfig, FieldDef } from './model.ts';
+import { isDated } from './model.ts';
 import type { Engine, SqlValue } from './sql.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -17,7 +18,7 @@ const AGG_LABELS: Record<NonNullable<ChartConfig['agg']>, string> = {
 function bucketSql(field: FieldDef, bucket: ChartConfig['bucket']): string {
 	const column = `t.${field.id}`;
 
-	if (field.type !== 'date') {
+	if (!isDated(field.type)) {
 		return field.type === 'check' ? `case ${column} when 1 then 'yes' else 'no' end` : column;
 	}
 
@@ -56,7 +57,7 @@ export function chartQuery(ws: Workspace, tableId: string, config: ChartConfig):
 		config.kind === 'line' &&
 		rolling !== null &&
 		rolling > 1 &&
-		x.type === 'date' &&
+		isDated(x.type) &&
 		(config.bucket ?? 'day') === 'day'
 	) {
 		return `select x, series, avg(y) over (partition by series order by julianday(x) range between ${rolling - 1} preceding and current row) as y from (${grouped}) order by x`;

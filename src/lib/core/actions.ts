@@ -5,12 +5,13 @@ import type {
 	Choice,
 	FieldDef,
 	FieldType,
+	FormatKey,
 	Rec,
 	Value,
 	ViewConfig,
 	ViewType
 } from './model.ts';
-import { CREATED, DELETED } from './model.ts';
+import { CREATED, DELETED, FORMAT_OF, hasChoices } from './model.ts';
 import { coerce, typeOfValues } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -21,16 +22,21 @@ export type FieldSpec = {
 	target?: string | null;
 	expr?: string | null;
 	description?: string | null;
-	step?: number | null;
 	auto?: boolean;
-};
+} & Partial<Pick<FieldDef, FormatKey>>;
 
 export type ViewSpec = { name: string; type: ViewType; config?: ViewConfig };
 
 function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {
 	const set: Record<string, Value> = { name: spec.name.trim(), type: spec.type, order };
 
-	if (spec.type === 'choice') {
+	for (const key of FORMAT_OF[spec.type]) {
+		const value = spec[key];
+		if (value !== undefined && value !== null) {
+			set[key] = value;
+		}
+	}
+	if (hasChoices(spec.type)) {
 		set.choices = (spec.choices ?? []).map((choice) => ({
 			name: choice.name,
 			color: choice.color
@@ -44,9 +50,6 @@ function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {
 	}
 	if (spec.description !== undefined) {
 		set.description = spec.description;
-	}
-	if (spec.step !== undefined) {
-		set.step = spec.step;
 	}
 	if (spec.auto === true) {
 		set.auto = true;
@@ -346,15 +349,15 @@ function settleAuto(
 			return field;
 		}
 
-		const type = typeOfValues(values);
+		const { type, ...options } = typeOfValues(values);
 		changes.push({
 			id: field.id,
 			kind: 'field',
 			base: field.base,
 			parent: field.table,
-			set: { type, auto: null }
+			set: { type, auto: null, ...options }
 		});
-		return { ...field, type };
+		return { ...field, type, ...options };
 	});
 
 	return { fields, changes };

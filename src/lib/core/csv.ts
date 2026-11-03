@@ -1,9 +1,10 @@
 import type { FieldSpec } from './actions.ts';
 import { BLANK_FIELD, addField, createTable, deleteRecords } from './actions.ts';
 import { newId } from './ids.ts';
-import type { Change, Choice, FieldDef, FieldType, Value } from './model.ts';
-import { CREATED } from './model.ts';
-import { coerce, parseCheck, parseDate, parseNumber } from './values.ts';
+import type { Change, FieldDef, FieldFormat, FieldType, Value } from './model.ts';
+import { CREATED, formatSet, hasChoices, isDated } from './model.ts';
+import type { Detected } from './values.ts';
+import { coerce, detectType, parseDate, parseNumber, splitChoices } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
 export function detectDelimiter(text: string): string {
@@ -94,35 +95,56 @@ export function withHeader(rows: string[][]): string[][] {
 	return named ? rows : [first.map((_, index) => `Column ${index + 1}`), ...rows];
 }
 
-export type ColumnGuess = { name: string; type: FieldType; choices: string[] };
+export type ColumnGuess = { name: string; choices: string[] } & Detected;
 
 const MAX_CHOICES = 100;
+// Past this, or across lines, a cell is prose rather than a label.
+const LONG_TEXT = 120;
 
-function guessType(values: string[]): { type: FieldType; choices: string[] } {
+/** Few names that come back, as with any choice: a cell is one name, or several where `split`. */
+function namesRepeat(cells: string[][]): string[] | null {
+	const names = cells.flat();
+	const distinct = [...new Set(names)];
+	const short = distinct.every((name) => name.length <= 60);
+	if (distinct.length > MAX_CHOICES || !short || distinct.length > Math.max(3, names.length / 2)) {
+		return null;
+	}
+	return distinct.sort((a, b) => a.localeCompare(b));
+}
+
+/** Tags: several cells hold several names, and most names come back in other cells. */
+function tagsOf(filled: string[]): string[] | null {
+	const cells = filled.map(splitChoices);
+	if (cells.filter((names) => names.length > 1).length < 2) {
+		return null;
+	}
+	const seen = new Map<string, number>();
+	for (const name of cells.flat()) {
+		seen.set(name, (seen.get(name) ?? 0) + 1);
+	}
+	const again = [...seen.values()].filter((count) => count > 1).length;
+	return again * 2 >= seen.size ? namesRepeat(cells) : null;
+}
+
+function guessType(values: string[]): Omit<ColumnGuess, 'name'> {
 	const filled = values.map((value) => value.trim()).filter((value) => value !== '');
 
 	if (filled.length === 0) {
 		return { type: 'text', choices: [] };
 	}
-	if (filled.every((value) => parseNumber(value) !== null)) {
-		return { type: 'number', choices: [] };
+	const detected = detectType(filled);
+	if (detected !== null) {
+		return { ...detected, choices: [] };
 	}
-	if (filled.every((value) => parseDate(value) !== null)) {
-		return { type: 'date', choices: [] };
+	if (filled.some((value) => value.includes('\n') || value.length > LONG_TEXT)) {
+		return { type: 'longtext', choices: [] };
 	}
-	if (filled.every((value) => parseCheck(value) !== null)) {
-		return { type: 'check', choices: [] };
+	const tags = tagsOf(filled);
+	if (tags !== null) {
+		return { type: 'choices', choices: tags };
 	}
-
-	const distinct = [...new Set(filled)];
-	const repeats = distinct.length <= Math.max(3, filled.length / 2);
-	const short = distinct.every((value) => value.length <= 60);
-
-	if (distinct.length <= MAX_CHOICES && repeats && short) {
-		return { type: 'choice', choices: distinct.sort((a, b) => a.localeCompare(b)) };
-	}
-
-	return { type: 'text', choices: [] };
+	const choices = namesRepeat(filled.map((value) => [value]));
+	return choices === null ? { type: 'text', choices: [] } : { type: 'choice', choices };
 }
 
 export function guessColumns(rows: string[][]): ColumnGuess[] {
@@ -142,29 +164,30 @@ export function guessColumns(rows: string[][]): ColumnGuess[] {
 }
 
 export function fieldSpecs(columns: ColumnGuess[]): FieldSpec[] {
-	return columns.map((column) => ({
-		name: column.name,
-		type: column.type,
-		choices: column.choices.map((name) => ({ name, color: null }))
+	return columns.map(({ choices, ...column }) => ({
+		...column,
+		choices: choices.map((name) => ({ name, color: null }))
 	}));
 }
 
-function distinctValues(body: string[][], at: number): string[] {
-	return [...new Set(body.map((cells) => (cells[at] ?? '').trim()))]
-		.filter((value) => value !== '')
-		.sort((a, b) => a.localeCompare(b));
+function distinctValues(body: string[][], at: number, type: FieldType): string[] {
+	const names = body.flatMap((cells) => {
+		const cell = (cells[at] ?? '').trim();
+		return type === 'choices' ? splitChoices(cell) : [cell];
+	});
+	return [...new Set(names)].filter((value) => value !== '').sort((a, b) => a.localeCompare(b));
 }
 
 function chosenColumns(columns: ColumnGuess[], body: string[][]): ColumnGuess[] {
 	return columns.map((column, at) => ({
 		...column,
-		choices: column.type === 'choice' ? distinctValues(body, at) : []
+		choices: hasChoices(column.type) ? distinctValues(body, at, column.type) : []
 	}));
 }
 
 /** Rows in the order they happened when a date column says so; rows of one day keep file order. */
 function chronological(body: string[][], columns: ColumnGuess[]): string[][] {
-	const at = columns.findIndex((column) => column.type === 'date');
+	const at = columns.findIndex((column) => isDated(column.type));
 	if (at < 0) {
 		return body;
 	}
@@ -244,7 +267,7 @@ export function guessTargets(columns: ColumnGuess[], fields: FieldDef[]): string
 	});
 }
 
-type Mapped = { at: number; id: string; type: FieldType };
+type Mapped = { at: number; id: string; format: FieldFormat };
 
 /**
  * Rows added to an existing table in one change list, each column going to `targets[index]`: a field
@@ -277,14 +300,11 @@ export function appendRows(
 		}
 
 		if (target === NEW_FIELD) {
-			const [change] = addField(ws, tableId, {
-				name: column.name,
-				type: column.type,
-				choices: column.choices.map((name): Choice => ({ name, color: null }))
-			}).changes;
+			const [spec] = fieldSpecs([column]);
+			const [change] = addField(ws, tableId, spec).changes;
 			changes.push({ ...change, set: { ...change.set, order } });
 			order += 1;
-			mapped.push({ at, id: change.id, type: column.type });
+			mapped.push({ at, id: change.id, format: spec });
 			return;
 		}
 
@@ -302,16 +322,17 @@ export function appendRows(
 				set: {
 					type: column.type,
 					auto: null,
+					...formatSet(column.type, column),
 					choices: column.choices.map((name) => ({ name, color: null }))
 				}
 			});
-			mapped.push({ at, id: field.id, type: column.type });
+			mapped.push({ at, id: field.id, format: fieldSpecs([column])[0] });
 			return;
 		}
 
-		if (field.type === 'choice') {
+		if (hasChoices(field.type)) {
 			const known = new Set(field.choices.map((choice) => choice.name));
-			const fresh = distinctValues(body, at).filter((name) => !known.has(name));
+			const fresh = distinctValues(body, at, field.type).filter((name) => !known.has(name));
 			if (fresh.length > 0) {
 				changes.push({
 					id: field.id,
@@ -327,7 +348,7 @@ export function appendRows(
 				});
 			}
 		}
-		mapped.push({ at, id: field.id, type: field.type });
+		mapped.push({ at, id: field.id, format: field });
 	});
 
 	// The column a blank table started with goes unless a file filled it.
@@ -349,9 +370,9 @@ export function appendRows(
 
 	ordered.forEach((cells, index) => {
 		const set: Record<string, Value> = { [CREATED]: now + index / 1000 };
-		for (const { at, id, type } of mapped) {
+		for (const { at, id, format } of mapped) {
 			const raw = cells[at] ?? '';
-			const value = coerce({ type }, raw);
+			const value = coerce(format, raw);
 			if (value === null && raw.trim() !== '') {
 				unread += 1;
 			}

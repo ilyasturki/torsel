@@ -302,10 +302,20 @@ const HEADER_MARKS = 18;
 const FORMULA_MARK = 12;
 const FLOOR: Record<FieldDef['type'], { empty: number; filled: number }> = {
 	text: { empty: 180, filled: 96 },
+	longtext: { empty: 220, filled: 120 },
 	choice: { empty: 160, filled: 96 },
+	choices: { empty: 180, filled: 120 },
 	link: { empty: 160, filled: 96 },
+	url: { empty: 180, filled: 96 },
+	email: { empty: 180, filled: 96 },
+	phone: { empty: 140, filled: 96 },
 	date: { empty: 112, filled: 96 },
+	datetime: { empty: 160, filled: 120 },
 	number: { empty: 96, filled: 72 },
+	currency: { empty: 112, filled: 80 },
+	percent: { empty: 96, filled: 72 },
+	duration: { empty: 96, filled: 72 },
+	rating: { empty: 120, filled: 120 },
 	formula: { empty: 96, filled: 72 },
 	check: { empty: 64, filled: 64 }
 };
