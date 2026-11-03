@@ -277,7 +277,8 @@ test.describe('in a build', () => {
 					}
 					if (versionId === lameDuck) {
 						restarted =
-							status === 'activated' && (runningStatus === 'starting' || runningStatus === 'running');
+							status === 'activated' &&
+							(runningStatus === 'starting' || runningStatus === 'running');
 					}
 				}
 			});
