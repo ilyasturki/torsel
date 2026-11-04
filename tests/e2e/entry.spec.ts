@@ -122,3 +122,24 @@ test('a planned line can be logged out of turn, and another exercise added', asy
 	await expect(plan(page)).toContainText('squat');
 	await expect(plan(page).getByRole('button', { name: /^Logged/u })).toHaveCount(2);
 });
+
+test('a double click on Add row logs one set, and the desktop button is mouse-sized', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	await page.goto(await seedSessions(context.request));
+	const addRow = page.getByRole('button', { name: 'Add row' });
+	await expect(page.getByText('4 rows')).toBeVisible();
+
+	await addRow.click({ clickCount: 2 });
+	await expect(page.getByText('5 rows')).toBeVisible();
+	await addRow.click();
+	await expect(page.getByText('6 rows')).toBeVisible();
+
+	const more = await page.getByRole('button', { name: 'More' }).boundingBox();
+	const height = (await addRow.boundingBox())?.height;
+	if (onPhone()) expect(height).toBeGreaterThan(more?.height ?? 0);
+	else expect(height).toBe(more?.height);
+});

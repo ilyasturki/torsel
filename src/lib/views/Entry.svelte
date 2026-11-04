@@ -492,9 +492,12 @@
 			<Button
 				variant="primary"
 				size="cta"
-				class="sticky bottom-4 z-10 shrink-0"
+				class="sticky bottom-4 z-10 shrink-0 sm:h-control sm:self-end sm:px-3 sm:text-base sm:font-medium"
 				disabled={!ready}
-				onclick={commit}>Add row</Button
+				onclick={(event) => {
+					// A double tap would log the same set twice.
+					if (event.detail < 2) commit();
+				}}>Add row</Button
 			>
 		</section>
 	</div>
