@@ -141,6 +141,10 @@
 			class="z-40 flex w-72 max-w-full flex-col gap-1 rounded-panel bg-float p-1 shadow-float outline-none"
 		>
 			<input
+				{@attach (node: HTMLInputElement) => {
+					// Keys typed right after Ctrl P land here, not wherever focus was before the list's own focus pass.
+					node.focus();
+				}}
 				bind:value={query}
 				class={input}
 				role="combobox"
