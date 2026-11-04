@@ -17,7 +17,10 @@
 	import { redoChange, undoChange } from '#lib/client/toast.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
+	import IconButton from '#lib/ui/IconButton.svelte';
+	import { keys } from '#lib/ui/keys.ts';
 	import Logo from '#lib/ui/Logo.svelte';
+	import Tooltip from '#lib/ui/Tooltip.svelte';
 	import AskPanel from '#lib/views/AskPanel.svelte';
 	import ImportSheet from '#lib/views/ImportSheet.svelte';
 	import { shownView } from '#lib/views/pin.svelte.ts';
@@ -237,13 +240,17 @@
 			<SyncStatus />
 			<div class="ml-auto flex shrink-0 items-center gap-1">
 				{#if assistant.available && sync.status !== 'offline'}
-					<Button
-						variant="ghost"
-						class={asking ? 'bg-tint-2 text-ink' : ''}
-						aria-pressed={asking}
-						onclick={() => (asking = !asking)}
-						>Ask <span class="font-normal text-ink-3 max-sm:hidden">Ctrl K</span></Button
-					>
+					<Tooltip shortcut={keys('mod', 'k')}>
+						{#snippet children(props)}
+							<Button
+								{...props}
+								variant="ghost"
+								class={asking ? 'bg-tint-2 text-ink' : ''}
+								aria-pressed={asking}
+								onclick={() => (asking = !asking)}>Ask</Button
+							>
+						{/snippet}
+					</Tooltip>
 				{/if}
 				<a
 					href={onSettings ? beforeSettings : SETTINGS}
@@ -259,12 +266,13 @@
 					<span class="col-start-1 row-start-1 {onSettings ? '' : 'invisible'}">Back</span>
 				</a>
 				{#if table !== undefined}
-					<Button
-						variant="ghost"
+					<IconButton
+						icon="more"
+						label="More"
+						tooltip={false}
 						class="sm:hidden"
-						aria-label="More"
-						onclick={() => (menuOpen = true)}><Icon name="more" /></Button
-					>
+						onclick={() => (menuOpen = true)}
+					/>
 				{/if}
 			</div>
 		</header>
@@ -272,15 +280,15 @@
 		{#if table !== undefined}
 			<div class="flex shrink-0 items-center gap-1 border-b border-rule px-gutter max-sm:pr-2">
 				<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
-				<Button
-					variant="ghost"
-					class="w-control px-0 max-sm:hidden"
-					aria-label="More"
+				<IconButton
+					icon="more"
+					label="More"
+					class="max-sm:hidden"
 					onclick={(event) => {
 						menuAnchor = event.currentTarget;
 						menuOpen = !menuOpen;
-					}}><Icon name="more" /></Button
-				>
+					}}
+				/>
 				{#if view?.type !== 'entry'}
 					<Button
 						variant="primary"

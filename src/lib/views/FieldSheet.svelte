@@ -16,6 +16,7 @@
 	import Field from '#lib/ui/Field.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
+	import IconButton from '#lib/ui/IconButton.svelte';
 	import Select from '#lib/ui/Select.svelte';
 	import { checkbox, input, textarea } from '#lib/ui/styles.ts';
 
@@ -320,7 +321,7 @@
 							}
 						}}
 					/>
-					<Button aria-label="Add this choice" onclick={addChoice}><Icon name="plus" /></Button>
+					<IconButton icon="plus" label="Add this choice" variant="secondary" onclick={addChoice} />
 				</div>
 			</div>
 		{/if}
@@ -412,20 +413,18 @@
 	{#snippet footer()}
 		{#if existing !== undefined}
 			<Button variant="ghost" onclick={remove}>Delete</Button>
-			<Button
-				variant="ghost"
-				class="w-control px-0"
-				aria-label="Move left"
+			<IconButton
+				icon="arrow-left"
+				label="Move left"
 				disabled={siblings[0] === existing.id}
-				onclick={() => move(-1)}><Icon name="arrow-left" /></Button
-			>
-			<Button
-				variant="ghost"
-				class="w-control px-0"
-				aria-label="Move right"
+				onclick={() => move(-1)}
+			/>
+			<IconButton
+				icon="arrow-right"
+				label="Move right"
 				disabled={siblings.at(-1) === existing.id}
-				onclick={() => move(1)}><Icon name="arrow-right" /></Button
-			>
+				onclick={() => move(1)}
+			/>
 		{/if}
 		<div class="flex-1"></div>
 		<Button variant="primary" onclick={save}>Save</Button>

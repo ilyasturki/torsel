@@ -14,7 +14,9 @@
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
+	import { keys, mac } from '#lib/ui/keys.ts';
 	import { focus } from '#lib/ui/styles.ts';
+	import Tooltip from '#lib/ui/Tooltip.svelte';
 
 	import { VIEW_TYPES, addView, moveView } from './views.ts';
 
@@ -30,7 +32,6 @@
 		onsettings: (viewId: string) => void;
 	} = $props();
 
-	const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/u.test(navigator.platform);
 	const HOLD = 250;
 
 	let strip: HTMLElement | undefined = $state();
@@ -180,8 +181,6 @@
 			}
 		};
 	}
-
-	const keys = mac ? '⇧⌘' : 'Ctrl+Shift+';
 </script>
 
 <div class="flex min-w-0 items-center gap-1 max-sm:flex-1">
@@ -200,47 +199,51 @@
 				: ''}"
 		></i>
 		{#each views as view, at (view.id)}
-			<ContextMenu label={view.name}>
-				{#snippet target(props)}
-					<a
-						{...mergeProps(props, {
-							onpointerdown: (event: PointerEvent) => begin(event, view, at),
-							onkeydown: (event: KeyboardEvent) => onkeydown(event, view, at),
-							onclick: (event: MouseEvent) => {
-								if (swallowClick) event.preventDefault();
-							}
-						})}
-						href={tableUrl(table.id, view.id)}
-						draggable="false"
-						data-view={view.id}
-						aria-current={view.id === current?.id ? 'page' : undefined}
-						class="relative flex h-10 shrink-0 items-center rounded-box px-3 font-medium whitespace-nowrap select-none hover:text-ink {focus} {view.id ===
-						current?.id
-							? 'text-ink'
-							: 'text-ink-2'} {drag?.id === view.id
-							? 'z-10 bg-raised shadow-float'
-							: drag
-								? 'transition-transform motion'
-								: 'transition-colors motion'}"
-						style={shift(at)}>{view.name}</a
-					>
+			<Tooltip shortcut={at < 9 ? keys('alt', String(at + 1)) : undefined}>
+				{#snippet children(tip)}
+					<ContextMenu label={view.name}>
+						{#snippet target(props)}
+							<a
+								{...mergeProps(tip, props, {
+									onpointerdown: (event: PointerEvent) => begin(event, view, at),
+									onkeydown: (event: KeyboardEvent) => onkeydown(event, view, at),
+									onclick: (event: MouseEvent) => {
+										if (swallowClick) event.preventDefault();
+									}
+								})}
+								href={tableUrl(table.id, view.id)}
+								draggable="false"
+								data-view={view.id}
+								aria-current={view.id === current?.id ? 'page' : undefined}
+								class="relative flex h-10 shrink-0 items-center rounded-box px-3 font-medium whitespace-nowrap select-none hover:text-ink {focus} {view.id ===
+								current?.id
+									? 'text-ink'
+									: 'text-ink-2'} {drag?.id === view.id
+									? 'z-10 bg-raised shadow-float'
+									: drag
+										? 'transition-transform motion'
+										: 'transition-colors motion'}"
+								style={shift(at)}>{view.name}</a
+							>
+						{/snippet}
+						<MenuItem icon="settings" onSelect={() => onsettings(view.id)}>View settings</MenuItem>
+						<MenuItem
+							icon="arrow-left"
+							shortcut={keys('mod', 'shift', '←')}
+							disabled={at === 0}
+							onSelect={() => void move(view, at - 1)}>Move left</MenuItem
+						>
+						<MenuItem
+							icon="arrow-right"
+							shortcut={keys('mod', 'shift', '→')}
+							disabled={at === views.length - 1}
+							onSelect={() => void move(view, at + 1)}>Move right</MenuItem
+						>
+						<MenuSeparator />
+						<MenuItem icon="x" onSelect={() => remove(view)}>Delete view</MenuItem>
+					</ContextMenu>
 				{/snippet}
-				<MenuItem icon="settings" onSelect={() => onsettings(view.id)}>View settings</MenuItem>
-				<MenuItem
-					icon="arrow-left"
-					shortcut="{keys}←"
-					disabled={at === 0}
-					onSelect={() => void move(view, at - 1)}>Move left</MenuItem
-				>
-				<MenuItem
-					icon="arrow-right"
-					shortcut="{keys}→"
-					disabled={at === views.length - 1}
-					onSelect={() => void move(view, at + 1)}>Move right</MenuItem
-				>
-				<MenuSeparator />
-				<MenuItem icon="x" onSelect={() => remove(view)}>Delete view</MenuItem>
-			</ContextMenu>
+			</Tooltip>
 		{/each}
 	</div>
 	<span class="max-sm:hidden">

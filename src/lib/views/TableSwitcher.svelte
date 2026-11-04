@@ -7,7 +7,9 @@
 	import { HOME, tableUrl } from '#lib/client/nav.ts';
 	import { shell, startTable } from '#lib/client/shell.svelte.ts';
 	import Icon from '#lib/ui/Icon.svelte';
-	import { input } from '#lib/ui/styles.ts';
+	import { keys } from '#lib/ui/keys.ts';
+	import { focus, input } from '#lib/ui/styles.ts';
+	import Tooltip from '#lib/ui/Tooltip.svelte';
 
 	let { name, current }: { name: string; current: string | null } = $props();
 
@@ -98,13 +100,17 @@
 		if (!open) query = '';
 	}}
 >
-	<Popover.Trigger
-		class="-mx-1.5 flex h-control min-w-0 items-center gap-1 rounded-box px-1.5 font-semibold transition-colors motion hover:bg-tint aria-expanded:bg-tint"
-		title="Jump to a table (Ctrl P)"
-	>
-		<span class="truncate">{name}</span>
-		<Icon name="chevron-down" class="size-3 shrink-0 text-ink-3" />
-	</Popover.Trigger>
+	<Tooltip text="Jump to a table" shortcut={keys('mod', 'p')}>
+		{#snippet children(props)}
+			<Popover.Trigger
+				{...props}
+				class="-mx-1.5 flex h-control min-w-0 items-center gap-1 rounded-box px-1.5 font-semibold transition-colors motion hover:bg-tint aria-expanded:bg-tint {focus}"
+			>
+				<span class="truncate">{name}</span>
+				<Icon name="chevron-down" class="size-3 shrink-0 text-ink-3" />
+			</Popover.Trigger>
+		{/snippet}
+	</Tooltip>
 	<Popover.Portal>
 		<Popover.Content
 			side="bottom"

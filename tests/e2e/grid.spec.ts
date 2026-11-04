@@ -1355,6 +1355,35 @@ test.describe('rows, by hand', () => {
 		await expect.poll(() => first(5)).toEqual(['Exercise 1', '', 'Exercise 2', 'Exercise 3', '']);
 	});
 
+	test('the keyboard opens the row menu, the row, and the column menu', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly();
+		void account;
+		await open(page, (await seedLifts(context.request)).path);
+		await at(page, 1, 1).click();
+
+		await page.keyboard.press('Shift+F10');
+		const menu = page.getByRole('menu', { name: 'Row' });
+		await expect(menu).toBeVisible();
+		await menu.getByRole('menuitem', { name: 'Open row' }).click();
+		const row = page.getByRole('dialog', { name: 'Exercise 2' });
+		await expect(row).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(row).toHaveCount(0);
+		await expect(grid(page)).toBeFocused();
+
+		await page.keyboard.press('Alt+ArrowDown');
+		await expect(page.getByRole('menuitem', { name: 'Field settings' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(grid(page)).toBeFocused();
+
+		await header(page, 'Kg').hover();
+		await expect(page.getByRole('tooltip')).toHaveText(/Alt\+↓|⌥↓/u);
+	});
+
 	test('a long press opens the row actions on a phone', async ({ page, context, account }) => {
 		test.skip(!isPhone(), 'the desktop right-clicks above');
 		void account;

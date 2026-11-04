@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
+	import { keys } from '#lib/ui/keys.ts';
 	import { wide } from '#lib/ui/media.svelte.ts';
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
@@ -11,6 +12,7 @@
 		anchor,
 		rows,
 		cells,
+		onopen,
 		oninsert,
 		ondelete,
 		oncopy,
@@ -20,13 +22,13 @@
 		anchor: HTMLElement | null;
 		rows: number;
 		cells: number;
+		onopen: () => void;
 		oninsert: (below: boolean) => void;
 		ondelete: () => void;
 		oncopy: () => void;
 		onCloseAutoFocus?: (event: Event) => void;
 	} = $props();
 
-	const mac = typeof navigator !== 'undefined' && /Mac|iP/u.test(navigator.platform);
 	const remove = $derived(rows === 1 ? 'Delete row' : `Delete ${rows} rows`);
 	const copy = $derived(cells === 1 ? 'Copy' : `Copy ${cells} cells`);
 
@@ -38,9 +40,10 @@
 
 {#if wide.current}
 	<Menu bind:open {anchor} label="Row" {onCloseAutoFocus}>
+		{#if rows === 1}<MenuItem icon="open" onSelect={onopen}>Open row</MenuItem>{/if}
 		<MenuItem icon="arrow-up" onSelect={() => oninsert(false)}>Insert row above</MenuItem>
 		<MenuItem icon="arrow-down" onSelect={() => oninsert(true)}>Insert row below</MenuItem>
-		<MenuItem icon="copy" shortcut={mac ? '⌘C' : 'Ctrl+C'} onSelect={oncopy}>{copy}</MenuItem>
+		<MenuItem icon="copy" shortcut={keys('mod', 'c')} onSelect={oncopy}>{copy}</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={ondelete}>{remove}</MenuItem>
 	</Menu>

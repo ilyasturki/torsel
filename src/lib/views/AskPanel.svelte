@@ -36,9 +36,12 @@
 	import { todayIso } from '#lib/core/values.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
+	import IconButton from '#lib/ui/IconButton.svelte';
+	import { keys } from '#lib/ui/keys.ts';
 	import Markdown from '#lib/ui/Markdown.svelte';
 	import { fieldFocusWithin } from '#lib/ui/styles.ts';
 	import Textarea from '#lib/ui/Textarea.svelte';
+	import Tooltip from '#lib/ui/Tooltip.svelte';
 
 	import ChangeCard from './ChangeCard.svelte';
 
@@ -299,7 +302,11 @@
 			>
 			<Button variant="ghost" onclick={newThread}>New</Button>
 		{/if}
-		<Button variant="ghost" onclick={() => (open = false)}>Close</Button>
+		<Tooltip shortcut={keys('mod', 'k')}>
+			{#snippet children(props)}
+				<Button {...props} variant="ghost" onclick={() => (open = false)}>Close</Button>
+			{/snippet}
+		</Tooltip>
 	</div>
 
 	{#if !me.account}
@@ -340,21 +347,21 @@
 							<span class="min-w-0 flex-1 truncate">{thread.title}</span>
 							<span class="shrink-0 text-sm text-ink-3">{when(thread.updatedAt)}</span>
 						</button>
-						<button
-							type="button"
-							class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
-							aria-label="Rename {thread.title}"
+						<IconButton
+							icon="pencil"
+							label="Rename {thread.title}"
+							class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
 							onclick={() => {
 								title = thread.title;
 								renaming = thread.id;
-							}}><Icon name="pencil" /></button
-						>
-						<button
-							type="button"
-							class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
-							aria-label="Delete {thread.title}"
-							onclick={() => deleteThread(thread.id)}><Icon name="x" /></button
-						>
+							}}
+						/>
+						<IconButton
+							icon="x"
+							label="Delete {thread.title}"
+							class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
+							onclick={() => deleteThread(thread.id)}
+						/>
 					{/if}
 				</li>
 			{:else}
@@ -374,12 +381,12 @@
 						{#if whereChanged(at)}<p class="self-start text-xs text-ink-3">{item.where}</p>{/if}
 						<div class="flex max-w-full items-start gap-1">
 							{#if !assistant.busy && asked?.seq === item.seq && item.seq !== 0}
-								<button
-									type="button"
-									class="flex size-control shrink-0 items-center justify-center rounded-box text-ink-3 opacity-0 transition-opacity motion group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 max-lg:opacity-100"
-									aria-label="Edit"
-									onclick={() => startEdit(item.text)}><Icon name="pencil" /></button
-								>
+								<IconButton
+									icon="pencil"
+									label="Edit"
+									class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
+									onclick={() => startEdit(item.text)}
+								/>
 							{/if}
 							<div class="flex min-w-0 flex-col gap-1 rounded-box bg-tint-2 px-3 py-2">
 								{#if item.files.length > 0}

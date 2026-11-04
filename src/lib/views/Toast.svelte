@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { runToastAction, toast } from '#lib/client/toast.svelte.ts';
+	import { keys } from '#lib/ui/keys.ts';
+	import Tooltip from '#lib/ui/Tooltip.svelte';
 </script>
 
 {#if toast.text}
@@ -13,9 +15,19 @@
 			>
 				<span class="truncate">{toast.text}</span>
 				{#if toast.action !== null}
-					<button type="button" class="h-full shrink-0 px-2 font-semibold" onclick={runToastAction}
-						>{toast.action.label}</button
+					<Tooltip
+						side="top"
+						shortcut={toast.action.label === 'Undo' ? keys('mod', 'z') : keys('mod', 'shift', 'z')}
 					>
+						{#snippet children(props)}
+							<button
+								{...props}
+								type="button"
+								class="h-full shrink-0 px-2 font-semibold"
+								onclick={runToastAction}>{toast.action?.label}</button
+							>
+						{/snippet}
+					</Tooltip>
 				{/if}
 			</div>
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { mergeProps } from 'bits-ui';
 	import { flushSync, onDestroy, onMount, untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
@@ -30,8 +31,10 @@
 	import Button from '#lib/ui/Button.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
+	import { keys } from '#lib/ui/keys.ts';
 	import Rating from '#lib/ui/Rating.svelte';
 	import { input as inputStyle } from '#lib/ui/styles.ts';
+	import Tooltip from '#lib/ui/Tooltip.svelte';
 
 	import AddField from './AddField.svelte';
 	import CellValue from './CellValue.svelte';
@@ -625,6 +628,14 @@
 			PageDown: () => [headRow + page, headCol]
 		};
 
+		if (event.altKey && event.key === 'ArrowDown' && fields[headCol] !== undefined) {
+			event.preventDefault();
+			menuAnchor = table?.querySelector<HTMLElement>(`th[aria-colindex="${headCol + 2}"]`) ?? null;
+			menuField = fields[headCol].id;
+			menuOpen = true;
+			return;
+		}
+
 		const move = moves[event.key];
 		if (move !== undefined) {
 			event.preventDefault();
@@ -648,6 +659,9 @@
 			if (r < 0 || r > rows.length) return;
 			event.preventDefault();
 			select(r, c);
+		} else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+			event.preventDefault();
+			openRowMenuAtHead();
 		} else if (event.key === 'Enter' || event.key === 'F2') {
 			event.preventDefault();
 			beginEdit();
@@ -1111,8 +1125,21 @@
 		table?.focus({ preventScroll: true });
 	}
 
+	function openRowMenuAtHead(): void {
+		if (head === null || headRow >= rows.length) return;
+		const box = document.getElementById(cellId(headRow, headCol))?.getBoundingClientRect();
+		if (box === undefined) return;
+		point = { x: box.left, y: box.bottom };
+		rowMenuOpen = true;
+	}
+
 	function onbodycontextmenu(event: MouseEvent): void {
 		const target = event.target as Element;
+		if (target === table) {
+			event.preventDefault();
+			openRowMenuAtHead();
+			return;
+		}
 		if (target.closest('input, textarea, thead') !== null) return;
 		const header = target.closest<HTMLElement>('td[role="rowheader"]');
 		const cell =
@@ -1485,26 +1512,35 @@
 										}}
 									/>
 								{:else}
-									<button
-										type="button"
-										class="absolute inset-0 flex items-center gap-1 px-3 whitespace-nowrap transition-colors motion hover:text-ink {numeric
-											? 'justify-end'
-											: field.type === 'check'
-												? 'justify-center'
-												: ''}"
-										onpointerdown={(event) => onheaderdown(event, field)}
-										onclick={(event) => openMenu(event, field)}
-										oncontextmenu={(event) => {
-											event.preventDefault();
-											openMenu(event, field);
-										}}
-									>
-										{#if field.type === 'formula'}<span>ƒ</span>{/if}
-										<span class="min-w-0 truncate">{field.name}</span>
-										{#if sorted !== null}
-											<Icon name={sorted === 'asc' ? 'arrow-up' : 'arrow-down'} class="size-3" />
-										{/if}
-									</button>
+									<Tooltip shortcut={keys('alt', '↓')}>
+										{#snippet children(tip)}
+											<button
+												{...mergeProps(tip, {
+													onpointerdown: (event: PointerEvent) => onheaderdown(event, field),
+													onclick: (event: MouseEvent) => openMenu(event, field),
+													oncontextmenu: (event: MouseEvent) => {
+														event.preventDefault();
+														openMenu(event, field);
+													}
+												})}
+												type="button"
+												class="absolute inset-0 flex items-center gap-1 px-3 whitespace-nowrap transition-colors motion hover:text-ink {numeric
+													? 'justify-end'
+													: field.type === 'check'
+														? 'justify-center'
+														: ''}"
+											>
+												{#if field.type === 'formula'}<span>ƒ</span>{/if}
+												<span class="min-w-0 truncate">{field.name}</span>
+												{#if sorted !== null}
+													<Icon
+														name={sorted === 'asc' ? 'arrow-up' : 'arrow-down'}
+														class="size-3"
+													/>
+												{/if}
+											</button>
+										{/snippet}
+									</Tooltip>
 								{/if}
 								<div
 									aria-hidden="true"
@@ -1649,6 +1685,10 @@
 	anchor={pointAnchor}
 	rows={rangeRows().length}
 	cells={rangeRows().length * rangeFields().length}
+	onopen={() => {
+		rowId = rows[headRow]?.id ?? null;
+		rowOpen = rowId !== null;
+	}}
 	oninsert={insertRow}
 	ondelete={deleteRows}
 	oncopy={() => void copyRange()}

@@ -450,6 +450,32 @@ test('undo takes back the last change, and the keyboard changes the view', async
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 });
 
+test('every shortcut shows on the control it stands for', async ({ page, context, account }) => {
+	test.skip(test.info().project.name === 'phone', 'a phone has no keyboard shortcut');
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(tablePath(lifts));
+	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
+	const tip = page.getByRole('tooltip').last();
+
+	await page.getByRole('heading', { name: 'Lifts' }).getByRole('button').first().hover();
+	await expect(tip).toHaveText(/Jump to a table\s*Ctrl\+P/u);
+	await page.getByRole('button', { name: 'Ask', exact: true }).hover();
+	await expect(tip).toHaveText('Ctrl+K');
+	await expect(page.getByRole('banner')).not.toContainText('Ctrl');
+	await page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Volume' }).hover();
+	await expect(tip).toHaveText('Alt+3');
+	await page.getByRole('button', { name: 'More' }).hover();
+	await expect(tip).toHaveText('More');
+
+	await page.keyboard.press('Alt+2');
+	await page.getByRole('button', { name: 'Add row' }).click();
+	await expect(page.getByText('2 rows')).toBeVisible();
+	await page.keyboard.press('Control+z');
+	await page.getByRole('status').getByRole('button', { name: 'Redo' }).hover();
+	await expect(tip).toHaveText('Ctrl+Shift+Z');
+});
+
 test('a number typed in a sheet stays and is saved', async ({ page, context, account }) => {
 	void account;
 	const { lifts } = await seedTwoTables(context.request);

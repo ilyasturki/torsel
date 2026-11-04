@@ -4,11 +4,13 @@
 
 	let {
 		text,
+		shortcut,
 		side = 'bottom',
 		open = $bindable(false),
 		children
 	}: {
-		text: string;
+		text?: string;
+		shortcut?: string;
 		side?: 'top' | 'right' | 'bottom' | 'left';
 		open?: boolean;
 		children: Snippet<[Record<string, unknown>]>;
@@ -22,13 +24,17 @@
 		{/snippet}
 	</Tooltip.Trigger>
 	<Tooltip.Portal>
-		<Tooltip.Content
-			{side}
-			sideOffset={6}
-			collisionPadding={8}
-			class="z-50 enter rounded-box bg-fill px-2 py-1 text-sm font-medium text-on-fill shadow-float"
-		>
-			{text}
-		</Tooltip.Content>
+		{#if text || shortcut}
+			<Tooltip.Content
+				{side}
+				role="tooltip"
+				sideOffset={6}
+				collisionPadding={8}
+				class="z-50 flex enter gap-2 rounded-box bg-fill px-2 py-1 text-sm font-medium text-on-fill shadow-float"
+			>
+				{#if text}<span>{text}</span>{/if}
+				{#if shortcut}<kbd class="font-sans text-ink-3">{shortcut}</kbd>{/if}
+			</Tooltip.Content>
+		{/if}
 	</Tooltip.Portal>
 </Tooltip.Root>
