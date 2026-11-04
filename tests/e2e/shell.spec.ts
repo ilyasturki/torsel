@@ -43,7 +43,7 @@ function seedTwoTables(request: APIRequestContext) {
 
 test('the root page is prerendered and links into the app', async ({ page }) => {
 	const response = await page.goto('/');
-	expect(await response?.text()).toContain('Say what you want to track.');
+	expect(await response?.text()).toContain('The spreadsheet that does the work.');
 	await expect(
 		page.getByRole('main').getByRole('link', { name: 'Start now' }).first()
 	).toHaveAttribute('href', '/app');
