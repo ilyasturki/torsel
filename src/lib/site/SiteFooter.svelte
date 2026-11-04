@@ -5,7 +5,7 @@
 </script>
 
 <footer
-	class="flex flex-wrap justify-between gap-x-5 gap-y-1.5 rounded-panel bg-raised px-4 py-3.5 text-sm text-ink-2 shadow-raised"
+	class="flex flex-wrap justify-between gap-x-5 gap-y-1.5 rounded-panel bg-glass px-4 py-3.5 text-sm text-ink-2 shadow-raised backdrop-blur-glass"
 >
 	<span>{LEGAL_NAME}, {LEGAL_REGISTRATION}. MIT licensed.</span>
 	<nav class="flex gap-4" aria-label="Footer">

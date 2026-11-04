@@ -1,84 +1,105 @@
-import { addField, createBase, createTable, createView, insertRows } from '#lib/core/actions.ts';
+import {
+	addField,
+	createBase,
+	createTable,
+	createView,
+	insertRows,
+	updateRow
+} from '#lib/core/actions.ts';
 import { toStored } from '#lib/core/formula.ts';
 import type { Change } from '#lib/core/model.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 
-import { EXAMPLES, choiceIndex, type Example } from './examples.ts';
+import type { Cell, Example, Prompt } from './examples.ts';
+import { EXAMPLES } from './examples.ts';
 
-export type SampleViews = {
-	table: string;
-	column: string;
-	fields: string[];
-	grid: string;
-	entry: string;
-	list: string;
-	chart: string;
-};
+export type Sample = { table: string; fields: string[] };
 
 export function seedExample(
 	ws: Workspace,
 	commit: (changes: Change[]) => void,
 	baseId: string,
 	example: Example
-): SampleViews {
+): Sample {
 	const table = createTable(ws, baseId, example.table, example.fields);
 	commit(table.changes);
-
-	const column = addField(ws, table.id, {
-		name: example.column.name,
-		type: 'formula',
-		expr: toStored(example.column.expr, ws.fields(table.id))
-	});
-	commit(column.changes);
-
 	commit(
 		insertRows(
 			ws,
 			table.id,
-			example.rows.map((row) =>
-				Object.fromEntries(table.fieldIds.map((id, index) => [id, row[index]]))
-			)
+			example.rows.map((row) => valuesOf(table.fieldIds, row))
 		).changes
 	);
-
-	const group = table.fieldIds[choiceIndex(example)];
-	const list = createView(ws, table.id, { name: 'List', type: 'list', config: { group } });
-	commit(list.changes);
-
-	const step = [example.first, example.second].find((item) => item.view === 'chart');
-	if (step?.view !== 'chart') throw new Error('every example ends on a chart');
-	const chart = createView(ws, table.id, {
-		name: 'Chart',
-		type: 'chart',
-		config: {
-			kind: 'bar',
-			x: table.fieldIds[step.group],
-			agg: step.value === null ? 'count' : 'sum',
-			y: step.value === null ? null : table.fieldIds[step.value],
-			color: group
-		}
-	});
-	commit(chart.changes);
-
-	return {
-		table: table.id,
-		column: column.id,
-		fields: table.fieldIds,
-		grid: table.viewIds[0],
-		entry: table.viewIds[1],
-		list: list.id,
-		chart: chart.id
-	};
+	return { table: table.id, fields: table.fieldIds };
 }
 
-/** The sample behind the landing's working table. Only ever built in memory. */
+/** The sample behind the landing's tables. Only ever built in memory. */
 export function seedExamples(
 	ws: Workspace,
 	commit: (changes: Change[]) => void
-): Record<string, SampleViews> {
+): Record<string, Sample> {
 	const base = createBase(ws, 'Sample');
 	commit(base.changes);
 	return Object.fromEntries(
 		EXAMPLES.map((example) => [example.id, seedExample(ws, commit, base.id, example)])
 	);
+}
+
+function valuesOf(fieldIds: string[], row: Cell[]): Record<string, Cell> {
+	return Object.fromEntries(fieldIds.map((id, index) => [id, row[index]]));
+}
+
+/** What the assistant's own tool would write for this prompt, summary included. */
+export function changesFor(
+	ws: Workspace,
+	example: Example,
+	sample: Sample,
+	prompt: Prompt
+): { summary: string; changes: Change[]; view?: string } {
+	const { table, fields } = sample;
+	if (prompt.kind === 'formula') {
+		const made = addField(ws, table, {
+			name: prompt.name,
+			type: 'formula',
+			expr: toStored(prompt.expr, ws.fields(table))
+		});
+		return { summary: `New field "${prompt.name}" in ${example.table}`, changes: made.changes };
+	}
+	if (prompt.kind === 'rows') {
+		const made = insertRows(
+			ws,
+			table,
+			prompt.rows.map((row) => valuesOf(fields, row))
+		);
+		const count = prompt.rows.length;
+		return {
+			summary: `Add ${count} row${count === 1 ? '' : 's'} to ${example.table}`,
+			changes: made.changes
+		};
+	}
+	if (prompt.kind === 'cell') {
+		const row = ws.rows(table).find((candidate) => candidate.data[fields[0]] === prompt.row);
+		if (row === undefined) throw new Error(`no row ${prompt.row} in ${example.table}`);
+		return {
+			summary: `Change 1 row in ${example.table}`,
+			changes: updateRow(ws, row.id, { [fields[prompt.field]]: prompt.value })
+		};
+	}
+	const color = fields[example.fields.findIndex((field) => field.type === 'choice')];
+	const made = createView(ws, table, {
+		name: prompt.name,
+		type: 'chart',
+		config: {
+			kind: 'bar',
+			x: fields[prompt.group],
+			agg: prompt.value === null ? 'count' : 'sum',
+			y: prompt.value === null ? null : fields[prompt.value],
+			color
+		}
+	});
+	return {
+		summary: `New view "${prompt.name}" on ${example.table}`,
+		changes: made.changes,
+		view: made.id
+	};
 }

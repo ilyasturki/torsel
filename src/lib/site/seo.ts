@@ -116,7 +116,7 @@ ${SITE_NAME} is a local-first data app. A base holds tables. A field is text, a 
 
 SQLite runs as WebAssembly on every device and on the server, so a formula gives the same number everywhere. Every device keeps a full copy of the data and syncs with a server when one is around. The app opens with no account: an account adds sync and the assistant.
 
-The assistant in the app and the MCP server share one set of tools. In the app, data it enters applies at once with an undo, a new table, field or view is proposed before it lands, and a deletion asks first. The server speaks MCP over Streamable HTTP at \`/api/mcp\`, with a token from Settings.
+The assistant in the app and the MCP server share one set of tools. In the app, every change it makes applies at once and shows as a before and after you can undo. The server speaks MCP over Streamable HTTP at \`/api/mcp\`, with a token from Settings.
 
 Common uses are budgets, clients, projects, job searches, trips and reading lists. ${SITE_NAME} is MIT licensed and can be self-hosted on NixOS or with Node.
 

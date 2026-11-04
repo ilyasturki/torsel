@@ -8,7 +8,7 @@ export const CONTACT = 'me@ilyasturki.com';
 export const LEGAL_UPDATED = 'October 31, 2026';
 
 export const SITE_DESCRIPTION =
-	"Say what you want to track. Torsel's assistant proposes the table, the form and the chart right on your data, and you keep what you accept. Offline, no account to start, open source.";
+	'A modern spreadsheet with an assistant that does the work. Ask for a column or a chart and watch your table change. Offline, no account to start, open source.';
 
 /** What robots.txt keeps crawlers off and the sitemap leaves out. `/app$`: robots rules match by prefix. */
 export const PRIVATE_ROBOTS_RULES = ['/app$', '/app/', '/api/'];

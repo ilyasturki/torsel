@@ -8,7 +8,12 @@
 
 	import CellValue from './CellValue.svelte';
 
-	let { action, onopen }: { action: ThreadAction; onopen: () => void } = $props();
+	// `onshow` stands in for the table link where the table lives only in this page (the landing).
+	let {
+		action,
+		onopen,
+		onshow
+	}: { action: ThreadAction; onopen?: () => void; onshow?: () => void } = $props();
 
 	// A card stays short: past these, one click shows the rest.
 	const ROWS = 5;
@@ -128,13 +133,22 @@
 		<span class="min-w-0 flex-1 truncate font-medium {undone ? 'line-through' : ''}"
 			>{action.summary}</span
 		>
-		{#if link !== null}
+		{#if link !== null && onshow !== undefined}
+			<button
+				type="button"
+				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
+				onclick={() => {
+					markFresh(action);
+					onshow();
+				}}>Show</button
+			>
+		{:else if link !== null}
 			<a
 				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 				href={link}
 				onclick={() => {
 					markFresh(action);
-					onopen();
+					onopen?.();
 				}}>Show</a
 			>
 		{/if}

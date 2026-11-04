@@ -21,7 +21,7 @@
 </script>
 
 <header
-	class="flex items-center justify-between gap-3 rounded-panel bg-raised py-2 pr-2 pl-4 shadow-raised"
+	class="flex items-center justify-between gap-3 rounded-panel bg-glass py-2 pr-2 pl-4 shadow-raised backdrop-blur-glass"
 >
 	<a href="/" class="text-ink" aria-label="Torsel home">
 		<Logo wordmark class="h-4.5" />

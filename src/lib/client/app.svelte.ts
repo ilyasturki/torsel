@@ -135,11 +135,13 @@ class TorselApp {
 	}
 
 	/**
-	 * The landing's working table: with no local database open, `persist` writes nothing and no
-	 * sync starts. The page holding it must leave by a full navigation, or /app inherits the sample.
+	 * The landing's working tables: with no local database open, `persist` writes nothing and no
+	 * sync starts. The page holding them must leave by a full navigation, or /app inherits the sample.
+	 * Rows show at once; formulas and charts wait for SQLite, which loads once `engine` resolves.
 	 */
 	public openSample(
-		build: (ws: Workspace, commit: (changes: Change[]) => void) => void
+		build: (ws: Workspace, commit: (changes: Change[]) => void) => void,
+		engine: Promise<void> = Promise.resolve()
 	): Promise<void> {
 		this.loading ??= (async () => {
 			build(this.ws, (changes) => {
@@ -147,6 +149,8 @@ class TorselApp {
 					this.ws.stamp(change, this.hlc.tick());
 				}
 			});
+			this.bump(false);
+			await engine;
 			this.engine = await openEngine();
 			this.ready = true;
 			this.bump(false);

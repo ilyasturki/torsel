@@ -12,8 +12,11 @@
 		const dark = matchMedia('(prefers-color-scheme: dark)');
 		let backdrop: Backdrop | null = null;
 
-		const pointer = (event: PointerEvent): void => {
-			if (event.pointerType === 'mouse') backdrop?.moveTo(event.clientX, event.clientY);
+		const pointer = (event: PointerEvent): void => backdrop?.moveTo(event.clientX, event.clientY);
+		// A finger scrolling the page sends no pointer moves once the scroll takes over.
+		const touch = (event: TouchEvent): void => {
+			const point = event.touches[0];
+			if (point !== undefined) backdrop?.moveTo(point.clientX, point.clientY);
 		};
 		const leave = (): void => backdrop?.leave();
 		const theme = (): void => backdrop?.readColors();
@@ -30,6 +33,9 @@
 			if (!reduced) {
 				backdrop.start();
 				addEventListener('pointermove', pointer, { passive: true });
+				addEventListener('pointerdown', pointer, { passive: true });
+				addEventListener('touchmove', touch, { passive: true });
+				addEventListener('touchend', leave, { passive: true });
 				document.documentElement.addEventListener('pointerleave', leave);
 			}
 		};
@@ -41,6 +47,9 @@
 		return () => {
 			backdrop?.stop();
 			removeEventListener('pointermove', pointer);
+			removeEventListener('pointerdown', pointer);
+			removeEventListener('touchmove', touch);
+			removeEventListener('touchend', leave);
 			removeEventListener('resize', resize);
 			document.documentElement.removeEventListener('pointerleave', leave);
 			dark.removeEventListener('change', theme);

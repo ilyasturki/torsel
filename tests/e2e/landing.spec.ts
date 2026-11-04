@@ -2,8 +2,6 @@ import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './harness.ts';
 
-const STAGE = '[data-testid="stage"]';
-
 // A prerendered button ignores clicks until the page hydrates.
 async function press(button: Locator): Promise<void> {
 	await expect(async () => {
@@ -20,14 +18,34 @@ function wasmRequests(page: Page): string[] {
 	return seen;
 }
 
+async function countFrames(page: Page): Promise<void> {
+	await page.addInitScript(() => {
+		const raf = window.requestAnimationFrame.bind(window);
+		const counter = window as unknown as { rafCount: number };
+		counter.rafCount = 0;
+		window.requestAnimationFrame = (callback) => {
+			counter.rafCount += 1;
+			return raf(callback);
+		};
+	});
+}
+
+const frames = (page: Page): Promise<number> =>
+	page.evaluate(() => (window as unknown as { rafCount: number }).rafCount);
+
+const prompt = (page: Page, text: string): Locator =>
+	page.getByRole('group', { name: 'Prompts' }).getByRole('button', { name: text });
+
 test('says what it is and loads no SQLite on the way', async ({ page }) => {
 	const wasm = wasmRequests(page);
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-		'Say what you want to track. Get the table, the form and the chart.'
+		'The spreadsheet that does the work.'
 	);
 	await expect(page.getByRole('link', { name: 'Start now' }).first()).toBeVisible();
-	await page.getByRole('heading', { name: 'Check it yourself.' }).scrollIntoViewIfNeeded();
+	const demo = page.getByTestId('demo');
+	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+	await page.getByRole('heading', { name: 'Try it on your own data.' }).scrollIntoViewIfNeeded();
 	await page.waitForTimeout(300);
 	expect(wasm).toEqual([]);
 });
@@ -85,135 +103,139 @@ test('swaps the header for a signed-in visitor', async ({ page, account }) => {
 	await expect(header.getByRole('link', { name: 'Sign in' })).toBeHidden();
 });
 
+test('a prompt changes the real table, shows its diff and undoes', async ({ page }) => {
+	const wasm = wasmRequests(page);
+	await page.goto('/');
+	const demo = page.getByTestId('demo');
+	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+
+	await prompt(page, 'Add what each one costs per year.').click();
+	const card = demo.getByTestId('change').filter({ hasText: 'New field "Per year" in Budget' });
+	await expect(card).toHaveAttribute('data-status', 'applied');
+	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeVisible();
+	await expect(demo.getByRole('gridcell', { name: '7680' })).toBeVisible();
+	expect(wasm.length).toBeGreaterThan(0);
+
+	await card.getByRole('button', { name: 'Undo New field "Per year" in Budget' }).click();
+	await expect(card).toHaveAttribute('data-status', 'undone');
+	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeHidden();
+	await card.getByRole('button', { name: 'Redo New field "Per year" in Budget' }).click();
+	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeVisible();
+
+	await prompt(page, 'Add Netflix 13 and climbing 45, both fun.').click();
+	await expect(
+		demo.getByTestId('change').filter({ hasText: 'Add 2 rows to Budget' })
+	).toBeVisible();
+	await expect(demo.getByTestId('row-count')).toHaveText('8 rows');
+
+	await prompt(page, 'Show me where the money goes.').click();
+	await expect(
+		demo.getByRole('group', { name: 'Views' }).getByRole('button', { name: 'By category' })
+	).toHaveAttribute('aria-pressed', 'true');
+	await expect(demo.getByText('Total amount')).toBeVisible();
+	await expect(demo.getByText('1288')).toBeVisible();
+	for (const category of ['Food', 'Fun', 'Home', 'Transport']) {
+		await expect(demo.locator('svg text', { hasText: category })).toBeVisible();
+	}
+
+	await demo.getByRole('button', { name: 'Start over' }).click();
+	await expect(demo.getByTestId('change')).toHaveCount(0);
+	await expect(demo.getByTestId('row-count')).toHaveText('6 rows');
+	await expect(prompt(page, 'Add what each one costs per year.')).toBeVisible();
+});
+
+test('each example keeps its own table and thread', async ({ page }) => {
+	await page.goto('/');
+	const demo = page.getByTestId('demo');
+	const examples = demo.getByRole('group', { name: 'Examples' });
+	await press(examples.getByRole('button', { name: 'Clients' }));
+	await expect(examples.getByRole('button', { name: 'Budget' })).toHaveAttribute(
+		'aria-pressed',
+		'false'
+	);
+	await expect(demo.getByRole('gridcell', { name: 'Delta' })).toBeVisible();
+
+	await prompt(page, 'Delta signed. Mark it won.').click();
+	const card = demo.getByTestId('change').filter({ hasText: 'Change 1 row in Clients' });
+	await expect(card).toContainText('Delta · Stage');
+	await expect(card).toContainText('Talking');
+	await expect(card).toContainText('Won');
+
+	await press(examples.getByRole('button', { name: 'Budget' }));
+	await expect(demo.getByTestId('change')).toHaveCount(0);
+	await press(examples.getByRole('button', { name: 'Clients' }));
+	await expect(card).toBeVisible();
+});
+
 test.describe('with reduced motion', () => {
 	test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-	test('stops the background and shows the finished example', async ({ page }) => {
-		await page.addInitScript(() => {
-			const raf = window.requestAnimationFrame.bind(window);
-			const counter = window as unknown as { rafCount: number };
-			counter.rafCount = 0;
-			window.requestAnimationFrame = (callback) => {
-				counter.rafCount += 1;
-				return raf(callback);
-			};
-		});
+	test('the background holds still and a prompt applies at once', async ({ page }) => {
+		await countFrames(page);
 		await page.goto('/');
 		await expect(page.getByTestId('backdrop')).toBeAttached();
-		const stage = page.locator(STAGE);
-		await expect(stage.getByTestId('sentence')).toHaveText('Show me where the money goes.');
-		await expect(stage.getByText('Total amount')).toBeVisible();
+		await expect(page.getByTestId('demo').getByRole('gridcell', { name: 'Rent' })).toBeVisible();
 
 		await page.waitForTimeout(600);
-		const count = (): Promise<number> =>
-			page.evaluate(() => (window as unknown as { rafCount: number }).rafCount);
-		const before = await count();
+		const before = await frames(page);
 		await page.waitForTimeout(800);
-		expect(await count()).toBe(before);
-	});
+		expect(await frames(page)).toBe(before);
 
-	test('switching example shows it finished at once', async ({ page }) => {
-		await page.goto('/');
-		const stage = page.locator(STAGE);
-		const clients = stage.getByRole('button', { name: 'Clients', exact: true });
-		await press(clients);
-		await expect(stage.getByRole('button', { name: 'Budget' })).toHaveAttribute(
-			'aria-pressed',
-			'false'
-		);
-		await expect(stage.getByTestId('sentence')).toHaveText('Chart the pipeline.');
-		await expect(stage.getByText('Total value')).toBeVisible();
-
-		await stage.getByRole('button', { name: 'Step 2' }).click();
-		await expect(stage.getByTestId('sentence')).toHaveText(/expected value/u);
-		await expect(stage.getByRole('columnheader', { name: /Expected/u })).toBeVisible();
-	});
-
-	test('every first sentence fits its strip with the steps showing', async ({ page }) => {
-		await page.goto('/');
-		const stage = page.locator(STAGE);
-		for (const label of ['Budget', 'Clients', 'Projects', 'Job search', 'Trip', 'Reading']) {
-			await press(stage.getByRole('button', { name: label, exact: true }));
-			await press(stage.getByRole('button', { name: 'Step 1' }));
-			const clipped = await stage
-				.getByTestId('sentence')
-				.locator('..')
-				.evaluate((strip) => strip.scrollHeight - strip.clientHeight);
-			expect(clipped, label).toBeLessThanOrEqual(0);
-		}
+		await prompt(page, 'Add what each one costs per year.').click();
+		await expect(page.getByTestId('change')).toHaveCount(1);
+		await expect(page.getByRole('columnheader', { name: /Per year/u })).toBeVisible();
 	});
 });
 
 test.describe('with motion', () => {
 	test.use({ contextOptions: { reducedMotion: 'no-preference' } });
 
-	test('plays one example from a blank sheet and stops on its chart', async ({ page }) => {
+	test('the prompt is typed and the assistant works before the change lands', async ({ page }) => {
 		await page.goto('/');
-		const stage = page.locator(STAGE);
-		await expect(stage.getByTestId('blank-sheet')).toBeVisible();
-		await expect(stage.getByTestId('proposal')).toHaveText(/Proposed table: Budget/u, {
-			timeout: 10_000
-		});
-		await expect(stage.getByTestId('ghost-column')).toBeVisible({ timeout: 10_000 });
-		await expect(stage.getByTestId('proposal')).toHaveText(/Proposed view/u, { timeout: 10_000 });
-		await expect(stage.getByText('Total amount')).toBeVisible({ timeout: 15_000 });
-		await expect(stage.getByTestId('proposal')).toBeHidden({ timeout: 10_000 });
-		await page.waitForTimeout(1500);
-		await expect(stage.getByRole('button', { name: 'Budget' })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		const demo = page.getByTestId('demo');
+		await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+		await prompt(page, 'Add what each one costs per year.').click();
+		await expect(demo.getByRole('status')).toHaveText('Working…');
+		await expect(demo.getByTestId('change')).toHaveCount(1);
+		await expect(demo.getByRole('status')).toBeHidden();
 	});
 
 	test('runs the background while the tab is visible', async ({ page }) => {
-		await page.addInitScript(() => {
-			const raf = window.requestAnimationFrame.bind(window);
-			const counter = window as unknown as { rafCount: number };
-			counter.rafCount = 0;
-			window.requestAnimationFrame = (callback) => {
-				counter.rafCount += 1;
-				return raf(callback);
-			};
-		});
+		await countFrames(page);
 		await page.goto('/');
 		await page.waitForTimeout(800);
-		const before = await page.evaluate(() => (window as unknown as { rafCount: number }).rafCount);
+		const before = await frames(page);
 		await page.waitForTimeout(500);
-		const after = await page.evaluate(() => (window as unknown as { rafCount: number }).rafCount);
-		expect(after).toBeGreaterThan(before);
+		expect(await frames(page)).toBeGreaterThan(before);
+	});
+
+	test('the background takes colour under the pointer or a finger', async ({ page, isMobile }) => {
+		await page.goto('/');
+		const backdrop = page.getByTestId('backdrop');
+		await expect(backdrop).toBeAttached();
+		const alpha = (): Promise<number> =>
+			backdrop.evaluate((canvas: HTMLCanvasElement) => {
+				const pitch = canvas.clientWidth / canvas.width;
+				const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+				return context.getImageData(Math.floor(3 / pitch), Math.floor(300 / pitch), 1, 1).data[3];
+			});
+		// At rest the field never passes a third of full strength.
+		await expect
+			.poll(async () => {
+				if (isMobile) await page.touchscreen.tap(3, 300);
+				else await page.mouse.move(3, 300);
+				return alpha();
+			})
+			.toBeGreaterThan(150);
 	});
 });
 
-test('the real table loads SQLite on demand and keeps its rows out of the app', async ({
-	page
-}) => {
-	const wasm = wasmRequests(page);
+test('the sample stays in the page and out of the app', async ({ page }) => {
 	await page.goto('/');
-	const stage = page.locator(STAGE);
-	expect(wasm).toEqual([]);
-
-	await page
-		.getByRole('group', { name: 'Views' })
-		.last()
-		.getByRole('button', { name: 'Entry' })
-		.click();
-	await expect(stage.getByTestId('real-table')).toBeVisible();
-	await expect.poll(() => wasm.length).toBeGreaterThan(0);
-
-	await expect(stage.getByTestId('row-count')).toHaveText('6 rows');
-	await stage.getByRole('button', { name: 'Add row' }).click();
-	await expect(stage.getByTestId('row-count')).toHaveText('7 rows');
-
-	await page
-		.getByRole('group', { name: 'Views' })
-		.last()
-		.getByRole('button', { name: 'Chart' })
-		.click();
-	await expect(stage.getByText('Total amount')).toBeVisible();
-	await expect(stage.getByText('by category')).toBeVisible();
-	for (const category of ['Food', 'Fun', 'Home', 'Transport']) {
-		await expect(stage.locator('svg text', { hasText: category })).toBeVisible();
-	}
+	const demo = page.getByTestId('demo');
+	await demo.getByRole('group', { name: 'Views' }).getByRole('button', { name: 'Entry' }).click();
+	await demo.getByRole('button', { name: 'Add row' }).click();
+	await expect(demo.getByTestId('row-count')).toHaveText('7 rows');
 
 	await page.getByRole('main').getByRole('link', { name: 'Start now' }).first().click();
 	await expect(page).toHaveURL(/\/app$/u);
@@ -231,17 +253,4 @@ test('the real table loads SQLite on demand and keeps its rows out of the app', 
 			})
 	);
 	expect(records).toBe(0);
-});
-
-test('the year of cells sorts by table', async ({ page }) => {
-	await page.goto('/');
-	const tables = page.getByRole('group', { name: 'Tables' });
-	await tables.scrollIntoViewIfNeeded();
-	const trip = tables.getByRole('button', { name: 'Trip' });
-	await press(trip);
-	await expect(tables.getByRole('button', { name: 'All' })).toHaveAttribute(
-		'aria-pressed',
-		'false'
-	);
-	await expect(page.getByTestId('year-band')).toBeVisible();
 });
