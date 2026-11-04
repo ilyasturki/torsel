@@ -215,7 +215,8 @@
 >
 	{#each groups.entries as [key, rows], at (key)}
 		{#if group !== undefined || (at === 0 && wide.current && meta.length > 0)}
-			<h2
+			<svelte:element
+				this={group === undefined ? 'div' : 'h2'}
 				class="sticky top-0 z-10 flex h-row items-center gap-2 border-b border-rule bg-band px-4 text-sm font-medium text-ink-2 {wide.current
 					? 'col-span-full grid grid-cols-subgrid'
 					: ''}"
@@ -237,7 +238,7 @@
 						>
 					{/each}
 				{/if}
-			</h2>
+			</svelte:element>
 		{/if}
 		{#each rows as row (row.id)}
 			<div
