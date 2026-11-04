@@ -215,7 +215,7 @@
 			{#each left as { prompt, index } (index)}
 				<button
 					type="button"
-					class="rounded-box bg-raised px-2.5 py-2 text-left font-medium shadow-raised transition-shadow motion hover:ring-1 hover:ring-accent disabled:opacity-50"
+					class="rounded-box bg-raised px-2.5 py-2 text-left font-medium shadow-raised transition-shadow motion hover:ring-1 hover:ring-ink-3 disabled:opacity-50"
 					disabled={busy || samples === null}
 					onclick={() => void run(index)}>{prompt.text}</button
 				>
