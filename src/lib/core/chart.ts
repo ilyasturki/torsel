@@ -66,6 +66,23 @@ export function chartQuery(ws: Workspace, tableId: string, config: ChartConfig):
 	return `${grouped} order by 1`;
 }
 
+function niceStep(raw: number): number {
+	const power = 10 ** Math.floor(Math.log10(raw));
+	const scaled = raw / power;
+	return (scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 2.5 ? 2.5 : scaled <= 5 ? 5 : 10) * power;
+}
+
+/** Round values from at or below `low` to at or above `high`, about `count` steps apart. */
+export function axisTicks(low: number, high: number, count = 4): number[] {
+	const [from, to] = high > low ? [low, high] : [low - 1, low + 1];
+	const step = niceStep((to - from) / count);
+	const first = Math.floor(from / step);
+	const last = Math.ceil(to / step);
+	return Array.from({ length: last - first + 1 }, (_, at) =>
+		Number(((first + at) * step).toPrecision(12))
+	);
+}
+
 /** Bars that add up across something other than time lead with their grand total. */
 export function totalled(config: ChartConfig, byDate: boolean): boolean {
 	return !byDate && config.kind === 'bar' && (config.agg === 'sum' || config.agg === 'count');
