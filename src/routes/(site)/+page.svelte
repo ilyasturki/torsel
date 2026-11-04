@@ -19,7 +19,7 @@
 
 <main class="grid gap-2 max-lg:gap-1.5">
 	<section
-		class="{panel} flex flex-wrap items-end justify-between gap-x-10 gap-y-5 p-5 lg:px-8 lg:py-10"
+		class="{panel} grid gap-x-10 gap-y-5 p-5 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8 lg:py-10"
 	>
 		<h1 class="max-w-headline text-h1 leading-none font-semibold tighter text-balance">
 			The spreadsheet that does the work.

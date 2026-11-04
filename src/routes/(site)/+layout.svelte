@@ -1,10 +1,17 @@
 <script lang="ts">
+	import font from '@fontsource-variable/funnel-sans/files/funnel-sans-latin-wght-normal.woff2?url';
+
 	import SiteBackdrop from '#lib/site/landing/SiteBackdrop.svelte';
 	import SiteFooter from '#lib/site/SiteFooter.svelte';
 	import SiteHeader from '#lib/site/SiteHeader.svelte';
 
 	let { children } = $props();
 </script>
+
+<svelte:head>
+	<!-- The headline sets its lines in this face: arriving late, it reflows the first screen. -->
+	<link rel="preload" href={font} as="font" type="font/woff2" crossorigin="anonymous" />
+</svelte:head>
 
 <SiteBackdrop />
 <!-- A full navigation out: the landing's sample table lives in the same store the app opens. -->
