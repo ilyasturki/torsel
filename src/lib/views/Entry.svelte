@@ -184,11 +184,18 @@
 
 	const ready = $derived(keys.every((field) => !blank(keyValue(field))));
 
+	let lastAdded = { at: 0, row: '' };
+
 	function commit(): void {
 		const row: Record<string, Value> = {};
 		for (const field of keys) row[field.id] = keyValue(field);
 		if (dateField !== undefined) row[dateField.id] = values[dateField.id] ?? stamp(dateField);
 		for (const field of others) row[field.id] = shown(field);
+
+		// A double tap would log the same set twice; quick taps through a plan log a new set each.
+		const same = JSON.stringify(Object.entries(row).filter(([id]) => id !== dateField?.id));
+		if (same === lastAdded.row && Date.now() - lastAdded.at < 500) return;
+		lastAdded = { at: Date.now(), row: same };
 
 		const { changes } = insertRows(app.ws, tableId, [row]);
 		const group = app.apply(changes, 'Row added');
@@ -494,10 +501,7 @@
 				size="cta"
 				class="sticky bottom-4 z-10 shrink-0 sm:h-control sm:self-end sm:px-3 sm:text-base sm:font-medium"
 				disabled={!ready}
-				onclick={(event) => {
-					// A double tap would log the same set twice.
-					if (event.detail < 2) commit();
-				}}>Add row</Button
+				onclick={commit}>Add row</Button
 			>
 		</section>
 	</div>

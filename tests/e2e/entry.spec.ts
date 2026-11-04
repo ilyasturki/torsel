@@ -123,20 +123,35 @@ test('a planned line can be logged out of turn, and another exercise added', asy
 	await expect(plan(page).getByRole('button', { name: /^Logged/u })).toHaveCount(2);
 });
 
-test('a double click on Add row logs one set, and the desktop button is mouse-sized', async ({
+test('a double click on Add row logs one row, and the desktop button is mouse-sized', async ({
 	page,
 	context,
 	account
 }) => {
 	void account;
-	await page.goto(await seedSessions(context.request));
+	const path = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Body');
+		commit(base.changes);
+		const weight = createTable(ws, base.id, 'Weight', [
+			{ name: 'Date', type: 'date' },
+			{ name: 'Kg', type: 'number' }
+		]);
+		commit(weight.changes);
+		commit(insertRows(ws, weight.id, [{ [weight.fieldIds[1]]: 80 }]).changes);
+		const entry = createView(ws, weight.id, { name: 'Log', type: 'entry', config: {} });
+		commit(entry.changes);
+		return tablePath(weight.id, entry.id);
+	});
+	await page.goto(path);
 	const addRow = page.getByRole('button', { name: 'Add row' });
-	await expect(page.getByText('4 rows')).toBeVisible();
+	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 
 	await addRow.click({ clickCount: 2 });
-	await expect(page.getByText('5 rows')).toBeVisible();
+	await expect(page.getByText('2 rows')).toBeVisible();
+	await page.waitForTimeout(600);
+	await expect(page.getByText('2 rows')).toBeVisible();
 	await addRow.click();
-	await expect(page.getByText('6 rows')).toBeVisible();
+	await expect(page.getByText('3 rows')).toBeVisible();
 
 	const more = await page.getByRole('button', { name: 'More' }).boundingBox();
 	const height = (await addRow.boundingBox())?.height;
