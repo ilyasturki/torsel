@@ -79,6 +79,20 @@ export async function tableMenu(page: Page, item: string): Promise<void> {
 		.click();
 }
 
+/** Adds a view of a type: the "+" by the view tabs from `sm` up, the table's sheet on a phone. */
+export async function newView(
+	page: Page,
+	type: 'Grid' | 'Entry' | 'List' | 'Chart'
+): Promise<void> {
+	if (base.info().project.name === 'phone') {
+		await page.getByRole('button', { name: 'More' }).click();
+		await page.getByRole('button', { name: `New ${type.toLowerCase()} view` }).click();
+	} else {
+		await page.getByRole('button', { name: 'New view' }).click();
+		await page.getByRole('menuitem', { name: type, exact: true }).click();
+	}
+}
+
 /** An item of an anchored menu from `sm` up, a sheet's button on a phone. */
 export const menuItem = (page: Page, item: string): Locator =>
 	page

@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, pick, seed, tableMenu, tablePath, test } from './harness.ts';
+import { expect, newView, pick, seed, tableMenu, tablePath, test } from './harness.ts';
 
 test.beforeEach(() => {
 	test.skip(test.info().project.name !== 'phone', 'a phone-sized screen is the point here');
@@ -69,13 +69,17 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 	expect(await clearOf(day, addRow), 'Entry: Day above Add row').toBe(true);
 
 	await page.goto(tablePath(table));
-	await tableMenu(page, 'New view');
+	await newView(page, 'Chart');
+	await expect(page.getByRole('link', { name: 'Chart', exact: true })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await tableMenu(page, 'View settings');
 	const sheet = page.getByRole('dialog');
-	await sheet.getByRole('button', { name: /^Chart/u }).click();
 	await sheet.getByRole('button', { name: 'Line', exact: true }).click();
 	await pick(sheet.getByRole('combobox', { name: 'Horizontal axis' }), 'Day');
 	const last = sheet.getByRole('textbox', { name: 'Rolling average (days)' });
-	expect(await clearOf(last, sheet.getByRole('button', { name: 'Create' })), 'chart sheet').toBe(
+	expect(await clearOf(last, sheet.getByRole('button', { name: 'Save' })), 'chart sheet').toBe(
 		true
 	);
 	await sheet.getByRole('button', { name: 'Close' }).click();

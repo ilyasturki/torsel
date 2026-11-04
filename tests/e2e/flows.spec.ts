@@ -8,6 +8,7 @@ import {
 	expect,
 	expectListed,
 	newAccount,
+	newView,
 	openTable,
 	pick,
 	redo,
@@ -557,12 +558,12 @@ test.describe('fields and views', () => {
 		await page.goto(tablePath(table, list));
 		const views = page.getByRole('group', { name: 'Views' }).getByRole('link');
 		await expect(views).toHaveText(['Grid', 'Entry', 'Volume', 'Sets']);
-		await tableMenu(page, 'View settings');
-		await page
-			.getByRole('dialog', { name: 'View settings' })
-			.getByRole('button', { name: 'Move left' })
-			.click();
+		await views.getByText('Sets').focus();
+		await page.keyboard.press('Control+Shift+ArrowLeft');
 		await expect(views).toHaveText(['Grid', 'Entry', 'Sets', 'Volume']);
+		await expect(views.getByText('Sets')).toBeFocused();
+		await undo(page);
+		await expect(views).toHaveText(['Grid', 'Entry', 'Volume', 'Sets']);
 	});
 
 	test('sort lives in view settings and can be removed', async ({ page, context, account }) => {
@@ -670,11 +671,7 @@ test.describe('fields and views', () => {
 		void account;
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
-		await tableMenu(page, 'New view');
-		await page
-			.getByRole('dialog', { name: 'New view' })
-			.getByRole('button', { name: 'Create' })
-			.click();
+		await newView(page, 'Grid');
 
 		await expect(
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Grid 2' })
@@ -1049,11 +1046,12 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		const taps = await countTaps(page);
 
 		if (onPhone()) {
-			await tableMenu(page, 'New view');
+			await page.getByRole('button', { name: 'More' }).click();
+			await page.getByRole('button', { name: 'New grid view' }).click();
 		} else {
 			await page.getByRole('button', { name: 'New view' }).click();
+			await page.getByRole('menuitem', { name: 'Grid', exact: true }).click();
 		}
-		await page.keyboard.press('Enter');
 		await expect(
 			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Grid 2' })
 		).toBeVisible();

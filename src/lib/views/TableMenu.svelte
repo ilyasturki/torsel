@@ -11,27 +11,28 @@
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import { wide } from '#lib/ui/media.svelte.ts';
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
+	import MenuSub from '#lib/ui/MenuSub.svelte';
 
 	import { viewCells } from './grid.ts';
+	import { VIEW_TYPES, addView } from './views.ts';
 
 	let {
 		open = $bindable(false),
 		anchor = null,
 		table,
 		view,
-		onviewsettings,
-		onnewview
+		onviewsettings
 	}: {
 		open?: boolean;
 		anchor?: HTMLElement | null;
 		table: TableDef;
 		view?: ViewDef;
 		onviewsettings?: () => void;
-		onnewview: () => void;
 	} = $props();
 
 	let renaming = false;
@@ -86,7 +87,13 @@
 		{#if onviewsettings !== undefined}
 			<MenuItem icon="eye" onSelect={() => run(onviewsettings)}>View settings</MenuItem>
 		{/if}
-		<MenuItem icon="plus" onSelect={() => run(onnewview)}>New view</MenuItem>
+		<MenuSub icon="plus" label="New view">
+			{#each VIEW_TYPES as option (option.id)}
+				<MenuItem icon={option.icon} onSelect={() => run(() => addView(table.id, option.id))}
+					>{option.label}</MenuItem
+				>
+			{/each}
+		</MenuSub>
 		<MenuItem icon="pencil" onSelect={rename}>Rename table</MenuItem>
 		{#if view?.type === 'grid'}
 			<MenuItem icon="fit" onSelect={() => run(fitAll)}>Fit all columns</MenuItem>
@@ -107,7 +114,19 @@
 					>View settings</Button
 				>
 			{/if}
-			<Button variant="ghost" class="justify-start" onclick={() => run(onnewview)}>New view</Button>
+			<span class="px-3 pt-2 text-sm text-ink-3" id="new-view">New view</span>
+			<div class="grid grid-cols-4 gap-1 px-1 pb-1" role="group" aria-labelledby="new-view">
+				{#each VIEW_TYPES as option (option.id)}
+					<Button
+						class="flex-col gap-1 py-2"
+						aria-label="New {option.label.toLowerCase()} view"
+						onclick={() => run(() => addView(table.id, option.id))}
+					>
+						<Icon name={option.icon} />
+						<span class="text-sm">{option.label}</span>
+					</Button>
+				{/each}
+			</div>
 			<Button variant="ghost" class="justify-start" onclick={rename}>Rename table</Button>
 			{#if view?.type === 'grid'}
 				<Button variant="ghost" class="justify-start" onclick={() => run(fitAll)}

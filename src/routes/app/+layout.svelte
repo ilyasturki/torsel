@@ -18,9 +18,9 @@
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Logo from '#lib/ui/Logo.svelte';
-	import Segmented from '#lib/ui/Segmented.svelte';
 	import AskPanel from '#lib/views/AskPanel.svelte';
 	import ImportSheet from '#lib/views/ImportSheet.svelte';
+	import { shownView } from '#lib/views/pin.svelte.ts';
 	import RowSheet from '#lib/views/RowSheet.svelte';
 	import SyncStatus from '#lib/views/SyncStatus.svelte';
 	import TableMenu from '#lib/views/TableMenu.svelte';
@@ -28,6 +28,7 @@
 	import TableTitle from '#lib/views/TableTitle.svelte';
 	import Toast from '#lib/views/Toast.svelte';
 	import ViewSheet from '#lib/views/ViewSheet.svelte';
+	import ViewTabs from '#lib/views/ViewTabs.svelte';
 
 	let { children } = $props();
 
@@ -82,7 +83,7 @@
 		if (table === undefined) return undefined;
 		const segment = page.params.view;
 		const requested = segment === undefined ? undefined : viewBySlug(table.id, segment);
-		return views.find((item) => item.id === requested) ?? views[0];
+		return shownView(table.id, views, requested);
 	});
 
 	$effect(() => {
@@ -115,7 +116,12 @@
 	let menuOpen = $state(false);
 	let menuAnchor = $state<HTMLElement | null>(null);
 	let viewSettings = $state(false);
-	let viewCreating = $state(false);
+	let settingsView = $state<string | null>(null);
+
+	function openViewSettings(viewId: string | null): void {
+		settingsView = viewId;
+		viewSettings = true;
+	}
 	let dropping = $state(false);
 
 	function hasFiles(event: DragEvent): boolean {
@@ -265,25 +271,7 @@
 
 		{#if table !== undefined}
 			<div class="flex shrink-0 items-center gap-1 border-b border-rule px-gutter max-sm:pr-2">
-				<Segmented
-					label="Views"
-					tone="line"
-					class="min-w-0 max-sm:flex-1"
-					items={[
-						...views.map((item) => ({
-							id: item.id,
-							label: item.name,
-							href: tableUrl(table.id, item.id),
-							active: item.id === view?.id
-						}))
-					]}
-				/>
-				<Button
-					variant="ghost"
-					class="w-control px-0 max-sm:hidden"
-					aria-label="New view"
-					onclick={() => (viewCreating = true)}><Icon name="plus" /></Button
-				>
+				<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
 				<Button
 					variant="ghost"
 					class="w-control px-0 max-sm:hidden"
@@ -334,11 +322,11 @@
 			anchor={menuAnchor}
 			{table}
 			{view}
-			onviewsettings={() => (viewSettings = true)}
-			onnewview={() => (viewCreating = true)}
+			onviewsettings={() => openViewSettings(view?.id ?? null)}
 		/>
-		<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={view?.id ?? null} />
-		<ViewSheet bind:open={viewCreating} tableId={table.id} />
+		{#if settingsView !== null}
+			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={settingsView} />
+		{/if}
 		<RowSheet bind:open={shell.newRow} tableId={table.id} />
 	{/if}
 {/if}

@@ -16,6 +16,7 @@
 	import Entry from '#lib/views/Entry.svelte';
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
+	import { shownView } from '#lib/views/pin.svelte.ts';
 
 	const tableId = $derived(tableBySlug(page.params.table ?? '') ?? '');
 
@@ -33,7 +34,7 @@
 		page.params.view === undefined ? undefined : viewBySlug(tableId, page.params.view)
 	);
 
-	const view = $derived(views.find((item) => item.id === requested) ?? views[0]);
+	const view = $derived(shownView(tableId, views, requested));
 
 	// An id, an old name or the first view's own slug: the address bar shows the current one.
 	$effect(() => {

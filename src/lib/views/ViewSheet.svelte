@@ -8,13 +8,10 @@
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import {
 		chartAxis,
-		createView,
 		defaultMatch,
 		deleteRecords,
 		entryFields,
 		listLayout,
-		reorder,
-		shifted,
 		updateRecord
 	} from '#lib/core/actions.ts';
 	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
@@ -25,20 +22,15 @@
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Select, { type Option } from '#lib/ui/Select.svelte';
-	import { checkbox, input, legend } from '#lib/ui/styles.ts';
+	import { checkbox, focus, input, legend } from '#lib/ui/styles.ts';
+
+	import { VIEW_TYPES, viewLabel } from './views.ts';
 
 	let {
 		open = $bindable(false),
 		tableId,
-		viewId = null
-	}: { open?: boolean; tableId: string; viewId?: string | null } = $props();
-
-	const TYPES: { id: ViewType; label: string; hint: string }[] = [
-		{ id: 'grid', label: 'Grid', hint: 'Every row, as a sheet' },
-		{ id: 'entry', label: 'Entry', hint: 'Add rows fast, filled in from last time' },
-		{ id: 'list', label: 'List', hint: 'Rows grouped under headings' },
-		{ id: 'chart', label: 'Chart', hint: 'Bars or a line of one value' }
-	];
+		viewId
+	}: { open?: boolean; tableId: string; viewId: string } = $props();
 
 	let name = $state('');
 	let type = $state<ViewType>('grid');
@@ -50,7 +42,7 @@
 
 	const existing = $derived.by(() => {
 		void app.version;
-		return viewId === null ? undefined : app.ws.view(viewId);
+		return app.ws.view(viewId);
 	});
 
 	const fields = $derived.by(() => {
@@ -58,14 +50,9 @@
 		return app.ws.fields(tableId);
 	});
 
-	const siblings = $derived.by(() => {
-		void app.version;
-		return app.ws.views(tableId);
-	});
-
 	$effect(() => {
 		if (open) {
-			const view = viewId === null ? undefined : app.ws.view(viewId);
+			const view = app.ws.view(viewId);
 			name = view?.name ?? '';
 			type = view?.type ?? 'grid';
 			config = structuredClone($state.snapshot(view?.config ?? {}));
@@ -73,11 +60,8 @@
 		}
 	});
 
-	const labelOf = (id: ViewType): string =>
-		TYPES.find((option) => option.id === id)?.label ?? 'View';
-
 	function pickType(next: ViewType): void {
-		if (name === labelOf(type)) name = labelOf(next);
+		if (name === viewLabel(type)) name = viewLabel(next);
 		type = next;
 	}
 
@@ -87,7 +71,9 @@
 		fallback: string[]
 	): void {
 		const list = config[key] ?? fallback;
-		config[key] = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+		const next = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+		const at = (item: string): number => fields.findIndex((field) => field.id === item);
+		config[key] = key === 'match' ? next.sort((a, b) => at(a) - at(b)) : next;
 	}
 
 	const fillable = $derived(fields.filter((field) => field.type !== 'formula'));
@@ -126,27 +112,10 @@
 		else config.group = value || null;
 	}
 
-	function unusedName(label: string): string {
-		const taken = new Set(siblings.map((view) => view.name));
-		let unused = label;
-		for (let n = 2; taken.has(unused); n += 1) unused = `${label} ${n}`;
-		return unused;
-	}
-
 	function save(): void {
-		const clean = JSON.parse(JSON.stringify(config)) as Value;
-
-		if (existing === undefined) {
-			const label = name.trim() || unusedName(labelOf(type));
-			const { id, changes } = createView(app.ws, tableId, {
-				name: label,
-				type,
-				config: clean as ViewConfig
-			});
-			applyWithUndo(changes, `View "${label}" added`);
-			void goto(tableUrl(tableId, id));
-		} else {
-			const label = name.trim() || labelOf(type);
+		if (existing !== undefined) {
+			const label = name.trim() || viewLabel(type);
+			const clean = JSON.parse(JSON.stringify(config)) as Value;
 			applyWithUndo(
 				updateRecord(app.ws, existing.id, { name: label, type, config: clean }),
 				`View "${label}" changed`
@@ -164,16 +133,6 @@
 		void goto(tableUrl(tableId));
 	}
 
-	function move(by: number): void {
-		if (existing !== undefined) {
-			const ids = siblings.map((view) => view.id);
-			applyWithUndo(
-				reorder(app.ws, shifted(ids, existing.id, by)),
-				`View "${existing.name}" moved`
-			);
-		}
-	}
-
 	const checked = (
 		key: 'hidden' | 'fields' | 'match' | 'show',
 		field: FieldDef,
@@ -181,33 +140,27 @@
 	): boolean => (config[key] ?? fallback).includes(field.id);
 </script>
 
-<Dialog
-	bind:open
-	title={existing === undefined ? 'New view' : 'View settings'}
-	{dirty}
-	onsubmit={save}
->
+<Dialog bind:open title="View settings" {dirty} onsubmit={save}>
 	<div class="flex flex-col gap-3">
-		<div class="grid grid-cols-2 gap-1" role="group" aria-label="View type">
-			{#each TYPES as option (option.id)}
+		<Field label="Name">
+			<input class={input} bind:value={name} placeholder={viewLabel(type)} />
+		</Field>
+
+		<div class="grid grid-cols-4 gap-1" role="group" aria-label="View type">
+			{#each VIEW_TYPES as option (option.id)}
 				<button
 					type="button"
-					class="flex flex-col gap-1 rounded-box p-3 text-left transition-colors motion {type ===
+					class="flex h-control items-center justify-center gap-2 rounded-box font-medium transition-colors motion {focus} {type ===
 					option.id
 						? 'bg-fill text-on-fill'
-						: 'bg-tint hover:bg-tint-2'}"
+						: 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink'}"
 					aria-pressed={type === option.id}
 					onclick={() => pickType(option.id)}
 				>
-					<span class="font-semibold">{option.label}</span>
-					<span class="text-sm opacity-70">{option.hint}</span>
+					<Icon name={option.icon} />{option.label}
 				</button>
 			{/each}
 		</div>
-
-		<Field label="Name">
-			<input class={input} bind:value={name} placeholder={labelOf(type)} />
-		</Field>
 
 		{#if type === 'grid'}
 			<div class="grid grid-cols-2 gap-3">
@@ -411,24 +364,8 @@
 	</div>
 
 	{#snippet footer()}
-		{#if existing !== undefined}
-			<Button variant="ghost" onclick={remove}>Delete</Button>
-			<Button
-				variant="ghost"
-				class="w-control px-0"
-				aria-label="Move left"
-				disabled={siblings[0]?.id === existing.id}
-				onclick={() => move(-1)}><Icon name="arrow-left" /></Button
-			>
-			<Button
-				variant="ghost"
-				class="w-control px-0"
-				aria-label="Move right"
-				disabled={siblings.at(-1)?.id === existing.id}
-				onclick={() => move(1)}><Icon name="arrow-right" /></Button
-			>
-		{/if}
+		<Button variant="ghost" onclick={remove}>Delete</Button>
 		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>{existing === undefined ? 'Create' : 'Save'}</Button>
+		<Button variant="primary" onclick={save}>Save</Button>
 	{/snippet}
 </Dialog>

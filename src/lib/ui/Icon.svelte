@@ -40,7 +40,11 @@
 		formula: 'M11.5 2.5H10A1.5 1.5 0 0 0 8.5 4v8A1.5 1.5 0 0 1 7 13.5H5.5M5.5 7h5',
 		url: 'M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1A2.5 2.5 0 0 1 4.5 9l1-1',
 		email: 'M1.5 3.5h13v9h-13zM1.5 4l6.5 5 6.5-5',
-		phone: 'M4.5 1.5h7v13h-7zM7 12h2'
+		phone: 'M4.5 1.5h7v13h-7zM7 12h2',
+		'view-grid': 'M2.5 2.5h11v11h-11zM2.5 6.5h11M2.5 10h11M6.5 2.5v11',
+		'view-entry': 'M2.5 2.5h11v11h-11zM8 5.5v5M5.5 8h5',
+		'view-list': 'M2.5 4h1M6 4h7.5M2.5 8h1M6 8h7.5M2.5 12h1M6 12h7.5',
+		'view-chart': 'M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5'
 	} as const;
 
 	export const ICONS = Object.keys(PATHS) as IconName[];

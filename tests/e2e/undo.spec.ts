@@ -5,6 +5,7 @@ import {
 	columnMenu,
 	expect,
 	expectListed,
+	newView,
 	redo,
 	script,
 	seed,
@@ -166,10 +167,7 @@ test('a sort, from its toast', async ({ page }) => {
 test('a view added, then deleted', async ({ page }) => {
 	const views = page.getByRole('group', { name: 'Views' });
 
-	const sheet = page.getByRole('dialog');
-	await tableMenu(page, 'New view');
-	await sheet.getByRole('button', { name: /^Chart/u }).click();
-	await sheet.getByRole('button', { name: 'Create' }).click();
+	await newView(page, 'Chart');
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
 	await toastButton(page, 'Undo').click();
 	await expect(views.getByRole('link', { name: 'Chart' })).toHaveCount(0);

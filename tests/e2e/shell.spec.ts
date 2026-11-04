@@ -5,6 +5,7 @@ import {
 	allTables,
 	expect,
 	expectListed,
+	newView,
 	openTable,
 	RETRY_RESET,
 	seed,
@@ -336,9 +337,7 @@ test('the table menu renames the table, opens view settings and adds a view', as
 		.click();
 	await expect(dialog).toHaveCount(0);
 
-	await tableMenu(page, 'New view');
-	await dialog.getByRole('button', { name: /^List/u }).click();
-	await dialog.getByRole('button', { name: 'Create' }).click();
+	await newView(page, 'List');
 	await expect(
 		page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'List' })
 	).toBeVisible();
@@ -381,8 +380,10 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 	await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('Enter');
-	await expect(page.getByRole('dialog', { name: 'New view' })).toBeVisible();
+	await expect(page.getByRole('menuitem', { name: 'Chart', exact: true })).toBeVisible();
 	await page.keyboard.press('Escape');
+	if ((await page.getByRole('menu').count()) > 0) await page.keyboard.press('Escape');
+	await expect(page.getByRole('menu')).toHaveCount(0);
 
 	await more.click();
 	await expect(menu).toBeVisible();
