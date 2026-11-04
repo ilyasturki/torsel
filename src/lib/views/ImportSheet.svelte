@@ -48,6 +48,7 @@
 	let base = $state('');
 	let problem = $state('');
 	let body: HTMLElement | undefined = $state();
+	let picker: HTMLInputElement | undefined = $state();
 
 	const hasColumns = $derived(columns.length > 0);
 	const ready = $derived(hasColumns || records !== null);
@@ -176,28 +177,22 @@
 	}
 </script>
 
-<Dialog
-	bind:open
-	title="Import"
-	description={ready
-		? undefined
-		: 'A CSV from Google Sheets or Excel, a Torsel export, or cells you paste.'}
-	dirty={ready}
-	typeOnOpen={false}
-	onsubmit={run}
->
+<Dialog bind:open title="Import" dirty={ready} typeOnOpen={false} onsubmit={run}>
 	<div class="flex flex-col gap-3" bind:this={body}>
 		{#if !ready}
 			<input
+				bind:this={picker}
 				type="file"
 				accept=".csv,.tsv,.txt,.json,text/csv,application/json"
 				aria-label="File to import"
-				class="block w-full file:mr-3 file:h-control file:rounded-box file:border-0 file:bg-fill file:px-3 file:font-medium file:text-on-fill"
+				tabindex="-1"
+				class="sr-only"
 				onchange={(event) => {
 					const file = event.currentTarget.files?.[0];
 					if (file) void read({ file, into: into || null });
 				}}
 			/>
+			<Button class="self-start" onclick={() => picker?.click()}>Choose a file</Button>
 			<textarea
 				class="{textarea} h-24"
 				aria-label="Cells to import"

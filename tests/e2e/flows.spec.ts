@@ -726,7 +726,11 @@ test.describe('importing', () => {
 
 		await tableMenu(page, 'Import into this table');
 		const sheet = page.getByRole('dialog', { name: 'Import' });
-		await sheet.getByLabel('File to import').setInputFiles({
+		const chooser = page.waitForEvent('filechooser');
+		await sheet.getByRole('button', { name: 'Choose a file' }).click();
+		await (
+			await chooser
+		).setFiles({
 			name: 'more.csv',
 			mimeType: 'text/csv',
 			buffer: Buffer.from(
