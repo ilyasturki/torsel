@@ -1,34 +1,31 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatDate, formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
+	import { formatDate, formatNumber, readNumber } from '#lib/client/format.ts';
 	import { loggedThrough } from '#lib/client/place.ts';
-	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
-	import {
-		defaultMatch,
-		doneRows,
-		entryFields,
-		insertRows,
-		updateRecord
-	} from '#lib/core/actions.ts';
+	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { defaultMatch, doneRows, entryFields, insertRows } from '#lib/core/actions.ts';
+	import { blank, entryPlan, nextLine, repeats, sameValue } from '#lib/core/entry.ts';
+	import type { PlanLine } from '#lib/core/entry.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import { nativeDateText, nowIso, parseDate, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
+	import { roomy } from '#lib/ui/media.svelte.ts';
 	import Stepper from '#lib/ui/Stepper.svelte';
-	import Select, { type Option } from '#lib/ui/Select.svelte';
-	import { checkbox, chip, chipOff, chipOn, input } from '#lib/ui/styles.ts';
+	import { focus, input } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
+	import EntryKey from './EntryKey.svelte';
 	import FieldInput from './FieldInput.svelte';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
 
 	const MANY = 12;
+	const FREE = 'free';
 
 	const all = $derived.by(() => {
 		void app.version;
@@ -37,90 +34,133 @@
 
 	const fields = $derived(entryFields(all, view.config));
 
-	const keyIds = $derived.by(() => {
-		const configured = view.config.match;
-		if (configured !== undefined) {
-			return new Set(configured);
-		}
-		return new Set(defaultMatch(fields));
-	});
-
-	const keys = $derived(fields.filter((field) => keyIds.has(field.id)));
+	const keys = $derived(
+		(view.config.match ?? defaultMatch(fields))
+			.map((id) => fields.find((field) => field.id === id))
+			.filter((field) => field !== undefined)
+	);
+	const keyIds = $derived(new Set(keys.map((field) => field.id)));
+	const grouping = $derived(keys.length > 1 ? keys[0] : undefined);
+	const items = $derived(grouping === undefined ? keys : keys.slice(1));
 	const dateField = $derived(fields.find((field) => isDated(field.type) && !keyIds.has(field.id)));
 	const others = $derived(
 		fields
 			.filter((field) => !keyIds.has(field.id) && field.id !== dateField?.id)
 			.sort((a, b) => Number(isNumeric(b.type)) - Number(isNumeric(a.type)))
 	);
+	const steppers = $derived(others.filter((field) => field.type === 'number'));
+	const rest = $derived(others.filter((field) => field.type !== 'number'));
+	const typed = $derived(rest.filter((field) => !copied.has(field.id)));
+	const picked = $derived(rest.filter((field) => copied.has(field.id)));
+	const columns = $derived(others.filter((field) => isNumeric(field.type)));
 
 	let values = $state<Record<string, Value>>({});
-	let touched = $state<Record<string, boolean>>({});
+	let edits = $state<Record<string, Value>>({});
 	let texts = $state<Record<string, string>>({});
-	let search = $state('');
-	let adding = $state<string | null>(null);
-	let newChoice = $state('');
+	let chosen = $state<string | null>(null);
 	let started = false;
 	let rowOpen = $state(false);
 	let rowId = $state<string | null>(null);
 
 	const today = todayIso();
 
-	const ordered = $derived.by(() => {
+	const logged = $derived.by(() => {
 		void app.version;
-		const date = dateField;
-		return [...app.ws.rows(tableId)].sort((a, b) => {
-			if (date !== undefined) {
-				const order = String(b.data[date.id] ?? '').localeCompare(String(a.data[date.id] ?? ''));
-				if (order !== 0) return order;
-			}
-			return createdAt(b) - createdAt(a);
-		});
+		return app.ws.rows(tableId);
 	});
-
-	function matches(row: Rec): boolean {
-		return keys.every((field) => (row.data[field.id] ?? null) === (values[field.id] ?? null));
-	}
 
 	function dayOf(row: Rec): string {
 		const value = dateField === undefined ? undefined : row.data[dateField.id];
 		return typeof value === 'string' ? value.slice(0, 10) : todayIso(new Date(createdAt(row)));
 	}
 
+	const ordered = $derived(
+		[...logged].sort((a, b) => dayOf(b).localeCompare(dayOf(a)) || createdAt(b) - createdAt(a))
+	);
+
 	const done = $derived(doneRows(others, ordered));
-	const history = $derived(ordered.filter((row) => matches(row) && done(row)));
-	const last = $derived(history[0]);
-	const lastTime = $derived(history.find((row) => dayOf(row) !== today));
+	const copied = $derived(
+		new Set(others.filter((field) => repeats(field, logged)).map((f) => f.id))
+	);
 
 	$effect(() => {
 		if (started || !app.ready) return;
 		started = true;
 		for (const field of keys) {
-			const keyed = (row: Rec): boolean => (row.data[field.id] ?? null) !== null;
+			const keyed = (row: Rec): boolean => !blank(row.data[field.id]);
 			const latest =
 				ordered.find((row) => keyed(row) && done(row)) ?? ordered.find((row) => keyed(row));
 			values[field.id] = latest?.data[field.id] ?? null;
 		}
 	});
 
-	function stamp(field: FieldDef): string {
-		return field.type === 'datetime' ? nowIso() : todayIso();
+	const plan = $derived(
+		grouping === undefined || blank(values[grouping.id])
+			? null
+			: entryPlan(logged, {
+					group: grouping,
+					value: values[grouping.id],
+					items,
+					dayOf,
+					today,
+					done
+				})
+	);
+
+	const line = $derived.by((): PlanLine | undefined => {
+		if (plan === null || chosen === FREE) return undefined;
+		const open = plan.groups
+			.flatMap((group) => group.lines)
+			.find((candidate) => candidate.planned?.id === chosen && candidate.logged === null);
+		return open ?? nextLine(plan);
+	});
+
+	function keyValue(field: FieldDef): Value {
+		if (line?.planned != null && field.id !== grouping?.id) {
+			return line.planned.data[field.id] ?? null;
+		}
+		return values[field.id] ?? null;
 	}
 
+	const last = $derived(
+		ordered.find(
+			(row) => done(row) && keys.every((field) => sameValue(row.data[field.id], values[field.id]))
+		)
+	);
+
+	const template = $derived(line?.planned ?? last);
+
 	function shown(field: FieldDef): Value {
-		return touched[field.id]
-			? (values[field.id] ?? null)
-			: (last?.data[field.id] ?? values[field.id] ?? null);
+		if (field.id in edits) return edits[field.id] ?? null;
+		return copied.has(field.id) ? (template?.data[field.id] ?? null) : null;
 	}
 
 	function set(field: FieldDef, value: Value): void {
-		values[field.id] = value;
-		touched[field.id] = true;
+		edits[field.id] = value;
 	}
 
-	function pickKey(field: FieldDef, value: Value): void {
-		values[field.id] = values[field.id] === value ? null : value;
-		touched = {};
-		texts = {};
+	function pick(field: FieldDef, value: Value): void {
+		values[field.id] = value;
+		if (field.id === grouping?.id) chosen = null;
+	}
+
+	function choose(next: PlanLine): void {
+		if (next.logged !== null) {
+			open(next.logged);
+		} else if (next.planned !== null) {
+			chosen = next.planned.id;
+			edits = {};
+			texts = {};
+		}
+	}
+
+	function open(row: Rec): void {
+		rowId = row.id;
+		rowOpen = true;
+	}
+
+	function stamp(field: FieldDef): string {
+		return field.type === 'datetime' ? nowIso() : todayIso();
 	}
 
 	function step(field: FieldDef, direction: number): void {
@@ -132,7 +172,7 @@
 		texts[field.id] = formatNumber(next, { edit: true });
 	}
 
-	function recentChoices(field: FieldDef): string[] {
+	function recentOf(field: FieldDef): string[] {
 		const seen = new Set<string>();
 		for (const row of [...ordered.filter(done), ...ordered]) {
 			const value = row.data[field.id];
@@ -142,296 +182,303 @@
 		return [...seen];
 	}
 
-	function choiceList(field: FieldDef): { name: string; color: string | null }[] {
-		if (field.choices.length <= MANY) return field.choices;
-		const needle = search.trim().toLowerCase();
-		if (needle !== '') {
-			return field.choices.filter((choice) => choice.name.toLowerCase().includes(needle));
-		}
-		const recent = recentChoices(field);
-		const byName = new Map(field.choices.map((choice) => [choice.name, choice]));
-		const picked = values[field.id];
-		const names =
-			typeof picked === 'string' && !recent.includes(picked) ? [picked, ...recent] : recent;
-		return names.map((name) => byName.get(name) ?? { name, color: null });
-	}
-
-	function addChoice(field: FieldDef): void {
-		const name = newChoice.trim();
-		adding = null;
-		newChoice = '';
-		if (name === '') return;
-		if (!field.choices.some((choice) => choice.name === name)) {
-			const choices = [
-				...field.choices,
-				{ name, color: DATA_COLORS[(field.choices.length % 7) + 1] }
-			];
-			applyWithUndo(updateRecord(app.ws, field.id, { choices }), `Choice "${name}" added`);
-		}
-		if (keyIds.has(field.id)) pickKey(field, name);
-		else set(field, name);
-	}
-
-	const targets = (field: FieldDef): { id: string; title: string }[] =>
-		field.target === null
-			? []
-			: app.ws
-					.rows(field.target)
-					.map((row) => ({ id: row.id, title: app.ws.rowTitle(row.id) || row.id }));
-
-	const linkOptions = (field: FieldDef): Option[] => [
-		{ value: '', label: '' },
-		...targets(field).map((target) => ({ value: target.id, label: target.title }))
-	];
-
-	const ready = $derived(
-		keys.every((field) => values[field.id] !== null && values[field.id] !== undefined)
-	);
+	const ready = $derived(keys.every((field) => !blank(keyValue(field))));
 
 	function commit(): void {
 		const row: Record<string, Value> = {};
-		for (const field of keys) row[field.id] = values[field.id] ?? null;
+		for (const field of keys) row[field.id] = keyValue(field);
 		if (dateField !== undefined) row[dateField.id] = values[dateField.id] ?? stamp(dateField);
 		for (const field of others) row[field.id] = shown(field);
 
 		const { changes } = insertRows(app.ws, tableId, [row]);
 		const group = app.apply(changes, 'Row added');
 		loggedThrough(tableId, view.id);
-		for (const field of others) values[field.id] = row[field.id];
-		touched = {};
+		for (const field of items) values[field.id] = row[field.id];
+		if (chosen !== FREE) chosen = null;
+		edits = {};
 		texts = {};
 		showToast('Row added', group?.id ?? null);
 	}
 
-	function summary(row: Rec): string {
-		return others
-			.map((field) => formatValue(field, row.data[field.id]))
-			.filter((text) => text !== '')
-			.join(' · ');
-	}
+	const when = (row: Rec): string => (dayOf(row) === today ? 'today' : formatDate(dayOf(row)));
 
-	const numbers = $derived(
-		others.filter((field) => isNumeric(field.type) && field.type !== 'rating')
-	);
-	const steppers = $derived(numbers.filter((field) => field.type === 'number'));
-
-	const recent = $derived.by(() => {
-		let previous: string | null = null;
-		return ordered
+	const history = $derived(
+		ordered
+			.filter((row) =>
+				keys.every(
+					(field) => blank(values[field.id]) || sameValue(row.data[field.id], values[field.id])
+				)
+			)
 			.slice(0, 20)
 			.reverse()
-			.map((row) => {
-				const value = dateField ? row.data[dateField.id] : null;
-				const date = typeof value === 'string' ? value.slice(0, 10) : '';
-				const day =
-					date === previous || date === '' ? '' : date === today ? 'Today' : formatDate(date);
-				previous = date;
-				return { row, day };
-			});
-	});
+			.map((row, at, list) => {
+				const day = dayOf(row);
+				const shownDay =
+					at > 0 && dayOf(list[at - 1]) === day ? '' : day === today ? 'Today' : formatDate(day);
+				return { row, day: shownDay };
+			})
+	);
 
-	const stepperSize = $derived(steppers.length === 1 ? 'lg' : steppers.length === 2 ? 'md' : 'sm');
+	const lead = $derived(
+		keys.find((field) => blank(values[field.id])) ??
+			rest.find((field) => field.type === 'text' || field.type === 'longtext')
+	);
+
+	const lines = $derived(plan?.groups.flatMap((group) => group.lines) ?? []);
+	const span = $derived(roomy.current ? columns.length * 2 : columns.length);
+
+	function revealLine(node: HTMLElement, on: boolean): { update(on: boolean): void } {
+		const show = (now: boolean): void => {
+			if (now) node.scrollIntoView({ block: 'nearest' });
+		};
+		show(on);
+		return { update: show };
+	}
+
+	const gridOf = (count: number): string =>
+		`grid-template-columns: var(--spacing-control) repeat(${count}, minmax(0, ${roomy.current ? '7rem' : '1fr'}))`;
 </script>
+
+{#snippet other(field: FieldDef)}
+	<div class="flex items-center gap-3">
+		<label for="entry-{field.id}" class="w-24 shrink-0 truncate text-ink-2">{field.name}</label>
+		<div class="min-w-0 flex-1">
+			<FieldInput
+				id="entry-{field.id}"
+				{field}
+				bind:value={() => shown(field), (next) => set(field, next ?? null)}
+			/>
+		</div>
+	</div>
+{/snippet}
+
+{#snippet cells(row: Rec | null)}
+	{#each columns as field (field.id)}
+		<span class="truncate px-2 text-right">
+			{#if row !== null}<CellValue {field} value={row.data[field.id]} />{/if}
+		</span>
+	{/each}
+{/snippet}
 
 {#if fields.length === 0}
 	<Empty text="This view has no fields to fill in." />
 {:else}
-	<div class="flex h-full min-h-0 flex-col lg:flex-row lg:items-end">
-		<div class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden">
-			<ul class="flex flex-col">
-				{#each recent as { row, day } (row.id)}
-					<li>
-						<button
-							type="button"
-							class="flex min-h-row w-full items-center gap-3 px-4 text-left transition-colors motion hover:bg-tint"
-							onclick={() => {
-								rowId = row.id;
-								rowOpen = true;
-							}}
-						>
-							<span class="w-16 shrink-0 truncate text-ink-2">{day}</span>
-							<span class="min-w-0 flex-1 truncate">
-								{#if keys[0] !== undefined}
-									<CellValue field={keys[0]} value={row.data[keys[0].id]} />
-								{/if}
-							</span>
-							{#each numbers as field (field.id)}
-								<span class="w-14 shrink-0 truncate text-right"
-									><CellValue {field} value={row.data[field.id]} /></span
-								>
-							{/each}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</div>
+	<div
+		class="flex h-full min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_var(--spacing-entry)] lg:grid-rows-[auto_minmax(0,1fr)]"
+	>
+		{#if grouping !== undefined}
+			<section
+				class="shrink-0 border-b border-rule px-4 pt-3 pb-3 lg:col-start-2 lg:row-start-1 lg:border-l lg:pt-4"
+			>
+				<EntryKey
+					field={grouping}
+					value={values[grouping.id] ?? null}
+					recent={recentOf(grouping)}
+					onpick={(next) => pick(grouping, next)}
+				/>
+			</section>
+		{/if}
 
-		<section class="flex shrink-0 flex-col gap-3 p-4 lg:w-entry">
-			{#if lastTime !== undefined && others.length > 0}
-				<p class="flex items-center justify-between gap-3 text-ink-2">
-					<span class="shrink-0"
-						>Last time{dateField && typeof lastTime.data[dateField.id] === 'string'
-							? `, ${formatDate(String(lastTime.data[dateField.id]))}`
-							: ''}</span
+		{#if plan !== null}
+			<div
+				class="min-h-0 flex-1 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1"
+				role="group"
+				aria-label="Last time"
+			>
+				<div class="grid text-ink-2" style={gridOf(span)}>
+					<div class="sticky top-0 z-10 col-span-full grid grid-cols-subgrid bg-raised">
+						{#if roomy.current}
+							<span></span>
+							<span
+								class="flex h-row items-center border-b border-rule px-2 text-sm font-medium text-ink-3"
+								style="grid-column: span {columns.length}">{formatDate(plan.day)}</span
+							>
+							<span
+								class="flex h-row items-center border-b border-l border-rule px-2 text-sm font-medium text-ink"
+								style="grid-column: span {columns.length}">Today</span
+							>
+						{/if}
+						<span class="border-b border-rule"></span>
+						{#each roomy.current ? [...columns, ...columns] : columns as field, at (`${field.id}-${at}`)}
+							<span
+								class="flex h-row items-center justify-end truncate border-b border-rule px-2 text-sm font-medium text-ink-3 {roomy.current &&
+								at === columns.length
+									? 'border-l'
+									: ''}">{field.name}</span
+							>
+						{/each}
+					</div>
+					{#each plan.groups as group (group.key)}
+						<div
+							class="col-span-full flex min-h-row items-center gap-2 border-b border-rule bg-band px-4 font-medium text-ink"
+						>
+							{#each items as field (field.id)}
+								<CellValue {field} value={group.row.data[field.id]} />
+							{/each}
+						</div>
+						{#each group.lines as item, at (item.planned?.id ?? item.logged?.id ?? at)}
+							{@const on = item === line}
+							<button
+								type="button"
+								class="col-span-full grid min-h-row grid-cols-subgrid items-center border-b border-rule text-left transition-colors motion {focus} {on
+									? 'bg-selected text-ink'
+									: item.logged !== null
+										? 'text-ink hover:bg-tint'
+										: 'hover:bg-tint'}"
+								aria-pressed={on}
+								use:revealLine={on}
+								onclick={() => choose(item)}
+							>
+								<span class="flex justify-center text-ink-2">
+									{#if item.logged !== null}<Icon name="check" label="Logged" />{/if}
+								</span>
+								{#if roomy.current}
+									{@render cells(item.planned)}
+									<span class="contents">{@render cells(item.logged)}</span>
+								{:else}
+									{@render cells(item.logged ?? item.planned)}
+								{/if}
+							</button>
+						{/each}
+					{/each}
+					<button
+						type="button"
+						class="col-span-full flex min-h-row items-center gap-2 px-4 text-left transition-colors motion hover:bg-tint {focus} {chosen ===
+						FREE
+							? 'bg-selected text-ink'
+							: ''}"
+						aria-pressed={chosen === FREE}
+						onclick={() => {
+							chosen = FREE;
+						}}
 					>
-					<span class="truncate font-medium text-ink">{summary(lastTime)}</span>
+						<Icon name="plus" />Another {items.map((field) => field.name).join(', ')}
+					</button>
+				</div>
+			</div>
+		{:else}
+			<div
+				class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden lg:col-start-1 lg:row-span-2 lg:row-start-1"
+			>
+				<ul class="flex flex-col">
+					{#each history as { row, day } (row.id)}
+						<li>
+							<button
+								type="button"
+								class="flex min-h-row w-full items-center gap-3 px-4 text-left transition-colors motion hover:bg-tint {focus}"
+								onclick={() => open(row)}
+							>
+								<span class="w-16 shrink-0 truncate text-ink-2">{day}</span>
+								<span class="min-w-0 flex-1 truncate">
+									{#if lead !== undefined}<CellValue field={lead} value={row.data[lead.id]} />{/if}
+								</span>
+								{#each columns as field (field.id)}
+									<span class="w-14 shrink-0 truncate text-right"
+										><CellValue {field} value={row.data[field.id]} /></span
+									>
+								{/each}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
+		<section
+			class="flex shrink-0 flex-col gap-3 border-t border-rule p-4 lg:col-start-2 lg:border-t-0 lg:border-l {grouping ===
+			undefined
+				? 'lg:row-span-2 lg:row-start-1'
+				: 'lg:row-start-2'}"
+		>
+			{#if line?.planned != null && plan !== null}
+				<p class="flex min-h-control items-center gap-2">
+					{#each items as field (field.id)}
+						<CellValue {field} value={line.planned.data[field.id]} />
+					{/each}
+					<button
+						type="button"
+						class="ml-auto shrink-0 rounded-box text-sm text-ink-3 transition-colors motion hover:text-ink {focus}"
+						onclick={() => line?.planned && open(line.planned)}>{formatDate(plan.day)}</button
+					>
 				</p>
+			{:else}
+				{#each items as field (field.id)}
+					<EntryKey
+						{field}
+						value={values[field.id] ?? null}
+						recent={recentOf(field)}
+						onpick={(next) => pick(field, next)}
+					/>
+				{/each}
+				{#if template !== undefined && others.length > 0}
+					<p class="text-sm text-ink-3">
+						From <button
+							type="button"
+							class="rounded-box text-ink-2 underline decoration-edge underline-offset-2 transition-colors motion hover:text-ink hover:decoration-ink {focus}"
+							onclick={() => template && open(template)}>{when(template)}</button
+						>
+					</p>
+				{/if}
 			{/if}
 
-			{#each keys as field (field.id)}
-				<div class="flex flex-col gap-2">
-					{#if field.type === 'choice' && field.choices.length > MANY}
-						<input
-							class={input}
-							bind:value={search}
-							placeholder="Search {field.name}"
-							aria-label="Search {field.name}"
-						/>
-					{/if}
-					{#if field.type === 'choice'}
-						<div
-							class="flex hide-scrollbar gap-1 max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-4 sm:flex-wrap"
-						>
-							{#each choiceList(field) as choice (choice.name)}
-								{@const on = values[field.id] === choice.name}
-								<button
-									type="button"
-									class="{chip} {on ? chipOn : chipOff}"
-									aria-pressed={on}
-									onclick={() => pickKey(field, choice.name)}
-								>
-									<span class="size-mark rounded-box" style={swatch(choice.color)}
-									></span>{choice.name}
-								</button>
-							{/each}
-							{#if adding === field.id}
-								<form
-									class="shrink-0"
-									onsubmit={(event) => {
-										event.preventDefault();
-										addChoice(field);
-									}}
-								>
-									<!-- svelte-ignore a11y_autofocus -->
-									<input
-										class="{input} w-40"
-										bind:value={newChoice}
-										placeholder="New choice"
-										aria-label="New choice"
-										autofocus
-										onblur={() => addChoice(field)}
-									/>
-								</form>
-							{:else}
-								<button type="button" class="{chip} {chipOff}" onclick={() => (adding = field.id)}>
-									<Icon name="plus" /> New
-								</button>
-							{/if}
-						</div>
-					{:else if field.type === 'link'}
-						<Select
-							aria-label={field.name}
-							placeholder={field.name}
-							options={linkOptions(field)}
-							value={String(values[field.id] ?? '')}
-							onchange={(picked) => pickKey(field, picked || null)}
-						/>
-					{:else}
-						<input
-							class={input}
-							aria-label={field.name}
-							placeholder={field.name}
-							value={values[field.id] ?? ''}
-							oninput={(event) => pickKey(field, event.currentTarget.value || null)}
-						/>
-					{/if}
-				</div>
+			{#each typed as field (field.id)}
+				{@render other(field)}
 			{/each}
 
-			{#each others as field (field.id)}
-				{@const value = shown(field)}
-				{#if field.type === 'number'}
-					<Stepper
-						label={field.name}
-						size={stepperSize}
-						text={texts[field.id] ??
-							(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
-						oninput={(text) => {
-							texts[field.id] = text;
-							set(field, readNumber(text));
-						}}
-						onstep={(direction) => step(field, direction)}
-					/>
-				{:else if field.type === 'choice'}
-					<div class="flex flex-col gap-1">
-						<span class="text-sm font-medium text-ink-2">{field.name}</span>
-						<div class="flex flex-wrap gap-1">
-							{#each field.choices as choice (choice.name)}
-								{@const on = value === choice.name}
-								<button
-									type="button"
-									class="{chip} {on ? chipOn : chipOff}"
-									aria-pressed={on}
-									onclick={() => set(field, on ? null : choice.name)}
-								>
-									<span class="size-mark rounded-box" style={swatch(choice.color)}
-									></span>{choice.name}
-								</button>
-							{/each}
+			{#if steppers.length > 0}
+				{#if roomy.current}
+					{#each steppers as field (field.id)}
+						{@const value = shown(field)}
+						<div class="flex items-center gap-3">
+							<span class="min-w-0 flex-1 truncate text-ink-2">{field.name}</span>
+							<Stepper
+								label={field.name}
+								size="xs"
+								text={texts[field.id] ??
+									(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
+								oninput={(text) => {
+									texts[field.id] = text;
+									set(field, readNumber(text));
+								}}
+								onstep={(direction) => step(field, direction)}
+							/>
 						</div>
-					</div>
-				{:else if field.type === 'check'}
-					<label class="flex min-h-control items-center gap-2">
-						<input
-							type="checkbox"
-							class={checkbox}
-							checked={value === true}
-							onchange={() => set(field, value !== true)}
-						/>
-						{field.name}
-					</label>
-				{:else if field.type === 'link'}
-					<Select
-						aria-label={field.name}
-						placeholder={field.name}
-						options={linkOptions(field)}
-						value={typeof value === 'string' ? value : ''}
-						onchange={(picked) => set(field, picked || null)}
-					/>
-				{:else if isDated(field.type)}
-					<input
-						class={input}
-						type={field.type === 'datetime' ? 'datetime-local' : 'date'}
-						aria-label={field.name}
-						value={nativeDateText(field, value)}
-						oninput={(event) => set(field, parseDate(event.currentTarget.value))}
-					/>
-				{:else if field.type === 'text'}
-					<input
-						class={input}
-						aria-label={field.name}
-						placeholder={field.name}
-						value={typeof value === 'string' ? value : ''}
-						oninput={(event) => set(field, event.currentTarget.value || null)}
-					/>
+					{/each}
 				{:else}
-					<div class="flex flex-col gap-1">
-						<label for="entry-{field.id}" class="text-sm font-medium text-ink-2">{field.name}</label
-						>
-						<FieldInput
-							id="entry-{field.id}"
-							{field}
-							bind:value={() => value, (next) => set(field, next ?? null)}
-						/>
+					<div class="grid grid-cols-2 gap-1.5">
+						{#each steppers as field, at (field.id)}
+							{@const value = shown(field)}
+							<div
+								class={steppers.length === 1 || (at === steppers.length - 1 && at % 2 === 0)
+									? 'col-span-2'
+									: ''}
+							>
+								<Stepper
+									label={field.name}
+									size={steppers.length === 1 ? 'lg' : 'sm'}
+									text={texts[field.id] ??
+										(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
+									oninput={(text) => {
+										texts[field.id] = text;
+										set(field, readNumber(text));
+									}}
+									onstep={(direction) => step(field, direction)}
+								/>
+							</div>
+						{/each}
 					</div>
 				{/if}
+			{/if}
+
+			{#each picked as field (field.id)}
+				{@render other(field)}
 			{/each}
 
 			{#if dateField !== undefined}
-				<label class="flex items-center justify-between gap-3 text-ink-2">
-					{dateField.name}
+				<label class="flex items-center gap-3">
+					<span class="w-24 shrink-0 truncate text-ink-2">{dateField.name}</span>
 					<input
-						class="{input} w-auto"
+						class="{input} min-w-0 flex-1"
 						type={dateField.type === 'datetime' ? 'datetime-local' : 'date'}
 						value={nativeDateText(dateField, values[dateField.id] ?? stamp(dateField))}
 						oninput={(event) => {
@@ -441,6 +488,7 @@
 				</label>
 			{/if}
 
+			<div class="flex-1 max-lg:hidden"></div>
 			<Button
 				variant="primary"
 				size="cta"

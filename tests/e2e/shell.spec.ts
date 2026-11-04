@@ -534,19 +534,28 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 	});
 	await page.goto(path);
 
-	const lastTime = page.locator('p').filter({ hasText: /^Last time/u });
+	const source = page.getByText(/^From /u);
 	const chips = page.getByRole('button', { pressed: true }).locator('..').getByRole('button');
 	await expect(chips.first(), 'what was done comes before what was only planned').toHaveText(
 		'Squat'
 	);
 	await expect(page.getByRole('button', { name: 'Squat', pressed: true })).toBeVisible();
-	await expect(lastTime).toContainText('Oct 22');
-	await expect(lastTime).toContainText('102.5 · 5');
+	await expect(source).toHaveText('From Oct 22');
 	await expect(page.getByRole('textbox', { name: 'Kg' })).toHaveValue('102.5');
+	await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('5');
 
+	await page.getByRole('textbox', { name: 'Reps' }).fill('6');
 	await page.getByRole('button', { name: 'Bench', exact: true }).click();
-	await expect(lastTime).toContainText('70 · 8');
-	await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('8');
+	await expect(source).toHaveText('From Oct 21');
+	await expect(page.getByRole('textbox', { name: 'Kg' })).toHaveValue('70');
+	await expect(page.getByRole('textbox', { name: 'Reps' }), 'what was typed stays').toHaveValue(
+		'6'
+	);
+
+	await source.getByRole('button').click();
+	await expect(page.getByRole('dialog', { name: 'Row', exact: true }).getByLabel('Kg')).toHaveValue(
+		'70'
+	);
 });
 
 test.describe('in another locale', () => {

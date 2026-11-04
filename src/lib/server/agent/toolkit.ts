@@ -310,7 +310,9 @@ const VIEW_CONFIG = z
 		match: z
 			.array(z.string())
 			.optional()
-			.describe('entry: the fields that identify "last time" for prefilling, such as ["Exercise"]'),
+			.describe(
+				'entry: the fields that identify "last time" for prefilling, in order, such as ["Exercise"]; with two or more, the first repeats its last occurrence row by row, such as ["Session", "Exercise"]'
+			),
 		group: z.string().optional().describe('list: the field to group by'),
 		title: z.string().optional().describe('list: the field shown as the title'),
 		show: z.array(z.string()).optional().describe('list: the fields shown under the title'),

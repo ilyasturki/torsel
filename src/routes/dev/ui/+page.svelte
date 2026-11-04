@@ -798,7 +798,7 @@
 		</Section>
 
 		<Section name="Stepper" from="ui/Stepper.svelte">
-			{#each ['sm', 'md', 'lg'] as const as size (size)}
+			{#each ['xs', 'sm', 'md', 'lg'] as const as size (size)}
 				<Specimen label="size={size}">
 					<div class="w-48">
 						<Stepper

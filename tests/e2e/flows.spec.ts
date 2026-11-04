@@ -475,7 +475,7 @@ test.describe('adding and correcting rows', () => {
 		await expect(latest).toContainText('105');
 	});
 
-	test('"Last time" stays on an earlier day after a set is logged today', async ({
+	test('Entry names the row it copies, and its log keeps the earlier day', async ({
 		page,
 		context,
 		account
@@ -483,15 +483,20 @@ test.describe('adding and correcting rows', () => {
 		void account;
 		const { table, entry } = await seedGym(context.request);
 		await page.goto(tablePath(table, entry));
-		const lastTime = page.getByText(/^Last time/u);
-		await expect(lastTime).toContainText('Oct 22');
+		const source = page.getByText(/^From /u);
+		await expect(source).toHaveText('From Oct 22');
 
 		await page.getByRole('button', { name: 'Kg plus' }).click();
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await expect(page.getByText('3 rows')).toBeVisible();
 
-		await expect(lastTime).toContainText('Oct 22');
-		await expect(page.getByText('100 · 5').first()).toBeVisible();
+		await expect(source).toHaveText('From today');
+		const log = page.getByRole('listitem');
+		await expect(log).toHaveCount(2);
+		await expect(log.first()).toContainText('Oct 22');
+		await expect(log.first()).toContainText('100');
+		await expect(log.last()).toContainText('Today');
+		await expect(log.last()).toContainText('102.5');
 	});
 });
 
@@ -899,8 +904,8 @@ test.describe('importing', () => {
 		await expect(header(page, 'load_mode')).toBeAttached();
 
 		await page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Entry' }).click();
-		const lastTime = page.getByText(/^Last time/u);
-		await expect(lastTime).toContainText('Oct 28');
+		const source = page.getByText(/^From /u);
+		await expect(source).toHaveText('From Oct 28');
 		await expect(page.getByRole('button', { name: 'Add row' })).toBeInViewport();
 		await expect(page.getByRole('button', { name: 'weight_kg plus' })).toBeInViewport();
 		await expect(page.getByRole('button', { name: 'reps plus' })).toBeInViewport();
@@ -912,7 +917,7 @@ test.describe('importing', () => {
 		);
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await expect(page.getByText(`${rows.count + 1} rows`, { exact: true })).toBeVisible();
-		await expect(lastTime).toContainText('Oct 28');
+		await expect(source).toHaveText('From today');
 	});
 });
 
