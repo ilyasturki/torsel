@@ -213,17 +213,21 @@ test.describe('with motion', () => {
 		await page.goto('/');
 		const backdrop = page.getByTestId('backdrop');
 		await expect(backdrop).toBeAttached();
+		// The first column's twelfth cell, by its centre, where the brush paints at full strength.
+		const pitch = (): Promise<number> =>
+			backdrop.evaluate((canvas: HTMLCanvasElement) => canvas.clientWidth / canvas.width);
 		const alpha = (): Promise<number> =>
 			backdrop.evaluate((canvas: HTMLCanvasElement) => {
-				const pitch = canvas.clientWidth / canvas.width;
 				const context = canvas.getContext('2d') as CanvasRenderingContext2D;
-				return context.getImageData(Math.floor(3 / pitch), Math.floor(300 / pitch), 1, 1).data[3];
+				return context.getImageData(0, 11, 1, 1).data[3];
 			});
-		// At rest the field never passes a third of full strength.
+		// At rest a cell stays under 40% opacity (102 of 255); a redraw comes within two frames.
 		await expect
 			.poll(async () => {
-				if (isMobile) await page.touchscreen.tap(3, 300);
-				else await page.mouse.move(3, 300);
+				const size = await pitch();
+				if (isMobile) await page.touchscreen.tap(size / 2, size * 11.5);
+				else await page.mouse.move(size / 2, size * 11.5);
+				await page.waitForTimeout(80);
 				return alpha();
 			})
 			.toBeGreaterThan(150);
