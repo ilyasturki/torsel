@@ -4,6 +4,7 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import type { ThreadAction } from '#lib/core/thread.ts';
+	import { holdAnchor } from '#lib/dev/anchor.ts';
 	import { seedFixture, type Fixture } from '#lib/dev/fixtures.ts';
 	import Section from '#lib/dev/Section.svelte';
 	import Specimen from '#lib/dev/Specimen.svelte';
@@ -326,6 +327,7 @@
 
 	onMount(() => {
 		readTokens();
+		const release = holdAnchor();
 		const dark = matchMedia('(prefers-color-scheme: dark)');
 		dark.addEventListener('change', readTokens);
 
@@ -339,6 +341,7 @@
 			});
 
 		return () => {
+			release();
 			dark.removeEventListener('change', readTokens);
 			forceTheme(null);
 		};

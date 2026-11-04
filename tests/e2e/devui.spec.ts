@@ -39,6 +39,21 @@ test('the design system shows every section, stays out of search, and fits the s
 	await expect(page.getByRole('heading', { name: 'Select' })).toBeInViewport();
 });
 
+test('a direct load of an anchor below the views lands on its section once they fill', async ({
+	page
+}) => {
+	for (const [id, name] of [
+		['changecard', 'ChangeCard'],
+		['viewsheet', 'ViewSheet']
+	]) {
+		await page.goto(`/dev/ui#${id}`);
+		await expect(
+			page.locator('#grid').getByRole('gridcell', { name: 'Bench press' }).first()
+		).toBeVisible();
+		await expect(page.getByRole('heading', { name, exact: true })).toBeInViewport();
+	}
+});
+
 test('the theme switch shows the other scheme whatever the system says', async ({ page }) => {
 	await page.emulateMedia({ colorScheme: 'light' });
 	await open(page);
