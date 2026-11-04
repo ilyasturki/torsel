@@ -156,7 +156,7 @@ export const EXAMPLES: Example[] = [
 				expr: '"Cost" / 2.0',
 				value: (row) => n(row[2]) / 2
 			},
-			{ text: 'Add sushi in Osaka, 60.', kind: 'rows', rows: [['Osaka sushi', 'Food', 60]] },
+			{ text: 'Add sushi in Osaka, 60.', kind: 'rows', rows: [['Sushi in Osaka', 'Food', 60]] },
 			{
 				text: 'Chart the cost by kind.',
 				kind: 'chart',
