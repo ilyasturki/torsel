@@ -66,7 +66,7 @@ const KINDS: Kind[] = [
 			await page.getByRole('button', { name: 'Add row' }).click();
 			await page.getByRole('dialog').getByLabel('Exercise').fill('Deadlift');
 		},
-		change: (page) => page.getByRole('dialog').getByRole('button', { name: 'Save' }).click(),
+		change: (page) => page.getByRole('dialog').getByRole('button', { name: 'Add row' }).click(),
 		reopened: (page) => expect(cell(page, 'Deadlift')).toBeVisible(),
 		undone: (page) => expect(cell(page, 'Deadlift')).toHaveCount(0)
 	},

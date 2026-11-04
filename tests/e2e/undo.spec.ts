@@ -91,7 +91,7 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 	await page.getByRole('button', { name: 'Open row' }).first().click();
 	const sheet = page.getByRole('dialog');
 	await sheet.getByLabel('Kg').fill('120');
-	await sheet.getByRole('button', { name: 'Save' }).click();
+	await sheet.getByLabel('Kg').press('Enter');
 	await undoAndRedoInToast(
 		page,
 		page.getByRole('gridcell', { name: '100' }),
@@ -100,7 +100,7 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await sheet.getByLabel('Exercise').fill('Deadlift');
-	await sheet.getByRole('button', { name: 'Save' }).click();
+	await sheet.getByRole('button', { name: 'Add row' }).click();
 	const added = page.getByRole('gridcell', { name: 'Deadlift' });
 	await expect(added).toBeVisible();
 	await toastButton(page, 'Undo').click();
@@ -111,7 +111,8 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 
 test('a deleted row, with no question asked', async ({ page }) => {
 	await page.getByRole('button', { name: 'Open row' }).first().click();
-	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'More' }).click();
+	await page.getByRole('menuitem', { name: 'Delete row' }).click();
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 	await expect(page.getByRole('gridcell', { name: 'Squat' })).toHaveCount(0);
 	await toastButton(page, 'Undo').click();
@@ -223,7 +224,7 @@ test('a fresh change clears redo, and the keyboard reaches both', async ({ page 
 	await expect(page.getByRole('status')).toContainText('Undid: ');
 	await page.getByRole('button', { name: 'Open row' }).first().click();
 	await page.getByRole('dialog').getByLabel('Kg').fill('90');
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByLabel('Kg').press('Enter');
 	await expect(page.getByRole('gridcell', { name: '90' })).toBeVisible();
 	await page.keyboard.press('Control+Shift+z');
 	await expect(page.getByRole('status')).toContainText('Nothing to redo');

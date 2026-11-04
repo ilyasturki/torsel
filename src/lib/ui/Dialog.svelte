@@ -11,9 +11,12 @@
 		description,
 		dirty = false,
 		typeOnOpen = true,
+		wide = false,
+		readFirst = false,
 		onsubmit,
 		onCloseAutoFocus,
 		children,
+		actions,
 		footer
 	}: {
 		open?: boolean;
@@ -22,10 +25,14 @@
 		dirty?: boolean;
 		/** False keeps a touch keyboard down on open, for a sheet whose first field is optional. */
 		typeOnOpen?: boolean;
+		wide?: boolean;
+		/** Opens on the sheet itself, no field in edit, for content read before it is changed. */
+		readFirst?: boolean;
 		onsubmit?: () => void;
 		/** Called as the sheet hands focus back to what opened it; preventing it keeps focus where an action put it. */
 		onCloseAutoFocus?: (event: Event) => void;
 		children: Snippet;
+		actions?: Snippet;
 		footer?: Snippet;
 	} = $props();
 
@@ -38,7 +45,7 @@
 
 	function focusFirstControl(event: Event): void {
 		event.preventDefault();
-		if (!typeOnOpen && matchMedia('(pointer: coarse)').matches) {
+		if (readFirst || (!typeOnOpen && matchMedia('(pointer: coarse)').matches)) {
 			body?.closest<HTMLElement>('[role=dialog]')?.focus();
 			return;
 		}
@@ -90,17 +97,26 @@
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
 		<Dialog.Content
-			class="fixed inset-x-0 bottom-0 z-50 flex max-h-sheet-max enter flex-col rounded-panel bg-float pb-safe shadow-float outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-sheet sm:-translate-x-1/2 sm:-translate-y-1/2 sm:pb-0"
+			class="fixed inset-x-0 bottom-0 z-50 flex max-h-sheet-max enter flex-col rounded-panel bg-float pb-safe shadow-float outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 {wide
+				? 'sm:w-sheet-wide'
+				: 'sm:w-sheet'} sm:-translate-x-1/2 sm:-translate-y-1/2 sm:pb-0"
 			onOpenAutoFocus={focusFirstControl}
 			{onCloseAutoFocus}
 			onEscapeKeydown={guard}
-			onInteractOutside={guard}
+			onInteractOutside={(event) => {
+				if (event.target instanceof Element && event.target.closest('[role="status"]')) {
+					event.preventDefault();
+				} else {
+					guard(event);
+				}
+			}}
 			{onkeydown}
 		>
 			<div class="flex shrink-0 items-center gap-3 p-4 pb-2">
 				<Dialog.Title class="min-w-0 flex-1 truncate text-lg font-semibold tight"
 					>{title}</Dialog.Title
 				>
+				{@render actions?.()}
 				<IconButton icon="x" label="Close" tooltip={false} onclick={close} />
 			</div>
 			<div bind:this={body} class="min-h-0 flex-1 overflow-y-auto p-4 pt-2">

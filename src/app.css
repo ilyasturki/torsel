@@ -28,6 +28,7 @@
 	--frame: #d9d9db;
 	--scrim: rgb(0 0 0 / 0.3);
 	--focus: var(--accent);
+	--field: var(--tint);
 	--elevation-1: 0 0 0 1px rgb(17 18 22 / 0.05), 0 1px 2px rgb(17 18 22 / 0.04);
 	--elevation-2:
 		0 0 0 1px rgb(17 18 22 / 0.06), 0 2px 4px rgb(17 18 22 / 0.05), 0 12px 32px rgb(17 18 22 / 0.12);
@@ -187,6 +188,7 @@
 
 	--spacing-ask: 400px;
 	--spacing-sheet: 420px;
+	--spacing-sheet-wide: 560px;
 	--spacing-entry: 420px;
 	--spacing-prose: 640px;
 	--spacing-mark: 8px;
@@ -218,6 +220,7 @@
 	--color-float: var(--float);
 	--color-tint: var(--tint);
 	--color-tint-2: var(--tint-2);
+	--color-field: var(--field);
 	--color-ink: var(--ink);
 	--color-ink-2: var(--ink-2);
 	--color-ink-3: var(--ink-3);
@@ -250,6 +253,15 @@
 
 @utility pb-safe {
 	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Fields that read as their value until pointed at or focused. */
+@utility quiet-fields {
+	--field: transparent;
+}
+
+@utility grid-cols-props {
+	grid-template-columns: 9rem minmax(0, 1fr);
 }
 
 @utility hide-scrollbar {

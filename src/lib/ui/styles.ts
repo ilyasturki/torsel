@@ -7,11 +7,11 @@ export const fieldFocus = 'outline-none focus:ring-1 focus:ring-focus focus:ring
 export const fieldFocusWithin =
 	'focus-within:ring-1 focus-within:ring-focus focus-within:ring-inset';
 
-export const input = `motion h-control w-full min-w-0 rounded-box bg-tint px-2 text-ink transition-colors placeholder:text-ink-3 hover:bg-tint-2 focus:bg-tint-2 ${fieldFocus}`;
+export const input = `motion h-control w-full min-w-0 rounded-box bg-field px-2 text-ink transition-colors placeholder:text-ink-3 hover:bg-tint-2 focus:bg-tint-2 ${fieldFocus}`;
 
 export const linkButton = `motion inline-flex h-control items-center justify-center rounded-box bg-tint px-3 font-medium text-ink transition-colors hover:bg-tint-2 ${focus}`;
 
-export const textarea = `motion w-full min-w-0 rounded-box bg-tint p-2 font-mono text-ink transition-colors placeholder:text-ink-3 focus:bg-tint-2 ${fieldFocus}`;
+export const textarea = `motion w-full min-w-0 rounded-box bg-field p-2 font-mono text-ink transition-colors placeholder:text-ink-3 hover:bg-tint-2 focus:bg-tint-2 ${fieldFocus}`;
 
 export const checkbox = `size-4 shrink-0 accent-current ${focus}`;
 

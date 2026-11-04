@@ -498,5 +498,10 @@
 			>
 		</section>
 	</div>
-	<RowSheet bind:open={rowOpen} {tableId} {rowId} />
+	<RowSheet
+		bind:open={rowOpen}
+		{tableId}
+		{rowId}
+		order={plan === null ? history.map(({ row }) => row.id) : undefined}
+	/>
 {/if}

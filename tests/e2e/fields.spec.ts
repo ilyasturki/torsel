@@ -330,7 +330,7 @@ test.describe('every type in the row sheet', () => {
 		await page.goto(movies.grid);
 
 		await page.getByRole('button', { name: 'Open row' }).first().click();
-		const sheet = page.getByRole('dialog', { name: 'Row' });
+		const sheet = page.getByRole('dialog');
 		await expect(sheet.getByLabel('Title')).toHaveValue('Dune');
 		await expect(sheet.getByLabel('Notes')).toHaveValue('First line\nSecond line');
 		await expect(sheet.getByLabel('Year')).toHaveValue('12021');
@@ -391,7 +391,7 @@ test.describe('every type in the row sheet', () => {
 		await sheet.getByLabel('Contact').fill('not an email');
 		await expect(sheet.getByRole('link', { name: 'Write an email' })).toHaveCount(0);
 		await sheet.getByLabel('Contact').fill('team@dune.film');
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await sheet.getByLabel('Contact').press('Enter');
 		await expect(sheet).toHaveCount(0);
 
 		await expect
@@ -434,10 +434,10 @@ test.describe('every type in fr-FR', () => {
 		await expect(cellOf(page, 'Share')).toHaveText('12,5 %');
 
 		await page.getByRole('button', { name: 'Open row' }).first().click();
-		const sheet = page.getByRole('dialog', { name: 'Row' });
+		const sheet = page.getByRole('dialog');
 		await expect(sheet.getByLabel('Price')).toHaveValue('9,99');
 		await sheet.getByLabel('Price').fill('1 234,5');
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await sheet.getByLabel('Price').press('Enter');
 
 		await expect.poll(() => stored(page, movies)).toMatchObject({ Price: 1234.5, Share: 12.5 });
 	});

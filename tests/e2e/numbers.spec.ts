@@ -109,7 +109,7 @@ for (const { locale, budget, edited, seen } of LOCALES) {
 			await page.goto(movies.grid);
 
 			await page.getByRole('button', { name: 'Open row' }).first().click();
-			const sheet = page.getByRole('dialog', { name: 'Row' });
+			const sheet = page.getByRole('dialog');
 			const year = sheet.getByLabel('Year');
 			const money = sheet.getByLabel('Budget');
 			const when = sheet.getByLabel('Seen');
@@ -122,7 +122,7 @@ for (const { locale, budget, edited, seen } of LOCALES) {
 			await retypeLast(money, '1');
 			await expect(money).toHaveValue(edited);
 			await when.fill('2024-03-02T07:45');
-			await sheet.getByRole('button', { name: 'Save' }).click();
+			await when.press('Enter');
 			await expect(sheet).toHaveCount(0);
 
 			await expect

@@ -307,7 +307,7 @@ test('a sheet and the assistant keep room under their buttons', async ({
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	const sheet = page.getByRole('dialog');
-	expect(await gapBelow(sheet, sheet.getByRole('button', { name: 'Save' }))).toBeGreaterThan(0);
+	expect(await gapBelow(sheet, sheet.getByRole('button', { name: 'Add row' }))).toBeGreaterThan(0);
 });
 
 test('the table menu renames the table, opens view settings and adds a view', async ({
@@ -458,7 +458,7 @@ test('a number typed in a sheet stays and is saved', async ({ page, context, acc
 	const reps = page.getByRole('dialog').getByLabel('Reps');
 	await reps.pressSequentially('12');
 	await expect(reps).toHaveValue('12');
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add row' }).click();
 
 	await expect(page.getByRole('gridcell', { name: '12', exact: true })).toBeVisible();
 });
@@ -553,9 +553,7 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 	);
 
 	await source.getByRole('button').click();
-	await expect(page.getByRole('dialog', { name: 'Row', exact: true }).getByLabel('Kg')).toHaveValue(
-		'70'
-	);
+	await expect(page.getByRole('dialog').getByLabel('Kg')).toHaveValue('70');
 });
 
 test.describe('in another locale', () => {

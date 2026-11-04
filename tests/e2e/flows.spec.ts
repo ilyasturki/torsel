@@ -209,7 +209,7 @@ test.describe('the first table', () => {
 		const row = page.getByRole('dialog', { name: 'New row' });
 		await row.getByLabel('Code').fill('0612');
 		await pick(row.getByLabel('Genre'), 'Novel');
-		await row.getByRole('button', { name: 'Save' }).click();
+		await row.getByRole('button', { name: 'Add row' }).click();
 		await expect(cell(page, '0612')).toBeVisible();
 		await expect(cell(page, 'Novel')).toBeVisible();
 	});
@@ -467,10 +467,10 @@ test.describe('adding and correcting rows', () => {
 
 		const latest = page.getByRole('listitem').getByRole('button').last();
 		await latest.click();
-		const sheet = page.getByRole('dialog', { name: 'Row', exact: true });
+		const sheet = page.getByRole('dialog');
 		await expect(sheet.getByLabel('Kg')).toHaveValue('100');
 		await sheet.getByLabel('Kg').fill('105');
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await sheet.getByLabel('Kg').press('Enter');
 
 		await expect(latest).toContainText('105');
 	});

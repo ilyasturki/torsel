@@ -24,7 +24,7 @@ test('creates a table, adds a row and edits its cell', async ({ page, context, a
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	await page.getByRole('dialog').getByLabel('Name').fill('Squat');
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add row' }).click();
 	const cell = page.getByRole('gridcell', { name: 'Squat' });
 	await expect(cell).toBeVisible();
 
