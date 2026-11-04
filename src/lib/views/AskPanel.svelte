@@ -378,7 +378,7 @@
 			{#each items as item, at (item.key)}
 				{#if item.kind === 'user'}
 					<div class="group mt-2 flex flex-col items-end gap-1 first:mt-0">
-						{#if whereChanged(at)}<p class="self-start text-xs text-ink-3">{item.where}</p>{/if}
+						{#if whereChanged(at)}<p class="self-start text-sm text-ink-3">{item.where}</p>{/if}
 						<div class="flex max-w-full items-start gap-1">
 							{#if !assistant.busy && asked?.seq === item.seq && item.seq !== 0}
 								<IconButton

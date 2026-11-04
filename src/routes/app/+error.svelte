@@ -2,18 +2,12 @@
 	import { page } from '$app/state';
 
 	import { HOME } from '#lib/client/nav.ts';
-
-	const missing = $derived(page.status === 404);
+	import { linkButton } from '#lib/ui/styles.ts';
 </script>
 
-<div class="flex min-h-full flex-col items-start justify-center gap-3 p-6">
-	<p class="text-hero leading-none font-semibold tighter text-ink-3">{page.status}</p>
-	<h2 class="text-xl font-semibold tight">
-		{missing ? 'Nothing at this address' : 'Something broke on this screen'}
+<div class="flex flex-col items-start gap-3 p-4">
+	<h2 class="font-semibold">
+		{page.status === 404 ? 'Nothing at this address' : 'Something broke on this screen'}
 	</h2>
-	<a
-		href={HOME}
-		class="inline-flex h-control items-center rounded-box bg-accent px-3 font-medium text-on-accent transition-opacity motion hover:opacity-90"
-		>Back to your tables</a
-	>
+	<a href={HOME} class={linkButton}>Back to your tables</a>
 </div>
