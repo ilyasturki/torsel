@@ -352,7 +352,7 @@
 							chosen = FREE;
 						}}
 					>
-						<Icon name="plus" />Another {items.map((field) => field.name).join(', ')}
+						<Icon name="plus" />Pick another {items.map((field) => field.name).join(', ')}
 					</button>
 				</div>
 			</div>

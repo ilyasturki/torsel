@@ -87,7 +87,7 @@ test('Entry repeats the last session, set by set, and moves to the next', async 
 
 	await press(addRow);
 	await expect(page.getByText('7 rows')).toBeVisible();
-	await expect(plan(page).getByRole('button', { name: 'Another Exercise' })).toBeVisible();
+	await expect(plan(page).getByRole('button', { name: 'Pick another Exercise' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'dips', pressed: true })).toBeVisible();
 	await expect(page.getByText(/^From /u)).toHaveText('From today');
 	await expect(reps).toHaveValue('10');
@@ -113,7 +113,7 @@ test('a planned line can be logged out of turn, and another exercise added', asy
 	await press(page.getByRole('button', { name: 'Add row' }));
 	await expect(lines.nth(0)).toHaveAttribute('aria-pressed', 'true');
 
-	await press(plan(page).getByRole('button', { name: 'Another Exercise' }));
+	await press(plan(page).getByRole('button', { name: 'Pick another Exercise' }));
 	await press(page.getByRole('button', { name: 'squat', exact: true }));
 	await expect(page.getByRole('textbox', { name: 'Kg' })).toHaveValue('');
 	await page.getByRole('textbox', { name: 'Kg' }).fill('40');
