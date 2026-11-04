@@ -116,7 +116,7 @@
 		}
 	}}
 >
-	<Tooltip text="Jump to a table" shortcut={keys('mod', 'p')}>
+	<Tooltip text="Jump to a table" shortcut={keys('mod', 'p')} disabled={shell.switching}>
 		{#snippet children(props)}
 			<Popover.Trigger
 				{...props}

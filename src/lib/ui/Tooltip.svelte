@@ -6,18 +6,21 @@
 		text,
 		shortcut,
 		side = 'bottom',
+		disabled = false,
 		open = $bindable(false),
 		children
 	}: {
 		text?: string;
 		shortcut?: string;
 		side?: 'top' | 'right' | 'bottom' | 'left';
+		/** True while what the trigger opened covers the tooltip's place. */
+		disabled?: boolean;
 		open?: boolean;
 		children: Snippet<[Record<string, unknown>]>;
 	} = $props();
 </script>
 
-<Tooltip.Root bind:open>
+<Tooltip.Root bind:open {disabled}>
 	<Tooltip.Trigger>
 		{#snippet child({ props })}
 			{@render children(props)}
