@@ -214,9 +214,6 @@
 			<a class="text-ink-2 underline" href={target}>Keep using Torsel on this phone</a>
 		{:else if step === 'email'}
 			<h1 class="text-lg font-semibold">Sign in or create an account</h1>
-			<p class="text-ink-2">
-				An account syncs your tables across devices and unlocks the assistant.
-			</p>
 			{#if inApp}
 				<p class="flex items-center gap-1 text-ink-2">
 					<span class="min-w-0 truncate">Server: {base}</span>

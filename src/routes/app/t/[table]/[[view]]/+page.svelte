@@ -93,9 +93,7 @@
 
 		{#if blank}
 			<div class="shrink-0">
-				<Empty
-					text="This table is empty. Add its fields and a first row, drop a CSV here, or paste cells."
-				>
+				<Empty text="This table is empty.">
 					<Button onclick={() => (shell.addingField = true)}>Add a field</Button>
 					<Button onclick={() => (shell.importing = { into: tableId })}>Import a file</Button>
 				</Empty>

@@ -11,11 +11,6 @@
 	<h2 class="text-xl font-semibold tight">
 		{missing ? 'Nothing at this address' : 'Something broke on this screen'}
 	</h2>
-	<p class="max-w-prose text-ink-2">
-		{missing
-			? 'Your tables are all still here.'
-			: 'Your data is safe on this device. Go back to your tables and try again.'}
-	</p>
 	<a
 		href={HOME}
 		class="inline-flex h-control items-center rounded-box bg-accent px-3 font-medium text-on-accent transition-opacity motion hover:opacity-90"

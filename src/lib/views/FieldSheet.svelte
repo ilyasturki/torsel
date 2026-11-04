@@ -401,11 +401,7 @@
 		{/if}
 
 		<Field label="Description">
-			<input
-				class={input}
-				bind:value={description}
-				placeholder="What this field holds, in one sentence"
-			/>
+			<input class={input} bind:value={description} />
 		</Field>
 
 		{#if problem}
