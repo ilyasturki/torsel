@@ -1,5 +1,6 @@
 const PALETTE = ['blue', 'violet', 'pink', 'orange', 'amber', 'green', 'teal'];
-// At rest the field only drifts: a few frames a second are enough.
+// Each redraw makes the compositor blur every panel over it again: 30 a second while painted, fewer at rest.
+const ACTIVE_MS = 33;
 const REST_MS = 66;
 const BRUSH = 2.4;
 const FADE_MS = 1100;
@@ -164,7 +165,7 @@ export class Backdrop {
 			this.frame = requestAnimationFrame(run);
 			if (document.hidden) return;
 			const busy = this.alive || now - this.active < 400;
-			if (!busy && now - (this.drawn ?? 0) < REST_MS) return;
+			if (now - (this.drawn ?? 0) < (busy ? ACTIVE_MS : REST_MS)) return;
 			this.draw(now);
 		};
 		this.frame = requestAnimationFrame(run);
