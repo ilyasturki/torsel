@@ -11,7 +11,6 @@
 		label,
 		variant = 'ghost',
 		tooltip = true,
-		shortcut,
 		pressed,
 		class: extra = '',
 		...rest
@@ -20,7 +19,6 @@
 		label: string;
 		variant?: 'ghost' | 'secondary' | 'primary';
 		tooltip?: boolean;
-		shortcut?: string;
 		pressed?: boolean;
 	} = $props();
 
@@ -40,7 +38,7 @@
 </script>
 
 {#if tooltip}
-	<Tooltip text={label} {shortcut}>
+	<Tooltip text={label}>
 		{#snippet children(props)}
 			<button {...mergeProps(props, rest, own)}><Icon name={icon} /></button>
 		{/snippet}
