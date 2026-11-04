@@ -78,7 +78,7 @@ test.describe('with its worker', () => {
 		await expect(page.getByRole('status')).toContainText('Row added');
 
 		await page.reload();
-		await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Added offline');
+		await expect(page.getByRole('listitem').filter({ hasText: 'Added offline' })).toBeVisible();
 	});
 });
 
