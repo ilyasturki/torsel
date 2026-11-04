@@ -21,6 +21,7 @@
 	import { FIELD_ICON_TYPES, fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon, { ICONS } from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
+	import { keys } from '#lib/ui/keys.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 	import Markdown from '#lib/ui/Markdown.svelte';
 	import Menu from '#lib/ui/Menu.svelte';
@@ -517,6 +518,28 @@
 							{...props}
 							type="button"
 							class="inline-flex h-control items-center rounded-box bg-tint px-3">Hover me</button
+						>
+					{/snippet}
+				</Tooltip>
+			</Specimen>
+			<Specimen label="with its shortcut, spelled by ui/keys.ts">
+				<Tooltip text="Jump to a table" shortcut={keys('mod', 'p')}>
+					{#snippet children(props)}
+						<button
+							{...props}
+							type="button"
+							class="inline-flex h-control items-center rounded-box bg-tint px-3">Tables</button
+						>
+					{/snippet}
+				</Tooltip>
+			</Specimen>
+			<Specimen label="a shortcut alone">
+				<Tooltip shortcut={keys('alt', '1')}>
+					{#snippet children(props)}
+						<button
+							{...props}
+							type="button"
+							class="inline-flex h-control items-center rounded-box bg-tint px-3">Grid</button
 						>
 					{/snippet}
 				</Tooltip>
