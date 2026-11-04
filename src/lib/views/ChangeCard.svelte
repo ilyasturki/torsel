@@ -161,7 +161,8 @@
 				<div class="flex flex-wrap gap-1">
 					{#each shown as item (item.id)}
 						<span class="rounded-box bg-added px-1.5 text-sm text-added-ink"
-							>{item.name}{#if item.note}<span class="opacity-70"> · {item.note}</span>{/if}</span
+							>{item.name}{#if item.note}<span class="opacity-70">{` · ${item.note}`}</span
+								>{/if}</span
 						>
 					{/each}
 				</div>
@@ -171,7 +172,8 @@
 				<div class="flex flex-col gap-1">
 					<span
 						class="self-start rounded-box bg-removed px-1.5 text-sm text-removed-ink line-through"
-						>{item.name}{#if item.note}<span class="opacity-70"> · {item.note}</span>{/if}</span
+						>{item.name}{#if item.note}<span class="opacity-70">{` · ${item.note}`}</span
+							>{/if}</span
 					>
 					{#if item.values.length > 0}
 						<div class="flex flex-col gap-0.5 text-sm">
