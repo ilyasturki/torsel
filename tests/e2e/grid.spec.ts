@@ -1192,6 +1192,32 @@ test.describe('columns, by hand', () => {
 		await expect.poll(() => width('Name')).toBe(fitted);
 	});
 
+	test('the keyboard widens and narrows the selected column', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly();
+		void account;
+		await open(page, (await seedPlain(context.request, 3)).path);
+		const width = async (): Promise<number> =>
+			Math.round((await header(page, 'Name').boundingBox())?.width ?? 0);
+		const fitted = await width();
+
+		await at(page, 0, 0).click();
+		await page.keyboard.press('Alt+Shift+ArrowRight');
+		await page.keyboard.press('Alt+Shift+ArrowRight');
+		await expect.poll(width).toBe(fitted + 32);
+		await page.keyboard.press('Alt+Shift+ArrowLeft');
+		await expect.poll(width).toBe(fitted + 16);
+		await expect(at(page, 0, 0)).toHaveAttribute('aria-selected', 'true');
+		await page.keyboard.press('Control+z');
+		await expect.poll(width).toBe(fitted + 32);
+
+		await header(page, 'Name').locator('div[aria-hidden="true"]').hover();
+		await expect(page.getByRole('tooltip')).toHaveText(/Alt\+Shift\+← Alt\+Shift\+→/u);
+	});
+
 	test('a saved width gives way to the fit on a phone too', async ({ page, context, account }) => {
 		test.skip(!isPhone(), 'the desktop resizes by hand above');
 		void account;

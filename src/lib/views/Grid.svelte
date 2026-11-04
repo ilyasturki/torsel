@@ -75,6 +75,7 @@
 	const WINDOW_STEP = 8;
 	const MIN_WIDTH = 48;
 	const MAX_WIDTH = 800;
+	const RESIZE_STEP = 16;
 	const DRAG_START = 5;
 	// On a phone the first column gives way to the columns scrolling beside it.
 	const STICKY_SHARE = 0.4;
@@ -627,6 +628,24 @@
 			PageUp: () => [headRow - page, headCol],
 			PageDown: () => [headRow + page, headCol]
 		};
+
+		if (
+			event.altKey &&
+			event.shiftKey &&
+			(event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+			fields[headCol] !== undefined
+		) {
+			event.preventDefault();
+			const field = fields[headCol];
+			const by = event.key === 'ArrowRight' ? RESIZE_STEP : -RESIZE_STEP;
+			const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, widths[headCol] + by));
+			setConfig(
+				{ widths: { ...view.config.widths, [field.id]: next } },
+				`${field.name} resized`,
+				applyCell
+			);
+			return;
+		}
 
 		if (event.altKey && event.key === 'ArrowDown' && fields[headCol] !== undefined) {
 			event.preventDefault();
@@ -1542,12 +1561,19 @@
 										{/snippet}
 									</Tooltip>
 								{/if}
-								<div
-									aria-hidden="true"
-									class="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none hover:bg-tint-2 pointer-coarse:hidden"
-									onpointerdown={(event) => onresizedown(event, field, index)}
-									ondblclick={() => refit(field)}
-								></div>
+								<Tooltip shortcut="{keys('alt', 'shift', '←')} {keys('alt', 'shift', '→')}">
+									{#snippet children(tip)}
+										<div
+											{...mergeProps(tip, {
+												onpointerdown: (event: PointerEvent) => onresizedown(event, field, index),
+												ondblclick: () => refit(field)
+											})}
+											aria-hidden="true"
+											tabindex={-1}
+											class="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none hover:bg-tint-2 pointer-coarse:hidden"
+										></div>
+									{/snippet}
+								</Tooltip>
 							</th>
 						{/each}
 						<th
