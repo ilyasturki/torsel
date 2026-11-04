@@ -490,6 +490,33 @@ test('a number typed in a sheet stays and is saved', async ({ page, context, acc
 	await expect(page.getByRole('gridcell', { name: '12', exact: true })).toBeVisible();
 });
 
+test('focus comes back where the keyboard left it', async ({ page, context, account }) => {
+	test.skip(test.info().project.name === 'phone', 'a phone has no keyboard focus to keep');
+	void account;
+	const { lifts } = await seedTwoTables(context.request);
+	await page.goto(tablePath(lifts));
+	const grid = page.getByRole('grid');
+	await page.getByRole('gridcell', { name: '8', exact: true }).click();
+	await expect(grid).toBeFocused();
+
+	await page.keyboard.press('Control+p');
+	await expect(page.getByRole('combobox', { name: 'Jump to a table' })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(grid).toBeFocused();
+
+	await tableMenu(page, 'Rename table');
+	await page.getByRole('textbox', { name: 'Table name' }).fill('Gym');
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('heading', { name: 'Gym' }).getByRole('button')).toBeFocused();
+	await expect(page.getByRole('combobox', { name: 'Jump to a table' })).toHaveCount(0);
+
+	const undo = page.getByRole('status').getByRole('button', { name: 'Undo' });
+	await undo.focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('status').getByRole('button', { name: 'Redo' })).toBeFocused();
+	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
+});
+
 test('entry steps a value and adds the row', async ({ page, context, account }) => {
 	void account;
 	const { lifts, entry } = await seedTwoTables(context.request);

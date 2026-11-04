@@ -1376,8 +1376,8 @@ test.describe('rows, by hand', () => {
 		await expect(grid(page)).toBeFocused();
 
 		await page.keyboard.press('Alt+ArrowDown');
-		await expect(page.getByRole('menuitem', { name: 'Field settings' })).toBeVisible();
-		await page.keyboard.press('Escape');
+		await page.getByRole('menuitem', { name: 'Field settings' }).click();
+		await page.getByRole('dialog', { name: 'Field' }).getByRole('button', { name: 'Save' }).click();
 		await expect(grid(page)).toBeFocused();
 
 		await header(page, 'Kg').hover();

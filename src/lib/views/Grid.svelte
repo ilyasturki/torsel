@@ -1722,4 +1722,13 @@
 	{/if}
 {/if}
 <RowSheet bind:open={rowOpen} {tableId} {rowId} order={rows.map((row) => row.id)} />
-<FieldSheet bind:open={fieldOpen} {tableId} {fieldId} {preset} />
+<FieldSheet
+	bind:open={fieldOpen}
+	{tableId}
+	{fieldId}
+	{preset}
+	onCloseAutoFocus={(event) => {
+		event.preventDefault();
+		table?.focus({ preventScroll: true });
+	}}
+/>

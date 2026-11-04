@@ -26,12 +26,14 @@
 		open = $bindable(false),
 		tableId,
 		fieldId = null,
-		preset = null
+		preset = null,
+		onCloseAutoFocus
 	}: {
 		open?: boolean;
 		tableId: string;
 		fieldId?: string | null;
 		preset?: { name: string; type: FieldType; at?: number } | null;
+		onCloseAutoFocus?: (event: Event) => void;
 	} = $props();
 
 	const TYPES = typeOptions();
@@ -273,7 +275,13 @@
 	}
 </script>
 
-<Dialog bind:open title={existing === undefined ? 'New field' : 'Field'} {dirty} onsubmit={save}>
+<Dialog
+	bind:open
+	title={existing === undefined ? 'New field' : 'Field'}
+	{dirty}
+	onsubmit={save}
+	{onCloseAutoFocus}
+>
 	<div class="flex flex-col gap-3">
 		<Field label="Name">
 			<input class={input} bind:value={name} placeholder="Weight, Exercise, Amount" />

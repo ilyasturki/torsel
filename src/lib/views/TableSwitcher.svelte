@@ -22,6 +22,7 @@
 	let active = $state(0);
 	let list = $state<HTMLElement>();
 	let picked = false;
+	let before: Element | null = null;
 
 	const tables = $derived.by(() => {
 		void app.version;
@@ -66,6 +67,7 @@
 
 	function pick(item: Item | undefined): void {
 		picked = true;
+		before = null;
 		shell.switching = false;
 		query = '';
 		item?.go();
@@ -83,21 +85,35 @@
 	}
 
 	// Escape closes the list only, wherever the focus is: the Ask panel listens for it on the window too.
-	function onescape(event: KeyboardEvent): void {
+	function onwindowkey(event: KeyboardEvent): void {
+		if (!shell.switching && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'p') {
+			before = document.activeElement;
+		}
 		if (shell.switching && event.key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
 			shell.switching = false;
+			const back = before;
+			before = null;
+			// Ctrl P from the grid goes back to the grid, as a palette would.
+			if (back instanceof HTMLElement && back !== document.body) {
+				requestAnimationFrame(() => {
+					if (back.isConnected) back.focus({ preventScroll: true });
+				});
+			}
 		}
 	}
 </script>
 
-<svelte:window onkeydowncapture={onescape} />
+<svelte:window onkeydowncapture={onwindowkey} />
 
 <Popover.Root
 	bind:open={shell.switching}
 	onOpenChange={(open) => {
-		if (!open) query = '';
+		if (!open) {
+			query = '';
+			before = null;
+		}
 	}}
 >
 	<Tooltip text="Jump to a table" shortcut={keys('mod', 'p')}>

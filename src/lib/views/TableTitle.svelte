@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+
 	import { app } from '#lib/client/app.svelte.ts';
 	import { pastedCells, shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
@@ -11,6 +13,7 @@
 	let { table, rows }: { table: TableDef; rows: number } = $props();
 
 	let editing = $state(false);
+	let heading: HTMLElement | undefined = $state();
 	let draft = $state('');
 	let naming = false;
 
@@ -40,6 +43,12 @@
 		}
 	}
 
+	/** A rename ended from the keyboard hands focus back to the name, not to the page. */
+	async function refocus(): Promise<void> {
+		await tick();
+		heading?.querySelector<HTMLElement>('button')?.focus();
+	}
+
 	function select(node: HTMLInputElement): void {
 		// `bind:value` fills the input after this runs, and an empty input selects nothing.
 		node.value = draft;
@@ -48,7 +57,7 @@
 	}
 </script>
 
-<h1 class="flex min-w-0" aria-label={table.name}>
+<h1 bind:this={heading} class="flex min-w-0" aria-label={table.name}>
 	{#if editing}
 		<input
 			use:select
@@ -66,12 +75,15 @@
 			}}
 			onkeydown={(event) => {
 				if (event.key === 'Enter') {
+					event.preventDefault();
 					commit();
 					if (naming && rows === 0) shell.addingField = true;
+					else void refocus();
 					naming = false;
 				} else if (event.key === 'Escape') {
 					editing = false;
 					naming = false;
+					void refocus();
 				}
 			}}
 		/>
