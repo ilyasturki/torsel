@@ -1563,13 +1563,14 @@
 								{/if}
 								<Tooltip shortcut="{keys('alt', 'shift', '←')} {keys('alt', 'shift', '→')}">
 									{#snippet children(tip)}
+										<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 										<div
 											{...mergeProps(tip, {
 												onpointerdown: (event: PointerEvent) => onresizedown(event, field, index),
 												ondblclick: () => refit(field)
 											})}
 											aria-hidden="true"
-											tabindex={-1}
+											tabindex="-1"
 											class="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none hover:bg-tint-2 pointer-coarse:hidden"
 										></div>
 									{/snippet}
