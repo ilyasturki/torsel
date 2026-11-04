@@ -110,6 +110,22 @@ test('a row edited in its sheet, and a new row', async ({ page }) => {
 	await expect(added).toBeVisible();
 });
 
+test('a sheet opened after a change hides its toast, and keeps the toasts it raises', async ({
+	page
+}) => {
+	await columnMenu(page, 'Kg', 'Sort descending');
+	await expect(page.getByRole('status')).toContainText('Sort changed');
+	await page.waitForTimeout(1200);
+	await page.getByRole('button', { name: 'Open row' }).first().click();
+	const sheet = page.getByRole('dialog');
+	await expect(sheet).toBeVisible();
+	await expect(page.getByRole('status')).toHaveCount(0);
+
+	await sheet.getByLabel('Kg').fill('120');
+	await sheet.getByLabel('Kg').press('Enter');
+	await expect(toastButton(page, 'Undo')).toBeVisible();
+});
+
 test('a deleted row, with no question asked', async ({ page }) => {
 	await page.getByRole('button', { name: 'Open row' }).first().click();
 	await page.getByRole('dialog').getByRole('button', { name: 'More' }).click();

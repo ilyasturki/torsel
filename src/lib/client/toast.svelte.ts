@@ -9,8 +9,10 @@ type ToastAction =
 export const toast = $state({ text: '', action: null as ToastAction | null, seq: 0 });
 
 let timer: ReturnType<typeof setTimeout> | undefined;
+let shownAt = 0;
 
 function show(text: string, action: ToastAction | null): void {
+	shownAt = Date.now();
 	toast.text = text;
 	toast.action = action;
 	toast.seq += 1;
@@ -50,6 +52,15 @@ export function redoChange(): void {
 	const group = app.redo();
 	if (group === undefined) show('Nothing to redo', null);
 	else show(`Redid: ${group.label}`, { label: 'Undo', group: group.id });
+}
+
+/** A toast from before a sheet opened would cover its footer; one the sheet's own change raised stays. */
+export function dismissEarlierToast(): void {
+	if (Date.now() - shownAt > 1000) {
+		clearTimeout(timer);
+		toast.text = '';
+		toast.action = null;
+	}
 }
 
 export function runToastAction(): void {

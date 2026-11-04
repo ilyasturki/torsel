@@ -2,6 +2,8 @@
 	import { Dialog } from 'bits-ui';
 	import type { Snippet } from 'svelte';
 
+	import { dismissEarlierToast } from '#lib/client/toast.svelte.ts';
+
 	import Button from './Button.svelte';
 	import IconButton from './IconButton.svelte';
 
@@ -40,7 +42,10 @@
 	let confirming = $state(false);
 
 	$effect(() => {
-		if (open) confirming = false;
+		if (open) {
+			confirming = false;
+			dismissEarlierToast();
+		}
 	});
 
 	function focusFirstControl(event: Event): void {
