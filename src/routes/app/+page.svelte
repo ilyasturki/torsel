@@ -157,6 +157,10 @@
 					href={tableUrl(table.id)}
 					use:focusAtDesk={here}
 					onkeydown={step}
+					onclick={(event) => {
+						// A new table's row pushes the rows below down: the second click of a double-click on New table lands here.
+						if (event.detail > 1) event.preventDefault();
+					}}
 					data-home-row
 					aria-current={here ? 'true' : undefined}
 					class="grid h-13 grid-cols-home items-center gap-x-4 border-b border-rule px-4 transition-colors motion focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus max-sm:h-auto max-sm:min-h-row max-sm:gap-y-0.5 max-sm:py-2.5 {here

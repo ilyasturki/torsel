@@ -175,6 +175,20 @@ test('an empty home is one line and one row: name a table, or import a file', as
 	await expect(page.locator('main a[data-home-row]')).toHaveCount(0);
 });
 
+test('a double click on New table makes one table', async ({ page, context, account }) => {
+	void account;
+	const { weighIns } = await seedHome(context.request);
+	await page.goto(tablePath(weighIns));
+	await page.getByRole('link', { name: 'All tables' }).click();
+	const rows = page.locator('main a[data-home-row]');
+	await expect(rows).toHaveCount(4);
+	await page.getByRole('button', { name: 'New table' }).dblclick();
+	await expect(page.getByRole('textbox', { name: 'Table name' })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await page.getByRole('link', { name: 'All tables' }).click();
+	await expect(rows).toHaveCount(5);
+});
+
 test.describe('in fr-FR', () => {
 	test.use({ locale: 'fr-FR' });
 

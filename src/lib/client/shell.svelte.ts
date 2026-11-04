@@ -30,8 +30,13 @@ export function pastedCells(event: ClipboardEvent): string | null {
 	return /[\t\n]/u.test(text.trim()) ? text : null;
 }
 
+let startedAt = 0;
+
 /** A named table goes straight to its fields; an unnamed one asks for its name first. */
 export function startTable(baseId?: string, name?: string): void {
+	// The second click of a double-click lands before the page has moved on: one table, not two.
+	if (Date.now() - startedAt < 500) return;
+	startedAt = Date.now();
 	const made = blankTable(app.ws, baseId, name);
 	applyWithUndo(made.changes, `Table "${made.name}" created`);
 	if (name?.trim()) {
