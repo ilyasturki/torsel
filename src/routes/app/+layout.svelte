@@ -245,7 +245,7 @@
 						{#snippet children(props)}
 							<Button
 								{...props}
-								class={asking ? 'bg-tint-2' : ''}
+								class={asking ? 'bg-button-hover' : ''}
 								aria-pressed={asking}
 								onclick={() => (asking = !asking)}>Ask</Button
 							>

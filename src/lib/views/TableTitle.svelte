@@ -6,7 +6,7 @@
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
 	import type { TableDef } from '#lib/core/model.ts';
-	import { fieldFocus } from '#lib/ui/styles.ts';
+	import { fieldFill, fieldFocus } from '#lib/ui/styles.ts';
 
 	import TableSwitcher from './TableSwitcher.svelte';
 
@@ -61,7 +61,7 @@
 	{#if editing}
 		<input
 			use:select
-			class="-mx-1.5 h-control w-full min-w-0 rounded-box bg-tint px-1.5 font-semibold {fieldFocus}"
+			class="-mx-1.5 h-control w-full min-w-0 rounded-box px-1.5 font-semibold {fieldFill} {fieldFocus}"
 			aria-label="Table name"
 			bind:value={draft}
 			onblur={commit}

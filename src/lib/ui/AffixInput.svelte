@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 
-	import { fieldFocusWithin } from './styles.ts';
+	import { fieldFill, fieldFocusWithin } from './styles.ts';
 
 	let {
 		value = $bindable(''),
@@ -22,7 +22,7 @@
 </script>
 
 <span
-	class="flex h-control w-full min-w-0 items-center rounded-box bg-field text-ink transition-colors motion focus-within:bg-tint-2 hover:bg-tint-2 {fieldFocusWithin} {extra}"
+	class="flex h-control w-full min-w-0 items-center rounded-box text-ink transition-colors motion {fieldFill} {fieldFocusWithin} {extra}"
 >
 	{#if prefix}
 		<span class="shrink-0 pl-2 text-ink-3" aria-hidden="true">{prefix}</span>

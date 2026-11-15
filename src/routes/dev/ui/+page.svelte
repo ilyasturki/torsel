@@ -35,7 +35,14 @@
 	import Select, { type Option } from '#lib/ui/Select.svelte';
 	import Spark from '#lib/ui/Spark.svelte';
 	import Stepper from '#lib/ui/Stepper.svelte';
-	import { checkbox, fieldFocusWithin, input, textarea } from '#lib/ui/styles.ts';
+	import {
+		checkbox,
+		fieldFill,
+		fieldFocusWithin,
+		input,
+		secondary,
+		textarea
+	} from '#lib/ui/styles.ts';
 	import Tally from '#lib/ui/Tally.svelte';
 	import Textarea from '#lib/ui/Textarea.svelte';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
@@ -114,6 +121,12 @@
 		'tint-2',
 		'hair',
 		'edge',
+		'field',
+		'field-hover',
+		'button',
+		'button-hover',
+		'control-edge',
+		'selected',
 		'ink',
 		'ink-2',
 		'ink-3',
@@ -520,7 +533,8 @@
 						<button
 							{...props}
 							type="button"
-							class="inline-flex h-control items-center rounded-box bg-tint px-3">Hover me</button
+							class="inline-flex h-control items-center rounded-box px-3 {secondary}"
+							>Hover me</button
 						>
 					{/snippet}
 				</Tooltip>
@@ -531,7 +545,7 @@
 						<button
 							{...props}
 							type="button"
-							class="inline-flex h-control items-center rounded-box bg-tint px-3">Tables</button
+							class="inline-flex h-control items-center rounded-box px-3 {secondary}">Tables</button
 						>
 					{/snippet}
 				</Tooltip>
@@ -542,7 +556,7 @@
 						<button
 							{...props}
 							type="button"
-							class="inline-flex h-control items-center rounded-box bg-tint px-3">Grid</button
+							class="inline-flex h-control items-center rounded-box px-3 {secondary}">Grid</button
 						>
 					{/snippet}
 				</Tooltip>
@@ -613,7 +627,7 @@
 				</Specimen>
 				<Specimen label="bare, in a composer (fieldFocusWithin)" wide>
 					<form
-						class="flex w-full items-end gap-2 rounded-box bg-tint p-2 {fieldFocusWithin}"
+						class="flex w-full items-end gap-2 rounded-box p-2 {fieldFill} {fieldFocusWithin}"
 						onsubmit={(event) => event.preventDefault()}
 					>
 						<Textarea

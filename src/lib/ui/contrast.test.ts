@@ -70,11 +70,12 @@ const SURFACES = [
 	'band',
 	'selected',
 	'field@raised',
-	'tint-2@raised',
+	'field-hover@raised',
 	'field@float',
-	'tint-2@float'
+	'field-hover@float'
 ];
 const INKS = ['ink', 'ink-2', 'ink-3', 'accent'];
+const BUTTONS = ['button@raised', 'button-hover@raised', 'button@float', 'button-hover@float'];
 
 describe.each([
 	['light', light],
@@ -87,6 +88,10 @@ describe.each([
 			expect(ratio(over(parse(tokens[ink], tokens), under), under)).toBeGreaterThanOrEqual(4.5);
 		}
 	);
+
+	it.each(BUTTONS.map((on) => [on]))('ink on %s reads at 4.5:1', (on) => {
+		expect(ratio(parse(tokens.ink, tokens), surface(on, tokens))).toBeGreaterThanOrEqual(4.5);
+	});
 
 	it.each(DATA_COLORS.map((color) => [color]))('%s as a bar on the panel reads at 3:1', (color) => {
 		expect(

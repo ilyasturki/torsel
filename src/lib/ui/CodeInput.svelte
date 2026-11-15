@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fieldFocus } from './styles.ts';
+	import { fieldFill, fieldFocus } from './styles.ts';
 
 	const LENGTH = 6;
 
@@ -97,7 +97,7 @@
 	{#each digits as digit, index (index)}
 		<input
 			bind:this={boxes[index]}
-			class="h-cta w-full min-w-0 rounded-box bg-tint text-center font-mono text-lg font-semibold text-ink transition-colors motion hover:bg-tint-2 focus:bg-tint-2 {fieldFocus}"
+			class="h-cta w-full min-w-0 rounded-box text-center font-mono text-lg font-semibold text-ink transition-colors motion {fieldFill} {fieldFocus}"
 			type="text"
 			inputmode="numeric"
 			autocomplete={index === 0 ? 'one-time-code' : 'off'}

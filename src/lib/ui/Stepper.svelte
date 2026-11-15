@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
-	import { fieldFocusWithin } from './styles.ts';
+	import { fieldFill, fieldFocusWithin } from './styles.ts';
 
 	let {
 		label,
@@ -29,7 +29,7 @@
 	const icon = $derived(size === 'xs' ? 'size-4 text-ink-2' : 'size-5');
 </script>
 
-<div class="flex rounded-box bg-tint {fieldFocusWithin} {sizes[size]}">
+<div class="flex rounded-box {fieldFill} {fieldFocusWithin} {sizes[size]}">
 	<button type="button" class={side} aria-label="{label} minus" onclick={() => onstep(-1)}>
 		<Icon name="minus" class={icon} />
 	</button>

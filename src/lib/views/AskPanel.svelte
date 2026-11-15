@@ -39,7 +39,7 @@
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Markdown from '#lib/ui/Markdown.svelte';
-	import { fieldFocusWithin } from '#lib/ui/styles.ts';
+	import { fieldFill, fieldFocusWithin } from '#lib/ui/styles.ts';
 	import Textarea from '#lib/ui/Textarea.svelte';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 
@@ -454,7 +454,7 @@
 		</div>
 
 		<form
-			class="m-2 mt-0 flex shrink-0 flex-col gap-1 rounded-box bg-tint p-2 {fieldFocusWithin}"
+			class="m-2 mt-0 flex shrink-0 flex-col gap-1 rounded-box p-2 {fieldFill} {fieldFocusWithin}"
 			onsubmit={(event) => {
 				event.preventDefault();
 				submit();
