@@ -73,7 +73,7 @@ async function reach(kind: AuthToken['kind']): Promise<Map<string, number>> {
 			cookies: { get: () => undefined },
 			locals: {}
 		} as unknown as RequestEvent;
-		const response = await handle({ event, resolve: () => new Response('reached') });
+		const response = await handle({ event, resolve: async () => new Response('reached') });
 		statuses.set(path, response.status);
 	}
 	return statuses;
