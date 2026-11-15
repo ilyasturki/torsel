@@ -50,5 +50,7 @@ describe('browser icons', () => {
 
 	it('the social card base is 1200x630', () => {
 		expect(pngSize(fromStatic('og-base.png'))).toBe('1200x630');
+		expect(pngSize(fromStatic('og.png'))).toBe('1200x630');
+		expect(pngSize(fromStatic('og-fr.png'))).toBe('1200x630');
 	});
 });
