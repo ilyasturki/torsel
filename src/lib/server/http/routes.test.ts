@@ -95,3 +95,48 @@ describe('an api token', () => {
 		expect([...statuses].filter(([, status]) => status !== 200)).toEqual([]);
 	});
 });
+
+async function knock(
+	path: string,
+	secret: string | null,
+	db = createDatabase(':memory:')
+): Promise<Response> {
+	const url = new URL(path, 'http://torsel.test');
+	const headers: Record<string, string> =
+		secret === null ? {} : { authorization: `Bearer ${secret}` };
+	const event = {
+		url,
+		request: new Request(url, { method: 'POST', headers }),
+		route: { id: path },
+		cookies: { get: () => undefined },
+		locals: {}
+	} as unknown as RequestEvent;
+	return createHandle(() => db)({ event, resolve: async () => new Response('reached') });
+}
+
+describe('the MCP endpoint', () => {
+	it('challenges a request without a valid token', async () => {
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+
+		const bare = await knock('/api/mcp', null, db);
+		expect(bare.status).toBe(401);
+		expect(bare.headers.get('www-authenticate')).toBe('Bearer realm="torsel"');
+
+		const wrong = await knock('/api/mcp', 'ts_nope', db);
+		expect(wrong.headers.get('www-authenticate')).toBe(
+			'Bearer realm="torsel", error="invalid_token"'
+		);
+
+		expect((await knock('/api/sync', null, db)).headers.has('www-authenticate')).toBe(false);
+	});
+
+	it('refuses a token past its expiry', async () => {
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+		const user = await createUser(db, 'me@example.com', 'correct horse');
+		const { token } = issueToken(db, user.id, 'agent', 'api', new Date(Date.now() - 1000));
+
+		expect((await knock('/api/mcp', token, db)).status).toBe(401);
+	});
+});

@@ -10,6 +10,7 @@ export function applyCors(response: Response, origin: string | null): Response {
 
 	if (origin !== null && allowedOrigins().includes(origin)) {
 		response.headers.set('access-control-allow-origin', origin);
+		response.headers.set('access-control-expose-headers', 'www-authenticate');
 	}
 
 	return response;

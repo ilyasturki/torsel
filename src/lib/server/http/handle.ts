@@ -77,7 +77,14 @@ export function createHandle(database: () => Database): Handle {
 		event.locals.credential = credential;
 
 		if (credential === null && !(pathname in PUBLIC_API_ROUTES)) {
-			return applyCors(json({ message: errors.authRequired }, { status: 401 }), origin);
+			const refused = json({ message: errors.authRequired }, { status: 401 });
+			if (pathname === '/api/mcp') {
+				refused.headers.set(
+					'www-authenticate',
+					secret === null ? 'Bearer realm="torsel"' : 'Bearer realm="torsel", error="invalid_token"'
+				);
+			}
+			return applyCors(refused, origin);
 		}
 
 		if (credential?.token.kind === 'api' && pathname !== '/api/mcp') {
