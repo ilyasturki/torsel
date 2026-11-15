@@ -23,7 +23,25 @@ const en = {
 	createToken: 'Create token',
 	copyNow: 'Copy it now. It won’t be shown again.',
 	copyCommand: 'Copy command',
-	tokenCreated: (prefix: string, date: string) => `${prefix}…, created ${date}`,
+	access: 'Access',
+	expiry: 'Expiry',
+	readWrite: 'Read and write',
+	readOnly: 'Read only',
+	noExpiry: 'No expiry',
+	days: (count: number) => `${count} days`,
+	oneYear: '1 year',
+	tokenDetails: (
+		prefix: string,
+		access: 'read' | 'write',
+		lastUsed: string | null,
+		expires: string | null
+	) =>
+		[
+			`${prefix}…`,
+			access === 'read' ? 'read only' : 'read and write',
+			lastUsed === null ? 'never used' : `last used ${lastUsed}`,
+			...(expires === null ? [] : [`expires ${expires}`])
+		].join(', '),
 	revoke: 'Revoke',
 	allData: 'All data on this device',
 	import: 'Import',
@@ -60,7 +78,20 @@ const fr: typeof en = {
 	createToken: 'Créer un jeton',
 	copyNow: 'Copie-le maintenant. Il ne sera plus affiché.',
 	copyCommand: 'Copier la commande',
-	tokenCreated: (prefix, date) => `${prefix}…, créé le ${date}`,
+	access: 'Accès',
+	expiry: 'Expiration',
+	readWrite: 'Lecture et écriture',
+	readOnly: 'Lecture seule',
+	noExpiry: 'Sans expiration',
+	days: (count) => `${count} jours`,
+	oneYear: '1 an',
+	tokenDetails: (prefix, access, lastUsed, expires) =>
+		[
+			`${prefix}…`,
+			access === 'read' ? 'lecture seule' : 'lecture et écriture',
+			lastUsed === null ? 'jamais utilisé' : `utilisé le ${lastUsed}`,
+			...(expires === null ? [] : [`expire le ${expires}`])
+		].join(', '),
 	revoke: 'Révoquer',
 	allData: 'Toutes les données de cet appareil',
 	import: 'Importer',

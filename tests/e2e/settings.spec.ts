@@ -6,6 +6,7 @@ import {
 	expect,
 	newAccount,
 	passwordSignIn,
+	pick,
 	RETRY_RESET,
 	seed,
 	signIn,
@@ -50,6 +51,41 @@ test('holds the strict minimum, and says nothing about a sync that works', async
 	await expect(page.getByPlaceholder('Ask about your tables')).toBeHidden();
 	await expect(page.getByRole('status')).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /sync/iu })).toHaveCount(0);
+});
+
+test('mints a read-only token that expires, and lists what it may do and when it was used', async ({
+	page,
+	account
+}) => {
+	void account;
+	await page.goto('/app/settings');
+	const agents = page
+		.locator('section')
+		.filter({ has: page.getByRole('heading', { name: 'Agents (MCP)' }) });
+
+	await agents.getByRole('textbox', { name: 'Token name' }).fill('Reader');
+	await pick(agents.getByRole('combobox', { name: 'Access' }), 'Read only');
+	await pick(agents.getByRole('combobox', { name: 'Expiry' }), '30 days');
+	await agents.getByRole('button', { name: 'Create token' }).click();
+
+	const command = await agents.locator('code', { hasText: 'claude mcp add' }).innerText();
+	const token = /Bearer (ts_[\w-]+)/u.exec(command)?.[1];
+	const details = agents.getByText(/^ts_\w+…, read only/u);
+	await expect(details).toHaveText(/^ts_\w+…, read only, never used, expires \w+ \d+, \d{4}$/u);
+
+	const listed = await page.request.post('/api/mcp', {
+		headers: {
+			authorization: `Bearer ${token}`,
+			accept: 'application/json, text/event-stream'
+		},
+		data: { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }
+	});
+	const tools = await listed.text();
+	expect(tools).toContain('"list_bases"');
+	expect(tools).not.toContain('"add_rows"');
+
+	await page.reload();
+	await expect(details).toHaveText(/, read only, last used \w+ \d+, \d{4}, expires /u);
 });
 
 test('reports changes waiting offline, then falls silent once they are sent', async ({

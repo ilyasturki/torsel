@@ -15,6 +15,8 @@
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import PasswordInput from '#lib/ui/PasswordInput.svelte';
+	import type { Option } from '#lib/ui/Select.svelte';
+	import Select from '#lib/ui/Select.svelte';
 	import { input } from '#lib/ui/styles.ts';
 	import ServerForm from '#lib/views/ServerForm.svelte';
 
@@ -24,6 +26,8 @@
 	let erasing = $state(false);
 	let tokens = $state<PublicToken[]>([]);
 	let label = $state('Claude Code');
+	let access = $state<PublicToken['access']>('write');
+	let lifetime = $state('never');
 	let minted = $state<string | null>(null);
 	let tokenProblem = $state('');
 
@@ -64,7 +68,11 @@
 	async function mint(): Promise<void> {
 		tokenProblem = '';
 		try {
-			const { token } = await createToken(label.trim() || 'MCP', 'write', null);
+			const { token } = await createToken(
+				label.trim() || 'MCP',
+				access,
+				lifetime === 'never' ? null : Number(lifetime)
+			);
 			minted = token;
 			await refreshTokens();
 		} catch {
@@ -80,6 +88,29 @@
 		} catch {
 			tokenProblem = words.revokeFailed;
 		}
+	}
+
+	const ACCESS: Option<PublicToken['access']>[] = [
+		{ value: 'write', label: words.readWrite },
+		{ value: 'read', label: words.readOnly }
+	];
+	const LIFETIMES: Option[] = [
+		{ value: 'never', label: words.noExpiry },
+		{ value: '30', label: words.days(30) },
+		{ value: '90', label: words.days(90) },
+		{ value: '365', label: words.oneYear }
+	];
+
+	const day = (ms: number): string =>
+		formatDate(new Date(ms).toISOString().slice(0, 10), { withYear: true });
+
+	function details(token: PublicToken): string {
+		return words.tokenDetails(
+			token.prefix,
+			token.access,
+			token.lastUsedAt === null ? null : day(token.lastUsedAt),
+			token.expiresAt === null ? null : day(token.expiresAt)
+		);
 	}
 
 	const mcpUrl = $derived(`${base ?? DEFAULT_SERVER}/api/mcp`);
@@ -162,14 +193,30 @@
 			<div class={rowBody}>
 				<code class="font-mono text-sm break-all text-ink-2">{mcpUrl}</code>
 				<form
-					class="flex gap-2"
+					class="flex flex-wrap gap-2"
 					onsubmit={(event) => {
 						event.preventDefault();
 						void mint();
 					}}
 				>
-					<input class={input} bind:value={label} aria-label={words.tokenName} />
-					<Button type="submit">{words.createToken}</Button>
+					<input
+						class="{input} min-w-0 basis-full sm:flex-1 sm:basis-auto"
+						bind:value={label}
+						aria-label={words.tokenName}
+					/>
+					<Select
+						class="flex-1 sm:w-44 sm:flex-none"
+						options={ACCESS}
+						bind:value={access}
+						aria-label={words.access}
+					/>
+					<Select
+						class="flex-1 sm:w-32 sm:flex-none"
+						options={LIFETIMES}
+						bind:value={lifetime}
+						aria-label={words.expiry}
+					/>
+					<Button type="submit" class="max-sm:basis-full">{words.createToken}</Button>
 				</form>
 				{#if tokenProblem}<p role="alert">{tokenProblem}</p>{/if}
 				{#if minted}
@@ -187,14 +234,7 @@
 							<div class="flex min-h-row items-center justify-between gap-3">
 								<span class="flex min-w-0 flex-col">
 									<span class="truncate">{token.label}</span>
-									<span class="truncate text-sm text-ink-3"
-										>{words.tokenCreated(
-											token.prefix,
-											formatDate(new Date(token.createdAt).toISOString().slice(0, 10), {
-												withYear: true
-											})
-										)}</span
-									>
+									<span class="text-sm text-ink-3">{details(token)}</span>
 								</span>
 								<Button variant="ghost" onclick={() => revoke(token.id)}>{words.revoke}</Button>
 							</div>
