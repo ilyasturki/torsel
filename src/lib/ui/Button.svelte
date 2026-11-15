@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
-	import { focus } from './styles.ts';
+	import { focus, secondary } from './styles.ts';
 
 	let {
 		variant = 'secondary',
@@ -18,7 +18,7 @@
 
 	const variants = {
 		primary: 'bg-accent text-on-accent hover:opacity-90 disabled:bg-tint-2 disabled:text-ink-3',
-		secondary: 'bg-tint text-ink hover:bg-tint-2 disabled:text-ink-3',
+		secondary: `${secondary} disabled:text-ink-3`,
 		ghost: 'text-ink-2 hover:bg-tint hover:text-ink disabled:text-ink-3'
 	};
 

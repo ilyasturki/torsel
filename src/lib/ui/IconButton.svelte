@@ -3,7 +3,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
 	import Icon, { type IconName } from './Icon.svelte';
-	import { focus } from './styles.ts';
+	import { focus, secondary } from './styles.ts';
 	import Tooltip from './Tooltip.svelte';
 
 	let {
@@ -24,7 +24,7 @@
 
 	const variants = {
 		primary: 'bg-fill text-on-fill hover:opacity-90 disabled:bg-tint-2 disabled:text-ink-3',
-		secondary: 'bg-tint text-ink hover:bg-tint-2 disabled:text-ink-3',
+		secondary: `${secondary} disabled:text-ink-3`,
 		ghost:
 			'text-ink-2 hover:bg-tint hover:text-ink disabled:text-ink-3 aria-pressed:bg-tint-2 aria-pressed:text-ink'
 	};

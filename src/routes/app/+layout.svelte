@@ -20,6 +20,7 @@
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Logo from '#lib/ui/Logo.svelte';
+	import { focus, secondary } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 	import AskPanel from '#lib/views/AskPanel.svelte';
 	import ImportSheet from '#lib/views/ImportSheet.svelte';
@@ -244,8 +245,7 @@
 						{#snippet children(props)}
 							<Button
 								{...props}
-								variant="ghost"
-								class={asking ? 'bg-tint-2 text-ink' : ''}
+								class={asking ? 'bg-tint-2' : ''}
 								aria-pressed={asking}
 								onclick={() => (asking = !asking)}>Ask</Button
 							>
@@ -254,7 +254,7 @@
 				{/if}
 				<a
 					href={onSettings ? beforeSettings : SETTINGS}
-					class="inline-grid h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink {onTable
+					class="inline-grid h-control items-center rounded-box px-3 font-medium transition-colors motion {secondary} {focus} {onTable
 						? 'max-sm:hidden'
 						: ''}"
 					onclick={(event) => {

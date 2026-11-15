@@ -206,10 +206,8 @@
 		{/each}
 		<div class="flex flex-wrap gap-2 p-4">
 			<Button onclick={() => startTable()}>New table</Button>
-			<Button variant="ghost" onclick={() => (shell.importing = { into: null })}
-				>Import a file</Button
-			>
-			<Button variant="ghost" onclick={() => (creatingBase = true)}>New base</Button>
+			<Button onclick={() => (shell.importing = { into: null })}>Import a file</Button>
+			<Button onclick={() => (creatingBase = true)}>New base</Button>
 		</div>
 	{/if}
 </div>

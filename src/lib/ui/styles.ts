@@ -9,7 +9,9 @@ export const fieldFocusWithin =
 
 export const input = `motion h-control w-full min-w-0 rounded-box bg-field px-2 text-ink transition-colors placeholder:text-ink-3 hover:bg-tint-2 focus:bg-tint-2 ${fieldFocus}`;
 
-export const linkButton = `motion inline-flex h-control items-center justify-center rounded-box bg-tint px-3 font-medium text-ink transition-colors hover:bg-tint-2 ${focus}`;
+export const secondary = 'bg-tint text-ink hover:bg-tint-2';
+
+export const linkButton = `motion inline-flex h-control items-center justify-center rounded-box px-3 font-medium transition-colors ${secondary} ${focus}`;
 
 export const textarea = `motion w-full min-w-0 rounded-box bg-field p-2 font-mono text-ink transition-colors placeholder:text-ink-3 hover:bg-tint-2 focus:bg-tint-2 ${fieldFocus}`;
 

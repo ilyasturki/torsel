@@ -183,7 +183,7 @@
 		{/if}
 	{/snippet}
 
-	<div class="flex flex-col {current === null ? 'gap-2' : 'gap-0.5 quiet-fields'}">
+	<div class="flex flex-col gap-2">
 		{#each fields as field (`${current}-${field.id}`)}
 			<div
 				class="grid items-center gap-1 sm:grid-cols-props sm:gap-2"

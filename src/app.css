@@ -255,11 +255,6 @@
 	padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Fields that read as their value until pointed at or focused. */
-@utility quiet-fields {
-	--field: transparent;
-}
-
 @utility mark-selected {
 	box-shadow: inset 2px 0 0 var(--accent);
 }
