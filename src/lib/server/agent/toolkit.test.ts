@@ -349,6 +349,75 @@ describe('assistant tools', () => {
 	});
 });
 
+describe('query limits', () => {
+	it('stops a runaway query at its deadline', async () => {
+		const { call, ctx } = session();
+		await call('create_base', { name: 'B' });
+
+		const started = Date.now();
+		const answer = await call('query', {
+			base: 'B',
+			sql: 'with recursive c(x) as (select 1 union all select x + 1 from c) select count(*) from c'
+		});
+
+		expect(answer).toEqual({ error: expect.stringMatching(/ran past 2 s/u) });
+		expect(Date.now() - started).toBeLessThan(3000);
+		closeEngines(ctx.ws);
+	});
+
+	it('refuses a value too long to hold', async () => {
+		const { call, ctx } = session();
+		await call('create_base', { name: 'B' });
+
+		expect(
+			await call('query', { base: 'B', sql: `select printf('%.*c', 100000000, 'x') as v` })
+		).toEqual({ error: expect.stringMatching(/too big/u) });
+		closeEngines(ctx.ws);
+	});
+
+	it('caps the answer by size and says so', async () => {
+		const { call, ctx } = session();
+		await call('create_base', { name: 'B' });
+
+		const big = (await call('query', {
+			base: 'B',
+			sql: `with recursive c(x) as (select 1 union all select x + 1 from c where x < 150) select x, printf('%.*c', 2000, 'x') as pad from c`
+		})) as { rows: unknown[]; count: number; truncated: boolean };
+		expect(big.truncated).toBe(true);
+		expect(big.count).toBe(big.rows.length);
+		expect(JSON.stringify(big.rows).length).toBeLessThan(70_000);
+
+		const many = (await call('query', {
+			base: 'B',
+			sql: 'with recursive c(x) as (select 1 union all select x + 1 from c where x < 300) select x from c'
+		})) as { count: number; truncated: boolean };
+		expect(many).toMatchObject({ count: 200, truncated: true });
+
+		const small = await call('query', { base: 'B', sql: 'select 1 as x' });
+		expect(small).toEqual({ rows: [{ x: 1 }], count: 1, truncated: false });
+		closeEngines(ctx.ws);
+	});
+
+	it('bounds a formula checked on the server', async () => {
+		const { call, ctx } = session();
+		await call('create_table', { name: 'T', fields: [{ name: 'N', type: 'number' }] });
+		await call('add_rows', { base: ctx.ws.bases()[0].id, table: 'T', rows: [{ N: 1 }] });
+
+		const started = Date.now();
+		const answer = await call('add_field', {
+			base: ctx.ws.bases()[0].id,
+			table: 'T',
+			name: 'Slow',
+			type: 'formula',
+			formula: `LENGTH(PRINTF('%.*c', 100000000, 'x'))`
+		});
+
+		expect(answer).toEqual({ error: expect.stringMatching(/too big/u) });
+		expect(Date.now() - started).toBeLessThan(3000);
+		closeEngines(ctx.ws);
+	});
+});
+
 async function movies(): Promise<ReturnType<typeof session> & { table: string }> {
 	const s = session();
 	const { id } = (await s.call('create_table', {

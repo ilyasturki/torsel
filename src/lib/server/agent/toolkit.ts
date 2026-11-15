@@ -138,6 +138,15 @@ function storedFormula(
 	}
 }
 
+// Every query runs on the server's one thread, shared by every account.
+const QUERY_SECONDS = 2;
+
+function sqlRefusal(message: string): string {
+	return message === 'interrupted'
+		? `the query ran past ${QUERY_SECONDS} s; aggregate, filter or read fewer rows`
+		: message;
+}
+
 const engines = new WeakMap<Workspace, Map<string, { version: number; engine: MemoryEngine }>>();
 const versions = new WeakMap<Workspace, number>();
 
@@ -162,6 +171,7 @@ async function engineFor(ws: Workspace, baseId: string): Promise<MemoryEngine> {
 	const engine = await openEngine();
 	materializeBase(engine, ws, baseId, true);
 	engine.readOnly();
+	engine.bound({ ms: QUERY_SECONDS * 1000, length: 1_000_000 });
 	perBase.set(baseId, { version, engine });
 
 	return engine;
@@ -174,7 +184,7 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	}
 	const problem = formulaProblem(await engineFor(ws, table.base), ws, tableId, stored);
 	if (problem !== null) {
-		throw new ToolError(`SQLite refuses the formula: ${problem}`);
+		throw new ToolError(`SQLite refuses the formula: ${sqlRefusal(problem)}`);
 	}
 }
 
@@ -600,16 +610,16 @@ export const TOOLS: Tool[] = [
 		name: 'query',
 		title: TITLES.query,
 		description:
-			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. 200 rows at most.',
+			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. At most 200 rows and about 64 KB, and a query stops after 2 s: truncated is true when rows were cut, so aggregate, filter or select fewer columns.',
 		input: z.object({ base: BASE, sql: z.string().min(1) }),
 		kind: 'read',
 		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {
 			const found = findBase(ws, base);
 			try {
-				const rows = readQuery(await engineFor(ws, found.id), sql);
-				return { rows, count: rows.length };
+				const { rows, truncated } = readQuery(await engineFor(ws, found.id), sql);
+				return { rows, count: rows.length, truncated };
 			} catch (error) {
-				throw new ToolError(error instanceof Error ? error.message : String(error));
+				throw new ToolError(sqlRefusal(error instanceof Error ? error.message : String(error)));
 			}
 		}
 	},

@@ -374,7 +374,7 @@ describe('materialize', () => {
 		expect(problems.get(table.id)?.size).toBe(0);
 		engine.readOnly();
 
-		const rows = readQuery(
+		const { rows } = readQuery(
 			engine,
 			'select "Exercice", "1RM estimé" from "Séries" order by "Exercice"'
 		);

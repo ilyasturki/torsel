@@ -10,6 +10,8 @@ export type SqlRow = Record<string, SqlValue>;
 export interface Engine {
 	exec(sql: string, bind?: SqlValue[]): void;
 	all(sql: string, bind?: SqlValue[]): SqlRow[];
+	/** Steps through the rows until `take` returns false. */
+	each(sql: string, take: (row: SqlRow) => boolean): void;
 }
 
 export function quote(name: string): string {
@@ -273,17 +275,35 @@ export class QueryError extends Error {
 	}
 }
 
-/** One read-only statement, capped; the engine must already be in `query_only` mode. */
-export function readQuery(engine: Engine, sql: string, limit = 200): SqlRow[] {
+/** One read-only statement, capped in rows and in JSON bytes; the engine must already be in `query_only` mode. */
+export function readQuery(
+	engine: Engine,
+	sql: string,
+	{ rows: most = 200, bytes = 64_000 }: { rows?: number; bytes?: number } = {}
+): { rows: SqlRow[]; truncated: boolean } {
 	const statement = sql.trim().replace(/;\s*$/u, '');
 
 	if (statement.includes(';')) {
 		throw new QueryError('one query at a time');
 	}
 
+	const rows: SqlRow[] = [];
+	let size = 0;
+	let truncated = false;
+
 	try {
-		return engine.all(`select * from (${statement}) limit ${limit}`);
+		engine.each(`select * from (${statement}) limit ${most + 1}`, (row) => {
+			size += JSON.stringify(row).length;
+			if (rows.length === most || size > bytes) {
+				truncated = true;
+				return false;
+			}
+			rows.push(row);
+			return true;
+		});
 	} catch (error) {
 		throw new QueryError(errorText(error));
 	}
+
+	return { rows, truncated };
 }

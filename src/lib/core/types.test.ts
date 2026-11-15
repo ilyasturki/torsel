@@ -226,7 +226,7 @@ describe('detection', () => {
 		const engine = await openEngine();
 		materializeBase(engine, ws, baseId, true);
 		expect(
-			readQuery(engine, 'select "Price" * 2 as p, "Runtime" / 60 as m from "Movies" order by p')
+			readQuery(engine, 'select "Price" * 2 as p, "Runtime" / 60 as m from "Movies" order by p').rows
 		).toEqual([
 			{ p: 16, m: 116 },
 			{ p: 18, m: 170 },
@@ -236,7 +236,7 @@ describe('detection', () => {
 			readQuery(
 				engine,
 				`select count(*) as n from "Movies", json_each("Movies"."Genres") where json_each.value = 'Drama'`
-			)
+			).rows
 		).toEqual([{ n: 3 }]);
 	});
 });
