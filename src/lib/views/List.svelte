@@ -353,9 +353,11 @@
 			{/if}
 			{#each rows as row (row.id)}
 				<div
-					class="min-h-row items-center border-b border-rule px-4 py-1.5 transition-colors motion-slow {wide.current
+					class="min-h-row items-center border-b border-rule px-4 transition-colors motion-slow {wide.current
 						? 'col-span-full grid grid-cols-subgrid'
-						: 'flex flex-wrap gap-x-4 gap-y-1'} {fresh.has(row.id) ? 'bg-tint-2' : 'hover:bg-tint'}"
+						: 'flex flex-wrap gap-x-4 gap-y-1 py-1.5'} {fresh.has(row.id)
+						? 'bg-tint-2'
+						: 'hover:bg-tint'}"
 					data-fresh={fresh.has(row.id) || undefined}
 				>
 					{@render row_(row)}
