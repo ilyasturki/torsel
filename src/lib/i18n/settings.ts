@@ -38,7 +38,7 @@ const en = {
 
 const fr: typeof en = {
 	signedOut: 'Déconnecté. Tes données restent sur cet appareil.',
-	stillSignedIn: 'Serveur injoignable, tu es toujours connecté.',
+	stillSignedIn: 'Serveur injoignable, ta session reste ouverte.',
 	passwordSaved: 'Mot de passe enregistré.',
 	passwordFailed: 'Impossible d’enregistrer le mot de passe. Réessaie.',
 	tokenFailed: 'Impossible de créer le jeton. Réessaie.',
@@ -49,7 +49,8 @@ const fr: typeof en = {
 	newPassword: 'Nouveau mot de passe',
 	password: 'Mot de passe',
 	changeHint: 'Le changer déconnecte tes autres appareils et révoque tes jetons MCP.',
-	setHint: 'Tu te connectes avec un code reçu par email. Un mot de passe le fait en une étape.',
+	setHint:
+		'Tu te connectes avec un code reçu par email. Avec un mot de passe, c’est une seule étape.',
 	changePassword: 'Changer le mot de passe',
 	setPassword: 'Définir un mot de passe',
 	signIn: 'Se connecter',

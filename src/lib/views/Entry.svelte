@@ -210,8 +210,7 @@
 		showToast(tableWords.rowAdded, group?.id ?? null);
 	}
 
-	const when = (row: Rec): string =>
-		dayOf(row) === today ? words.todayInline : formatDate(dayOf(row));
+	const when = (row: Rec): string | null => (dayOf(row) === today ? null : formatDate(dayOf(row)));
 
 	const history = $derived(
 		ordered

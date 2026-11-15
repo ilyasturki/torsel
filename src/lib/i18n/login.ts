@@ -61,7 +61,7 @@ const fr: typeof en = {
 	otherEmail: 'Utiliser un autre email',
 	google: 'Continuer avec Google',
 	connectServer: 'Connecter un serveur',
-	serverIntro: 'Ton compte vit sur un serveur. Saisis son adresse pour te connecter.',
+	serverIntro: 'Ton compte est sur un serveur. Saisis son adresse pour te connecter.',
 	keepOnPhone: 'Continuer sur ce téléphone sans compte',
 	signInOrUp: 'Connecte-toi ou crée un compte',
 	server: (address) => `Serveur : ${address}`,
@@ -73,7 +73,7 @@ const fr: typeof en = {
 		'En continuant, tu acceptes les <terms>conditions</terms> et la <privacy>politique de confidentialité</privacy>.',
 	checkEmail: 'Regarde tes emails',
 	noEmailService:
-		'Ce serveur n’a pas de service d’email, le message est donc parti dans son journal. Trouve le code là-bas, ou demande à qui gère le serveur.',
+		'Ce serveur n’envoie pas d’emails : le message est dans son journal. Cherche le code là-bas, ou demande à qui gère le serveur.',
 	codeSent: (email) => `Code à 6 chiffres envoyé à ${email}. Saisis-le ici.`,
 	mailSent: (email) =>
 		`Email envoyé à ${email}. Saisis son code à 6 chiffres ici, ou ouvre son lien sur cet appareil.`,
@@ -81,7 +81,7 @@ const fr: typeof en = {
 	lostIt: 'Perdu ? <send>En envoyer un nouveau</send>.',
 	nothingYet: 'Rien après une minute ? Regarde dans tes spams, ou <send>renvoie-le</send>.',
 	confirmEmail: 'Confirme ton email',
-	notConfirmed: 'Ce compte n’est pas encore confirmé. On t’envoie un moyen d’entrer par email.',
+	notConfirmed: 'Ce compte n’est pas encore confirmé. On t’envoie de quoi te connecter par email.',
 	signIn: 'Se connecter',
 	password: 'Mot de passe',
 	createYours: 'Crée ton compte',
@@ -90,7 +90,7 @@ const fr: typeof en = {
 	noAccount: 'Aucun compte pour cet email',
 	noNewAccounts: 'Ce serveur n’accepte pas de nouveaux comptes.',
 	signingIn: 'Connexion en cours…',
-	signedIn: 'Tu es connecté.',
+	signedIn: 'Connexion réussie.',
 	passwordDropped:
 		'Ce lien s’est ouvert dans un autre navigateur que celui qui a créé le compte, donc son mot de passe a été retiré. Choisis-en un nouveau dans les Réglages.',
 	openSettings: 'Ouvrir les Réglages',

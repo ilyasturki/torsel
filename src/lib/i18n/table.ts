@@ -57,7 +57,7 @@ const fr: typeof en = {
 	empty: 'Cette table est vide.',
 	addField: 'Ajouter un champ',
 	importFile: 'Importer un fichier',
-	noView: 'Cette table n’a pas encore de vue. Ajoutes-en une avec le plus, en haut.'
+	noView: 'Cette table n’a pas encore de vue. Ajoutes-en une avec le +, en haut.'
 };
 
 export default { en, fr };

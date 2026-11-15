@@ -59,7 +59,7 @@ const FRENCH_TYPES: Record<string, string> = {
 	check: 'case à cocher',
 	link: 'lien',
 	url: 'URL',
-	email: 'e-mail',
+	email: 'email',
 	phone: 'téléphone',
 	formula: 'formule',
 	grid: 'grille',

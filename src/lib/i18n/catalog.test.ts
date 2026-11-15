@@ -22,6 +22,7 @@ const SAME = new Set([
 	'changes.labels.description',
 	'changes.type',
 	'fields.types.url',
+	'fields.types.email',
 	'fields.types.date',
 	'fields.groups.dates',
 	'fields.type',
@@ -32,7 +33,6 @@ const SAME = new Set([
 	'home.table',
 	'importing.base',
 	'settings.agents',
-	'ui.plus',
 	'views.total',
 	'login.email'
 ]);

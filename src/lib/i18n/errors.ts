@@ -32,7 +32,7 @@ const fr: typeof en = {
 	confirmFirst: 'confirme d’abord ton email',
 	tokenCannotChangePassword: 'un jeton d’API ne peut pas changer le mot de passe',
 	noNewAccounts: 'ce serveur n’accepte pas de nouveaux comptes',
-	noSuchCredential: 'identifiant introuvable',
+	noSuchCredential: 'jeton introuvable',
 	badCode: 'code invalide ou expiré',
 	badLink: 'lien invalide ou expiré'
 };

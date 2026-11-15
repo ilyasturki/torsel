@@ -41,7 +41,7 @@ const fr: typeof en = {
 	empty: 'Vide',
 	rows: (count, shown) => plural('fr', count, { one: `${shown} ligne`, other: `${shown} lignes` }),
 	baseDeleted: (name) => `Base « ${name} » supprimée`,
-	noTables: 'Aucune table. Donne-lui un nom, dépose un CSV ici ou colle des cellules.',
+	noTables: 'Aucune table. Nommes-en une, dépose un CSV ici ou colle des cellules.',
 	tableName: 'Nom de la table',
 	newTable: 'Nouvelle table',
 	importFile: 'Importer un fichier',

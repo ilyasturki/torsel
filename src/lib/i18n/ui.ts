@@ -33,8 +33,8 @@ const fr: typeof en = {
 	noMatch: 'Aucun résultat',
 	noRating: 'Aucune',
 	rating: (value, max) => `${value} sur ${max}`,
-	minus: (label) => `${label} moins`,
-	plus: (label) => `${label} plus`,
+	minus: (label) => `Diminuer ${label}`,
+	plus: (label) => `Augmenter ${label}`,
 	tally: (done, total) => `${done} sur ${total}`
 };
 

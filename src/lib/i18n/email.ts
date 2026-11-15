@@ -22,9 +22,9 @@ const fr: typeof en = {
 	verifySubject: 'Confirme ton email pour Torsel',
 	loginSubject: 'Ton code de connexion Torsel',
 	verifyIntro:
-		'Saisis ce code dans Torsel pour finir de créer ton compte. Il marche une fois, pendant 24 heures.',
+		'Saisis ce code dans Torsel pour finir de créer ton compte. Il ne sert qu’une fois, pendant 24 heures.',
 	loginIntro:
-		'Saisis ce code dans Torsel pour te connecter. Il marche une fois, pendant 30 minutes.',
+		'Saisis ce code dans Torsel pour te connecter. Il ne sert qu’une fois, pendant 30 minutes.',
 	verifyAction: 'Confirmer mon email',
 	loginAction: 'Se connecter',
 	orLink: (link) => `Ou ouvre ce lien sur cet appareil : ${link}`,
