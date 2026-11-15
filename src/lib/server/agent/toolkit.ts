@@ -29,7 +29,7 @@ import type {
 import { FIELD_TYPES, FORMAT_OF, VIEW_TYPES, hasChoices } from '../../core/model.ts';
 import { retypeField } from '../../core/retype.ts';
 import { formulaProblem, formulaValues, materializeBase, readQuery } from '../../core/sql.ts';
-import { coerce } from '../../core/values.ts';
+import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { nextChoice } from '../../ui/colors.ts';
@@ -370,6 +370,74 @@ function viewConfig(
 	return config;
 }
 
+function requireRow(ws: Workspace, table: TableDef, id: string): void {
+	const rec = ws.live(id);
+	if (rec?.kind !== 'row' || rec.parent !== table.id) {
+		throw new ToolError(`no row ${id} in ${table.name}`);
+	}
+}
+
+function expected(field: FieldDef): string {
+	switch (field.type) {
+		case 'number':
+			return 'a number';
+		case 'currency':
+			return 'an amount';
+		case 'percent':
+			return 'a percent (25 for 25%)';
+		case 'rating': {
+			const scale = ratingScale(field);
+			return `a rating from ${scale.min} to ${scale.max}${scale.step === 1 ? '' : ' by halves'}`;
+		}
+		case 'duration':
+			return 'a duration (h:mm:ss, or seconds)';
+		case 'date':
+			return 'a date (YYYY-MM-DD)';
+		case 'datetime':
+			return 'a date and time (YYYY-MM-DDTHH:MM)';
+		case 'check':
+			return 'a check (true or false)';
+		case 'choice':
+			return 'a choice (its text)';
+		case 'choices':
+			return 'choices (an array of their texts)';
+		case 'link':
+			return 'a link (the main text or the _id of a row)';
+		case 'url':
+			return 'a URL';
+		case 'email':
+			return 'an email address';
+		case 'phone':
+			return 'a phone number';
+		case 'text':
+		case 'longtext':
+		case 'formula':
+			return 'text';
+	}
+}
+
+function blank(value: unknown): boolean {
+	return (
+		value === undefined ||
+		value === null ||
+		(typeof value === 'string' && value.trim() === '') ||
+		(Array.isArray(value) && value.length === 0)
+	);
+}
+
+function readable(field: FieldDef, value: unknown): boolean {
+	if (field.type === 'check' && typeof value === 'string') {
+		return parseCheck(value) !== null;
+	}
+	if (field.type === 'link') {
+		return typeof value === 'string';
+	}
+	if (field.type === 'choices' && Array.isArray(value)) {
+		return value.every((name) => typeof name === 'string' || typeof name === 'number');
+	}
+	return coerce(field, value) !== null;
+}
+
 function linkValue(ws: Workspace, field: FieldDef, value: unknown): unknown {
 	if (field.type !== 'link' || field.target === null || typeof value !== 'string') {
 		return value;
@@ -398,17 +466,23 @@ function linkValue(ws: Workspace, field: FieldDef, value: unknown): unknown {
 function rowsByName(
 	ws: Workspace,
 	tableId: string,
-	rows: Record<string, unknown>[]
+	rows: Record<string, unknown>[],
+	where: (index: number) => string
 ): { rows: Record<string, unknown>[]; fieldChanges: Change[] } {
 	const fields = ws.fields(tableId);
 	const added = new Map<string, Set<string>>();
 
-	const out = rows.map((values) => {
+	const out = rows.map((values, index) => {
 		const row: Record<string, unknown> = {};
 		for (const [name, value] of Object.entries(values)) {
 			const field = findField(ws, tableId, name);
 			if (field.type === 'formula') {
 				continue;
+			}
+			if (!blank(value) && !readable(field, value)) {
+				throw new ToolError(
+					`${where(index)}.${JSON.stringify(field.name)}: ${JSON.stringify(value)} is not ${expected(field)}; nothing was written`
+				);
 			}
 			const picked = hasChoices(field.type) ? coerce(field, value) : null;
 			for (const name of Array.isArray(picked) ? picked : picked === null ? [] : [picked]) {
@@ -549,7 +623,12 @@ export const TOOLS: Tool[] = [
 		run: (ctx, input: { base: string; table: string; rows: Record<string, unknown>[] }) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
-			const { rows, fieldChanges } = rowsByName(ctx.ws, table.id, input.rows);
+			const { rows, fieldChanges } = rowsByName(
+				ctx.ws,
+				table.id,
+				input.rows,
+				(index) => `rows[${index}]`
+			);
 			const inserted = insertRows(ctx.ws, table.id, rows);
 			commit(ctx, {
 				summary: `Add ${plural(rows.length, 'row')} to ${table.name}`,
@@ -581,17 +660,18 @@ export const TOOLS: Tool[] = [
 		) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
+			for (const update of input.updates) {
+				requireRow(ctx.ws, table, update.id);
+			}
 			const { rows, fieldChanges } = rowsByName(
 				ctx.ws,
 				table.id,
-				input.updates.map((update) => update.values)
+				input.updates.map((update) => update.values),
+				(index) => `updates[${index}].values`
 			);
-			const changes = input.updates.flatMap((update, index) => {
-				if (ctx.ws.live(update.id)?.parent !== table.id) {
-					throw new ToolError(`no row ${update.id} in ${table.name}`);
-				}
-				return updateRow(ctx.ws, update.id, rows[index]);
-			});
+			const changes = input.updates.flatMap((update, index) =>
+				updateRow(ctx.ws, update.id, rows[index])
+			);
 			commit(ctx, {
 				summary: `Change ${plural(changes.length, 'row')} in ${table.name}`,
 				changes: [...fieldChanges, ...changes]
@@ -610,9 +690,7 @@ export const TOOLS: Tool[] = [
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			for (const id of input.ids) {
-				if (ctx.ws.live(id)?.parent !== table.id) {
-					throw new ToolError(`no row ${id} in ${table.name}`);
-				}
+				requireRow(ctx.ws, table, id);
 			}
 			commit(ctx, {
 				summary: `Delete ${plural(input.ids.length, 'row')} from ${table.name}`,

@@ -348,3 +348,100 @@ describe('assistant tools', () => {
 		expect(query.rows).toEqual([{ n: 1 }]);
 	});
 });
+
+async function movies(): Promise<ReturnType<typeof session> & { table: string }> {
+	const s = session();
+	const { id } = (await s.call('create_table', {
+		name: 'Movies',
+		fields: [
+			{ name: 'Title', type: 'text' },
+			{ name: 'Watched', type: 'date' },
+			{ name: 'Rating', type: 'rating' },
+			{ name: 'Year', type: 'number' },
+			{ name: 'Favorite', type: 'check' },
+			{ name: 'Genre', type: 'choice' }
+		]
+	})) as { id: string };
+	return { ...s, table: id };
+}
+
+describe('row tools', () => {
+	it('delete or change only rows of the named table, never its fields or views', async () => {
+		const { call, ctx, actions, table } = await movies();
+		const base = ctx.ws.bases()[0].id;
+		const field = ctx.ws.fields(table)[0].id;
+		const view = ctx.ws.views(table)[0].id;
+		const before = actions.length;
+
+		for (const id of [field, view, table]) {
+			expect(await call('delete_rows', { base, table: 'Movies', ids: [id] })).toEqual({
+				error: `no row ${id} in Movies`
+			});
+			expect(
+				await call('update_rows', {
+					base,
+					table: 'Movies',
+					updates: [{ id, values: { Title: 'x' } }]
+				})
+			).toEqual({ error: `no row ${id} in Movies` });
+		}
+
+		expect(actions).toHaveLength(before);
+		expect(ctx.ws.live(field)).toBeDefined();
+		expect(ctx.ws.live(view)).toBeDefined();
+		closeEngines(ctx.ws);
+	});
+
+	it.each([
+		['Watched', 'last tuesday', /"Watched": "last tuesday" is not a date \(YYYY-MM-DD\)/u],
+		['Rating', 'eight', /"Rating": "eight" is not a rating/u],
+		['Rating', 9, /"Rating": 9 is not a rating from 1 to 5/u],
+		['Year', 'MMXXI', /"Year": "MMXXI" is not a number/u],
+		['Title', true, /"Title": true is not text/u],
+		['Favorite', 'maybe', /"Favorite": "maybe" is not a check \(true or false\)/u],
+		['Genre', { name: 'Drama' }, /"Genre": \{"name":"Drama"\} is not a choice/u]
+	])('refuse the whole call when %s cannot hold %j', async (field, value, message) => {
+		const { call, ctx, actions } = await movies();
+		const before = actions.length;
+
+		const added = await call('add_rows', {
+			base: ctx.ws.bases()[0].id,
+			table: 'Movies',
+			rows: [{ Title: 'Heat', Year: 1995 }, { Title: 'Ronin', [field]: value }]
+		});
+
+		expect(added).toEqual({ error: expect.stringMatching(message) });
+		expect((added as { error: string }).error).toMatch(/^rows\[1\]\./u);
+		expect(actions).toHaveLength(before);
+		closeEngines(ctx.ws);
+	});
+
+	it('refuse an unreadable change too, and still take an empty value as a clear', async () => {
+		const { call, ctx } = await movies();
+		const base = ctx.ws.bases()[0].id;
+		const { added } = (await call('add_rows', {
+			base,
+			table: 'Movies',
+			rows: [{ Title: 'Heat', Year: 1995, Favorite: 'yes' }]
+		})) as { added: string[] };
+
+		expect(
+			await call('update_rows', {
+				base,
+				table: 'Movies',
+				updates: [{ id: added[0], values: { Year: 'soon' } }]
+			})
+		).toEqual({
+			error: expect.stringMatching(/^updates\[0\]\.values\."Year": "soon" is not a number/u)
+		});
+
+		expect(
+			await call('update_rows', {
+				base,
+				table: 'Movies',
+				updates: [{ id: added[0], values: { Year: null, Title: '' } }]
+			})
+		).toEqual({ updated: 1 });
+		closeEngines(ctx.ws);
+	});
+});
