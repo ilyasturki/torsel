@@ -96,6 +96,8 @@ class TorselApp {
 	private leaving = false;
 	private readonly built = new Map<string, number>();
 	private readonly problems = new Map<string, FormulaProblems>();
+	// Formula values known before SQLite loads, good only while the table stays at that revision.
+	private readonly early = new Map<string, { revision: number; rows: Map<string, SqlRow> }>();
 	private seq = 0;
 
 	public load(): Promise<void> {
@@ -481,11 +483,21 @@ class TorselApp {
 	/** Each row's computed values, by row id then field id. */
 	public computed(tableId: string): Map<string, SqlRow> {
 		const formulas = this.ws.fields(tableId).filter((field) => field.type === 'formula');
-		if (!this.ready || formulas.length === 0) {
+		if (formulas.length === 0) {
 			return new Map();
+		}
+		if (!this.ready) {
+			const early = this.early.get(tableId);
+			return early?.revision === this.ws.revision(tableId) ? early.rows : new Map();
 		}
 
 		return computedRows(this.built_(tableId), tableId, formulas);
+	}
+
+	/** Shows these formula values until SQLite loads, unless the table changes first. */
+	public computedEarly(tableId: string, rows: Map<string, SqlRow>): void {
+		this.early.set(tableId, { revision: this.ws.revision(tableId), rows });
+		this.bump(false);
 	}
 
 	/** `computed` for a table `ws` holds instead of this workspace, rebuilt on every call. */
