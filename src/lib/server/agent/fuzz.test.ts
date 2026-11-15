@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import type { Gym } from './tools.test-utils.ts';
-import { gym } from './tools.test-utils.ts';
+import type { Gym } from './tools.fixture.test.ts';
+import { gym } from './tools.fixture.test.ts';
 import { TOOLS } from './toolkit.ts';
 
 type Schema = {
