@@ -105,8 +105,8 @@ describe('diffOf', () => {
 			updateRecord(ws, title, { name: 'Film', choices: [{ name: 'x', color: null }] })
 		);
 		expect(diffOf(ws, renamed).edits[0].lines).toEqual([
-			{ label: 'Name', before: 'Title', after: 'Film' },
-			{ label: 'New choices', before: '', after: 'x' }
+			{ label: 'name', before: 'Title', after: 'Film' },
+			{ label: 'newChoices', before: '', after: 'x' }
 		]);
 	});
 });

@@ -17,6 +17,7 @@ import type {
 import { afterFallback, droppedSeqs, echoable } from '../../core/thread.ts';
 import { currencyOf, ratingScale, todayIso } from '../../core/values.ts';
 import type { Workspace } from '../../core/workspace.ts';
+import { assistant as words } from '../../i18n/assistant.ts';
 import { anthropicKey } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
@@ -243,15 +244,15 @@ function replay(
 
 function errorText(thrown: unknown): string {
 	if (thrown instanceof Anthropic.RateLimitError) {
-		return 'The assistant is busy. Try again in a moment.';
+		return words.busy;
 	}
 	if (thrown instanceof Anthropic.AuthenticationError) {
-		return 'This server’s API key was refused.';
+		return words.keyRefused;
 	}
 	if (thrown instanceof Anthropic.APIConnectionError) {
-		return 'This server can’t reach the assistant.';
+		return words.unreachable;
 	}
-	return 'The assistant stopped responding. Try again.';
+	return words.stoppedResponding;
 }
 
 /** A new message, the last one sent again with new words, or the last turn run again. */
@@ -309,7 +310,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 
 	if (ask.kind === 'retry') {
 		if (previous === undefined) {
-			finish({ kind: 'error', message: 'Nothing to try again.' });
+			finish({ kind: 'error', message: words.nothingToRetry });
 			return;
 		}
 		if (isExcluded(rows, previous.seq)) {
@@ -441,7 +442,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				}
 				finish({
 					kind: 'declined',
-					message: 'The assistant declined this request.',
+					message: words.declined,
 					...(first ? { excludes: userSeq } : {})
 				});
 				return;
@@ -491,7 +492,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				}
 				finish({
 					kind: 'error',
-					message: 'The reply ran out of room. Ask again in smaller steps.'
+					message: words.outOfRoom
 				});
 				return;
 			}
@@ -541,19 +542,19 @@ export async function runTurn(turn: Turn): Promise<void> {
 			messages.push({ role: 'assistant', content }, { role: 'user', content: results });
 
 			if (signal.aborted) {
-				finish({ kind: 'stopped', message: 'Stopped.' });
+				finish({ kind: 'stopped', message: words.stopped });
 				return;
 			}
 		}
 
 		finish({
 			kind: 'error',
-			message: `Stopped after ${MAX_ROUNDS} steps. Ask again to carry on.`
+			message: words.stoppedAfter(MAX_ROUNDS)
 		});
 	} catch (thrown) {
 		// Nothing of a reply cut short reached the screen, so nothing of it is kept.
 		if (signal.aborted || thrown instanceof Anthropic.APIUserAbortError) {
-			finish({ kind: 'stopped', message: 'Stopped.' });
+			finish({ kind: 'stopped', message: words.stopped });
 		} else {
 			console.error('assistant:', thrown);
 			finish({ kind: 'error', message: errorText(thrown) });

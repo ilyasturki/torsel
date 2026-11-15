@@ -34,6 +34,8 @@
 		toItems
 	} from '#lib/core/thread.ts';
 	import { todayIso } from '#lib/core/values.ts';
+	import { assistant as words } from '#lib/i18n/assistant.ts';
+	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -77,11 +79,9 @@
 	);
 
 	const where = $derived.by(() => {
-		if (screen === 'settings') return 'Settings';
-		if (table === null) return 'All tables';
-		const on = view === null ? `On ${table.name}` : `On ${table.name}, ${view.name}`;
-		const count = selected.length;
-		return count === 0 ? on : `${on}, ${count} row${count === 1 ? '' : 's'} selected`;
+		if (screen === 'settings') return words.onSettings;
+		if (table === null) return words.onHome;
+		return words.onTable(table.name, view?.name ?? null, selected.length);
 	});
 
 	const items = $derived(toItems(assistant.rows, assistant.actions));
@@ -187,7 +187,7 @@
 				if (found) found.file = done;
 			} catch (error) {
 				const found = item();
-				if (found) found.error = error instanceof Error ? error.message : 'Upload failed.';
+				if (found) found.error = error instanceof Error ? error.message : words.uploadFailed;
 			}
 		}
 	}
@@ -260,8 +260,13 @@
 
 	function size(bytes: number): string {
 		return bytes < 1024 * 1024
-			? `${Math.max(1, Math.round(bytes / 1024))} KB`
-			: `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+			? words.kilobytes(String(Math.max(1, Math.round(bytes / 1024))))
+			: words.megabytes(
+					(bytes / 1024 / 1024).toLocaleString(undefined, {
+						minimumFractionDigits: 1,
+						maximumFractionDigits: 1
+					})
+				);
 	}
 </script>
 
@@ -271,7 +276,7 @@
 	class="absolute top-3 right-gutter bottom-5 z-20 flex w-ask flex-col rounded-panel bg-float shadow-float transition-[transform,visibility] motion-slow max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:w-auto max-lg:rounded-none max-lg:pt-safe max-lg:pb-safe {open
 		? 'visible translate-x-0'
 		: 'invisible translate-x-ask-out'} {dropping ? 'ring-2 ring-ink ring-inset' : ''}"
-	aria-label="Ask"
+	aria-label={words.ask}
 	ondragover={(event) => {
 		if (me.account && hasFiles(event)) {
 			event.preventDefault();
@@ -292,29 +297,29 @@
 	}}
 >
 	<div class="flex h-11 shrink-0 items-center gap-1 pr-1.5 pl-4">
-		<span class="min-w-0 flex-1 truncate font-semibold">{assistant.title || 'Ask'}</span>
+		<span class="min-w-0 flex-1 truncate font-semibold">{assistant.title || words.ask}</span>
 		{#if me.account}
 			<Button
 				variant="ghost"
 				class={assistant.listing ? 'bg-tint-2 text-ink' : ''}
 				aria-pressed={assistant.listing}
-				onclick={() => void showThreads()}>History</Button
+				onclick={() => void showThreads()}>{words.history}</Button
 			>
-			<Button variant="ghost" onclick={newThread}>New</Button>
+			<Button variant="ghost" onclick={newThread}>{words.newThread}</Button>
 		{/if}
 		<Tooltip shortcut={keys('mod', 'k')}>
 			{#snippet children(props)}
-				<Button {...props} variant="ghost" onclick={() => (open = false)}>Close</Button>
+				<Button {...props} variant="ghost" onclick={() => (open = false)}>{common.close}</Button>
 			{/snippet}
 		</Tooltip>
 	</div>
 
 	{#if !me.account}
 		<div class="flex flex-1 flex-col gap-2 px-4 pb-4">
-			<a class="font-medium underline" href={loginHref}>Sign in to use the assistant</a>
+			<a class="font-medium underline" href={loginHref}>{words.signIn}</a>
 		</div>
 	{:else if assistant.listing}
-		<ul class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label="Threads">
+		<ul class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label={words.threads}>
 			{#each assistant.threads as thread (thread.id)}
 				<li
 					class="group flex min-h-row items-center gap-1 rounded-box pr-1 transition-colors motion hover:bg-tint {thread.id ===
@@ -326,7 +331,7 @@
 						<!-- svelte-ignore a11y_autofocus -->
 						<input
 							class="h-control min-w-0 flex-1 rounded-box bg-tint-2 px-2 outline-none"
-							aria-label="Thread name"
+							aria-label={words.threadName}
 							bind:value={title}
 							autofocus
 							onkeydown={(event) => {
@@ -349,7 +354,7 @@
 						</button>
 						<IconButton
 							icon="pencil"
-							label="Rename {thread.title}"
+							label={words.renameThread(thread.title)}
 							class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
 							onclick={() => {
 								title = thread.title;
@@ -358,14 +363,14 @@
 						/>
 						<IconButton
 							icon="x"
-							label="Delete {thread.title}"
+							label={words.deleteThread(thread.title)}
 							class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
 							onclick={() => deleteThread(thread.id)}
 						/>
 					{/if}
 				</li>
 			{:else}
-				<li class="px-2 text-ink-2">No threads yet.</li>
+				<li class="px-2 text-ink-2">{words.noThreads}</li>
 			{/each}
 		</ul>
 	{:else}
@@ -383,7 +388,7 @@
 							{#if !assistant.busy && asked?.seq === item.seq && item.seq !== 0}
 								<IconButton
 									icon="pencil"
-									label="Edit"
+									label={words.edit}
 									class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
 									onclick={() => startEdit(item.text)}
 								/>
@@ -414,7 +419,7 @@
 								type="button"
 								class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
 								onclick={() => (undone ? redoTurn(turn) : undoTurn(turn))}
-								>{undone ? 'Redo all' : 'Undo all'}</button
+								>{undone ? words.redoAll : words.undoAll}</button
 							>
 						</div>
 					{/if}
@@ -430,25 +435,29 @@
 							<button
 								type="button"
 								class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
-								onclick={() => void retry()}>Retry</button
+								onclick={() => void retry()}>{common.retry}</button
 							>
 						{/if}
 					</div>
 				{/if}
 			{/each}
 			{#if assistant.busy}
-				<p class="text-ink-3" role="status">Working…</p>
+				<p class="text-ink-3" role="status">{words.working}</p>
 			{/if}
 		</div>
 
 		<div class="flex shrink-0 items-center gap-2 px-4 pb-1 text-sm text-ink-3">
 			{#if editing}
-				<span class="min-w-0 flex-1 truncate">Editing your last message</span>
-				<button type="button" class="shrink-0 underline" onclick={cancelEdit}>Cancel</button>
+				<span class="min-w-0 flex-1 truncate">{words.editingLast}</span>
+				<button type="button" class="shrink-0 underline" onclick={cancelEdit}
+					>{common.cancel}</button
+				>
 			{:else}
 				<span class="min-w-0 truncate" data-testid="context">{where}</span>
 				{#if selected.length > 0}
-					<button type="button" class="shrink-0 underline" onclick={clearSelection}>Clear</button>
+					<button type="button" class="shrink-0 underline" onclick={clearSelection}
+						>{common.clear}</button
+					>
 				{/if}
 			{/if}
 		</div>
@@ -461,7 +470,7 @@
 			}}
 		>
 			{#if pending.length > 0}
-				<ul class="flex flex-wrap gap-1" aria-label="Attached files">
+				<ul class="flex flex-wrap gap-1" aria-label={words.attachedFiles}>
 					{#each pending as item (item.key)}
 						<li class="flex max-w-full items-center gap-1 rounded-box bg-tint px-2 text-sm">
 							<Icon name="attach" class="size-3 text-ink-3" />
@@ -475,7 +484,7 @@
 							<button
 								type="button"
 								class="flex size-5 shrink-0 items-center justify-center text-ink-3 hover:text-ink"
-								aria-label="Remove {item.name}"
+								aria-label={words.removeFile(item.name)}
 								onclick={() => (pending = pending.filter((other) => other.key !== item.key))}
 								><Icon name="x" class="size-3" /></button
 							>
@@ -484,7 +493,7 @@
 				</ul>
 			{/if}
 			<div class="flex items-end gap-1">
-				<label for="ask-input" class="sr-only">Ask about your tables</label>
+				<label for="ask-input" class="sr-only">{words.prompt}</label>
 				<Textarea
 					id="ask-input"
 					bare
@@ -494,7 +503,7 @@
 					maxlength={MAX_PROMPT}
 					enterkeyhint="send"
 					class="flex-1 px-1 py-1.5"
-					placeholder="Ask about your tables"
+					placeholder={words.prompt}
 					{onpaste}
 				/>
 				<input
@@ -512,20 +521,21 @@
 				<Button
 					variant="ghost"
 					class="w-control shrink-0 px-0"
-					aria-label="Attach files"
-					title={pending.length >= MAX_FILES ? `${MAX_FILES} files at most` : undefined}
+					aria-label={words.attachFiles}
+					title={pending.length >= MAX_FILES ? words.maxFiles(MAX_FILES) : undefined}
 					disabled={pending.length >= MAX_FILES}
 					onclick={() => picker?.click()}><Icon name="attach" /></Button
 				>
 				{#if assistant.busy}
-					<Button class="shrink-0" onclick={stop}>Stop</Button>
+					<Button class="shrink-0" onclick={stop}>{words.stop}</Button>
 				{:else}
 					<Button
 						variant="primary"
 						class="shrink-0"
 						type="submit"
-						title={uploading ? 'Waiting for the files to upload' : undefined}
-						disabled={prompt.trim() === '' || uploading}>{editing ? 'Save' : 'Send'}</Button
+						title={uploading ? words.waitingUploads : undefined}
+						disabled={prompt.trim() === '' || uploading}
+						>{editing ? common.save : words.send}</Button
 					>
 				{/if}
 			</div>

@@ -14,6 +14,7 @@ import type {
 	TurnEvent
 } from '../core/thread.ts';
 import { MAX_FILE_BYTES, UPLOAD_PART, droppedSeqs } from '../core/thread.ts';
+import { assistant as words } from '../i18n/assistant.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, deviceToken, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
@@ -164,7 +165,7 @@ function undoOne(action: ThreadAction): void {
 		app.undo(group.id);
 		return;
 	}
-	app.apply(plain(action.before), `Undo: ${action.summary}`);
+	app.apply(plain(action.before), words.undoSummary(action.summary));
 	decide(action, 'undone');
 }
 
@@ -322,10 +323,10 @@ function problemOf(error: unknown): string {
 			return limitMessage(limit);
 		}
 		return error.status === OFFLINE || error.status === NO_SERVER
-			? 'The assistant needs a connection to the server.'
+			? words.needsServer
 			: error.message;
 	}
-	return 'Something went wrong. Try again.';
+	return words.somethingWrong;
 }
 
 type Mode = 'send' | 'edit' | 'retry';
@@ -380,7 +381,7 @@ async function run(mode: Mode, message: Message | null): Promise<void> {
 		void app.delivered(decisions);
 	} catch (error) {
 		if (signal.aborted) {
-			pushEvent('stopped', 'Stopped.');
+			pushEvent('stopped', words.stopped);
 		} else {
 			pushEvent('error', problemOf(error));
 		}
@@ -574,7 +575,7 @@ export function deleteThread(id: string): void {
 		id,
 		setTimeout(() => sendDelete(id), DELETE_AFTER_MS)
 	);
-	showToast('Thread deleted', () => {
+	showToast(words.threadDeleted, () => {
 		clearTimeout(deleting.get(id));
 		deleting.delete(id);
 		assistant.threads = [
@@ -617,7 +618,7 @@ export async function upload(
 	progress: (received: number) => void
 ): Promise<Attachment> {
 	if (file.size > MAX_FILE_BYTES) {
-		throw new ApiError(413, 'Files go up to 10 MB.');
+		throw new ApiError(413, words.fileTooBig);
 	}
 	const attachment: Attachment = {
 		id: crypto.randomUUID(),

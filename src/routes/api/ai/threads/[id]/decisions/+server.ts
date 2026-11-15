@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 
+import { assistant as words } from '#lib/i18n/assistant.ts';
 import type { ActionStatus } from '#lib/core/thread.ts';
 import { findThread, recordDecisions } from '#lib/server/agent/threads.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
@@ -21,7 +22,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	const db = getDatabase();
 	const thread = findThread(db, user.id, params.id);
 	if (thread === undefined) {
-		error(404, 'no such thread');
+		error(404, words.noThread);
 	}
 	const { decisions } = await readJsonBody(request);
 	if (!Array.isArray(decisions) || !decisions.every(isDecision)) {

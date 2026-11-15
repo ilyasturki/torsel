@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
+import { assistant as words } from '#lib/i18n/assistant.ts';
 import type { ThreadRow } from '#lib/core/thread.ts';
 import {
 	activeTurn,
@@ -35,7 +36,7 @@ function owned(locals: App.Locals, id: string) {
 	const db = getDatabase();
 	const thread = findThread(db, user.id, id);
 	if (thread === undefined) {
-		error(404, 'no such thread');
+		error(404, words.noThread);
 	}
 	return { db, thread };
 }
@@ -53,7 +54,7 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 	const { db, thread } = owned(locals, params.id);
 	const title = requiredString(await readJsonBody(request), 'title').trim();
 	if (title === '') {
-		error(400, 'a title is needed');
+		error(400, words.titleNeeded);
 	}
 	renameThread(db, thread.id, title);
 	return json(findThread(db, requireCredential(locals).user.id, thread.id));

@@ -21,11 +21,19 @@ export type TableRows = {
 
 type Structure = Exclude<Kind, 'row'>;
 
-export type Line = { label: string; before: string; after: string };
+/** A config value as the card words it: plain text, or a shape whose words are the reader's. */
+export type Shown =
+	string | { none: true } | { sort: string; ascending: boolean } | { filter: string; text: string };
+
+/** `label` is the changed key (`name`, `sort`, `newChoices`…), worded by the card. */
+export type Line = { label: string; before: Shown; after: Shown };
+
+/** A field's or view's type, or how many rows a deleted table held. */
+export type Note = { type: string } | { rows: number } | null;
 
 export type Diff = {
-	made: { kind: Structure; id: string; name: string; note: string }[];
-	gone: { kind: Structure; id: string; name: string; note: string; values: RowDiff[] }[];
+	made: { kind: Structure; id: string; name: string; note: Note }[];
+	gone: { kind: Structure; id: string; name: string; note: Note; values: RowDiff[] }[];
 	edits: { kind: Structure; id: string; name: string; lines: Line[] }[];
 	tables: TableRows[];
 };
@@ -68,46 +76,24 @@ function configText(
 	key: string,
 	value: Value | undefined,
 	fieldName: (id: string) => string
-): string {
-	if (value === undefined || value === null) return 'none';
+): Shown {
+	if (value === undefined || value === null) return { none: true };
 	if (key === 'sort' && typeof value === 'object' && !Array.isArray(value)) {
 		const sort = value as { field: string; dir: string };
-		return `${fieldName(sort.field)} ${sort.dir === 'asc' ? 'ascending' : 'descending'}`;
+		return { sort: fieldName(sort.field), ascending: sort.dir === 'asc' };
 	}
 	if (key === 'filter' && typeof value === 'object' && !Array.isArray(value)) {
 		const filter = value as { field: string; text: string };
-		return `${fieldName(filter.field)} contains "${filter.text}"`;
+		return { filter: fieldName(filter.field), text: filter.text };
 	}
 	if (Array.isArray(value)) {
-		return value.length === 0 ? 'none' : value.map((item) => fieldName(String(item))).join(', ');
+		return value.length === 0
+			? { none: true }
+			: value.map((item) => fieldName(String(item))).join(', ');
 	}
 	if (typeof value === 'string') return value.startsWith('f_') ? fieldName(value) : value;
 	return String(value);
 }
-
-const LABELS: Record<string, string> = {
-	name: 'Name',
-	type: 'Type',
-	description: 'Description',
-	expr: 'Formula',
-	target: 'Links to',
-	step: 'Step',
-	hidden: 'Hidden',
-	sort: 'Sort',
-	filter: 'Filter',
-	fields: 'Fields',
-	match: 'Prefilled from',
-	group: 'Grouped by',
-	title: 'Title',
-	show: 'Shown',
-	kind: 'Chart',
-	x: 'X axis',
-	y: 'Y axis',
-	bucket: 'Grouped by',
-	agg: 'Value',
-	color: 'Split by',
-	rolling: 'Rolling average'
-};
 
 function structureLines(
 	ws: Workspace,
@@ -127,9 +113,9 @@ function structureLines(
 			const added = now.filter((name) => !was.includes(name));
 			const removed = was.filter((name) => !now.includes(name));
 			if (added.length > 0)
-				lines.push({ label: 'New choices', before: '', after: added.join(', ') });
+				lines.push({ label: 'newChoices', before: '', after: added.join(', ') });
 			if (removed.length > 0)
-				lines.push({ label: 'Removed choices', before: removed.join(', '), after: '' });
+				lines.push({ label: 'removedChoices', before: removed.join(', '), after: '' });
 		} else if (key === 'config') {
 			const was = (prior ?? {}) as ViewConfig & Record<string, Value>;
 			const now = (after ?? {}) as ViewConfig & Record<string, Value>;
@@ -137,7 +123,7 @@ function structureLines(
 				if (HIDDEN_KEYS.has(part)) continue;
 				if (JSON.stringify(was[part] ?? null) === JSON.stringify(now[part] ?? null)) continue;
 				lines.push({
-					label: LABELS[part] ?? part,
+					label: part,
 					before: configText(part, was[part], fieldName),
 					after: configText(part, now[part], fieldName)
 				});
@@ -146,25 +132,25 @@ function structureLines(
 			const fields = ws.fields(change.parent);
 			const shown = (value: Value | undefined): string =>
 				typeof value === 'string' ? toDisplay(value, fields) : '';
-			lines.push({ label: 'Formula', before: shown(prior), after: shown(after) });
+			lines.push({ label: key, before: shown(prior), after: shown(after) });
 		} else if (key === 'target') {
 			const table = (value: Value | undefined): string =>
 				typeof value === 'string' ? nameOf(ws.get(value)?.data, value) : '';
-			lines.push({ label: 'Links to', before: table(prior), after: table(after) });
+			lines.push({ label: key, before: table(prior), after: table(after) });
 		} else {
 			const text = (value: Value | undefined): string =>
 				value === undefined || value === null ? '' : String(value);
-			lines.push({ label: LABELS[key] ?? key, before: text(prior), after: text(after) });
+			lines.push({ label: key, before: text(prior), after: text(after) });
 		}
 	}
 	return lines;
 }
 
-function noteOf(change: Change, data: Record<string, Value>): string {
+function noteOf(change: Change, data: Record<string, Value>): Note {
 	if (change.kind === 'field' || change.kind === 'view') {
-		return typeof data.type === 'string' ? data.type : '';
+		return typeof data.type === 'string' ? { type: data.type } : null;
 	}
-	return '';
+	return null;
 }
 
 function titleOf(
@@ -286,12 +272,11 @@ export function diffOf(ws: Workspace, action: ThreadAction): Diff {
 								]
 							}))
 					: [];
-			const rows = kind === 'table' ? ws.rows(change.id).length : 0;
 			diff.gone.push({
 				kind,
 				id: change.id,
 				name: nameOf(prior, kind),
-				note: kind === 'table' ? `${rows} row${rows === 1 ? '' : 's'}` : noteOf(change, prior),
+				note: kind === 'table' ? { rows: ws.rows(change.id).length } : noteOf(change, prior),
 				values
 			});
 		} else {

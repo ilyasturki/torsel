@@ -1,5 +1,7 @@
 import { error } from '@sveltejs/kit';
 
+import { assistant as words } from '#lib/i18n/assistant.ts';
+import { locale } from '#lib/i18n/runtime.ts';
 import type { Screen, ThreadContext, TurnEvent } from '#lib/core/thread.ts';
 import { MAX_CONTEXT_ROWS, MAX_FILES, MAX_PROMPT } from '#lib/core/thread.ts';
 import type { Ask } from '#lib/server/agent/assistant.ts';
@@ -16,6 +18,7 @@ import { aiLimits, anthropicKey } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
 import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
 import { requireCredential } from '#lib/server/http/guards.ts';
+import { inLocale } from '#lib/server/http/locale.ts';
 
 import type { RequestHandler } from './$types';
 
@@ -67,23 +70,23 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	const db = getDatabase();
 	const thread = findThread(db, user.id, params.id);
 	if (thread === undefined) {
-		error(404, 'no such thread');
+		error(404, words.noThread);
 	}
 
 	const body = await readJsonBody(request);
 	const mode = body.mode === 'retry' || body.mode === 'edit' ? body.mode : 'send';
 	const prompt = mode === 'retry' ? '' : requiredString(body, 'prompt');
 	if (prompt.length > MAX_PROMPT) {
-		error(400, 'prompt is too long');
+		error(400, words.promptTooLong);
 	}
 	if (anthropicKey() === undefined) {
-		error(503, 'this server has no assistant configured');
+		error(503, words.noAssistant);
 	}
 
 	const previous = activeTurn(thread.id);
 	if (previous !== undefined) {
 		if (!previous.abort.signal.aborted) {
-			error(409, 'this thread is already answering');
+			error(409, words.alreadyAnswering);
 		}
 		await previous.done;
 	}
@@ -108,6 +111,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 					meta: { prompt, where, ...(files.length > 0 ? { files } : {}) }
 				};
 
+	const language = locale();
 	const abort = new AbortController();
 	request.signal.addEventListener('abort', () => abort.abort(), { once: true });
 	const encoder = new TextEncoder();
@@ -121,19 +125,22 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 			};
 			const ping = setInterval(() => emit({ type: 'ping' }), PING_MS);
 
-			const done = runTurn({
-				db,
-				userId: user.id,
-				threadId: thread.id,
-				ask,
-				signal: abort.signal,
-				emit
-			})
+			// The turn outlives the request's own context: its words stay in the request's language.
+			const done = inLocale(language, () =>
+				runTurn({
+					db,
+					userId: user.id,
+					threadId: thread.id,
+					ask,
+					signal: abort.signal,
+					emit
+				})
+			)
 				.catch((thrown: unknown) => {
 					console.error('assistant turn failed:', thrown);
 					emit({
 						type: 'event',
-						event: { kind: 'error', message: 'Something went wrong on the server. Try again.' }
+						event: { kind: 'error', message: words.serverWrong }
 					});
 				})
 				.finally(() => {

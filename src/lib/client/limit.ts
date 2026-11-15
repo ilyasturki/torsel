@@ -1,3 +1,5 @@
+import { assistant } from '../i18n/assistant.ts';
+
 export type AssistantLimit = { scope: 'account' | 'instance'; until: number };
 
 /** The body of a 429 from the assistant's endpoints, when it names a cap. */
@@ -18,10 +20,5 @@ function sameDay(a: Date, b: Date): boolean {
 export function limitMessage(limit: AssistantLimit, now: Date = new Date()): string {
 	const back = new Date(limit.until);
 	const time = back.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-	const when = sameDay(back, now) ? `at ${time}` : `tomorrow at ${time}`;
-	const reached =
-		limit.scope === 'account'
-			? 'You’ve reached today’s assistant limit.'
-			: 'The assistant has reached today’s limit on this server.';
-	return `${reached} Ask again ${when}.`;
+	return assistant.limit(limit.scope, time, sameDay(back, now));
 }

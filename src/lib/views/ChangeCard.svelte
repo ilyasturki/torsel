@@ -2,9 +2,11 @@
 	import { markFresh, redoChange, undoChange } from '#lib/client/assistant.svelte.ts';
 	import { app } from '#lib/client/app.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
-	import type { RowDiff } from '#lib/core/diff.ts';
+	import type { Note, RowDiff, Shown } from '#lib/core/diff.ts';
 	import { diffOf } from '#lib/core/diff.ts';
 	import type { ThreadAction } from '#lib/core/thread.ts';
+	import { changes as words } from '#lib/i18n/changes.ts';
+	import { common } from '#lib/i18n/common.ts';
 
 	import CellValue from './CellValue.svelte';
 
@@ -77,6 +79,18 @@
 		)
 	);
 
+	function shownText(value: Shown): string {
+		if (typeof value === 'string') return value;
+		if ('none' in value) return words.none;
+		if ('sort' in value) return words.sorted(value.sort, value.ascending);
+		return words.contains(value.filter, value.text);
+	}
+
+	function noteText(note: Note): string {
+		if (note === null) return '';
+		return 'rows' in note ? words.rows(note.rows) : words.type(note.type);
+	}
+
 	function columns(list: RowDiff[]) {
 		const seen = new Map<string, RowDiff['cells'][number]['field']>();
 		for (const row of list) {
@@ -140,7 +154,7 @@
 				onclick={() => {
 					markFresh(action);
 					onshow();
-				}}>Show</button
+				}}>{words.show}</button
 			>
 		{:else if link !== null}
 			<a
@@ -149,22 +163,22 @@
 				onclick={() => {
 					markFresh(action);
 					onopen?.();
-				}}>Show</a
+				}}>{words.show}</a
 			>
 		{/if}
 		{#if action.status === 'applied'}
 			<button
 				type="button"
 				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
-				aria-label="Undo {action.summary}"
-				onclick={() => undoChange(action)}>Undo</button
+				aria-label={words.undoChange(action.summary)}
+				onclick={() => undoChange(action)}>{common.undo}</button
 			>
 		{:else if undone}
 			<button
 				type="button"
 				class="inline-flex h-control items-center px-1 text-sm text-ink-2 underline hover:text-ink"
-				aria-label="Redo {action.summary}"
-				onclick={() => redoChange(action)}>Redo</button
+				aria-label={words.redoChange(action.summary)}
+				onclick={() => redoChange(action)}>{common.redo}</button
 			>
 		{/if}
 	</div>
@@ -175,7 +189,8 @@
 				<div class="flex flex-wrap gap-1">
 					{#each shown as item (item.id)}
 						<span class="rounded-box bg-added px-1.5 text-sm text-added-ink"
-							>{item.name}{#if item.note}<span class="opacity-70">{` · ${item.note}`}</span
+							>{item.name}{#if item.note}<span class="opacity-70"
+									>{` · ${noteText(item.note)}`}</span
 								>{/if}</span
 						>
 					{/each}
@@ -186,14 +201,14 @@
 				<div class="flex flex-col gap-1">
 					<span
 						class="self-start rounded-box bg-removed px-1.5 text-sm text-removed-ink line-through"
-						>{item.name}{#if item.note}<span class="opacity-70">{` · ${item.note}`}</span
+						>{item.name}{#if item.note}<span class="opacity-70">{` · ${noteText(item.note)}`}</span
 							>{/if}</span
 					>
 					{#if item.values.length > 0}
 						<div class="flex flex-col gap-0.5 text-sm">
 							{#each rows(item.values) as row (row.id)}
 								<p class="flex flex-wrap items-baseline gap-x-1.5">
-									<span class="text-ink-3">{row.title || 'Row'}</span>
+									<span class="text-ink-3">{row.title || words.row}</span>
 									<span class="rounded-box bg-removed px-1 text-removed-ink line-through"
 										><CellValue field={row.cells[0].field} value={row.cells[0].before} /></span
 									>
@@ -208,14 +223,14 @@
 				<div class="flex flex-col gap-0.5 text-sm">
 					{#each edit.lines as line, index (index)}
 						<p class="flex flex-wrap items-baseline gap-x-1.5">
-							<span class="text-ink-3">{edit.name} · {line.label}</span>
+							<span class="text-ink-3">{edit.name} · {words.labels[line.label] ?? line.label}</span>
 							{#if line.before}<span
 									class="rounded-box bg-removed px-1 text-removed-ink line-through"
-									>{line.before}</span
+									>{shownText(line.before)}</span
 								>{/if}
 							{#if line.before && line.after}<span class="text-ink-3">→</span>{/if}
 							{#if line.after}<span class="rounded-box bg-added px-1 text-added-ink"
-									>{line.after}</span
+									>{shownText(line.after)}</span
 								>{/if}
 						</p>
 					{/each}
@@ -231,7 +246,7 @@
 						{#each rows(table.changed) as row (row.id)}
 							{#each row.cells as cell (cell.field.id)}
 								<p class="flex flex-wrap items-baseline gap-x-1.5">
-									<span class="text-ink-3">{row.title || 'Row'} · {cell.field.name}</span>
+									<span class="text-ink-3">{row.title || words.row} · {cell.field.name}</span>
 									{#if cell.before != null && cell.before !== ''}
 										<span class="rounded-box bg-removed px-1 text-removed-ink line-through"
 											><CellValue field={cell.field} value={cell.before} /></span
@@ -243,7 +258,7 @@
 											><CellValue field={cell.field} value={cell.after} /></span
 										>
 									{:else}
-										<span class="text-ink-3">empty</span>
+										<span class="text-ink-3">{words.empty}</span>
 									{/if}
 								</p>
 							{/each}
@@ -259,7 +274,7 @@
 				<button
 					type="button"
 					class="self-start text-sm text-ink-2 underline hover:text-ink"
-					onclick={() => (open = !open)}>{open ? 'Show less' : `Show all ${longest}`}</button
+					onclick={() => (open = !open)}>{open ? words.showLess : words.showAll(longest)}</button
 				>
 			{/if}
 		</div>

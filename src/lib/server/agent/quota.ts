@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { and, count, desc, eq, gt, lte } from 'drizzle-orm';
 
+import { assistant as words } from '../../i18n/assistant.ts';
 import type { AiLimits } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { WRITER } from '../db/client.ts';
@@ -83,7 +84,7 @@ export function takePrompt(
 /** The app words it from `scope` and `until`, in local time; `message` is for any other caller. */
 export function refusedResponse(refusal: PromptRefusal): Response {
 	return json(
-		{ message: 'today’s assistant limit is reached', ...refusal },
+		{ message: words.limitReached, ...refusal },
 		{
 			status: 429,
 			headers: { 'retry-after': String(Math.ceil((refusal.until - Date.now()) / 1000)) }

@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
+import { assistant as words } from '#lib/i18n/assistant.ts';
 import { MAX_FILE_BYTES, UPLOAD_PART } from '#lib/core/thread.ts';
 import { kindOf } from '#lib/server/agent/files.ts';
 import { receivePart } from '#lib/server/agent/threads.ts';
@@ -22,10 +23,10 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		error(400, 'expected id and name');
 	}
 	if (!Number.isInteger(size) || size <= 0 || size > MAX_FILE_BYTES) {
-		error(413, 'files go up to 10 MB');
+		error(413, words.filesTooBig);
 	}
 	if (kindOf({ name, type }) === null) {
-		error(415, 'this file type can’t be read');
+		error(415, words.unreadable);
 	}
 	const part = Buffer.from(await request.arrayBuffer());
 	if (!Number.isInteger(offset) || offset < 0 || part.length === 0 || part.length > UPLOAD_PART) {
@@ -34,7 +35,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 
 	const received = receivePart(getDatabase(), user.id, { id, name, type, size }, offset, part);
 	if (received === null) {
-		error(409, 'this part doesn’t follow the last one');
+		error(409, words.partOutOfOrder);
 	}
 	return json({ received });
 };

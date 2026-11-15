@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
+import { assistant as words } from '#lib/i18n/assistant.ts';
 import { MAX_PROMPT } from '#lib/core/thread.ts';
 import { promptRefusal, refusedResponse } from '#lib/server/agent/quota.ts';
 import { createThread, listThreads } from '#lib/server/agent/threads.ts';
@@ -19,7 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user } = requireCredential(locals);
 	const prompt = requiredString(await readJsonBody(request), 'prompt');
 	if (prompt.length > MAX_PROMPT) {
-		error(400, 'prompt is too long');
+		error(400, words.promptTooLong);
 	}
 	const db = getDatabase();
 	// Its first message would be refused, and the thread would stay listed with nothing in it.

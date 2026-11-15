@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+import { assistant as words } from '../../i18n/assistant.ts';
+import fieldCatalog, {
+	fields as fieldWords,
+	formulaProblem as formulaText
+} from '../../i18n/fields.ts';
 import { names } from '../../i18n/names.ts';
 
 import type { FieldSpec } from '../../core/actions.ts';
@@ -143,7 +148,10 @@ function storedFormula(
 	try {
 		return toStored(formula, fields ?? ws.fields(tableId));
 	} catch (error) {
-		throw new ToolError(error instanceof FormulaError ? error.message : String(error));
+		// The model reads English.
+		throw new ToolError(
+			error instanceof FormulaError ? formulaText(fieldCatalog.en, error) : String(error)
+		);
 	}
 }
 
@@ -592,10 +600,6 @@ function describeView(
 	return { id: view.id, name: view.name, type: view.type, config };
 }
 
-function plural(count: number, one: string): string {
-	return `${count} ${one}${count === 1 ? '' : 's'}`;
-}
-
 export const TOOLS: Tool[] = [
 	{
 		name: 'list_bases',
@@ -668,7 +672,7 @@ export const TOOLS: Tool[] = [
 			);
 			const inserted = insertRows(ctx.ws, table.id, rows);
 			commit(ctx, {
-				summary: `Add ${plural(rows.length, 'row')} to ${table.name}`,
+				summary: words.addRows(rows.length, table.name),
 				changes: [...fieldChanges, ...inserted.changes]
 			});
 			return { added: inserted.ids };
@@ -710,7 +714,7 @@ export const TOOLS: Tool[] = [
 				updateRow(ctx.ws, update.id, rows[index])
 			);
 			commit(ctx, {
-				summary: `Change ${plural(changes.length, 'row')} in ${table.name}`,
+				summary: words.changeRows(changes.length, table.name),
 				changes: [...fieldChanges, ...changes]
 			});
 			return { updated: changes.length };
@@ -730,7 +734,7 @@ export const TOOLS: Tool[] = [
 				requireRow(ctx.ws, table, id);
 			}
 			commit(ctx, {
-				summary: `Delete ${plural(input.ids.length, 'row')} from ${table.name}`,
+				summary: words.deleteRows(input.ids.length, table.name),
 				changes: deleteRecords(ctx.ws, input.ids)
 			});
 			return { deleted: input.ids.length };
@@ -744,7 +748,7 @@ export const TOOLS: Tool[] = [
 		kind: 'write',
 		run: (ctx, { name }: { name: string }) => {
 			const made = createBase(ctx.ws, name);
-			commit(ctx, { summary: `New base "${name}"`, changes: made.changes });
+			commit(ctx, { summary: words.newBase(name), changes: made.changes });
 			return { id: made.id };
 		}
 	},
@@ -771,7 +775,7 @@ export const TOOLS: Tool[] = [
 			const specs = input.fields.map((field) => fieldSpec(ctx.ws, base.id, field));
 			const made = createTable(ctx.ws, base.id, input.name, specs, () => defaultViews(names));
 			commit(ctx, {
-				summary: `New table "${input.name}"`,
+				summary: words.newTable(input.name),
 				changes: [...base.changes, ...made.changes]
 			});
 			return { id: made.id, base: base.id };
@@ -793,7 +797,7 @@ export const TOOLS: Tool[] = [
 			}
 			const made = addField(ctx.ws, table.id, spec);
 			commit(ctx, {
-				summary: `New field "${input.name}" in ${table.name}`,
+				summary: words.newField(input.name, table.name),
 				changes: made.changes
 			});
 			return { id: made.id };
@@ -879,7 +883,8 @@ export const TOOLS: Tool[] = [
 								: findTable(ctx.ws, base.id, input.target).id,
 						expr: expr ?? field.expr,
 						choices:
-							input.choices === undefined ? undefined : choicesOf(input.choices, field.choices)
+							input.choices === undefined ? undefined : choicesOf(input.choices, field.choices),
+						checkWords: { yes: fieldWords.yes, no: fieldWords.no }
 					},
 					computed
 				);
@@ -888,7 +893,7 @@ export const TOOLS: Tool[] = [
 			if (input.choices !== undefined && converted.changes.length === 0)
 				set.choices = choicesOf(input.choices, field.choices);
 			commit(ctx, {
-				summary: `Change field "${field.name}" in ${table.name}`,
+				summary: words.changeField(field.name, table.name),
 				changes: [...converted.changes, ...updateRecord(ctx.ws, field.id, set)]
 			});
 			return { updated: field.id, lost: converted.lost };
@@ -925,7 +930,7 @@ export const TOOLS: Tool[] = [
 				config: viewConfig(ctx.ws, table.id, input.config)
 			});
 			commit(ctx, {
-				summary: `New view "${input.name}" on ${table.name}`,
+				summary: words.newView(input.name, table.name),
 				changes: made.changes
 			});
 			return { id: made.id };
@@ -950,8 +955,16 @@ export const TOOLS: Tool[] = [
 				throw new ToolError(`no base, table, field or view ${input.id} in ${base.name}`);
 			}
 			const name = typeof rec.data.name === 'string' ? rec.data.name : rec.id;
+			const summary =
+				rec.kind === 'base'
+					? words.deleteBase(name)
+					: rec.kind === 'table'
+						? words.deleteTable(name)
+						: rec.kind === 'field'
+							? words.deleteField(name)
+							: words.deleteView(name);
 			commit(ctx, {
-				summary: `Delete ${rec.kind} "${name}"`,
+				summary,
 				changes: deleteRecords(ctx.ws, [rec.id])
 			});
 			return { deleted: rec.id };
@@ -974,8 +987,15 @@ export const TOOLS: Tool[] = [
 				throw new ToolError(`no base, table or view ${input.id} in ${base.name}`);
 			}
 			const before = typeof rec.data.name === 'string' ? rec.data.name : rec.id;
+			const after = input.name.trim();
+			const summary =
+				rec.kind === 'base'
+					? words.renameBase(before, after)
+					: rec.kind === 'table'
+						? words.renameTable(before, after)
+						: words.renameView(before, after);
 			commit(ctx, {
-				summary: `Rename ${rec.kind} "${before}" to "${input.name.trim()}"`,
+				summary,
 				changes: updateRecord(ctx.ws, rec.id, { name: input.name.trim() })
 			});
 			return { renamed: rec.id };
@@ -1018,7 +1038,7 @@ export const TOOLS: Tool[] = [
 				set.config = { ...view.config, ...viewConfig(ctx.ws, table.id, input.config) } as Value;
 			}
 			commit(ctx, {
-				summary: `Change view "${view.name}" on ${table.name}`,
+				summary: words.changeView(view.name, table.name),
 				changes: updateRecord(ctx.ws, view.id, set)
 			});
 			return { updated: view.id };
@@ -1045,7 +1065,7 @@ export const TOOLS: Tool[] = [
 			}
 			if (sheet.kind === 'backup') {
 				const changes = restoreChanges(ctx.ws, sheet.records);
-				commit(ctx, { summary: `Restore ${sheet.name}`, changes });
+				commit(ctx, { summary: words.restore(sheet.name), changes });
 				return { restored: sheet.records.length };
 			}
 			const base =
@@ -1058,7 +1078,7 @@ export const TOOLS: Tool[] = [
 				const targets = guessTargets(columns, ctx.ws.fields(table.id));
 				const made = appendRows(ctx.ws, names, table.id, sheet.rows, columns, targets);
 				commit(ctx, {
-					summary: `Import ${plural(made.count, 'row')} into ${table.name}`,
+					summary: words.importRows(made.count, table.name),
 					changes: made.changes
 				});
 				return { added: made.count, unread: made.unread };
@@ -1066,7 +1086,7 @@ export const TOOLS: Tool[] = [
 			const name = input.name ?? sheet.name.replace(/\.[^.]+$/u, '');
 			const made = importTable(ctx.ws, names, base.id, name, sheet.rows, columns);
 			commit(ctx, {
-				summary: `New table "${name}" from ${sheet.name}`,
+				summary: words.newTableFrom(name, sheet.name),
 				changes: [...base.changes, ...made.changes]
 			});
 			return { id: made.id, base: base.id, rows: sheet.rows.length - 1 };

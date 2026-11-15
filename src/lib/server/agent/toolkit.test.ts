@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Hlc } from '../../core/clock.ts';
 import { Workspace } from '../../core/workspace.ts';
 import type { Effect } from '../../core/thread.ts';
+import { inLocale, requestLocale } from '../http/locale.ts';
 import type { Sheet } from './files.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { closeEngines, runTool, toolNamed } from './toolkit.ts';
+
+vi.mock('$app/env', () => ({ building: false }));
 
 function session(sheets: Record<string, Sheet> = {}): {
 	ctx: ToolContext;
@@ -514,6 +517,37 @@ describe('row tools', () => {
 				updates: [{ id: added[0], values: { Year: null, Title: '' } }]
 			})
 		).toEqual({ updated: 1 });
+
+describe('the language of what the assistant writes', () => {
+	it('follows the request, even once the turn runs on in its stream', async () => {
+		const { ctx, actions, call } = session();
+		const french = new Request('http://torsel.test', {
+			headers: { 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' }
+		});
+		await new Promise<void>((resolve) => {
+			new ReadableStream({
+				start() {
+					void inLocale(requestLocale(french), async () => {
+						await call('create_table', { name: 'Poids', fields: [{ name: 'Kg', type: 'number' }] });
+						await new Promise((wait) => setTimeout(wait, 0));
+						await call('add_rows', {
+							base: 'Tables',
+							table: 'Poids',
+							rows: [{ Kg: 80 }, { Kg: 81 }]
+						});
+					}).then(resolve);
+				}
+			});
+		});
+		await call('add_rows', { base: 'Tables', table: 'Poids', rows: [{ Kg: 79 }] });
+
+		expect(actions.map((action) => action.summary)).toEqual([
+			'Nouvelle table « Poids »',
+			'2 lignes ajoutées à Poids',
+			'Add 1 row to Poids'
+		]);
+		const [table] = ctx.ws.tables(ctx.ws.bases()[0].id);
+		expect(ctx.ws.views(table.id).map((view) => view.name)).toEqual(['Grille', 'Saisie']);
 		closeEngines(ctx.ws);
 	});
 });
