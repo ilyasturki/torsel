@@ -10,6 +10,8 @@
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { caughtUp } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { BARE_AGGREGATE } from '#lib/core/formula.ts';
+	import { fields as fieldWords } from '#lib/i18n/fields.ts';
 	import { table as words } from '#lib/i18n/table.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
@@ -71,7 +73,7 @@
 		void app.version;
 		return [...app.formulaProblems(tableId)].map(([id, message]) => ({
 			name: app.ws.field(id)?.name ?? id,
-			message
+			message: message === BARE_AGGREGATE ? fieldWords.columnTotal : message
 		}));
 	});
 </script>

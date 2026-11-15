@@ -23,6 +23,7 @@
 	"src/lib/core/sql.ts\tdrop view if exists {quote(name)}",
 	"src/lib/core/sql.ts\tinsert or replace into {tableId} ({columns.map(quote).join(', ')}) values ({columns.map(() => '?').join(', ')})",
 	"src/lib/core/sql.ts\tselect ({sql}) as v from {tableId} t limit 1",
+	"src/lib/core/sql.ts\tselect ({sql}) as v from {tableId} t where 0",
 	"src/lib/core/sql.ts\tselect ({sql}) from {tableId} t limit 0",
 	"src/lib/core/sql.ts\tselect * from ({statement} ) limit {most + 1} offset {offset}",
 	"src/lib/core/sql.ts\tselect t.id as id, ({sql}) as v from {tableId} t",

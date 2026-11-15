@@ -1,4 +1,4 @@
-import type { FormulaError } from '../core/formula.ts';
+import { BARE_AGGREGATE, type FormulaError } from '../core/formula.ts';
 import type { FieldType } from '../core/model.ts';
 import { plural } from './locale.ts';
 import { area } from './runtime.ts';
@@ -89,6 +89,7 @@ const en = {
 	emptyFormula: 'the formula is empty',
 	selfReference: (name: string) => `"${name}" depends on itself`,
 	sqliteRefused: (detail: string) => `SQLite refused the formula: ${detail}`,
+	columnTotal: "a column total isn't a row formula",
 	formulaOf: (name: string) => `Formula of ${name}`,
 	formulaShort: '"Weight" * "Reps"',
 	fieldList: 'Fields',
@@ -191,6 +192,7 @@ const fr: typeof en = {
 	emptyFormula: 'la formule est vide',
 	selfReference: (name) => `« ${name} » dépend de lui-même`,
 	sqliteRefused: (detail) => `SQLite refuse la formule : ${detail}`,
+	columnTotal: 'un total de colonne n’est pas une formule de ligne',
 	formulaOf: (name) => `Formule de ${name}`,
 	formulaShort: '"Poids" * "Reps"',
 	fieldList: 'Champs',
@@ -206,6 +208,10 @@ const fr: typeof en = {
 export default { en, fr };
 
 export const fields = area({ en, fr });
+
+export function refusalText(words: typeof en, problem: string): string {
+	return problem === BARE_AGGREGATE ? words.columnTotal : words.sqliteRefused(problem);
+}
 
 /** A formula's problem in `words`' language. */
 export function formulaProblem(words: typeof en, error: FormulaError): string {

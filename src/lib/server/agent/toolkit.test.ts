@@ -86,6 +86,14 @@ describe('assistant tools', () => {
 			formula: 'nope("Poids")'
 		});
 		expect(refused).toEqual({ error: expect.stringMatching(/no such function/u) });
+		const total = await call('add_field', {
+			base: 'Muscu',
+			table: 'Séries',
+			name: 'Total',
+			type: 'formula',
+			formula: 'SUM("Poids")'
+		});
+		expect(total).toEqual({ error: expect.stringMatching(/column total/u) });
 
 		await call('add_field', {
 			base: 'Muscu',

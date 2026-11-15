@@ -1,4 +1,4 @@
-import { FormulaError, toSql } from './formula.ts';
+import { BARE_AGGREGATE, FormulaError, toSql } from './formula.ts';
 import type { FieldDef, Rec, Value } from './model.ts';
 import { CREATED, isNumeric } from './model.ts';
 import type { Workspace } from './workspace.ts';
@@ -114,6 +114,11 @@ export function insertRowsSql(
 
 export type FormulaProblems = Map<string, string>;
 
+// An aggregate yields its one row even over no rows; a row formula or a window yields none.
+function isBareAggregate(engine: Engine, tableId: string, sql: string): boolean {
+	return engine.all(`select (${sql}) as v from ${tableId} t where 0`).length > 0;
+}
+
 function viewSql(tableId: string, formulas: Map<string, string>): string {
 	const computed = [...formulas].map(([id, sql]) => `(${sql}) as ${id}`);
 	return `create view v_${tableId} as select ${['t.*', ...computed].join(', ')} from ${tableId} t`;
@@ -147,6 +152,16 @@ export function materializeTable(engine: Engine, ws: Workspace, tableId: string)
 	}
 
 	const formulas = formulaColumns(ws, tableId);
+	for (const [id, sql] of formulas) {
+		try {
+			if (isBareAggregate(engine, tableId, sql)) {
+				problems.set(id, BARE_AGGREGATE);
+				formulas.set(id, 'NULL');
+			}
+		} catch {
+			// The view's own build below names what SQLite refuses.
+		}
+	}
 
 	try {
 		engine.exec(viewSql(tableId, formulas));
@@ -203,7 +218,7 @@ export function formulaProblem(
 
 	try {
 		engine.all(`select (${sql}) as v from ${tableId} t limit 1`);
-		return null;
+		return isBareAggregate(engine, tableId, sql) ? BARE_AGGREGATE : null;
 	} catch (error) {
 		return errorText(error);
 	}

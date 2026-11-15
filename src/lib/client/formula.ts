@@ -1,5 +1,5 @@
 import { FormulaError, toStored } from '../core/formula.ts';
-import { formulaProblem, fields as words } from '../i18n/fields.ts';
+import { formulaProblem, refusalText, fields as words } from '../i18n/fields.ts';
 import { app } from './app.svelte.ts';
 
 function problemText(error: unknown): string {
@@ -23,5 +23,5 @@ export function readFormula(
 	} catch (error) {
 		return { problem: problemText(error) };
 	}
-	return refused === null ? { expr } : { problem: words.sqliteRefused(refused) };
+	return refused === null ? { expr } : { problem: refusalText(words, refused) };
 }

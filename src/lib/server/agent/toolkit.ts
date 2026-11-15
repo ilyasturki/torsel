@@ -22,7 +22,7 @@ import {
 } from '../../core/actions.ts';
 import { restoreChanges } from '../../core/backup.ts';
 import { appendRows, guessColumns, guessTargets, importTable } from '../../core/csv.ts';
-import { FormulaError, toDisplay, toStored } from '../../core/formula.ts';
+import { BARE_AGGREGATE, FormulaError, toDisplay, toStored } from '../../core/formula.ts';
 import type {
 	Change,
 	Choice,
@@ -211,6 +211,9 @@ function sqlRefusal(message: string): string {
 }
 
 function formulaRefusal(message: string): string {
+	if (message === BARE_AGGREGATE) {
+		return fieldCatalog.en.columnTotal;
+	}
 	if (message === 'interrupted') {
 		return `the formula ran past ${QUERY_MS} ms over this table's rows; simplify it`;
 	}
@@ -336,7 +339,7 @@ const FIELD = z.strictObject({
 		.string()
 		.optional()
 		.describe(
-			'for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers.'
+			'for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers. An aggregate needs OVER, such as SUM("Weight") OVER () for the column total on every row.'
 		),
 	description: z.string().optional().describe('one sentence saying what the field holds')
 });

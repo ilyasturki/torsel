@@ -10,6 +10,9 @@ export type FormulaProblem =
 	| 'empty'
 	| 'self-reference';
 
+/** What `formulaProblem` reports, beside SQLite's own errors, for an aggregate without OVER: it folds the table's rows into one. */
+export const BARE_AGGREGATE = 'bare-aggregate';
+
 /** `subject` is the field the problem names; whoever shows it words the problem. */
 export class FormulaError extends Error {
 	public readonly problem: FormulaProblem;

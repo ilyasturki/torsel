@@ -17,7 +17,15 @@ import {
 import { Hlc, formatClock } from './clock.ts';
 import { guessColumns, importTable, parseCsv } from './csv.ts';
 import { openEngine } from './engine.ts';
-import { FormulaError, completeName, nameAt, namesFor, toDisplay, toStored } from './formula.ts';
+import {
+	BARE_AGGREGATE,
+	FormulaError,
+	completeName,
+	nameAt,
+	namesFor,
+	toDisplay,
+	toStored
+} from './formula.ts';
 import { merge, sameRec } from './merge.ts';
 import type { Change, FieldDef, Rec } from './model.ts';
 import { isDeleted } from './model.ts';
@@ -419,6 +427,52 @@ describe('materialize', () => {
 
 		expect(() => readQuery(engine, `delete from ${table.id}`)).toThrow();
 		expect(formulaProblem(engine, ws, table.id, 'nope(1)')).toMatch(/no such function/u);
+		const bare = (text: string): string | null =>
+			formulaProblem(engine, ws, table.id, toStored(text, ws.fields(table.id)));
+		expect(bare('SUM("Poids")')).toBe(BARE_AGGREGATE);
+		expect(bare('max("Reps")')).toBe(BARE_AGGREGATE);
+		expect(bare('count(*) + 1')).toBe(BARE_AGGREGATE);
+		expect(bare('SUM("Poids") OVER ()')).toBeNull();
+		expect(bare('max("Poids", "Reps")')).toBeNull();
+		expect(bare('"Poids" * 2')).toBeNull();
+		engine.close();
+	});
+
+	it('leaves a bare aggregate out of the table so every other formula keeps its rows', async () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const base = createBase(ws, 'Muscu');
+		apply(ws, hlc, base.changes);
+		const table = createTable(ws, base.id, 'Séries', [{ name: 'Poids', type: 'number' }], () =>
+			defaultViews(defaultNames.en)
+		);
+		apply(ws, hlc, table.changes);
+		for (const [name, text] of [
+			['Total', 'SUM("Poids")'],
+			['Double', '"Poids" * 2']
+		]) {
+			apply(
+				ws,
+				hlc,
+				addField(ws, table.id, {
+					name,
+					type: 'formula',
+					expr: toStored(text, ws.fields(table.id))
+				}).changes
+			);
+		}
+		const [poids] = table.fieldIds;
+		apply(ws, hlc, insertRows(ws, table.id, [{ [poids]: 10 }, { [poids]: 20 }]).changes);
+		const [total, double] = ws.fields(table.id).slice(1);
+
+		const engine = await openEngine();
+		const problems = materializeBase(engine, ws, base.id, true);
+		expect(problems.get(table.id)?.get(total.id)).toBe(BARE_AGGREGATE);
+		const rows = engine.all(`select ${double.id} as d, ${total.id} as t from v_${table.id}`);
+		expect(rows).toEqual([
+			{ d: 20, t: null },
+			{ d: 40, t: null }
+		]);
 		engine.close();
 	});
 });
