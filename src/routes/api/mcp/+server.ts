@@ -4,8 +4,18 @@ import { requireCredential } from '#lib/server/http/guards.ts';
 
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = ({ request, locals }) => {
-	const { user } = requireCredential(locals);
+// GET and DELETE reach the handler too: it answers both with 405, as a stateless server must.
+const serve: RequestHandler = ({ request, locals }) => {
+	const { user, token } = requireCredential(locals);
 
-	return serveMcp(getDatabase(), user.id, request, import.meta.env.APP_VERSION);
+	return serveMcp(
+		getDatabase(),
+		{ userId: user.id, tokenId: token.id },
+		request,
+		import.meta.env.APP_VERSION
+	);
 };
+
+export const POST = serve;
+export const GET = serve;
+export const DELETE = serve;

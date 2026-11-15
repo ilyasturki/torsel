@@ -1,6 +1,6 @@
 import { allowedOrigins } from '../config.ts';
 
-const ALLOWED_HEADERS = 'authorization, content-type';
+const ALLOWED_HEADERS = 'authorization, content-type, mcp-protocol-version, mcp-method, mcp-name';
 const ALLOWED_METHODS = 'GET, POST, PATCH, DELETE, OPTIONS';
 
 const MAX_AGE_SECONDS = 86_400;
