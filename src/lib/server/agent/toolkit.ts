@@ -153,6 +153,12 @@ function sqlRefusal(message: string): string {
 		: message;
 }
 
+function formulaRefusal(message: string): string {
+	return message === 'interrupted'
+		? `the formula ran past ${QUERY_MS} ms over this table's rows; simplify it`
+		: `SQLite refuses the formula: ${message}`;
+}
+
 const engines = new WeakMap<Workspace, Map<string, { version: number; engine: MemoryEngine }>>();
 const versions = new WeakMap<Workspace, number>();
 
@@ -192,7 +198,7 @@ async function frozenValues(
 	try {
 		return formulaValues(await engineFor(ws, baseId), ws, tableId, stored);
 	} catch (error) {
-		throw error instanceof QueryError ? new ToolError(sqlRefusal(error.message)) : error;
+		throw error instanceof QueryError ? new ToolError(formulaRefusal(error.message)) : error;
 	}
 }
 
@@ -203,7 +209,7 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	}
 	const problem = formulaProblem(await engineFor(ws, table.base), ws, tableId, stored);
 	if (problem !== null) {
-		throw new ToolError(`SQLite refuses the formula: ${sqlRefusal(problem)}`);
+		throw new ToolError(formulaRefusal(problem));
 	}
 }
 
