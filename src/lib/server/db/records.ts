@@ -97,8 +97,8 @@ export function loadWorkspace(db: Database, userId: string, baseId?: string): Wo
 	return ws;
 }
 
-// One clock for every server write: two calls in the same millisecond still stamp distinct, ordered clocks.
-const hlc = new Hlc('srv');
+// Per account: writes in one millisecond stay ordered, and no account's future-dated record skews another's.
+const clocks = new Map<string, Hlc>();
 
 /** Writes changes made on the server — an MCP call — stamped later than anything they touch. */
 export function writeChanges(
@@ -107,6 +107,11 @@ export function writeChanges(
 	ws: Workspace,
 	changes: Change[]
 ): Rec[] {
+	let hlc = clocks.get(userId);
+	if (hlc === undefined) {
+		hlc = new Hlc('srv');
+		clocks.set(userId, hlc);
+	}
 	for (const change of changes) {
 		const existing = ws.get(change.id);
 		if (existing !== undefined) {
