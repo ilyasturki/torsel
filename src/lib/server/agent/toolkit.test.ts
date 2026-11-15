@@ -476,7 +476,10 @@ describe('row tools', () => {
 		const added = await call('add_rows', {
 			base: ctx.ws.bases()[0].id,
 			table: 'Movies',
-			rows: [{ Title: 'Heat', Year: 1995 }, { Title: 'Ronin', [field]: value }]
+			rows: [
+				{ Title: 'Heat', Year: 1995 },
+				{ Title: 'Ronin', [field]: value }
+			]
 		});
 
 		expect(added).toEqual({ error: expect.stringMatching(message) });

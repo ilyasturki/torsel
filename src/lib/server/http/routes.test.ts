@@ -84,9 +84,9 @@ describe('an api token', () => {
 		const statuses = await reach('api');
 
 		expect(statuses.get('/api/mcp')).toBe(200);
-		expect(
-			[...statuses].filter(([path, status]) => path !== '/api/mcp' && status !== 403)
-		).toEqual([]);
+		expect([...statuses].filter(([path, status]) => path !== '/api/mcp' && status !== 403)).toEqual(
+			[]
+		);
 	});
 
 	it('leaves a device token the whole API', async () => {
