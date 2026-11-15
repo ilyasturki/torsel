@@ -293,6 +293,20 @@ export type QueryLimits = { offset?: number; rows?: number; bytes?: number; cell
 const UNQUOTED =
 	/'(?:[^']|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/gu;
 
+// sqlite-wasm hands back a blob as a Uint8Array, an integer past 2^53 as a bigint, an overflow as Infinity.
+function plainCell(value: unknown): SqlValue {
+	if (value instanceof Uint8Array) {
+		return `x'${Array.from(value, (byte) => byte.toString(16).padStart(2, '0')).join('')}'`;
+	}
+	if (typeof value === 'bigint') {
+		return String(value);
+	}
+	if (typeof value === 'number' && !Number.isFinite(value)) {
+		return null;
+	}
+	return value as SqlValue;
+}
+
 /** One read-only statement, one page capped in rows, in JSON bytes and per text cell; the engine must already be in `query_only` mode. */
 export function readQuery(
 	engine: Engine,
@@ -312,11 +326,13 @@ export function readQuery(
 
 	let columns: string[];
 	try {
+		// The newline ends a trailing `--` comment before it can swallow the limit.
 		columns = engine.each(
-			`select * from (${statement}) limit ${most + 1} offset ${offset}`,
+			`select * from (${statement}\n) limit ${most + 1} offset ${offset}`,
 			(row) => {
 				let shortened = 0;
-				const values = row.map((value) => {
+				const values = row.map((raw) => {
+					const value = plainCell(raw);
 					if (typeof value === 'string' && value.length > cell) {
 						shortened += 1;
 						return `${value.slice(0, cell)}…`;
