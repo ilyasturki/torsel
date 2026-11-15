@@ -88,6 +88,26 @@ test('mints a read-only token that expires, and lists what it may do and when it
 	await expect(details).toHaveText(/, read only, last used \w+ \d+, \d{4}, expires /u);
 });
 
+test.describe('in French', () => {
+	test.use({ locale: 'fr-FR' });
+
+	test('a token says what it may do and when it expires in French', async ({ page, account }) => {
+		void account;
+		await page.goto('/app/settings');
+		const agents = page
+			.locator('section')
+			.filter({ has: page.getByRole('heading', { name: 'Agents (MCP)' }) });
+
+		await pick(agents.getByRole('combobox', { name: 'Accès' }), 'Lecture seule');
+		await pick(agents.getByRole('combobox', { name: 'Expiration' }), '90 jours');
+		await agents.getByRole('button', { name: 'Créer un jeton' }).click();
+
+		await expect(agents.getByText(/^ts_\w+…, lecture seule/u)).toHaveText(
+			/^ts_\w+…, lecture seule, jamais utilisé, expire le \d+ \S+ \d{4}$/u
+		);
+	});
+});
+
 test('reports changes waiting offline, then falls silent once they are sent', async ({
 	page,
 	context,
