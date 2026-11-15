@@ -19,6 +19,7 @@
 	let samples = $state<Record<string, Sample> | null>(null);
 	let live = $state<Live | null>(null);
 	let View = $state<Component<{ tableId: string; viewId: string | undefined }> | null>(null);
+	let Toast = $state<Component | null>(null);
 	const threads = $state<Record<string, Thread>>({});
 	let typed = $state('');
 	let busy = $state(false);
@@ -48,6 +49,7 @@
 		return sample === undefined ? [] : app.ws.views(sample.table);
 	});
 	const viewId = $derived(thread.view ?? views[0]?.id);
+	const entryId = $derived(views.find((view) => view.type === 'entry')?.id);
 	const rowCount = $derived.by(() => {
 		void app.version;
 		return sample === undefined ? example.rows.length : app.ws.rows(sample.table).length;
@@ -66,6 +68,23 @@
 
 	function show(view: string | undefined): void {
 		threadOf(example.id).view = view;
+	}
+
+	/** The first example opens with its column and chart already made: the visitor reads the result before pressing anything. */
+	function startWorked(module: Live, made: Record<string, Sample>): void {
+		const which = EXAMPLES[0];
+		const own = threadOf(which.id);
+		which.prompts.forEach((prompt, index) => {
+			if (prompt.kind !== 'formula' && prompt.kind !== 'chart') return;
+			const item: Item = { key: (key += 1), text: prompt.text, action: null };
+			own.items.push(item);
+			own.used.push(index);
+			const applied = module.applyPrompt(which, made[which.id], prompt, item.key);
+			own.items[own.items.length - 1].action = applied.action;
+			own.items[own.items.length - 1].view = applied.view;
+		});
+		own.view = app.ws.views(made[which.id].table).find((view) => view.type === 'grid')?.id;
+		module.showEarly(which, made[which.id]);
 	}
 
 	async function run(index: number): Promise<void> {
@@ -117,14 +136,19 @@
 	onMount(() => {
 		void import('./live.ts').then((module) => {
 			let made: Record<string, Sample> | null = null;
+			const narrow = matchMedia('(max-width: 1023px)').matches;
 			void app.openSample((ws, commit) => {
-				made = module.seedExamples(ws, commit);
+				made = module.seedExamples(ws, commit, narrow);
 			}, engineWanted);
+			if (made !== null) startWorked(module, made);
 			samples = made;
 			live = module;
 		});
 		void import('./SampleView.svelte').then((module) => {
 			View = module.default;
+		});
+		void import('#lib/views/Toast.svelte').then((module) => {
+			Toast = module.default;
 		});
 	});
 
@@ -133,7 +157,7 @@
 </script>
 
 <section
-	class="grid overflow-hidden rounded-panel bg-glass text-base shadow-raised backdrop-blur-glass lg:h-stage lg:grid-cols-[1fr_auto]"
+	class="grid grid-cols-1 overflow-hidden rounded-panel bg-glass text-base shadow-raised backdrop-blur-glass lg:h-stage lg:grid-cols-[1fr_auto]"
 	aria-label="The app on sample tables"
 	data-testid="demo"
 	onpointerenter={(event) => {
@@ -143,7 +167,7 @@
 >
 	<div class="flex min-h-0 min-w-0 flex-col bg-glass-strong max-lg:h-stage-narrow">
 		<div
-			class="flex shrink-0 hide-scrollbar gap-1 overflow-x-auto p-2 pb-0"
+			class="flex shrink-0 hide-scrollbar gap-1 overflow-x-auto p-2 pb-0 max-lg:hidden"
 			role="group"
 			aria-label="Examples"
 		>
@@ -189,13 +213,13 @@
 	</div>
 
 	<aside
-		class="flex min-h-0 flex-col border-hair max-lg:border-t lg:w-ask lg:border-l"
+		class="flex min-h-0 min-w-0 flex-col border-hair max-lg:order-first max-lg:border-b lg:w-ask lg:border-l"
 		aria-label="Ask"
 	>
-		<div class="flex h-11 shrink-0 items-center px-4 font-semibold">Ask</div>
+		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">Ask</div>
 		<div
 			bind:this={scroller}
-			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:max-h-ask-clear"
+			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:max-h-36 max-lg:pt-3"
 			data-testid="thread"
 		>
 			{#each thread.items as item (item.key)}
@@ -229,7 +253,7 @@
 			{/each}
 		</div>
 
-		<div class="m-2 mt-0 flex shrink-0 items-end gap-1 rounded-box bg-tint p-2">
+		<div class="m-2 mt-0 flex shrink-0 items-end gap-1 rounded-box bg-tint p-2 max-lg:hidden">
 			<p class="min-h-control min-w-0 flex-1 px-1 py-1.5 {typed === '' ? 'text-ink-3' : ''}">
 				{typed === '' ? 'Ask about your tables' : typed}
 			</p>
@@ -237,3 +261,32 @@
 		</div>
 	</aside>
 </section>
+
+<section
+	class="grid items-center gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+	aria-labelledby="landing-form"
+	onpointerenter={(event) => {
+		if (event.pointerType === 'mouse') void warm();
+	}}
+	onfocusin={() => void warm()}
+>
+	<div class="grid gap-3 px-4 lg:px-8">
+		<h2 id="landing-form" class="text-h2 leading-tight font-semibold tighter text-balance">
+			A form on your phone, for every table.
+		</h2>
+		<p class="max-w-md text-lg text-ink-2">
+			Log a row in two taps, even with no network. It lands in the table above.
+		</p>
+	</div>
+	<div
+		class="h-stage-narrow min-w-0 overflow-hidden rounded-panel bg-glass-strong text-base shadow-raised backdrop-blur-glass"
+		data-testid="form"
+	>
+		{#if View !== null && sample !== undefined && entryId !== undefined}
+			<View tableId={sample.table} viewId={entryId} />
+		{/if}
+	</div>
+</section>
+{#if Toast !== null}
+	<Toast />
+{/if}

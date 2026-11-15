@@ -4,7 +4,6 @@
 	import Entry from '#lib/views/Entry.svelte';
 	import Grid from '#lib/views/Grid.svelte';
 	import List from '#lib/views/List.svelte';
-	import Toast from '#lib/views/Toast.svelte';
 
 	let { tableId, viewId }: { tableId: string; viewId: string | undefined } = $props();
 
@@ -30,4 +29,3 @@
 		</div>
 	{/key}
 {/if}
-<Toast />

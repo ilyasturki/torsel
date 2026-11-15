@@ -36,18 +36,39 @@ const frames = (page: Page): Promise<number> =>
 const prompt = (page: Page, text: string): Locator =>
 	page.getByRole('group', { name: 'Prompts' }).getByRole('button', { name: text });
 
-test('says what it is and loads no SQLite on the way', async ({ page }) => {
+test('says what it is, shows the work done and loads no SQLite on the way', async ({ page }) => {
 	const wasm = wasmRequests(page);
 	await page.goto('/');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-		'The spreadsheet that does the work.'
-	);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('A spreadsheet you just ask.');
 	await expect(page.getByRole('link', { name: 'Start now' }).first()).toBeVisible();
 	const demo = page.getByTestId('demo');
 	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
-	await page.getByRole('heading', { name: 'Try it on your own data.' }).scrollIntoViewIfNeeded();
+	await expect(demo.getByRole('gridcell', { name: '7680' })).toBeInViewport();
+	await expect(
+		demo.getByTestId('change').filter({ hasText: 'New view "By category" on Budget' })
+	).toBeInViewport();
+	await expect(prompt(page, 'Add Netflix 13 and climbing 45, both fun.')).toBeVisible();
+	await page.getByRole('heading', { name: 'Free, offline, open source.' }).scrollIntoViewIfNeeded();
 	await page.waitForTimeout(300);
 	expect(wasm).toEqual([]);
+});
+
+test('composes the demo for the width it gets', async ({ page, isMobile }) => {
+	await page.goto('/');
+	const demo = page.getByTestId('demo');
+	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeInViewport();
+	const category = demo.getByRole('columnheader', { name: 'Category' });
+	const examples = demo.getByRole('group', { name: 'Examples' });
+	if (isMobile) {
+		await expect(category).toBeHidden();
+		await expect(examples).toBeHidden();
+		const thread = await demo.getByTestId('thread').boundingBox();
+		const grid = await demo.getByRole('grid').boundingBox();
+		expect((thread?.y ?? 0) + (thread?.height ?? 0)).toBeLessThanOrEqual(grid?.y ?? 0);
+	} else {
+		await expect(category).toBeVisible();
+		await expect(examples).toBeVisible();
+	}
 });
 
 test('the call to action reaches a working app with no account', async ({ page }) => {
@@ -64,7 +85,7 @@ test.describe('with its worker', () => {
 	test('what the page says about going offline holds', async ({ page, context }) => {
 		test.skip(process.env.TORSEL_TEST_DEV === '1', 'the worker is only registered in a build');
 		await page.goto('/');
-		await expect(page.getByText('Turn off your network. Add a row. Reload.')).toBeVisible();
+		await expect(page.getByText('Log a row in two taps, even with no network.')).toBeVisible();
 
 		await page.goto('/app');
 		await page.getByRole('button', { name: 'New table' }).first().click();
@@ -103,18 +124,18 @@ test('swaps the header for a signed-in visitor', async ({ page, account }) => {
 	await expect(header.getByRole('link', { name: 'Sign in' })).toBeHidden();
 });
 
-test('a prompt changes the real table, shows its diff and undoes', async ({ page }) => {
+test('the changes made ahead are real: they undo, and a prompt adds more', async ({
+	page,
+	isMobile
+}) => {
 	const wasm = wasmRequests(page);
 	await page.goto('/');
 	const demo = page.getByTestId('demo');
 	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
 
-	await prompt(page, 'Add what each one costs per year.').click();
 	const card = demo.getByTestId('change').filter({ hasText: 'New field "Per year" in Budget' });
 	await expect(card).toHaveAttribute('data-status', 'applied');
-	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeVisible();
 	await expect(demo.getByRole('gridcell', { name: '7680' })).toBeVisible();
-	expect(wasm.length).toBeGreaterThan(0);
 
 	await card.getByRole('button', { name: 'Undo New field "Per year" in Budget' }).click();
 	await expect(card).toHaveAttribute('data-status', 'undone');
@@ -127,24 +148,33 @@ test('a prompt changes the real table, shows its diff and undoes', async ({ page
 		demo.getByTestId('change').filter({ hasText: 'Add 2 rows to Budget' })
 	).toBeVisible();
 	await expect(demo.getByTestId('row-count')).toHaveText('8 rows');
+	await expect(demo.getByRole('gridcell', { name: '156' })).toBeVisible();
+	expect(wasm.length).toBeGreaterThan(0);
 
-	await prompt(page, 'Show me where the money goes.').click();
+	await demo
+		.getByRole('group', { name: 'Views' })
+		.getByRole('button', { name: 'By category' })
+		.click();
 	await expect(
 		demo.getByRole('group', { name: 'Views' }).getByRole('button', { name: 'By category' })
 	).toHaveAttribute('aria-pressed', 'true');
 	await expect(demo.getByText('Total amount')).toBeVisible();
 	await expect(demo.getByText('1288')).toBeVisible();
-	for (const category of ['Food', 'Fun', 'Home', 'Transport']) {
+	// A phone's width thins the axis to every other label.
+	const shown = isMobile ? ['Food', 'Home'] : ['Food', 'Fun', 'Home', 'Transport'];
+	for (const category of shown) {
 		await expect(demo.locator('svg text', { hasText: category })).toBeVisible();
 	}
 
 	await demo.getByRole('button', { name: 'Start over' }).click();
 	await expect(demo.getByTestId('change')).toHaveCount(0);
+	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeHidden();
 	await expect(demo.getByTestId('row-count')).toHaveText('6 rows');
 	await expect(prompt(page, 'Add what each one costs per year.')).toBeVisible();
 });
 
-test('each example keeps its own table and thread', async ({ page }) => {
+test('each example keeps its own table and thread', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'a phone shows the first example only');
 	await page.goto('/');
 	const demo = page.getByTestId('demo');
 	const examples = demo.getByRole('group', { name: 'Examples' });
@@ -162,7 +192,7 @@ test('each example keeps its own table and thread', async ({ page }) => {
 	await expect(card).toContainText('Won');
 
 	await press(examples.getByRole('button', { name: 'Budget' }));
-	await expect(demo.getByTestId('change')).toHaveCount(0);
+	await expect(demo.getByTestId('change')).toHaveCount(2);
 	await press(examples.getByRole('button', { name: 'Clients' }));
 	await expect(card).toBeVisible();
 });
@@ -181,9 +211,9 @@ test.describe('with reduced motion', () => {
 		await page.waitForTimeout(800);
 		expect(await frames(page)).toBe(before);
 
-		await prompt(page, 'Add what each one costs per year.').click();
-		await expect(page.getByTestId('change')).toHaveCount(1);
-		await expect(page.getByRole('columnheader', { name: /Per year/u })).toBeVisible();
+		await prompt(page, 'Add Netflix 13 and climbing 45, both fun.').click();
+		await expect(page.getByTestId('change')).toHaveCount(3);
+		await expect(page.getByTestId('row-count')).toHaveText('8 rows');
 	});
 });
 
@@ -194,9 +224,9 @@ test.describe('with motion', () => {
 		await page.goto('/');
 		const demo = page.getByTestId('demo');
 		await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
-		await prompt(page, 'Add what each one costs per year.').click();
+		await prompt(page, 'Add Netflix 13 and climbing 45, both fun.').click();
 		await expect(demo.getByRole('status')).toHaveText('Working…');
-		await expect(demo.getByTestId('change')).toHaveCount(1);
+		await expect(demo.getByTestId('change')).toHaveCount(3);
 		await expect(demo.getByRole('status')).toBeHidden();
 	});
 
@@ -221,7 +251,7 @@ test.describe('with motion', () => {
 				const context = canvas.getContext('2d') as CanvasRenderingContext2D;
 				return context.getImageData(0, 11, 1, 1).data[3];
 			});
-		// At rest a cell stays under 40% opacity (102 of 255); a redraw comes within two frames.
+		// At rest a cell stays under 62% opacity (158 of 255); a redraw comes within two frames.
 		await expect
 			.poll(async () => {
 				const size = await pitch();
@@ -230,8 +260,18 @@ test.describe('with motion', () => {
 				await page.waitForTimeout(80);
 				return alpha();
 			})
-			.toBeGreaterThan(150);
+			.toBeGreaterThan(190);
 	});
+});
+
+test('the form below logs a row into the table above', async ({ page }) => {
+	await page.goto('/');
+	const form = page.getByTestId('form');
+	await form.getByRole('textbox', { name: 'Item' }).fill('Coffee');
+	await form.getByRole('button', { name: 'Add row' }).click();
+	const demo = page.getByTestId('demo');
+	await expect(demo.getByTestId('row-count')).toHaveText('7 rows');
+	await expect(demo.getByRole('gridcell', { name: 'Coffee' })).toBeAttached();
 });
 
 test('the sample stays in the page and out of the app', async ({ page }) => {

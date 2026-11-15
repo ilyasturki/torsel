@@ -6,6 +6,7 @@ import {
 	defaultViews,
 	createView,
 	insertRows,
+	updateRecord,
 	updateRow
 } from '#lib/core/actions.ts';
 import { toStored } from '#lib/core/formula.ts';
@@ -40,13 +41,25 @@ export function seedExample(
 /** The sample behind the landing's tables. Only ever built in memory. */
 export function seedExamples(
 	ws: Workspace,
-	commit: (changes: Change[]) => void
+	commit: (changes: Change[]) => void,
+	narrow = false
 ): Record<string, Sample> {
 	const base = createBase(ws, 'Sample');
 	commit(base.changes);
-	return Object.fromEntries(
+	const samples = Object.fromEntries(
 		EXAMPLES.map((example) => [example.id, seedExample(ws, commit, base.id, example)])
 	);
+	if (narrow) {
+		// A phone's width holds three columns: the choice gives way to the column the assistant adds.
+		const first = EXAMPLES[0];
+		const sample = samples[first.id];
+		const grid = ws.views(sample.table).find((view) => view.type === 'grid');
+		const choice = first.fields.findIndex((field) => field.type === 'choice');
+		if (grid !== undefined && choice >= 0) {
+			commit(updateRecord(ws, grid.id, { config: { hidden: [sample.fields[choice]] } }));
+		}
+	}
+	return samples;
 }
 
 function valuesOf(fieldIds: string[], row: Cell[]): Record<string, Cell> {
