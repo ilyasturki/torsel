@@ -72,8 +72,7 @@ function prose(text: string): boolean {
 	if (/^[\w:[\]/.%!()&>*+#,-]+(?: [\w:[\]/.%!()&>*+#,-]+)+$/u.test(value) && /[-:[]/u.test(value)) {
 		return false;
 	}
-	if (/^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|PRAGMA|WITH|ALTER|DROP)\b/iu.test(value))
-		return false;
+	if (/^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|PRAGMA|WITH|ALTER|DROP)\b/u.test(value)) return false;
 	return true;
 }
 
@@ -126,9 +125,11 @@ function scanScript(file: string, code: string, offset: number, out: Literal[]):
 			return;
 		}
 		if (ts.isTemplateExpression(node)) {
-			const fixed =
-				node.head.text + node.templateSpans.map((span) => ` ${span.literal.text}`).join('');
-			if (!skipped(node) && prose(fixed)) {
+			const fixed = node.head.text + node.templateSpans.map((span) => span.literal.text).join('');
+			// A placeholder for each value, so `${name} hidden` reads as the sentence it is.
+			const shaped =
+				node.head.text + node.templateSpans.map((span) => `0${span.literal.text}`).join('');
+			if (!skipped(node) && /\p{L}{2}/u.test(fixed) && prose(shaped)) {
 				push(
 					node,
 					node.head.text +
@@ -259,6 +260,14 @@ const ALLOWED = join(import.meta.dirname, 'english.json');
 it('leaves no text a person reads outside the catalog', () => {
 	const found = literals(ROOT, ['src/lib', 'src/routes']);
 	const keys = [...new Set(found.map((literal) => `${literal.file}\t${literal.text}`))].sort();
+	const only = process.env.TORSEL_RATCHET_FILES;
+	if (only !== undefined) {
+		const pattern = new RegExp(only, 'u');
+		for (const literal of found.filter((item) => pattern.test(item.file))) {
+			console.log(`${literal.file}:${literal.line}  ${literal.text}`);
+		}
+		return;
+	}
 	if (process.env.TORSEL_RATCHET === 'write') {
 		writeFileSync(ALLOWED, `${JSON.stringify(keys, null, '\t')}\n`);
 	}

@@ -17,21 +17,24 @@ const SAME = new Set([
 	'names.base',
 	'names.table',
 	'shell.tables',
-	'fields.types.date',
-	'fields.types.note',
-	'fields.types.formula',
-	'fields.types.rating',
-	'fields.types.duration',
-	'fields.types.contact',
-	'fields.types.image',
-	'fields.types.position',
-	'views.aggregates.total',
-	'settings.mcp',
-	'settings.version',
-	'login.email',
-	'login.google',
 	'common.done',
-	'grid.total'
+	'changes.labels.type',
+	'changes.labels.description',
+	'changes.type',
+	'fields.types.url',
+	'fields.types.date',
+	'fields.groups.dates',
+	'fields.type',
+	'fields.auto',
+	'fields.format',
+	'fields.description',
+	'grid.type',
+	'home.table',
+	'importing.base',
+	'settings.agents',
+	'ui.plus',
+	'views.total',
+	'login.email'
 ]);
 
 const SAMPLES: unknown[][] = [
@@ -85,6 +88,17 @@ for (const [file, catalog] of Object.entries(areas)) {
 				return typeof value === 'string' && value === french;
 			});
 			expect(english.map(([key]) => key)).toEqual([]);
+		});
+
+		it('sets French punctuation with no-break spaces', () => {
+			const loose = [...fr].filter(([, value]) => {
+				const texts =
+					typeof value === 'function'
+						? call(value as (...args: unknown[]) => unknown).map(String)
+						: [String(value)];
+				return texts.some((text) => /« | »| [:;?!](\s|$)/u.test(text.replace(/<[^>]*>/gu, '')));
+			});
+			expect(loose.map(([key]) => key)).toEqual([]);
 		});
 
 		it('takes the same parameters and words every one', () => {
