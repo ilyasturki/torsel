@@ -2,32 +2,17 @@ import { expect, RETRY_RESET, test } from './harness.ts';
 
 const ORIGIN = 'https://torsel.ilyasturki.com';
 
-test('a french browser is sent to /fr on its first visit only', async ({ request }) => {
-	const french = { 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' };
-	const first = await request.get('/privacy?from=x', {
+test('a french browser stays on the english page and finds french in the footer', async ({
+	request
+}) => {
+	const response = await request.get('/privacy', {
 		...RETRY_RESET,
-		headers: french,
+		headers: { 'accept-language': 'fr-FR,fr;q=0.9' },
 		maxRedirects: 0
 	});
-	expect(first.status()).toBe(307);
-	expect(first.headers()['location']).toBe('/fr/privacy?from=x');
-	expect(first.headers()['vary']).toContain('accept-language');
-	const cookie = first.headers()['set-cookie'] ?? '';
-	expect(cookie).toContain('torsel_visited=1');
-
-	const again = await request.get('/privacy', {
-		...RETRY_RESET,
-		headers: { ...french, cookie: 'torsel_visited=1' },
-		maxRedirects: 0
-	});
-	expect(again.status()).toBe(200);
-
-	const english = await request.get('/', {
-		...RETRY_RESET,
-		headers: { 'accept-language': 'en-US,fr;q=0.5' },
-		maxRedirects: 0
-	});
-	expect(english.status()).toBe(200);
+	expect(response.status()).toBe(200);
+	expect(response.headers()['set-cookie']).toBeUndefined();
+	expect(await response.text()).toContain('href="/fr/privacy" hreflang="fr" lang="fr">Français</a');
 });
 
 test('the french home names its language, its twin and its own card', async ({ request }) => {
@@ -76,7 +61,6 @@ test.describe('in french', () => {
 		await expect(page.getByRole('heading', { name: 'Confidentialité', level: 1 })).toBeVisible();
 		await expect(page).toHaveTitle('Confidentialité · Torsel');
 		await expect(page.getByText('Mis à jour le 16 novembre 2026')).toBeVisible();
-		await expect(page.getByText('torsel_visited')).toBeVisible();
 		await page.getByRole('contentinfo').getByRole('link', { name: 'Conditions' }).click();
 		await expect(page).toHaveURL(/\/fr\/terms$/u);
 		await page.getByRole('article').getByRole('link', { name: 'confidentialité' }).click();

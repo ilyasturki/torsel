@@ -71,10 +71,9 @@
 
 <LegalSection title="Cookies et suivi">
 	<p>
-		Il y a deux cookies. <code class="font-mono text-sm">torsel_session</code>, posé à la connexion,
-		garde ta session ouverte. <code class="font-mono text-sm">torsel_visited</code>, posé à ta
-		première visite sur ce site, fait qu’un navigateur en français n’est envoyé vers les pages en
-		français qu’une seule fois. Torsel n’a ni mesure d’audience, ni publicité, ni script tiers.
+		Il y a un seul cookie, <code class="font-mono text-sm">torsel_session</code>, posé à la
+		connexion pour que ta session reste ouverte. Torsel n’a ni mesure d’audience, ni publicité, ni
+		script tiers.
 	</p>
 </LegalSection>
 

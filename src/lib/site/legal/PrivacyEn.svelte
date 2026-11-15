@@ -68,10 +68,8 @@
 
 <LegalSection title="Cookies and tracking">
 	<p>
-		There are two cookies. <code class="font-mono text-sm">torsel_session</code>, set when you sign
-		in, keeps you signed in. <code class="font-mono text-sm">torsel_visited</code>, set on your
-		first visit to this site, makes sure a French browser is sent to the French pages only once.
-		Torsel has no analytics, no ads and no third-party scripts.
+		There is one cookie, <code class="font-mono text-sm">torsel_session</code>, set when you sign in
+		and used to keep you signed in. Torsel has no analytics, no ads and no third-party scripts.
 	</p>
 </LegalSection>
 
