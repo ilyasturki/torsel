@@ -109,7 +109,6 @@ function names(candidates: readonly { name: string }[]): string {
 	return `${shown.join(', ')}${candidates.length > LISTED ? ', …' : ''}`;
 }
 
-/** An id, or else a name only one candidate holds. */
 function resolve<T extends { id: string; name: string }>(
 	candidates: readonly T[],
 	ref: string,
@@ -138,7 +137,14 @@ function resolve<T extends { id: string; name: string }>(
 	);
 }
 
-/** `name` trimmed, refused when another of `taken` already holds it. */
+function givenName(name: string, kind: string): string {
+	const trimmed = name.trim();
+	if (trimmed === '') {
+		throw new ToolError(`a ${kind} needs a name`);
+	}
+	return trimmed;
+}
+
 function freeName(
 	taken: readonly { id: string; name: string }[],
 	name: string,
@@ -146,10 +152,7 @@ function freeName(
 	where: string,
 	self?: string
 ): string {
-	const trimmed = name.trim();
-	if (trimmed === '') {
-		throw new ToolError(`a ${kind} needs a name`);
-	}
+	const trimmed = givenName(name, kind);
 	const holder = nameTaken(taken, trimmed, self);
 	if (holder !== undefined) {
 		throw new ToolError(
@@ -259,10 +262,6 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	if (problem !== null) {
 		throw new ToolError(formulaRefusal(problem));
 	}
-}
-
-function commit(ctx: ToolContext, action: Action): void {
-	ctx.commit(action);
 }
 
 const BASE = z.string().describe('name or id of the base');
@@ -818,7 +817,7 @@ export const TOOLS: Tool[] = [
 				(index) => `rows[${index}]`
 			);
 			const inserted = insertRows(ctx.ws, table.id, rows);
-			commit(ctx, {
+			ctx.commit({
 				summary: words.addRows(rows.length, table.name),
 				changes: [...fieldChanges, ...inserted.changes]
 			});
@@ -863,7 +862,7 @@ export const TOOLS: Tool[] = [
 			const changes = input.updates.flatMap((update, index) =>
 				updateRow(ctx.ws, update.id, rows[index])
 			);
-			commit(ctx, {
+			ctx.commit({
 				summary: words.changeRows(changes.length, table.name),
 				changes: [...fieldChanges, ...changes]
 			});
@@ -890,7 +889,7 @@ export const TOOLS: Tool[] = [
 			for (const id of ids) {
 				requireRow(ctx.ws, table, id);
 			}
-			commit(ctx, {
+			ctx.commit({
 				summary: words.deleteRows(ids.length, table.name),
 				changes: deleteRecords(ctx.ws, ids)
 			});
@@ -907,8 +906,9 @@ export const TOOLS: Tool[] = [
 		destructive: false,
 		idempotent: false,
 		run: (ctx, { name }: { name: string }) => {
-			const made = createBase(ctx.ws, name.trim());
-			commit(ctx, { summary: words.newBase(name.trim()), changes: made.changes });
+			const trimmed = givenName(name, 'base');
+			const made = createBase(ctx.ws, trimmed);
+			ctx.commit({ summary: words.newBase(trimmed), changes: made.changes });
 			return { id: made.id };
 		}
 	},
@@ -946,7 +946,7 @@ export const TOOLS: Tool[] = [
 			}
 			const specs = input.fields.map((field) => fieldSpec(ctx.ws, base.id, field));
 			const made = createTable(ctx.ws, base.id, name, specs, () => defaultViews(names));
-			commit(ctx, {
+			ctx.commit({
 				summary: words.newTable(name),
 				changes: [...base.changes, ...made.changes]
 			});
@@ -972,7 +972,7 @@ export const TOOLS: Tool[] = [
 				await validateFormula(ctx.ws, table.id, spec.expr);
 			}
 			const made = addField(ctx.ws, table.id, spec);
-			commit(ctx, {
+			ctx.commit({
 				summary: words.newField(name, table.name),
 				changes: made.changes
 			});
@@ -1072,7 +1072,7 @@ export const TOOLS: Tool[] = [
 			// A retype's own field change already holds the given choices plus those found in values.
 			if (input.choices !== undefined && converted.changes.length === 0)
 				set.choices = choicesOf(input.choices, field.choices);
-			commit(ctx, {
+			ctx.commit({
 				summary: words.changeField(field.name, table.name),
 				changes: [...converted.changes, ...updateRecord(ctx.ws, field.id, set)]
 			});
@@ -1107,13 +1107,14 @@ export const TOOLS: Tool[] = [
 		) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
+			const name = givenName(input.name, 'view');
 			const made = createView(ctx.ws, table.id, {
-				name: input.name.trim(),
+				name,
 				type: input.type,
 				config: viewConfig(ctx.ws, table.id, input.config)
 			});
-			commit(ctx, {
-				summary: words.newView(input.name.trim(), table.name),
+			ctx.commit({
+				summary: words.newView(name, table.name),
 				changes: made.changes
 			});
 			return { id: made.id };
@@ -1152,7 +1153,7 @@ export const TOOLS: Tool[] = [
 						: rec.kind === 'field'
 							? words.deleteField(name)
 							: words.deleteView(name);
-			commit(ctx, {
+			ctx.commit({
 				summary,
 				changes: deleteRecords(ctx.ws, [rec.id])
 			});
@@ -1187,7 +1188,7 @@ export const TOOLS: Tool[] = [
 			const name =
 				rec.kind === 'table'
 					? freeName(ctx.ws.tables(base.id), input.name, 'table', base.name, rec.id)
-					: input.name.trim();
+					: givenName(input.name, rec.kind);
 			const before = typeof rec.data.name === 'string' ? rec.data.name : rec.id;
 			const summary =
 				rec.kind === 'base'
@@ -1195,7 +1196,7 @@ export const TOOLS: Tool[] = [
 					: rec.kind === 'table'
 						? words.renameTable(before, name)
 						: words.renameView(before, name);
-			commit(ctx, {
+			ctx.commit({
 				summary,
 				changes: updateRecord(ctx.ws, rec.id, { name })
 			});
@@ -1232,11 +1233,11 @@ export const TOOLS: Tool[] = [
 			const table = findTable(ctx.ws, base.id, input.table);
 			const view = findView(ctx.ws, table, input.view);
 			const set: Record<string, Value> = {};
-			if (input.name !== undefined) set.name = input.name.trim();
+			if (input.name !== undefined) set.name = givenName(input.name, 'view');
 			if (input.config !== undefined) {
 				set.config = { ...view.config, ...viewConfig(ctx.ws, table.id, input.config) } as Value;
 			}
-			commit(ctx, {
+			ctx.commit({
 				summary: words.changeView(view.name, table.name),
 				changes: updateRecord(ctx.ws, view.id, set)
 			});
@@ -1274,7 +1275,7 @@ export const TOOLS: Tool[] = [
 			}
 			if (sheet.kind === 'backup') {
 				const changes = restoreChanges(ctx.ws, sheet.records);
-				commit(ctx, { summary: words.restore(sheet.name), changes });
+				ctx.commit({ summary: words.restore(sheet.name), changes });
 				return { restored: sheet.records.length };
 			}
 			const base =
@@ -1286,7 +1287,7 @@ export const TOOLS: Tool[] = [
 				const table = findTable(ctx.ws, base.id, input.table);
 				const targets = guessTargets(columns, ctx.ws.fields(table.id));
 				const made = appendRows(ctx.ws, names, table.id, sheet.rows, columns, targets);
-				commit(ctx, {
+				ctx.commit({
 					summary: words.importRows(made.count, table.name),
 					changes: made.changes
 				});
@@ -1301,7 +1302,7 @@ export const TOOLS: Tool[] = [
 						)
 					: freeName(tables, input.name, 'table', ctx.ws.base(base.id)?.name ?? 'this base');
 			const made = importTable(ctx.ws, names, base.id, name, sheet.rows, columns);
-			commit(ctx, {
+			ctx.commit({
 				summary: words.newTableFrom(name, sheet.name),
 				changes: [...base.changes, ...made.changes]
 			});
@@ -1366,7 +1367,6 @@ function pathText(path: readonly PropertyKey[]): string {
 		.join('');
 }
 
-/** The keys an object schema takes at `path`, for naming them when an unknown one comes. */
 function keysAt(schema: z.ZodType, path: readonly PropertyKey[]): string[] {
 	let at: z.ZodType = schema;
 	for (const part of [...path, null]) {
@@ -1385,7 +1385,6 @@ function keysAt(schema: z.ZodType, path: readonly PropertyKey[]): string[] {
 	return at instanceof z.ZodObject ? Object.keys(at.shape) : [];
 }
 
-/** Each problem of the input in a sentence naming where it is and what would fit. */
 export function inputProblem(schema: z.ZodType, error: z.ZodError): string {
 	return error.issues
 		.slice(0, 5)
