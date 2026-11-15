@@ -1,4 +1,3 @@
-import names from '#lib/i18n/names.ts';
 import {
 	addField,
 	createBase,
@@ -12,6 +11,9 @@ import {
 import { toStored } from '#lib/core/formula.ts';
 import type { Change } from '#lib/core/model.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
+import { assistant } from '#lib/i18n/assistant.ts';
+import { names } from '#lib/i18n/names.ts';
+import { site } from '#lib/i18n/site.ts';
 
 import type { Cell, Example, Prompt } from './examples.ts';
 
@@ -23,9 +25,7 @@ export function seedExample(
 	baseId: string,
 	example: Example
 ): Sample {
-	const table = createTable(ws, baseId, example.table, example.fields, () =>
-		defaultViews(names.en)
-	);
+	const table = createTable(ws, baseId, example.table, example.fields, () => defaultViews(names));
 	commit(table.changes);
 	commit(
 		insertRows(
@@ -44,7 +44,7 @@ export function seedExamples(
 	examples: Example[],
 	narrow = false
 ): Record<string, Sample> {
-	const base = createBase(ws, 'Sample');
+	const base = createBase(ws, site.sampleBase);
 	commit(base.changes);
 	const samples = Object.fromEntries(
 		examples.map((example) => [example.id, seedExample(ws, commit, base.id, example)])
@@ -80,7 +80,7 @@ export function changesFor(
 			type: 'formula',
 			expr: toStored(prompt.expr, ws.fields(table))
 		});
-		return { summary: `New field "${prompt.name}" in ${example.table}`, changes: made.changes };
+		return { summary: assistant.newField(prompt.name, example.table), changes: made.changes };
 	}
 	if (prompt.kind === 'rows') {
 		const made = insertRows(
@@ -88,17 +88,13 @@ export function changesFor(
 			table,
 			prompt.rows.map((row) => valuesOf(fields, row))
 		);
-		const count = prompt.rows.length;
-		return {
-			summary: `Add ${count} row${count === 1 ? '' : 's'} to ${example.table}`,
-			changes: made.changes
-		};
+		return { summary: assistant.addRows(prompt.rows.length, example.table), changes: made.changes };
 	}
 	if (prompt.kind === 'cell') {
 		const row = ws.rows(table).find((candidate) => candidate.data[fields[0]] === prompt.row);
 		if (row === undefined) throw new Error(`no row ${prompt.row} in ${example.table}`);
 		return {
-			summary: `Change 1 row in ${example.table}`,
+			summary: assistant.changeRows(1, example.table),
 			changes: updateRow(ws, row.id, { [fields[prompt.field]]: prompt.value })
 		};
 	}
@@ -115,7 +111,7 @@ export function changesFor(
 		}
 	});
 	return {
-		summary: `New view "${prompt.name}" on ${example.table}`,
+		summary: assistant.newView(prompt.name, example.table),
 		changes: made.changes,
 		view: made.id
 	};

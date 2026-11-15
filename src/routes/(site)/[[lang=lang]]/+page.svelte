@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	import { siteCopy } from '#lib/i18n/site.ts';
+	import { site as t } from '#lib/i18n/site.ts';
 	import Closing from '#lib/site/landing/Closing.svelte';
 	import Demo from '#lib/site/landing/Demo.svelte';
 	import Hero from '#lib/site/landing/Hero.svelte';
@@ -12,7 +12,6 @@
 	import { SITE_NAME } from '#lib/site/site.ts';
 
 	const locale = $derived(page.params.lang ?? 'en');
-	const t = $derived(siteCopy[locale]);
 	// Changing language is a full page load, so one set of samples serves the page's whole life.
 	// svelte-ignore state_referenced_locally
 	const samples = new Samples(locale);
@@ -26,10 +25,10 @@
 </svelte:head>
 
 <main class="grid gap-24 pt-10 pb-24 max-lg:gap-16 max-lg:pt-8 max-lg:pb-16">
-	<Hero {locale} />
-	<Demo {samples} {locale} />
-	<LogForm {samples} {locale} />
-	<Closing {locale} />
+	<Hero />
+	<Demo {samples} />
+	<LogForm {samples} />
+	<Closing />
 </main>
 {#if Toast !== null}
 	<Toast />

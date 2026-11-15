@@ -4,7 +4,7 @@ import { join } from 'node:path';
 // The browser suite's own Playwright: it stays out of the app's dependencies and the Nix closure.
 import playwright from '../tests/e2e/node_modules/playwright/index.js';
 
-import { siteCopy } from '../src/lib/i18n/site.ts';
+import siteCopy from '../src/lib/i18n/site.ts';
 
 const root = join(import.meta.dirname, '..');
 const logo = readFileSync(join(root, 'src/lib/ui/Logo.svelte'), 'utf8');

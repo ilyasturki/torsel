@@ -1,11 +1,8 @@
 <script lang="ts">
 	import { HOME } from '#lib/client/paths.ts';
-	import { siteCopy } from '#lib/i18n/site.ts';
+	import { site as t } from '#lib/i18n/site.ts';
 
 	import { CTA } from './styles.ts';
-
-	let { locale = 'en' }: { locale?: 'en' | 'fr' } = $props();
-	const t = $derived(siteCopy[locale]);
 </script>
 
 <section class="grid justify-items-center gap-5 px-4 text-center lg:-mb-10">

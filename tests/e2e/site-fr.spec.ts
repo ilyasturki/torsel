@@ -81,6 +81,10 @@ test.describe('in french', () => {
 		await expect(demo.getByRole('columnheader', { name: /Par an/u })).toBeInViewport();
 		await expect(demo.getByRole('gridcell', { name: '7680' })).toBeVisible();
 		await expect(demo.getByTestId('row-count')).toHaveText('6 lignes');
+		await expect(demo.getByTestId('change').first()).toContainText('Nouveau champ');
+		await expect(
+			demo.getByRole('group', { name: 'Vues' }).getByRole('button', { name: 'Grille' })
+		).toBeVisible();
 		await expect(
 			page
 				.getByRole('group', { name: 'Demandes' })

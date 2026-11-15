@@ -1,3 +1,5 @@
+import { site } from '#lib/i18n/site.ts';
+
 import {
 	OG_IMAGE,
 	OG_LOCALE,
@@ -53,7 +55,7 @@ export function metaTags({ title, description, path, locale }: PageMeta): MetaTa
 		{ property: 'og:image', content: image },
 		{ property: 'og:image:width', content: '1200' },
 		{ property: 'og:image:height', content: '630' },
-		{ property: 'og:image:alt', content: `The ${SITE_NAME} logo` },
+		{ property: 'og:image:alt', content: site.logoAlt },
 		{ name: 'twitter:card', content: 'summary_large_image' },
 		{ name: 'twitter:title', content: name },
 		{ name: 'twitter:description', content: description },

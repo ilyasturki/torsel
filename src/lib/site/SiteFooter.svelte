@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	import { siteCopy } from '#lib/i18n/site.ts';
+	import { site as t } from '#lib/i18n/site.ts';
 
 	import { LEGAL_NAME, LEGAL_REGISTRATION, REPOSITORY, basePath, localePath } from './site.ts';
 
 	const locale = $derived(page.params.lang ?? 'en');
-	const t = $derived(siteCopy[locale]);
 	const twin = $derived(localePath(locale === 'fr' ? 'en' : 'fr', basePath(page.url.pathname)));
 
 	const item = 'transition-colors motion hover:text-ink';
@@ -18,7 +17,7 @@
 	<span>{LEGAL_NAME}, {LEGAL_REGISTRATION}. {t.licensed}</span>
 	<nav class="flex gap-4" aria-label={t.footerNav}>
 		<a class={item} href={REPOSITORY} rel="me">{t.github}</a>
-		<a class={item} href="/llms.txt">llms.txt</a>
+		<a class={item} href="/llms.txt">{t.llms}</a>
 		<a class={item} href={localePath(locale, '/privacy')}>{t.privacy}</a>
 		<a class={item} href={localePath(locale, '/terms')}>{t.terms}</a>
 		<a

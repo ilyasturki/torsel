@@ -34,7 +34,9 @@ const SAME = new Set([
 	'importing.base',
 	'settings.agents',
 	'views.total',
-	'login.email'
+	'login.email',
+	'site.github',
+	'site.llms'
 ]);
 
 const SAMPLES: unknown[][] = [

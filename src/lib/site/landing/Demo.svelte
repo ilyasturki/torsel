@@ -2,7 +2,9 @@
 	import { onMount, tick } from 'svelte';
 
 	import type { ThreadAction } from '#lib/core/thread.ts';
-	import { siteCopy } from '#lib/i18n/site.ts';
+	import { assistant } from '#lib/i18n/assistant.ts';
+	import { shell } from '#lib/i18n/shell.ts';
+	import { site as t } from '#lib/i18n/site.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 
@@ -14,8 +16,7 @@
 	type Item = { key: number; text: string; action: ThreadAction | null; view?: string };
 	type Thread = { items: Item[]; used: number[]; view: string | undefined };
 
-	let { samples, locale = 'en' }: { samples: Samples; locale?: 'en' | 'fr' } = $props();
-	const t = $derived(siteCopy[locale]);
+	let { samples }: { samples: Samples } = $props();
 
 	const worked = (which: Example): number[] =>
 		which.prompts.flatMap((prompt, index) =>
@@ -159,9 +160,9 @@
 			{/each}
 		</div>
 		<div class="flex min-h-12 shrink-0 items-center gap-2.5 py-1 pr-2 pl-3">
-			<span class="truncate text-lg font-semibold tight">{example.table}</span>
-			<span class="shrink-0 pt-0.5 text-sm text-ink-2" data-testid="row-count"
-				>{t.rows(samples.rowCount)}</span
+			<span class="min-w-0 truncate text-lg font-semibold tight">{example.table}</span>
+			<span class="shrink-0 pt-0.5 text-sm text-ink-2 max-sm:hidden" data-testid="row-count"
+				>{shell.rowCount(samples.rowCount)}</span
 			>
 			{#if samples.views.length > 0}
 				<Segmented
@@ -188,9 +189,11 @@
 
 	<aside
 		class="flex min-h-0 min-w-0 flex-col border-hair max-lg:order-first max-lg:border-b lg:w-ask lg:border-l"
-		aria-label={t.ask}
+		aria-label={assistant.ask}
 	>
-		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">{t.ask}</div>
+		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">
+			{assistant.ask}
+		</div>
 		<div
 			bind:this={scroller}
 			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:h-36 max-lg:flex-none max-lg:pt-3"
@@ -205,7 +208,7 @@
 				{/if}
 			{/each}
 			{#if working}
-				<p class="text-ink-3" role="status">{t.working}</p>
+				<p class="text-ink-3" role="status">{assistant.working}</p>
 			{/if}
 		</div>
 
@@ -229,10 +232,10 @@
 
 		<div class="m-2 mt-0 flex shrink-0 items-end gap-1 rounded-box bg-tint p-2 max-lg:hidden">
 			<p class="min-h-control min-w-0 flex-1 px-1 py-1.5 {typed === '' ? 'text-ink-3' : ''}">
-				{typed === '' ? t.askPlaceholder : typed}
+				{typed === '' ? assistant.prompt : typed}
 			</p>
 			<Button variant="primary" class="shrink-0" tabindex={-1} disabled={typed === ''}
-				>{t.send}</Button
+				>{assistant.send}</Button
 			>
 		</div>
 	</aside>

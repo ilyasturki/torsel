@@ -3,7 +3,13 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Handle } from '@sveltejs/kit/hooks';
 import { building } from '$app/env';
 
-import { BASE_LOCALE, acceptedLanguages, pickLocale, type Locale } from '../../i18n/locale.ts';
+import {
+	BASE_LOCALE,
+	acceptedLanguages,
+	isLocale,
+	pickLocale,
+	type Locale
+} from '../../i18n/locale.ts';
 import { readServerLocale } from '../../i18n/runtime.ts';
 
 const store = new AsyncLocalStorage<Locale>();
@@ -20,7 +26,9 @@ export function inLocale<T>(locale: Locale, run: () => T): T {
 
 export const handleLocale: Handle = async ({ event, resolve }) => {
 	const site = event.route.id?.startsWith('/(site)') === true;
-	const locale = site ? BASE_LOCALE : requestLocale(event.request);
+	// A site page's language is its address: `/fr` or the English root, never the browser's.
+	const prefix = event.params.lang;
+	const locale = site ? (isLocale(prefix) ? prefix : BASE_LOCALE) : requestLocale(event.request);
 	// The worker caches the /app shell and the Android build bakes in the static fallback: the client names their language.
 	const shell = event.route.id?.startsWith('/app') === true || (building && !site);
 	return store.run(locale, () =>

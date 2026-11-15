@@ -1,3 +1,5 @@
+import { LOCALES, type Locale } from '#lib/i18n/locale.ts';
+
 export const SITE_ORIGIN = 'https://torsel.ilyasturki.com';
 export const SITE_NAME = 'Torsel';
 export const REPOSITORY = 'https://github.com/ilyasturki/torsel';
@@ -14,9 +16,9 @@ export const PRIVATE_ROBOTS_RULES = ['/app$', '/app/', '/api/'];
 
 export const PUBLIC_PAGES = ['/', '/privacy', '/terms'];
 
-export const SITE_LOCALES = ['en', 'fr'] as const;
+export const SITE_LOCALES = LOCALES;
 
-export type SiteLocale = (typeof SITE_LOCALES)[number];
+export type SiteLocale = Locale;
 
 export const OG_IMAGE: Record<SiteLocale, string> = { en: '/og.png', fr: '/og-fr.png' };
 

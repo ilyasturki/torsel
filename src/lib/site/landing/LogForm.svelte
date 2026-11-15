@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { siteCopy } from '#lib/i18n/site.ts';
+	import { site as t } from '#lib/i18n/site.ts';
 
 	import type { Samples } from './samples.svelte.ts';
 
-	let { samples, locale = 'en' }: { samples: Samples; locale?: 'en' | 'fr' } = $props();
-	const t = $derived(siteCopy[locale]);
+	let { samples }: { samples: Samples } = $props();
 	const entry = $derived(samples.views.find((view) => view.type === 'entry')?.id);
 
 	onMount(() => {

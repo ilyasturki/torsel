@@ -1,11 +1,15 @@
+import { area } from './runtime.ts';
+
 const en = {
 	home: 'Torsel home',
 	github: 'GitHub',
+	llms: 'llms.txt',
 	signIn: 'Sign in',
 	start: 'Start now',
 	open: 'Open Torsel',
 	siteNav: 'Site',
 	footerNav: 'Footer',
+	sampleBase: 'Sample',
 	licensed: 'MIT licensed.',
 	privacy: 'Privacy',
 	terms: 'Terms',
@@ -26,11 +30,6 @@ const en = {
 	views: 'Views',
 	prompts: 'Prompts',
 	startOver: 'Start over',
-	ask: 'Ask',
-	askPlaceholder: 'Ask about your tables',
-	send: 'Send',
-	working: 'Working…',
-	rows: (count: number) => (count === 1 ? '1 row' : `${count} rows`),
 	logoAlt: 'The Torsel logo',
 	privacyDescription:
 		'What stays on your device when you use Torsel, what leaves it, and who receives it.',
@@ -41,11 +40,13 @@ const en = {
 const fr: typeof en = {
 	home: 'Accueil de Torsel',
 	github: 'GitHub',
+	llms: 'llms.txt',
 	signIn: 'Se connecter',
 	start: 'Commencer',
 	open: 'Ouvrir Torsel',
-	siteNav: 'Site',
+	siteNav: 'Navigation du site',
 	footerNav: 'Pied de page',
+	sampleBase: 'Exemple',
 	licensed: 'Sous licence MIT.',
 	privacy: 'Confidentialité',
 	terms: 'Conditions',
@@ -67,11 +68,6 @@ const fr: typeof en = {
 	views: 'Vues',
 	prompts: 'Demandes',
 	startOver: 'Recommencer',
-	ask: 'Demander',
-	askPlaceholder: 'Pose une question sur tes tables',
-	send: 'Envoyer',
-	working: 'En cours…',
-	rows: (count: number) => (count <= 1 ? `${count} ligne` : `${count} lignes`),
 	logoAlt: 'Le logo de Torsel',
 	privacyDescription:
 		'Ce qui reste sur ton appareil quand tu utilises Torsel, ce qui en sort, et qui le reçoit.',
@@ -80,4 +76,6 @@ const fr: typeof en = {
 	updated: 'Mis à jour le'
 };
 
-export const siteCopy = { en, fr };
+export default { en, fr };
+
+export const site = area({ en, fr });

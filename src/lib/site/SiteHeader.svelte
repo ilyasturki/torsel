@@ -4,13 +4,12 @@
 	import { page } from '$app/state';
 
 	import { HOME, LOGIN } from '#lib/client/paths.ts';
-	import { siteCopy } from '#lib/i18n/site.ts';
+	import { site as t } from '#lib/i18n/site.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 
 	import { REPOSITORY, localePath } from './site.ts';
 
 	const locale = $derived(page.params.lang ?? 'en');
-	const t = $derived(siteCopy[locale]);
 
 	// The page renders signed out and learns the session after hydration.
 	let signedIn = $state(false);

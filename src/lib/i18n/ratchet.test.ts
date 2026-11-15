@@ -229,12 +229,15 @@ function scanComponent(file: string, code: string, out: Literal[]): void {
 	walk(ast.fragment);
 }
 
-// The dev page, the site (its own catalog later) and text for crawlers and the model stay English.
+// The dev page and text for crawlers and the model stay English; the legal pages and the demo's tables are written once per locale.
 const OUTSIDE = new Set([
 	'src/lib/dev',
 	'src/routes/dev',
-	'src/lib/site',
-	'src/routes/(site)',
+	'src/lib/site/legal',
+	'src/lib/site/landing/examples.ts',
+	'src/lib/site/landing/examples-fr.ts',
+	'src/lib/site/seo.ts',
+	'src/lib/site/site.ts',
 	'src/lib/i18n',
 	'src/routes/llms.txt',
 	'src/routes/robots.txt',
