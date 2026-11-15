@@ -4,9 +4,11 @@ export type PublicToken = {
 	id: string;
 	label: string;
 	kind: AuthToken['kind'];
+	access: AuthToken['access'];
 	prefix: string;
 	createdAt: number;
 	lastUsedAt: number | null;
+	expiresAt: number | null;
 	current: boolean;
 };
 
@@ -26,9 +28,11 @@ export function publicToken(token: AuthToken, current: boolean): PublicToken {
 		id: token.id,
 		label: token.label,
 		kind: token.kind,
+		access: token.access,
 		prefix: token.tokenPrefix,
 		createdAt: token.createdAt.getTime(),
 		lastUsedAt: token.lastUsedAt === null ? null : token.lastUsedAt.getTime(),
+		expiresAt: token.expiresAt === null ? null : token.expiresAt.getTime(),
 		current
 	};
 }

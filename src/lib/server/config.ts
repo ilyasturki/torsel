@@ -72,6 +72,11 @@ export function aiLimits(): AiLimits {
 	return cachedLimits.limits;
 }
 
+/** MCP tool calls one credential may make per minute, 0 for no cap. */
+export function mcpCallsPerMinute(): number {
+	return envCount('TORSEL_MCP_CALLS_PER_MINUTE', 120);
+}
+
 export function brevoKey(): string | undefined {
 	const key = envText('BREVO_API_KEY', '');
 	return key === '' ? undefined : key;

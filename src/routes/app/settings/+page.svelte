@@ -64,7 +64,7 @@
 	async function mint(): Promise<void> {
 		tokenProblem = '';
 		try {
-			const { token } = await createToken(label.trim() || 'MCP');
+			const { token } = await createToken(label.trim() || 'MCP', 'write', null);
 			minted = token;
 			await refreshTokens();
 		} catch {

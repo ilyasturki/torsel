@@ -10,7 +10,7 @@ const serve: RequestHandler = ({ request, locals }) => {
 
 	return serveMcp(
 		getDatabase(),
-		{ userId: user.id, tokenId: token.id },
+		{ userId: user.id, tokenId: token.id, access: token.kind === 'api' ? token.access : 'write' },
 		request,
 		import.meta.env.APP_VERSION
 	);

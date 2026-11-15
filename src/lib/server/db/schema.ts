@@ -28,6 +28,10 @@ export const authTokens = sqliteTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		label: text('label').notNull(),
 		kind: text('kind', { enum: ['web', 'device', 'api'] }).notNull(),
+		// What an api token may do over MCP: `read` lists and reads, `write` changes data too.
+		access: text('access', { enum: ['read', 'write'] })
+			.notNull()
+			.default('write'),
 		tokenHash: text('token_hash').notNull().unique(),
 		tokenPrefix: text('token_prefix').notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),

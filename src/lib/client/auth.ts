@@ -7,9 +7,11 @@ export type PublicToken = {
 	id: string;
 	label: string;
 	kind: 'web' | 'device' | 'api';
+	access: 'read' | 'write';
 	prefix: string;
 	createdAt: number;
 	lastUsedAt: number | null;
+	expiresAt: number | null;
 	current: boolean;
 };
 
@@ -116,9 +118,14 @@ export async function listTokens(): Promise<PublicToken[]> {
 }
 
 export async function createToken(
-	label: string
+	label: string,
+	access: PublicToken['access'],
+	expiresInDays: number | null
 ): Promise<{ token: string; credential: PublicToken }> {
-	return request('/api/auth/tokens', { method: 'POST', body: { label } });
+	return request('/api/auth/tokens', {
+		method: 'POST',
+		body: { label, access, expiresInDays }
+	});
 }
 
 export async function revokeToken(id: string): Promise<void> {

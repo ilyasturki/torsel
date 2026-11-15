@@ -105,7 +105,8 @@ export function issueToken(
 	userId: string,
 	label: string,
 	kind: AuthToken['kind'],
-	expiresAt: Date | null = null
+	expiresAt: Date | null = null,
+	access: AuthToken['access'] = 'write'
 ): { token: string; record: AuthToken } {
 	const { token, tokenHash, tokenPrefix } = mintToken();
 
@@ -116,6 +117,7 @@ export function issueToken(
 			userId,
 			label: label.trim(),
 			kind,
+			access,
 			tokenHash,
 			tokenPrefix,
 			createdAt: new Date(),

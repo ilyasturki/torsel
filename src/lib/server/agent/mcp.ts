@@ -14,7 +14,9 @@ import {
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
-import { allowedOrigins, siteOrigin } from '../config.ts';
+import type { Window } from '../auth/rate-limit.ts';
+import { slidingWindow } from '../auth/rate-limit.ts';
+import { allowedOrigins, mcpCallsPerMinute, siteOrigin } from '../config.ts';
 import type { Tool, ToolContext } from './toolkit.ts';
 import { TOOLS, runTool } from './toolkit.ts';
 
@@ -22,13 +24,45 @@ export const INSTRUCTIONS = `Torsel holds a person's data as bases of typed tabl
 
 Read describe_base before writing: names, types and choices come from there. Read data with query, a read-only SQLite SELECT over views named like the tables and fields. Every write applies at once on the server and reaches the person's devices at their next sync; what they typed on a device in the last minute may not show here yet. Nothing written here can be undone from the app, so resolve what you mean before you change or delete it. A refused call says what to change; nothing of it was written.`;
 
-/** Who calls: the account, and the credential that reached the endpoint. */
-export type McpCaller = { userId: string; tokenId: string };
+const READ_ONLY = `This token reads only: the tools that change data are not here. A read and write token, from Settings, Agents (MCP), can change data.`;
+
+/** Who calls: the account, the credential that reached the endpoint, and what that credential may do. */
+export type McpCaller = { userId: string; tokenId: string; access: 'read' | 'write' };
 
 // No screen here to show a table on, and no attachment to import.
 const SERVED = TOOLS.filter((tool) => tool.kind !== 'screen' && tool.name !== 'import_file');
 
-async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown) {
+const MINUTE_MS = 60_000;
+
+const windows = new Map<number, Window>();
+
+function overLimit(caller: McpCaller): number | null {
+	const limit = mcpCallsPerMinute();
+	if (limit === 0) {
+		return null;
+	}
+	let window = windows.get(limit);
+	if (window === undefined) {
+		window = slidingWindow(limit, MINUTE_MS);
+		windows.set(limit, window);
+	}
+	return window.hit(caller.tokenId) ? limit : null;
+}
+
+type Outcome = Awaited<ReturnType<typeof runTool>>;
+
+async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown): Promise<Outcome> {
+	if (tool.kind !== 'read' && caller.access !== 'write') {
+		return { ok: false, error: READ_ONLY };
+	}
+	const limit = overLimit(caller);
+	if (limit !== null) {
+		return {
+			ok: false,
+			error: `this token made more than ${limit} calls in the last minute; wait a few seconds and call again`
+		};
+	}
+
 	const work = async () => {
 		const ws = loadWorkspace(db, caller.userId);
 		const ctx: ToolContext = {
@@ -39,8 +73,12 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 		};
 		return runTool(ctx, tool, input);
 	};
-	// Writes load and commit inside the account's turn, so no call overwrites what another just wrote.
-	return tool.kind === 'read' ? work() : serially(caller.userId, work);
+	// Writes load and commit inside the account's turn, so no call overwrites what another just wrote;
+	// a token's queries take turns, so one token never holds every SQL worker.
+	if (tool.kind !== 'read') {
+		return serially(caller.userId, work);
+	}
+	return tool.name === 'query' ? serially(`query:${caller.tokenId}`, work) : work();
 }
 
 // The toolkit validates input itself, to answer in the one error shape: the SDK only lists the schema.
@@ -52,10 +90,15 @@ function listedOnly(schema: Tool['input']): StandardSchemaWithJSON {
 export function buildMcpServer(db: Database, caller: McpCaller, version: string): McpServer {
 	const server = new McpServer(
 		{ name: 'torsel', version },
-		{ instructions: INSTRUCTIONS, capabilities: { tools: { listChanged: false } } }
+		{
+			instructions: caller.access === 'write' ? INSTRUCTIONS : `${INSTRUCTIONS}\n\n${READ_ONLY}`,
+			capabilities: { tools: { listChanged: false } }
+		}
 	);
 
-	for (const tool of SERVED) {
+	for (const tool of SERVED.filter(
+		(served) => served.kind === 'read' || caller.access === 'write'
+	)) {
 		server.registerTool(
 			tool.name,
 			{

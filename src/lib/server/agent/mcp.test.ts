@@ -1,5 +1,5 @@
 import names from '#lib/i18n/names.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createBase, createTable, defaultViews } from '../../core/actions.ts';
 import { createUser } from '../auth/accounts.ts';
@@ -31,10 +31,24 @@ async function account(): Promise<{ db: Database; userId: string; caller: McpCal
 	);
 	writeChanges(db, user.id, ws, table.changes);
 
-	return { db, userId: user.id, caller: { userId: user.id, tokenId: 'test' } };
+	return { db, userId: user.id, caller: { userId: user.id, tokenId: 'test', access: 'write' } };
 }
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function rpc(method: string, params: unknown): Request {
+	return new Request('http://torsel.test/api/mcp', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+		body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+	});
+}
+
+// A 2025-era answer comes as one SSE event or as JSON.
+async function message(response: Response): Promise<{ result?: unknown; error?: unknown }> {
+	const body = await response.text();
+	return JSON.parse(body.startsWith('{') ? body : (/^data: (.*)$/mu.exec(body)?.[1] ?? ''));
+}
 
 // The body arrives after `delay`, as from a slow network.
 function call(name: string, args: unknown, delay = 0): Request {
@@ -63,14 +77,11 @@ function call(name: string, args: unknown, delay = 0): Request {
 	} as RequestInit);
 }
 
-// A 2025-era answer comes as one SSE event or as JSON.
 async function result(response: Response): Promise<{ isError?: boolean; text: string }> {
-	const body = await response.text();
-	const json = body.startsWith('{') ? body : (/^data: (.*)$/mu.exec(body)?.[1] ?? '');
-	const message = JSON.parse(json) as {
+	const { result: answer } = (await message(response)) as {
 		result: { isError?: boolean; content: { text: string }[] };
 	};
-	return { isError: message.result.isError, text: message.result.content[0].text };
+	return { isError: answer.isError, text: answer.content[0].text };
 }
 
 describe('mcp', () => {
@@ -164,6 +175,48 @@ describe('mcp', () => {
 				'test'
 			);
 			expect(response.status).toBe(405);
+		}
+	});
+
+	it('shows a read token only the tools that read, and refuses it the rest', async () => {
+		const { db, userId } = await account();
+		const reader: McpCaller = { userId, tokenId: 'reader', access: 'read' };
+
+		const listed = await serveMcp(db, reader, rpc('tools/list', {}), 'test');
+		const { tools } = (await message(listed)).result as { tools: { name: string }[] };
+		expect(tools.map((tool) => tool.name)).toEqual(['list_bases', 'describe_base', 'query']);
+
+		const refused = await serveMcp(
+			db,
+			reader,
+			call('add_rows', { base: 'Films', table: 'Movies', rows: [{ Title: 'Heat' }] }),
+			'test'
+		);
+		expect(await message(refused)).toMatchObject({ error: { message: 'Tool add_rows not found' } });
+		const ws = loadWorkspace(db, userId);
+		expect(ws.rows(ws.tables(ws.bases()[0].id)[0].id)).toEqual([]);
+	});
+
+	it('caps the calls a token makes in a minute', async () => {
+		const { db, userId } = await account();
+		vi.stubEnv('TORSEL_MCP_CALLS_PER_MINUTE', '2');
+		try {
+			const caller: McpCaller = { userId, tokenId: 'busy', access: 'write' };
+			const answers = [];
+			for (let index = 0; index < 3; index += 1) {
+				answers.push(await result(await serveMcp(db, caller, call('list_bases', {}), 'test')));
+			}
+
+			expect(answers.map((answer) => answer.isError ?? false)).toEqual([false, false, true]);
+			expect(answers[2].text).toMatch(/more than 2 calls in the last minute; wait/u);
+			const other: McpCaller = { userId, tokenId: 'calm', access: 'write' };
+			expect(await result(await serveMcp(db, other, call('list_bases', {}), 'test'))).toMatchObject(
+				{
+					isError: undefined
+				}
+			);
+		} finally {
+			vi.unstubAllEnvs();
 		}
 	});
 });

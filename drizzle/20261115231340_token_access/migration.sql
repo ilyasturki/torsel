@@ -1,0 +1,1 @@
+ALTER TABLE `auth_tokens` ADD `access` text DEFAULT 'write' NOT NULL;
