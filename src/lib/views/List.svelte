@@ -9,6 +9,8 @@
 	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import { ratingScale } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
+	import { table as tableWords } from '#lib/i18n/table.ts';
+	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Chip from '#lib/ui/Chip.svelte';
 	import { swatch } from '#lib/ui/colors.ts';
@@ -59,7 +61,7 @@
 	}
 
 	function groupLabel(key: string): string {
-		if (key === '') return group === undefined ? '' : 'No value';
+		if (key === '') return group === undefined ? '' : words.noValue;
 		if (isDated(group?.type ?? 'text'))
 			return key.length === 7 ? formatMonth(key) : formatDate(key);
 		if (group?.type === 'link') return app.ws.rowTitle(key);
@@ -98,7 +100,7 @@
 		value === null || value === undefined || value === '';
 
 	function change(row: Rec, field: FieldDef, value: Value): void {
-		applyWithUndo(updateRow(app.ws, row.id, { [field.id]: value }), 'Row changed');
+		applyWithUndo(updateRow(app.ws, row.id, { [field.id]: value }), tableWords.rowChanged);
 	}
 
 	function open(row: Rec): void {
@@ -152,7 +154,7 @@
 				</MenuItem>
 			{/each}
 			{#if !blank(current)}
-				<MenuItem onSelect={() => change(row, field, null)}>None</MenuItem>
+				<MenuItem onSelect={() => change(row, field, null)}>{words.none}</MenuItem>
 			{/if}
 		</Menu>
 	{:else if field.type === 'rating'}
@@ -191,7 +193,7 @@
 		{#if title !== undefined && !blank(valueOf(row, title))}
 			<CellValue field={title} value={valueOf(row, title)} />
 		{:else}
-			<span class="font-normal text-ink-3">Untitled</span>
+			<span class="font-normal text-ink-3">{words.untitled}</span>
 		{/if}
 	</button>
 	{#if wide.current}
@@ -252,15 +254,15 @@
 		{/each}
 	{:else}
 		<div class="col-span-full">
-			<Empty text="No rows yet.">
-				<Button variant="primary" onclick={() => (shell.newRow = true)}>Add a row</Button>
+			<Empty text={words.noRows}>
+				<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
 			</Empty>
 		</div>
 	{/each}
 
 	{#if groups.total > limit}
 		<div class="col-span-full p-2">
-			<Button variant="ghost" onclick={() => (limit += PAGE)}>Show more</Button>
+			<Button variant="ghost" onclick={() => (limit += PAGE)}>{words.showMore}</Button>
 		</div>
 	{/if}
 </div>

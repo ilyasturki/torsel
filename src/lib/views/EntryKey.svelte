@@ -3,6 +3,7 @@
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
+	import { views as words } from '#lib/i18n/views.ts';
 	import { nextChoice, swatch } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Select from '#lib/ui/Select.svelte';
@@ -57,7 +58,7 @@
 				updateRecord(app.ws, field.id, {
 					choices: [...field.choices, nextChoice(field.choices, name)]
 				}),
-				`Choice "${name}" added`
+				words.choiceAdded(name)
 			);
 		}
 		onpick(name);
@@ -79,8 +80,8 @@
 			<input
 				class={input}
 				bind:value={search}
-				placeholder="Search {field.name}"
-				aria-label="Search {field.name}"
+				placeholder={words.searchIn(field.name)}
+				aria-label={words.searchIn(field.name)}
 			/>
 		{/if}
 		<div
@@ -110,15 +111,16 @@
 					<input
 						class="{input} w-40"
 						bind:value={fresh}
-						placeholder="New choice"
-						aria-label="New choice"
+						placeholder={words.newChoice}
+						aria-label={words.newChoice}
 						autofocus
 						onblur={add}
 					/>
 				</form>
 			{:else}
 				<button type="button" class="{chip} {chipOff}" onclick={() => (adding = true)}>
-					<Icon name="plus" /> New
+					<Icon name="plus" />
+					{words.new}
 				</button>
 			{/if}
 		</div>

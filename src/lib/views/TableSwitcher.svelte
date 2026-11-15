@@ -6,6 +6,8 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { HOME, tableUrl } from '#lib/client/nav.ts';
 	import { shell, startTable } from '#lib/client/shell.svelte.ts';
+	import { shell as shellWords } from '#lib/i18n/shell.ts';
+	import { table as words } from '#lib/i18n/table.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import { focus, input } from '#lib/ui/styles.ts';
@@ -46,8 +48,8 @@
 				count: table.count,
 				go: () => void goto(tableUrl(table.id))
 			})),
-		{ key: 'all', label: 'All tables', go: () => void goto(HOME) },
-		{ key: 'new', label: 'New table', go: () => startTable() }
+		{ key: 'all', label: shellWords.allTables, go: () => void goto(HOME) },
+		{ key: 'new', label: words.newTable, go: () => startTable() }
 	]);
 
 	$effect(() => {
@@ -116,7 +118,7 @@
 		}
 	}}
 >
-	<Tooltip text="Jump to a table" shortcut={keys('mod', 'p')} disabled={shell.switching}>
+	<Tooltip text={words.jump} shortcut={keys('mod', 'p')} disabled={shell.switching}>
 		{#snippet children(props)}
 			<Popover.Trigger
 				{...props}
@@ -148,12 +150,12 @@
 				bind:value={query}
 				class={input}
 				role="combobox"
-				aria-label="Jump to a table"
+				aria-label={words.jump}
 				aria-expanded="true"
 				aria-autocomplete="list"
 				aria-controls="table-switcher"
 				aria-activedescendant="table-switcher-{active}"
-				placeholder="Jump to a table"
+				placeholder={words.jump}
 				autocomplete="off"
 				inputmode={tables.length <= NO_KEYBOARD ? 'none' : undefined}
 				{onkeydown}
@@ -162,7 +164,7 @@
 				bind:this={list}
 				id="table-switcher"
 				role="listbox"
-				aria-label="Tables"
+				aria-label={shellWords.tables}
 				tabindex="-1"
 				class="flex max-h-80 flex-col overflow-y-auto"
 				onmousedown={(event) => event.preventDefault()}

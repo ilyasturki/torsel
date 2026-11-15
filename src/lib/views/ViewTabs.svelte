@@ -9,6 +9,7 @@
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
+	import { views as words } from '#lib/i18n/views.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import Menu from '#lib/ui/Menu.svelte';
@@ -18,7 +19,7 @@
 	import { focus } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 
-	import { VIEW_TYPES, addView, moveView } from './views.ts';
+	import { VIEW_TYPES, addView, moveView, viewLabel } from './views.ts';
 
 	let {
 		table,
@@ -151,7 +152,7 @@
 	}
 
 	function remove(view: ViewDef): void {
-		const label = `View "${view.name}" deleted`;
+		const label = words.viewDeleted(view.name);
 		const group = app.apply(deleteRecords(app.ws, [view.id]), label);
 		showToast(label, group?.id ?? null);
 		if (view.id === current?.id) void goto(tableUrl(table.id));
@@ -188,7 +189,7 @@
 		bind:this={strip}
 		class="relative flex min-w-0 hide-scrollbar overflow-x-auto"
 		role="group"
-		aria-label="Views"
+		aria-label={words.views}
 		use:slide
 		use:holdTouch
 	>
@@ -226,34 +227,36 @@
 								style={shift(at)}>{view.name}</a
 							>
 						{/snippet}
-						<MenuItem icon="settings" onSelect={() => onsettings(view.id)}>View settings</MenuItem>
+						<MenuItem icon="settings" onSelect={() => onsettings(view.id)}
+							>{words.viewSettings}</MenuItem
+						>
 						<MenuItem
 							icon="arrow-left"
 							shortcut={keys('mod', 'shift', '←')}
 							disabled={at === 0}
-							onSelect={() => void move(view, at - 1)}>Move left</MenuItem
+							onSelect={() => void move(view, at - 1)}>{words.moveLeft}</MenuItem
 						>
 						<MenuItem
 							icon="arrow-right"
 							shortcut={keys('mod', 'shift', '→')}
 							disabled={at === views.length - 1}
-							onSelect={() => void move(view, at + 1)}>Move right</MenuItem
+							onSelect={() => void move(view, at + 1)}>{words.moveRight}</MenuItem
 						>
 						<MenuSeparator />
-						<MenuItem icon="x" onSelect={() => remove(view)}>Delete view</MenuItem>
+						<MenuItem icon="x" onSelect={() => remove(view)}>{words.deleteView}</MenuItem>
 					</ContextMenu>
 				{/snippet}
 			</Tooltip>
 		{/each}
 	</div>
 	<span class="max-sm:hidden">
-		<Menu label="New view">
+		<Menu label={words.newView}>
 			{#snippet trigger(props)}
-				<IconButton {...props} icon="plus" label="New view" tooltip={false} />
+				<IconButton {...props} icon="plus" label={words.newView} tooltip={false} />
 			{/snippet}
 			{#each VIEW_TYPES as option (option.id)}
 				<MenuItem icon={option.icon} onSelect={() => addView(table.id, option.id)}
-					>{option.label}</MenuItem
+					>{viewLabel(option.id)}</MenuItem
 				>
 			{/each}
 		</Menu>

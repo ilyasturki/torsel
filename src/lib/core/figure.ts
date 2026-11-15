@@ -13,7 +13,8 @@ export type Figure =
 			value: number;
 			/** The x the value stands at, empty for a grand total. */
 			at: string;
-			label: string;
+			/** The name of the field the calculation reads; the view words it with `config.agg`. */
+			of: string;
 			config: ChartConfig;
 			byDate: boolean;
 			trend: number[];
@@ -55,7 +56,7 @@ export function tableFigure(
 			kind: 'chart',
 			value: lead.y,
 			at: lead.x,
-			label: data.yLabel,
+			of: data.yName,
 			config,
 			byDate,
 			trend: trend(data, config)

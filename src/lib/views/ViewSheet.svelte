@@ -16,6 +16,8 @@
 	} from '#lib/core/actions.ts';
 	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import Field from '#lib/ui/Field.svelte';
@@ -118,7 +120,7 @@
 			const clean = JSON.parse(JSON.stringify(config)) as Value;
 			applyWithUndo(
 				updateRecord(app.ws, existing.id, { name: label, type, config: clean }),
-				`View "${label}" changed`
+				words.viewChanged(label)
 			);
 		}
 		open = false;
@@ -126,7 +128,7 @@
 
 	function remove(): void {
 		if (existing === undefined) return;
-		const label = `View "${existing.name}" deleted`;
+		const label = words.viewDeleted(existing.name);
 		const group = app.apply(deleteRecords(app.ws, [existing.id]), label);
 		showToast(label, group?.id ?? null);
 		open = false;
@@ -140,13 +142,13 @@
 	): boolean => (config[key] ?? fallback).includes(field.id);
 </script>
 
-<Dialog bind:open title="View settings" {dirty} onsubmit={save}>
+<Dialog bind:open title={words.viewSettings} {dirty} onsubmit={save}>
 	<div class="flex flex-col gap-3">
-		<Field label="Name">
+		<Field label={words.name}>
 			<input class={input} bind:value={name} placeholder={viewLabel(type)} />
 		</Field>
 
-		<div class="grid grid-cols-4 gap-1" role="group" aria-label="View type">
+		<div class="grid grid-cols-4 gap-1" role="group" aria-label={words.viewType}>
 			{#each VIEW_TYPES as option (option.id)}
 				<button
 					type="button"
@@ -157,27 +159,27 @@
 					aria-pressed={type === option.id}
 					onclick={() => pickType(option.id)}
 				>
-					<Icon name={option.icon} />{option.label}
+					<Icon name={option.icon} />{viewLabel(option.id)}
 				</button>
 			{/each}
 		</div>
 
 		{#if type === 'grid'}
 			<div class="grid grid-cols-2 gap-3">
-				<Field label="Sort by">
+				<Field label={words.sortBy}>
 					<Select
-						options={[{ value: '', label: 'None, oldest first' }, ...fieldOptions(fields)]}
+						options={[{ value: '', label: words.unsorted }, ...fieldOptions(fields)]}
 						value={config.sort?.field ?? ''}
 						onchange={(field) => {
 							config.sort = field ? { field, dir: config.sort?.dir ?? 'asc' } : null;
 						}}
 					/>
 				</Field>
-				<Field label="Order">
+				<Field label={words.order}>
 					<Select
 						options={[
-							{ value: 'asc', label: 'Ascending', icon: 'arrow-up' },
-							{ value: 'desc', label: 'Descending', icon: 'arrow-down' }
+							{ value: 'asc', label: words.ascending, icon: 'arrow-up' },
+							{ value: 'desc', label: words.descending, icon: 'arrow-down' }
 						]}
 						disabled={!config.sort}
 						value={config.sort?.dir ?? 'asc'}
@@ -190,14 +192,17 @@
 			{#if config.filter}
 				<div class="flex items-center gap-2">
 					<span class="min-w-0 flex-1 truncate">
-						Only rows where {fields.find((field) => field.id === config.filter?.field)?.name} contains
-						"{config.filter.text}"
+						{words.filtered(
+							fields.find((field) => field.id === config.filter?.field)?.name ?? '',
+							config.filter.text
+						)}
 					</span>
-					<Button variant="ghost" onclick={() => (config.filter = null)}>Clear filter</Button>
+					<Button variant="ghost" onclick={() => (config.filter = null)}>{words.clearFilter}</Button
+					>
 				</div>
 			{/if}
 			<fieldset class="flex flex-col gap-1">
-				<legend class={legend}>Fields shown</legend>
+				<legend class={legend}>{words.fieldsShown}</legend>
 				{#each fields as field (field.id)}
 					<label class="flex min-h-control items-center gap-2">
 						<input
@@ -212,7 +217,7 @@
 			</fieldset>
 		{:else if type === 'entry'}
 			<fieldset class="flex flex-col gap-1">
-				<legend class={legend}>Fields to fill in</legend>
+				<legend class={legend}>{words.fieldsToFill}</legend>
 				{#each fillable as field (field.id)}
 					<label class="flex min-h-control items-center gap-2">
 						<input
@@ -226,7 +231,7 @@
 				{/each}
 			</fieldset>
 			<fieldset class="flex flex-col gap-1">
-				<legend class={legend}>"Last time" matches on</legend>
+				<legend class={legend}>{words.lastTimeMatches}</legend>
 				{#each keyCandidates as field (field.id)}
 					<label class="flex min-h-control items-center gap-2">
 						<input
@@ -240,23 +245,25 @@
 				{/each}
 			</fieldset>
 		{:else if type === 'list'}
-			<Field label="Group by">
+			<Field label={words.groupBy}>
 				<Select
 					options={[
-						{ value: 'auto', label: `Automatic (${autoLayout.group?.name ?? 'nothing'})` },
-						{ value: '', label: 'Nothing' },
+						{ value: 'auto', label: words.automaticGroup(autoLayout.group?.name ?? null) },
+						{ value: '', label: words.nothing },
 						...fieldOptions(fields)
 					]}
 					value={config.group === undefined ? 'auto' : (config.group ?? '')}
 					onchange={setGroup}
 				/>
 			</Field>
-			<Field label="Title">
+			<Field label={words.title}>
 				<Select
 					options={[
 						{
 							value: '',
-							label: `Automatic (${listLayout(fields, { ...config, title: undefined }).title?.name ?? 'none'})`
+							label: words.automaticTitle(
+								listLayout(fields, { ...config, title: undefined }).title?.name ?? null
+							)
 						},
 						...fieldOptions(fields)
 					]}
@@ -265,7 +272,7 @@
 				/>
 			</Field>
 			<fieldset class="flex flex-col gap-1">
-				<legend class={legend}>Fields under the title</legend>
+				<legend class={legend}>{words.fieldsUnderTitle}</legend>
 				{#each fields as field (field.id)}
 					<label class="flex min-h-control items-center gap-2">
 						<input
@@ -285,7 +292,7 @@
 			</fieldset>
 		{:else}
 			<div class="grid grid-cols-2 gap-1">
-				{#each [{ id: 'bar', label: 'Bars' }, { id: 'line', label: 'Line' }] as option (option.id)}
+				{#each [{ id: 'bar', label: words.bars }, { id: 'line', label: words.line }] as option (option.id)}
 					<button
 						type="button"
 						class="h-control rounded-box font-medium transition-colors motion {(config.kind ??
@@ -296,7 +303,7 @@
 					>
 				{/each}
 			</div>
-			<Field label="Horizontal axis">
+			<Field label={words.xAxis}>
 				<Select
 					options={fieldOptions(fields)}
 					value={axis ?? ''}
@@ -304,12 +311,12 @@
 				/>
 			</Field>
 			{#if isDated(xField?.type ?? 'text')}
-				<Field label="Group dates by">
+				<Field label={words.groupDatesBy}>
 					<Select
 						options={[
-							{ value: 'day', label: 'Day' },
-							{ value: 'week', label: 'Week' },
-							{ value: 'month', label: 'Month' }
+							{ value: 'day', label: words.day },
+							{ value: 'week', label: words.week },
+							{ value: 'month', label: words.month }
 						]}
 						value={config.bucket ?? 'day'}
 						onchange={(bucket) => setChart('bucket', bucket)}
@@ -317,20 +324,20 @@
 				</Field>
 			{/if}
 			<div class="grid grid-cols-2 gap-3">
-				<Field label="Calculation">
+				<Field label={words.calculation}>
 					<Select
 						options={[
-							{ value: 'count', label: 'Row count' },
-							{ value: 'sum', label: 'Sum' },
-							{ value: 'avg', label: 'Average' },
-							{ value: 'max', label: 'Highest' },
-							{ value: 'min', label: 'Lowest' }
+							{ value: 'count', label: words.aggregates.count },
+							{ value: 'sum', label: words.aggregates.sum },
+							{ value: 'avg', label: words.aggregates.avg },
+							{ value: 'max', label: words.aggregates.max },
+							{ value: 'min', label: words.aggregates.min }
 						]}
 						value={config.agg ?? 'count'}
 						onchange={setAgg}
 					/>
 				</Field>
-				<Field label="Of">
+				<Field label={words.of}>
 					<Select
 						options={fieldOptions(numeric)}
 						value={config.y ?? ''}
@@ -339,15 +346,15 @@
 					/>
 				</Field>
 			</div>
-			<Field label="Colour by">
+			<Field label={words.colourBy}>
 				<Select
-					options={[{ value: '', label: 'One series' }, ...fieldOptions(choices)]}
+					options={[{ value: '', label: words.oneSeries }, ...fieldOptions(choices)]}
 					value={config.color ?? ''}
 					onchange={(color) => setChart('color', color || null)}
 				/>
 			</Field>
 			{#if (config.kind ?? 'bar') === 'line' && isDated(xField?.type ?? 'text')}
-				<Field label="Rolling average (days)">
+				<Field label={words.rollingDays}>
 					<input
 						class={input}
 						inputmode="numeric"
@@ -364,8 +371,8 @@
 	</div>
 
 	{#snippet footer()}
-		<Button variant="ghost" onclick={remove}>Delete</Button>
+		<Button variant="ghost" onclick={remove}>{common.delete}</Button>
 		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>Save</Button>
+		<Button variant="primary" onclick={save}>{common.save}</Button>
 	{/snippet}
 </Dialog>

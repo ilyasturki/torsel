@@ -6,6 +6,7 @@
 	import { axisTicks, headline, totalled } from '#lib/core/chart.ts';
 	import type { ViewDef } from '#lib/core/model.ts';
 	import { isDated } from '#lib/core/model.ts';
+	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { strongColor } from '#lib/ui/colors.ts';
 	import Empty from '#lib/ui/Empty.svelte';
@@ -120,7 +121,8 @@
 		if (isDated(xField?.type ?? 'text')) {
 			return x.length === 7 ? formatMonth(x) : formatDate(x);
 		}
-		return x === '' ? 'No value' : x;
+		if (xField?.type === 'check') return x === '1' ? words.yes : words.no;
+		return x === '' ? words.noValue : x;
 	}
 
 	const byDate = $derived(isDated(xField?.type ?? 'text'));
@@ -128,13 +130,17 @@
 
 	const per = $derived(
 		byDate && config.bucket === 'week'
-			? 'per week'
+			? words.perWeek
 			: byDate && config.bucket === 'month'
-				? 'per month'
+				? words.perMonth
 				: byDate
 					? ''
-					: `${total ? 'by' : 'per'} ${(data?.xLabel ?? '').toLowerCase()}`
+					: total
+						? words.byField(data?.xName ?? '')
+						: words.perField(data?.xName ?? '')
 	);
+
+	const valueName = $derived(data === null ? '' : words.chartValue[data.agg](data.yName));
 
 	const xTicks = $derived.by(() => {
 		const room = Math.max(2, Math.floor(inner / (byDate ? 96 : 72)));
@@ -188,9 +194,9 @@
 
 <div class="flex min-h-full flex-col gap-1 p-6 max-sm:p-4">
 	{#if data === null}
-		<Empty text="Pick an axis and a calculation for this chart in View settings." />
+		<Empty text={words.chartUnset} />
 	{:else}
-		<span class="font-medium text-ink-3">{data.yLabel}</span>
+		<span class="font-medium text-ink-3">{valueName}</span>
 		{#if latest !== null}
 			<p class="text-hero-lg leading-none font-semibold tighter">{amount(latest.y)}</p>
 		{/if}
@@ -198,15 +204,15 @@
 			{[
 				latest === null ? '' : latest.x === '' ? '' : label(latest.x),
 				per,
-				config.rolling ? `${config.rolling}-day rolling average` : ''
+				config.rolling ? words.rolling(config.rolling) : ''
 			]
 				.filter((part) => part !== '')
 				.join(', ')}
 		</p>
 
 		{#if xs.length === 0}
-			<Empty text="No data yet. Add a row and it shows up here.">
-				<Button variant="primary" onclick={() => (shell.newRow = true)}>Add a row</Button>
+			<Empty text={words.noData}>
+				<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
 			</Empty>
 		{:else}
 			<div class="relative" bind:clientWidth={width}>
@@ -217,7 +223,7 @@
 					height={H}
 					class="block w-full touch-pan-y rounded-box outline-none select-none {focus}"
 					role="img"
-					aria-label="{data.yLabel} per {data.xLabel}"
+					aria-label={words.chartName(valueName, data.xName)}
 					tabindex="0"
 					onpointermove={pointAt}
 					onpointerdown={pointAt}
@@ -330,14 +336,14 @@
 								{/if}
 								<span class="font-semibold">{amount(row.y ?? 0)}</span>
 								{#if series.length > 1}
-									<span class="truncate text-ink-2">{row.name || 'No value'}</span>
+									<span class="truncate text-ink-2">{row.name || words.noValue}</span>
 								{/if}
 							</span>
 						{/each}
 						{#if readout.sum !== undefined}
 							<span class="flex items-center gap-2 border-t border-rule pt-1 tabular-nums">
 								<span class="font-semibold">{amount(readout.sum)}</span>
-								<span class="text-ink-2">Total</span>
+								<span class="text-ink-2">{words.total}</span>
 							</span>
 						{/if}
 					</div>
@@ -349,7 +355,7 @@
 					{#each series as item (item.name)}
 						<span class="inline-flex items-center gap-2">
 							<span class="size-mark rounded-box" style="background: {item.color}"></span>
-							{item.name || 'No value'}
+							{item.name || words.noValue}
 						</span>
 					{/each}
 				</div>

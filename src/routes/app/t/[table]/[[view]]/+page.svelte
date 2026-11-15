@@ -10,6 +10,7 @@
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { caughtUp } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { table as words } from '#lib/i18n/table.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Chart from '#lib/views/Chart.svelte';
@@ -56,7 +57,7 @@
 		} else if (segment === shown) {
 			lost = true;
 		} else if (app.ready && caughtUp()) {
-			untrack(() => showToast('Table not found'));
+			untrack(() => showToast(words.notFound));
 			void goto(HOME, { replace: true });
 		}
 	});
@@ -77,8 +78,8 @@
 
 {#if table === undefined}
 	{#if lost}
-		<Empty text="This table no longer exists.">
-			<a href={HOME} class="underline">See your tables</a>
+		<Empty text={words.gone}>
+			<a href={HOME} class="underline">{words.seeTables}</a>
 		</Empty>
 	{/if}
 {:else}
@@ -86,22 +87,22 @@
 		{#if problems.length > 0}
 			<div class="flex shrink-0 flex-col gap-1 bg-tint p-3" role="alert">
 				{#each problems as problem (problem.name)}
-					<p>{problem.name} can't be calculated: {problem.message}</p>
+					<p>{words.cantCalculate(problem.name, problem.message)}</p>
 				{/each}
 			</div>
 		{/if}
 
 		{#if blank}
 			<div class="shrink-0">
-				<Empty text="This table is empty.">
-					<Button onclick={() => (shell.addingField = true)}>Add a field</Button>
-					<Button onclick={() => (shell.importing = { into: tableId })}>Import a file</Button>
+				<Empty text={words.empty}>
+					<Button onclick={() => (shell.addingField = true)}>{words.addField}</Button>
+					<Button onclick={() => (shell.importing = { into: tableId })}>{words.importFile}</Button>
 				</Empty>
 			</div>
 		{/if}
 
 		{#if view === undefined}
-			<Empty text="This table has no view yet. Add one with the plus above." />
+			<Empty text={words.noView} />
 		{:else}
 			{#key view.id}
 				<div class="min-h-0 flex-1 enter">

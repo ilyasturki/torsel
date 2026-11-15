@@ -5,21 +5,22 @@ import type { Workspace } from './workspace.ts';
 
 export type ChartPoint = { x: string; series: string; y: number };
 
-export type ChartData = { points: ChartPoint[]; xLabel: string; yLabel: string; series: string[] };
+export type Aggregate = NonNullable<ChartConfig['agg']>;
 
-const AGG_LABELS: Record<NonNullable<ChartConfig['agg']>, string> = {
-	count: 'Row count',
-	sum: 'Total',
-	avg: 'Average',
-	max: 'Highest',
-	min: 'Lowest'
+/** `xName` and `yName` are field names; the view words the calculation. A check field's x reads 1 or 0. */
+export type ChartData = {
+	points: ChartPoint[];
+	xName: string;
+	agg: Aggregate;
+	yName: string;
+	series: string[];
 };
 
 function bucketSql(field: FieldDef, bucket: ChartConfig['bucket']): string {
 	const column = `t.${field.id}`;
 
 	if (!isDated(field.type)) {
-		return field.type === 'check' ? `case ${column} when 1 then 'yes' else 'no' end` : column;
+		return field.type === 'check' ? `case ${column} when 1 then 1 else 0 end` : column;
 	}
 
 	const day = `substr(${column}, 1, 10)`;
@@ -133,13 +134,11 @@ export function chartData(
 
 	const x = ws.field(config.x ?? '');
 	const y = config.y ? ws.field(config.y) : undefined;
-	const agg = config.agg ?? 'count';
-
 	return {
 		points,
-		xLabel: x?.name ?? '',
-		yLabel:
-			agg === 'count' ? AGG_LABELS.count : `${AGG_LABELS[agg]} ${(y?.name ?? '').toLowerCase()}`,
+		xName: x?.name ?? '',
+		agg: config.agg ?? 'count',
+		yName: y?.name ?? '',
 		series: [...series]
 	};
 }

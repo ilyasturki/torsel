@@ -6,6 +6,7 @@
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
 	import type { TableDef } from '#lib/core/model.ts';
+	import { table as words } from '#lib/i18n/table.ts';
 	import { fieldFill, fieldFocus } from '#lib/ui/styles.ts';
 
 	import TableSwitcher from './TableSwitcher.svelte';
@@ -39,7 +40,7 @@
 		editing = false;
 		const name = draft.trim();
 		if (name !== '' && name !== table.name) {
-			applyWithUndo(updateRecord(app.ws, table.id, { name }), 'Table renamed');
+			applyWithUndo(updateRecord(app.ws, table.id, { name }), words.tableRenamed);
 		}
 	}
 
@@ -62,7 +63,7 @@
 		<input
 			use:select
 			class="-mx-1.5 h-control w-full min-w-0 rounded-box px-1.5 font-semibold {fieldFill} {fieldFocus}"
-			aria-label="Table name"
+			aria-label={words.tableName}
 			bind:value={draft}
 			onblur={commit}
 			onpaste={(event) => {

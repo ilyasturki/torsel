@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createBase } from '#lib/core/actions.ts';
 import { chartData } from '#lib/core/chart.ts';
+import viewWords from '#lib/i18n/views.ts';
 import { Hlc } from '#lib/core/clock.ts';
 import { openEngine } from '#lib/core/engine.ts';
 import type { Change } from '#lib/core/model.ts';
@@ -61,7 +62,7 @@ describe('each prepared prompt does what the engine computes', () => {
 				expect(view?.name).toBe(prompt.name);
 				materializeTable(engine, ws, sample.table);
 				const data = chartData(engine, ws, sample.table, view?.config ?? {});
-				expect(data?.yLabel).toBe(prompt.label);
+				expect(data && viewWords.en.chartValue[data.agg](data.yName)).toBe(prompt.label);
 				const totals = new Map<string, number>();
 				for (const row of rows) {
 					const key = String(row[prompt.group]);

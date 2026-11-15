@@ -23,6 +23,8 @@
 		withHeader
 	} from '#lib/core/csv.ts';
 	import type { Rec } from '#lib/core/model.ts';
+	import { importing as words } from '#lib/i18n/importing.ts';
+	import { table as tableWords } from '#lib/i18n/table.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -35,9 +37,6 @@
 	const TYPES = typeOptions((type) => type !== 'link' && type !== 'formula');
 
 	const NEW_TABLE = '';
-
-	const plural = (count: number, noun: string): string =>
-		`${count} ${noun}${count === 1 ? '' : 's'}`;
 
 	let open = $state(false);
 	let rows = $state.raw<string[][]>([]);
@@ -75,9 +74,7 @@
 		if (records === null) return '';
 		const count = (kind: Rec['kind']): number =>
 			(records ?? []).filter((rec) => rec.kind === kind && rec.data._del !== true).length;
-		const tableCount = count('table');
-		const rowCount = count('row');
-		return `${tableCount} ${tableCount === 1 ? 'table' : 'tables'}, ${rowCount} ${rowCount === 1 ? 'row' : 'rows'}.`;
+		return words.holds(count('table'), count('row'));
 	});
 
 	$effect(() => {
@@ -103,11 +100,11 @@
 
 		if (text.trimStart().startsWith('{')) {
 			records = parseExport(text);
-			if (records === null) problem = 'This file isn’t a Torsel export.';
+			if (records === null) problem = words.notExport;
 		} else {
 			const parsed = withHeader(parseCsv(text, start.text === undefined ? undefined : '\t'), names);
 			if (parsed.length < 2) {
-				problem = 'This has no rows to import.';
+				problem = words.noRows;
 				return;
 			}
 			rows = parsed;
@@ -134,7 +131,7 @@
 
 	function restore(): void {
 		const changes = restoreChanges(app.ws, records ?? []);
-		const label = changes.length === 0 ? 'Nothing to restore' : 'Export restored';
+		const label = changes.length === 0 ? words.nothingRestored : words.restored;
 		const group = app.apply(changes, label);
 		showToast(label, group?.id ?? null);
 		open = false;
@@ -150,12 +147,9 @@
 			targets
 		);
 		const name = app.ws.table(into)?.name ?? '';
-		const label = `${count} ${count === 1 ? 'row' : 'rows'} imported into "${name}"`;
+		const label = words.imported(count, name);
 		const group = app.apply(changes, label);
-		showToast(
-			unread === 0 ? label : `${label}, ${unread} ${unread === 1 ? 'value' : 'values'} left empty`,
-			group?.id ?? null
-		);
+		showToast(unread === 0 ? label : words.leftEmpty(label, unread), group?.id ?? null);
 		open = false;
 		void goto(tableUrl(into));
 	}
@@ -164,8 +158,7 @@
 		const name = tableName.trim() || nextTableName(app.ws, names);
 		const home = base === '' ? homeBase(app.ws, names) : { id: base, changes: [] };
 		const made = importTable(app.ws, names, home.id, name, rows, $state.snapshot(columns));
-		const count = rows.length - 1;
-		const label = `${count} ${count === 1 ? 'row' : 'rows'} imported into "${name}"`;
+		const label = words.imported(rows.length - 1, name);
 		const group = app.apply([...home.changes, ...made.changes], label);
 		showToast(label, group?.id ?? null);
 		open = false;
@@ -180,14 +173,14 @@
 	}
 </script>
 
-<Dialog bind:open title="Import" dirty={ready} typeOnOpen={false} onsubmit={run}>
+<Dialog bind:open title={words.title} dirty={ready} typeOnOpen={false} onsubmit={run}>
 	<div class="flex flex-col gap-3" bind:this={body}>
 		{#if !ready}
 			<input
 				bind:this={picker}
 				type="file"
 				accept=".csv,.tsv,.txt,.json,text/csv,application/json"
-				aria-label="File to import"
+				aria-label={words.fileToImport}
 				tabindex="-1"
 				class="sr-only"
 				onchange={(event) => {
@@ -195,11 +188,11 @@
 					if (file) void read({ file, into: into || null });
 				}}
 			/>
-			<Button class="self-start" onclick={() => picker?.click()}>Choose a file</Button>
+			<Button class="self-start" onclick={() => picker?.click()}>{words.chooseFile}</Button>
 			<textarea
 				class="{textarea} h-24"
-				aria-label="Cells to import"
-				placeholder="Or paste cells here"
+				aria-label={words.cellsToImport}
+				placeholder={words.pasteHere}
 				spellcheck="false"
 				onpaste={(event) => {
 					const text = event.clipboardData?.getData('text/plain') ?? '';
@@ -211,17 +204,15 @@
 		{/if}
 
 		{#if records !== null}
-			<p>This export holds {summary}</p>
-			<p class="text-ink-2">
-				Everything in it comes back over what this device holds now, in one step you can undo.
-			</p>
+			<p>{summary}</p>
+			<p class="text-ink-2">{words.replaces}</p>
 		{/if}
 
 		{#if hasColumns}
-			<Field label="Into">
+			<Field label={words.into}>
 				<Select
 					options={[
-						{ value: NEW_TABLE, label: 'A new table', icon: 'plus' },
+						{ value: NEW_TABLE, label: words.newTable, icon: 'plus' },
 						...tables.map((table) => ({ value: table.id, label: table.name }))
 					]}
 					value={into}
@@ -231,21 +222,21 @@
 
 			{#if into === NEW_TABLE}
 				{#if bases.length > 1}
-					<Field label="Base">
+					<Field label={words.base}>
 						<Select
 							options={bases.map((item) => ({ value: item.id, label: item.name }))}
 							bind:value={base}
 						/>
 					</Field>
 				{/if}
-				<Field label="Table name">
+				<Field label={tableWords.tableName}>
 					<input class={input} bind:value={tableName} />
 				</Field>
 			{/if}
 
 			<div class="flex flex-col gap-2">
 				<span class="text-sm font-medium text-ink-2"
-					>{plural(columns.length, 'column')}, {plural(rows.length - 1, 'row')}</span
+					>{words.size(columns.length, rows.length - 1)}</span
 				>
 				<div class="flex flex-col gap-1">
 					{#each columns as column, index (index)}
@@ -254,12 +245,12 @@
 								<input
 									class="{input} col-span-2"
 									bind:value={column.name}
-									aria-label="Name of column {index + 1}"
+									aria-label={words.columnName(index + 1)}
 								/>
 								<Select
 									options={TYPES}
 									bind:value={column.type}
-									aria-label="Type of {column.name}"
+									aria-label={words.typeOf(column.name)}
 								/>
 							</div>
 						{:else}
@@ -270,8 +261,8 @@
 								</span>
 								<Select
 									options={[
-										{ value: NEW_FIELD, label: 'New field', icon: 'plus' },
-										{ value: SKIP, label: 'Skip', icon: 'x' },
+										{ value: NEW_FIELD, label: words.newField, icon: 'plus' },
+										{ value: SKIP, label: words.skip, icon: 'x' },
 										...fields.map((field) => ({
 											value: field.id,
 											label: field.name,
@@ -279,7 +270,7 @@
 										}))
 									]}
 									bind:value={targets[index]}
-									aria-label="Field for {column.name}"
+									aria-label={words.fieldFor(column.name)}
 								/>
 							</div>
 						{/if}
@@ -296,7 +287,7 @@
 	{#snippet footer()}
 		<div class="flex-1"></div>
 		<Button variant="primary" disabled={!ready} onclick={run}
-			>{records === null ? 'Import' : 'Restore'}</Button
+			>{records === null ? words.import : words.restore}</Button
 		>
 	{/snippet}
 </Dialog>

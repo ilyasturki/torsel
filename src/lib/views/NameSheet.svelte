@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import { input } from '#lib/ui/styles.ts';
@@ -8,7 +9,7 @@
 		title,
 		placeholder = '',
 		initial = '',
-		action = 'Create',
+		action = common.create,
 		onsave,
 		onclose
 	}: {

@@ -79,7 +79,7 @@ describe('table figure', () => {
 		);
 
 		const figure = await figureOf(at.ws, weighIns.id);
-		expect(figure).toMatchObject({ kind: 'chart', at: '2026-10-28', label: 'Average kg' });
+		expect(figure).toMatchObject({ kind: 'chart', at: '2026-10-28', of: 'kg' });
 		expect(figure?.kind === 'chart' && figure.value).toBeCloseTo(88.1);
 		expect(figure?.kind === 'chart' && figure.trend.map((value) => value.toFixed(2))).toEqual([
 			'88.40',

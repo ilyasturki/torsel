@@ -1,4 +1,5 @@
 import names from '../../src/lib/i18n/names.ts';
+import viewWords from '../../src/lib/i18n/views.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import {
@@ -90,7 +91,8 @@ test.describe('in French', () => {
 	}) => {
 		void account;
 		await page.goto(await seedWeighIns(context.request));
-		const chart = page.getByRole('img', { name: 'Average kg per Day' });
+		const name = viewWords.fr.chartName(viewWords.fr.chartValue.avg('kg'), 'Day');
+		const chart = page.getByRole('img', { name });
 		await expect(chart).toContainText('26 oct.');
 		await expect(chart).toContainText(/10\s088/u);
 

@@ -10,6 +10,9 @@
 	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import { nativeDateText, nowIso, parseDate, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
+	import Rich from '#lib/i18n/Rich.svelte';
+	import { table as tableWords } from '#lib/i18n/table.ts';
+	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -198,16 +201,17 @@
 		lastAdded = { at: Date.now(), row: same };
 
 		const { changes } = insertRows(app.ws, tableId, [row]);
-		const group = app.apply(changes, 'Row added');
+		const group = app.apply(changes, tableWords.rowAdded);
 		loggedThrough(tableId, view.id);
 		for (const field of items) values[field.id] = row[field.id];
 		if (chosen !== FREE) chosen = null;
 		edits = {};
 		texts = {};
-		showToast('Row added', group?.id ?? null);
+		showToast(tableWords.rowAdded, group?.id ?? null);
 	}
 
-	const when = (row: Rec): string => (dayOf(row) === today ? 'today' : formatDate(dayOf(row)));
+	const when = (row: Rec): string =>
+		dayOf(row) === today ? words.todayInline : formatDate(dayOf(row));
 
 	const history = $derived(
 		ordered
@@ -221,7 +225,11 @@
 			.map((row, at, list) => {
 				const day = dayOf(row);
 				const shownDay =
-					at > 0 && dayOf(list[at - 1]) === day ? '' : day === today ? 'Today' : formatDate(day);
+					at > 0 && dayOf(list[at - 1]) === day
+						? ''
+						: day === today
+							? words.today
+							: formatDate(day);
 				return { row, day: shownDay };
 			})
 	);
@@ -268,7 +276,7 @@
 {/snippet}
 
 {#if fields.length === 0}
-	<Empty text="This view has no fields to fill in." />
+	<Empty text={words.noEntryFields} />
 {:else}
 	<div
 		class="flex h-full min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_var(--spacing-entry)] lg:grid-rows-[auto_minmax(0,1fr)]"
@@ -290,7 +298,7 @@
 			<div
 				class="min-h-0 flex-1 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1"
 				role="group"
-				aria-label="Last time"
+				aria-label={words.lastTime}
 			>
 				<div class="grid text-ink-2" style={gridOf(span)}>
 					<div class="sticky top-0 z-10 col-span-full grid grid-cols-subgrid bg-raised">
@@ -302,7 +310,7 @@
 							>
 							<span
 								class="flex h-row items-center border-b border-l border-rule px-2 text-sm font-medium text-ink"
-								style="grid-column: span {columns.length}">Today</span
+								style="grid-column: span {columns.length}">{words.today}</span
 							>
 						{/if}
 						<span class="border-b border-rule"></span>
@@ -337,7 +345,7 @@
 								onclick={() => choose(item)}
 							>
 								<span class="flex justify-center text-ink-2">
-									{#if item.logged !== null}<Icon name="check" label="Logged" />{/if}
+									{#if item.logged !== null}<Icon name="check" label={words.logged} />{/if}
 								</span>
 								{#if roomy.current}
 									{@render cells(item.planned)}
@@ -359,7 +367,7 @@
 							chosen = FREE;
 						}}
 					>
-						<Icon name="plus" />Pick another {items.map((field) => field.name).join(', ')}
+						<Icon name="plus" />{words.pickAnother(items.map((field) => field.name).join(', '))}
 					</button>
 				</div>
 			</div>
@@ -419,11 +427,15 @@
 				{/each}
 				{#if template !== undefined && others.length > 0}
 					<p class="text-sm text-ink-3">
-						From <button
-							type="button"
-							class="rounded-box text-ink-2 underline decoration-edge underline-offset-2 transition-colors motion hover:text-ink hover:decoration-ink {focus}"
-							onclick={() => template && open(template)}>{when(template)}</button
-						>
+						<Rich text={words.from(when(template))}>
+							{#snippet row(label: string)}
+								<button
+									type="button"
+									class="rounded-box text-ink-2 underline decoration-edge underline-offset-2 transition-colors motion hover:text-ink hover:decoration-ink {focus}"
+									onclick={() => template && open(template)}>{label}</button
+								>
+							{/snippet}
+						</Rich>
 					</p>
 				{/if}
 			{/if}
@@ -501,7 +513,7 @@
 				size="cta"
 				class="sticky bottom-4 z-10 shrink-0 sm:h-control sm:self-end sm:px-3 sm:text-base sm:font-medium"
 				disabled={!ready}
-				onclick={commit}>Add row</Button
+				onclick={commit}>{words.addRow}</Button
 			>
 		</section>
 	</div>

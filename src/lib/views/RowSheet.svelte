@@ -6,6 +6,9 @@
 	import { toDisplay } from '#lib/core/formula.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { freshValue } from '#lib/core/values.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { shell as shellWords } from '#lib/i18n/shell.ts';
+	import { table as words } from '#lib/i18n/table.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
@@ -85,7 +88,7 @@
 	function keep(field: FieldDef): void {
 		if (current === null || stored === undefined) return;
 		if (same(values[field.id], stored.data[field.id])) return;
-		applyWithUndo(updateRow(app.ws, current, { [field.id]: values[field.id] }), 'Row changed');
+		applyWithUndo(updateRow(app.ws, current, { [field.id]: values[field.id] }), words.rowChanged);
 	}
 
 	function keepAll(): void {
@@ -95,7 +98,7 @@
 			if (!same(values[field.id], stored.data[field.id])) changed[field.id] = values[field.id];
 		}
 		if (Object.keys(changed).length > 0) {
-			applyWithUndo(updateRow(app.ws, current, changed), 'Row changed');
+			applyWithUndo(updateRow(app.ws, current, changed), words.rowChanged);
 		}
 	}
 
@@ -121,16 +124,16 @@
 	function submit(): void {
 		if (current === null) {
 			const { changes } = insertRows(app.ws, tableId, [values]);
-			const group = app.apply(changes, 'Row added');
-			showToast('Row added', group?.id ?? null);
+			const group = app.apply(changes, words.rowAdded);
+			showToast(words.rowAdded, group?.id ?? null);
 		}
 		open = false;
 	}
 
 	function remove(): void {
 		if (current === null) return;
-		const group = app.apply(deleteRecords(app.ws, [current]), 'Row deleted');
-		showToast('Row deleted', group?.id ?? null);
+		const group = app.apply(deleteRecords(app.ws, [current]), words.rowDeleted);
+		showToast(words.rowDeleted, group?.id ?? null);
 		current = null;
 		open = false;
 	}
@@ -139,13 +142,13 @@
 		void app.version;
 		const primary = app.ws.primaryField(tableId);
 		const named = primary === undefined ? '' : formatValue(primary, stored?.data[primary.id]);
-		return current === null ? 'New row' : named || 'Row';
+		return current === null ? shellWords.newRow : named || words.row;
 	});
 </script>
 
 {#snippet adding()}
 	<div class="flex-1"></div>
-	<Button variant="primary" onclick={submit}>Add row</Button>
+	<Button variant="primary" onclick={submit}>{words.addRow}</Button>
 {/snippet}
 
 <Dialog
@@ -160,25 +163,27 @@
 	{#snippet actions()}
 		{#if current !== null}
 			{#if walk.length > 1}
-				<span class="text-sm text-ink-3 tabular-nums max-sm:hidden">{at + 1} of {walk.length}</span>
+				<span class="text-sm text-ink-3 tabular-nums max-sm:hidden"
+					>{words.position(at + 1, walk.length)}</span
+				>
 				<IconButton
 					icon="arrow-up"
-					label="Previous row"
+					label={words.previousRow}
 					disabled={at <= 0}
 					onclick={() => step(-1)}
 				/>
 				<IconButton
 					icon="arrow-down"
-					label="Next row"
+					label={words.nextRow}
 					disabled={at === -1 || at >= walk.length - 1}
 					onclick={() => step(1)}
 				/>
 			{/if}
-			<Menu bind:open={menu} label="Row" align="end">
+			<Menu bind:open={menu} label={words.row} align="end">
 				{#snippet trigger(props)}
-					<IconButton {...props} icon="more" label="More" tooltip={false} />
+					<IconButton {...props} icon="more" label={common.more} tooltip={false} />
 				{/snippet}
-				<MenuItem icon="x" onSelect={remove}>Delete row</MenuItem>
+				<MenuItem icon="x" onSelect={remove}>{words.deleteRow}</MenuItem>
 			</Menu>
 		{/if}
 	{/snippet}
