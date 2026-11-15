@@ -28,7 +28,13 @@ import type {
 } from '../../core/model.ts';
 import { FIELD_TYPES, FORMAT_OF, VIEW_TYPES, hasChoices } from '../../core/model.ts';
 import { retypeField } from '../../core/retype.ts';
-import { formulaProblem, formulaValues, materializeBase, readQuery } from '../../core/sql.ts';
+import {
+	QueryError,
+	formulaProblem,
+	formulaValues,
+	materializeBase,
+	readQuery
+} from '../../core/sql.ts';
 import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
@@ -175,6 +181,19 @@ async function engineFor(ws: Workspace, baseId: string): Promise<MemoryEngine> {
 	perBase.set(baseId, { version, engine });
 
 	return engine;
+}
+
+async function frozenValues(
+	ws: Workspace,
+	baseId: string,
+	tableId: string,
+	stored: string
+): Promise<ReturnType<typeof formulaValues>> {
+	try {
+		return formulaValues(await engineFor(ws, baseId), ws, tableId, stored);
+	} catch (error) {
+		throw error instanceof QueryError ? new ToolError(sqlRefusal(error.message)) : error;
+	}
 }
 
 async function validateFormula(ws: Workspace, tableId: string, stored: string): Promise<void> {
@@ -609,8 +628,7 @@ export const TOOLS: Tool[] = [
 	{
 		name: 'query',
 		title: TITLES.query,
-		description:
-			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. At most 200 rows and about 64 KB, and a query stops after 500 ms: truncated is true when rows were cut, so aggregate, filter or select fewer columns.',
+		description: `A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. At most 200 rows and about 64 KB, and a query stops after ${QUERY_MS} ms: truncated is true when rows were cut, so aggregate, filter or select fewer columns.`,
 		input: z.object({ base: BASE, sql: z.string().min(1) }),
 		kind: 'read',
 		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {
@@ -835,9 +853,9 @@ export const TOOLS: Tool[] = [
 				const computed =
 					field.type === 'formula' && field.expr !== null
 						? new Map(
-								[
-									...formulaValues(await engineFor(ctx.ws, base.id), ctx.ws, table.id, field.expr)
-								].map(([row, value]) => [row, { [field.id]: value }])
+								[...(await frozenValues(ctx.ws, base.id, table.id, field.expr))].map(
+									([row, value]) => [row, { [field.id]: value }]
+								)
 							)
 						: undefined;
 				converted = retypeField(

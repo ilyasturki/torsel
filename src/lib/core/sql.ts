@@ -173,7 +173,7 @@ function formulaSql(ws: Workspace, tableId: string, stored: string): string {
 	});
 }
 
-/** What a formula not yet on the table would give each row; empty if SQLite refuses it. */
+/** What a formula not yet on the table would give each row; empty if SQLite refuses it, a `QueryError` if a bounded engine interrupts it. */
 export function formulaValues(
 	engine: Engine,
 	ws: Workspace,
@@ -184,7 +184,10 @@ export function formulaValues(
 		const sql = formulaSql(ws, tableId, stored);
 		const rows = engine.all(`select t.id as id, (${sql}) as v from ${tableId} t`);
 		return new Map(rows.map((row) => [String(row.id), row.v]));
-	} catch {
+	} catch (error) {
+		if (errorText(error) === 'interrupted') {
+			throw new QueryError('interrupted');
+		}
 		return new Map();
 	}
 }
