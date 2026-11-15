@@ -1,15 +1,20 @@
 import {
 	OG_IMAGE,
+	OG_LOCALE,
 	PRIVATE_ROBOTS_RULES,
 	PUBLIC_PAGES,
 	REPOSITORY,
 	SITE_DESCRIPTION,
 	SITE_NAME,
+	SITE_LOCALES,
 	SITE_ORIGIN,
-	canonical
+	canonical,
+	localePath,
+	type SiteLocale
 } from './site.ts';
 
-export type PageMeta = { title: string; description: string; path: string };
+/** `path` is the page's English address; the locale's own follows from it. */
+export type PageMeta = { title: string; description: string; path: string; locale: SiteLocale };
 
 export type MetaTag = { name: string; content: string } | { property: string; content: string };
 
@@ -18,10 +23,21 @@ export function fullTitle(title: string): string {
 	return title === SITE_NAME ? SITE_NAME : `${title} · ${SITE_NAME}`;
 }
 
-export function metaTags({ title, description, path }: PageMeta): MetaTag[] {
+/** Every language's version of a page, and the English one again for browsers in neither. */
+export function alternates(path: string): { hreflang: string; href: string }[] {
+	return [
+		...SITE_LOCALES.map((locale) => ({
+			hreflang: locale,
+			href: canonical(localePath(locale, path))
+		})),
+		{ hreflang: 'x-default', href: canonical(path) }
+	];
+}
+
+export function metaTags({ title, description, path, locale }: PageMeta): MetaTag[] {
 	const name = fullTitle(title);
-	const url = canonical(path);
-	const image = canonical(OG_IMAGE);
+	const url = canonical(localePath(locale, path));
+	const image = canonical(OG_IMAGE[locale]);
 	return [
 		{ name: 'description', content: description },
 		{ property: 'og:type', content: 'website' },
@@ -29,6 +45,11 @@ export function metaTags({ title, description, path }: PageMeta): MetaTag[] {
 		{ property: 'og:title', content: name },
 		{ property: 'og:description', content: description },
 		{ property: 'og:url', content: url },
+		{ property: 'og:locale', content: OG_LOCALE[locale] },
+		...SITE_LOCALES.filter((other) => other !== locale).map((other) => ({
+			property: 'og:locale:alternate',
+			content: OG_LOCALE[other]
+		})),
 		{ property: 'og:image', content: image },
 		{ property: 'og:image:width', content: '1200' },
 		{ property: 'og:image:height', content: '630' },
@@ -97,10 +118,21 @@ export function robotsTxt(): string {
 }
 
 export function sitemapXml(): string {
-	const urls = PUBLIC_PAGES.map((path) => `\t<url><loc>${canonical(path)}</loc></url>`);
+	const urls = PUBLIC_PAGES.flatMap((path) =>
+		SITE_LOCALES.map((locale) =>
+			[
+				`\t<url><loc>${canonical(localePath(locale, path))}</loc>`,
+				...alternates(path).map(
+					({ hreflang, href }) =>
+						`\t\t<xhtml:link rel="alternate" hreflang="${hreflang}" href="${href}"/>`
+				),
+				'\t</url>'
+			].join('\n')
+		)
+	);
 	return [
 		'<?xml version="1.0" encoding="UTF-8"?>',
-		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
 		...urls,
 		'</urlset>',
 		''

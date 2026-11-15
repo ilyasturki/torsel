@@ -2,11 +2,19 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { jsonLd, llmsTxt, metaTags, robotsTxt, sitemapXml, structuredData } from './seo.ts';
-import { PUBLIC_PAGES, SITE_ORIGIN } from './site.ts';
+import {
+	alternates,
+	jsonLd,
+	llmsTxt,
+	metaTags,
+	robotsTxt,
+	sitemapXml,
+	structuredData
+} from './seo.ts';
+import { PUBLIC_PAGES, SITE_ORIGIN, basePath, localePath, pathLocale } from './site.ts';
 
-const metaFor = (key: string): string | undefined => {
-	const tags = metaTags({ title: 'Privacy', description: 'What leaves', path: '/privacy' });
+const metaFor = (key: string, locale: 'en' | 'fr' = 'en'): string | undefined => {
+	const tags = metaTags({ title: 'Privacy', description: 'What leaves', path: '/privacy', locale });
 	return tags.find((tag) => ('name' in tag ? tag.name : tag.property) === key)?.content;
 };
 
@@ -15,6 +23,34 @@ describe('page meta', () => {
 		expect(metaFor('og:url')).toBe(`${SITE_ORIGIN}/privacy`);
 		expect(metaFor('og:image')).toBe(`${SITE_ORIGIN}/og.png`);
 		expect(metaFor('twitter:image')).toBe(`${SITE_ORIGIN}/og.png`);
+	});
+
+	it('gives the french page its own address, image and locale', () => {
+		expect(metaFor('og:url', 'fr')).toBe(`${SITE_ORIGIN}/fr/privacy`);
+		expect(metaFor('og:image', 'fr')).toBe(`${SITE_ORIGIN}/og-fr.png`);
+		expect(metaFor('og:locale', 'fr')).toBe('fr_FR');
+		expect(metaFor('og:locale:alternate', 'fr')).toBe('en_US');
+		expect(metaFor('og:locale')).toBe('en_US');
+	});
+
+	it('lists every language of a page and the english one as the default', () => {
+		expect(alternates('/')).toEqual([
+			{ hreflang: 'en', href: `${SITE_ORIGIN}/` },
+			{ hreflang: 'fr', href: `${SITE_ORIGIN}/fr` },
+			{ hreflang: 'x-default', href: `${SITE_ORIGIN}/` }
+		]);
+	});
+
+	it('maps a page between its english and french addresses', () => {
+		expect(localePath('fr', '/')).toBe('/fr');
+		expect(localePath('fr', '/terms')).toBe('/fr/terms');
+		expect(localePath('en', '/terms')).toBe('/terms');
+		expect(basePath('/fr')).toBe('/');
+		expect(basePath('/fr/privacy')).toBe('/privacy');
+		expect(basePath('/privacy')).toBe('/privacy');
+		expect(basePath('/french')).toBe('/french');
+		expect(pathLocale('/fr/terms')).toBe('fr');
+		expect(pathLocale('/french')).toBe('en');
 	});
 
 	it('names the page before the site', () => {
@@ -43,7 +79,10 @@ describe('sitemap.xml', () => {
 		const xml = sitemapXml();
 		for (const path of PUBLIC_PAGES) {
 			expect(xml).toContain(`<loc>${new URL(path, SITE_ORIGIN).href}</loc>`);
+			expect(xml).toContain(`<loc>${new URL(localePath('fr', path), SITE_ORIGIN).href}</loc>`);
 		}
+		expect(xml.match(/<url>/gu)).toHaveLength(PUBLIC_PAGES.length * 2);
+		expect(xml.match(/hreflang="x-default"/gu)).toHaveLength(PUBLIC_PAGES.length * 2);
 		expect(xml).not.toContain('/app');
 		expect(xml).not.toContain('/api');
 	});

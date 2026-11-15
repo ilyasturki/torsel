@@ -57,7 +57,7 @@ function seedTwoTables(request: APIRequestContext) {
 	});
 }
 
-test('the root page is prerendered and links into the app', async ({ page }) => {
+test('the root page renders on the server and links into the app', async ({ page }) => {
 	const response = await page.goto('/');
 	expect(await response?.text()).toContain('A spreadsheet you just ask.');
 	await expect(

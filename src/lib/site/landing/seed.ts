@@ -14,7 +14,6 @@ import type { Change } from '#lib/core/model.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
 
 import type { Cell, Example, Prompt } from './examples.ts';
-import { EXAMPLES } from './examples.ts';
 
 export type Sample = { table: string; fields: string[] };
 
@@ -42,16 +41,17 @@ export function seedExample(
 export function seedExamples(
 	ws: Workspace,
 	commit: (changes: Change[]) => void,
+	examples: Example[],
 	narrow = false
 ): Record<string, Sample> {
 	const base = createBase(ws, 'Sample');
 	commit(base.changes);
 	const samples = Object.fromEntries(
-		EXAMPLES.map((example) => [example.id, seedExample(ws, commit, base.id, example)])
+		examples.map((example) => [example.id, seedExample(ws, commit, base.id, example)])
 	);
 	if (narrow) {
 		// A phone's width holds three columns: the choice gives way to the column the assistant adds.
-		const first = EXAMPLES[0];
+		const first = examples[0];
 		const sample = samples[first.id];
 		const grid = ws.views(sample.table).find((view) => view.type === 'grid');
 		const choice = first.fields.findIndex((field) => field.type === 'choice');

@@ -8,14 +8,23 @@
 	import Segmented from '#lib/ui/Segmented.svelte';
 
 	import { wave } from './backdrop.ts';
+	import { siteCopy } from '#lib/i18n/site.ts';
+
 	import { EXAMPLES, type Example } from './examples.ts';
+	import { EXAMPLES_FR } from './examples-fr.ts';
 	import type { Sample } from './seed.ts';
 
 	type Live = typeof import('./live.ts');
 	type Item = { key: number; text: string; action: ThreadAction | null; view?: string };
 	type Thread = { items: Item[]; used: number[]; view: string | undefined };
 
-	let example = $state<Example>(EXAMPLES[0]);
+	let { locale = 'en' }: { locale?: 'en' | 'fr' } = $props();
+	// Switching language is a full page load: the dataset is the page's for its whole life.
+	// svelte-ignore state_referenced_locally
+	const examples = locale === 'fr' ? EXAMPLES_FR : EXAMPLES;
+	const t = $derived(siteCopy[locale]);
+
+	let example = $state<Example>(examples[0]);
 	let samples = $state<Record<string, Sample> | null>(null);
 	let live = $state<Live | null>(null);
 	let View = $state<Component<{ tableId: string; viewId: string | undefined }> | null>(null);
@@ -72,7 +81,7 @@
 
 	/** The first example opens with its column and chart already made: the visitor reads the result before pressing anything. */
 	function startWorked(module: Live, made: Record<string, Sample>): void {
-		const which = EXAMPLES[0];
+		const which = examples[0];
 		const own = threadOf(which.id);
 		which.prompts.forEach((prompt, index) => {
 			if (prompt.kind !== 'formula' && prompt.kind !== 'chart') return;
@@ -138,7 +147,7 @@
 			let made: Record<string, Sample> | null = null;
 			const narrow = matchMedia('(max-width: 1023px)').matches;
 			void app.openSample((ws, commit) => {
-				made = module.seedExamples(ws, commit, narrow);
+				made = module.seedExamples(ws, commit, examples, narrow);
 			}, engineWanted);
 			if (made !== null) startWorked(module, made);
 			samples = made;
@@ -158,7 +167,7 @@
 
 <section
 	class="grid grid-cols-1 overflow-hidden rounded-panel bg-glass text-base shadow-raised backdrop-blur-glass lg:h-stage lg:grid-cols-[1fr_auto]"
-	aria-label="The app on sample tables"
+	aria-label={t.demo}
 	data-testid="demo"
 	onpointerenter={(event) => {
 		if (event.pointerType === 'mouse') void warm();
@@ -169,9 +178,9 @@
 		<div
 			class="flex shrink-0 hide-scrollbar gap-1 overflow-x-auto p-2 pb-0 max-lg:hidden"
 			role="group"
-			aria-label="Examples"
+			aria-label={t.examples}
 		>
-			{#each EXAMPLES as item (item.id)}
+			{#each examples as item (item.id)}
 				<button
 					type="button"
 					class="{tab} {item.id === example.id
@@ -187,11 +196,12 @@
 		</div>
 		<div class="flex min-h-12 shrink-0 items-center gap-2.5 py-1 pr-2 pl-3">
 			<span class="truncate text-lg font-semibold tight">{example.table}</span>
-			<span class="shrink-0 pt-0.5 text-sm text-ink-2" data-testid="row-count">{rowCount} rows</span
+			<span class="shrink-0 pt-0.5 text-sm text-ink-2" data-testid="row-count"
+				>{t.rows(rowCount)}</span
 			>
 			{#if views.length > 0}
 				<Segmented
-					label="Views"
+					label={t.views}
 					class="ml-auto"
 					items={views.map((view) => ({
 						id: view.id,
@@ -214,9 +224,9 @@
 
 	<aside
 		class="flex min-h-0 min-w-0 flex-col border-hair max-lg:order-first max-lg:border-b lg:w-ask lg:border-l"
-		aria-label="Ask"
+		aria-label={t.ask}
 	>
-		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">Ask</div>
+		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">{t.ask}</div>
 		<div
 			bind:this={scroller}
 			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:max-h-36 max-lg:pt-3"
@@ -231,11 +241,11 @@
 				{/if}
 			{/each}
 			{#if working}
-				<p class="text-ink-3" role="status">Working…</p>
+				<p class="text-ink-3" role="status">{t.working}</p>
 			{/if}
 		</div>
 
-		<div class="flex shrink-0 flex-col gap-1 px-2 pb-2" role="group" aria-label="Prompts">
+		<div class="flex shrink-0 flex-col gap-1 px-2 pb-2" role="group" aria-label={t.prompts}>
 			{#each left as { prompt, index } (index)}
 				<button
 					type="button"
@@ -248,16 +258,18 @@
 					type="button"
 					class="self-start px-1 py-1 text-sm text-ink-2 underline hover:text-ink disabled:text-ink-3"
 					disabled={busy}
-					onclick={startOver}>Start over</button
+					onclick={startOver}>{t.startOver}</button
 				>
 			{/each}
 		</div>
 
 		<div class="m-2 mt-0 flex shrink-0 items-end gap-1 rounded-box bg-tint p-2 max-lg:hidden">
 			<p class="min-h-control min-w-0 flex-1 px-1 py-1.5 {typed === '' ? 'text-ink-3' : ''}">
-				{typed === '' ? 'Ask about your tables' : typed}
+				{typed === '' ? t.askPlaceholder : typed}
 			</p>
-			<Button variant="primary" class="shrink-0" tabindex={-1} disabled={typed === ''}>Send</Button>
+			<Button variant="primary" class="shrink-0" tabindex={-1} disabled={typed === ''}
+				>{t.send}</Button
+			>
 		</div>
 	</aside>
 </section>
@@ -272,10 +284,10 @@
 >
 	<div class="grid gap-3 px-4 lg:px-8">
 		<h2 id="landing-form" class="text-h2 leading-tight font-semibold tighter text-balance">
-			A form on your phone, for every table.
+			{t.formTitle}
 		</h2>
 		<p class="max-w-md text-lg text-ink-2">
-			Log a row in two taps, even with no network. It lands in the table above.
+			{t.formLead}
 		</p>
 	</div>
 	<div

@@ -133,7 +133,7 @@ stdenv.mkDerivation {
     runHook postInstall
   '';
 
-  # The landing and legal pages are prerendered files the bundle serves from beside itself.
+  # The site pages are rendered by the server, in English at the root and in French under /fr.
   doInstallCheck = true;
   installCheckPhase = ''
     runHook preInstallCheck
@@ -145,7 +145,7 @@ stdenv.mkDerivation {
       node -e 'fetch(process.argv[1]).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))' \
         "http://127.0.0.1:4321$1"
     }
-    for path in / /privacy /app /api/health; do
+    for path in / /privacy /fr /fr/privacy /app /api/health; do
       tries=0
       until answers "$path"; do
         tries=$((tries + 1))

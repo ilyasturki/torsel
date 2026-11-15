@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
+	import { page } from '$app/state';
+
 	import { HOME, LOGIN } from '#lib/client/paths.ts';
+	import { siteCopy } from '#lib/i18n/site.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 
-	import { REPOSITORY } from './site.ts';
+	import { REPOSITORY, localePath } from './site.ts';
 
-	// Prerendered pages ship signed out and learn the session after hydration: no cookie reaches a static file.
+	const locale = $derived(page.params.lang ?? 'en');
+	const t = $derived(siteCopy[locale]);
+
+	// The page renders signed out and learns the session after hydration.
 	let signedIn = $state(false);
 
 	onMount(() => {
@@ -24,18 +30,18 @@
 <header
 	class="flex min-h-13 items-center justify-between gap-3 bg-glass px-gutter py-2.5 shadow-raised backdrop-blur-glass max-sm:pr-2"
 >
-	<a href="/" class="text-ink" aria-label="Torsel home">
+	<a href={localePath(locale, '/')} class="text-ink" aria-label={t.home}>
 		<Logo wordmark class="h-4" />
 	</a>
-	<nav class="flex items-center gap-1" aria-label="Site">
-		<a href={REPOSITORY} class="{quiet} max-sm:hidden" rel="me">GitHub</a>
+	<nav class="flex items-center gap-1" aria-label={t.siteNav}>
+		<a href={REPOSITORY} class="{quiet} max-sm:hidden" rel="me">{t.github}</a>
 		{#if !signedIn}
-			<a href={LOGIN} class={quiet}>Sign in</a>
+			<a href={LOGIN} class={quiet}>{t.signIn}</a>
 		{/if}
 		<a
 			href={HOME}
 			class="inline-flex h-control items-center rounded-box bg-fill px-3 font-semibold text-on-fill transition-opacity motion hover:opacity-90"
-			>{signedIn ? 'Open Torsel' : 'Start now'}</a
+			>{signedIn ? t.open : t.start}</a
 		>
 	</nav>
 </header>

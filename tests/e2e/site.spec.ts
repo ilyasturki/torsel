@@ -30,7 +30,7 @@ test('serves llms.txt', async ({ request }) => {
 	expect(await response.text()).toMatch(/^# Torsel\n/u);
 });
 
-test('prerenders the home page with its meta and structured data', async ({ request }) => {
+test('renders the home page with its meta and structured data', async ({ request }) => {
 	const response = await request.get('/', RETRY_RESET);
 	expect(response.status()).toBe(200);
 	const html = await response.text();

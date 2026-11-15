@@ -46,7 +46,7 @@ export const EXAMPLES_FR: Example[] = [
 				]
 			},
 			{
-				text: "Montre-moi où part l'argent.",
+				text: 'Montre-moi où part l’argent.',
 				kind: 'chart',
 				name: 'Par catégorie',
 				group: 2,
@@ -174,13 +174,13 @@ export const EXAMPLES_FR: Example[] = [
 		],
 		prompts: [
 			{
-				text: "Ajoute le nombre d'heures de lecture, à 40 pages par heure.",
+				text: 'Ajoute le nombre d’heures de lecture, à 40 pages par heure.',
 				kind: 'formula',
 				name: 'Heures',
 				expr: '"Pages" / 40.0',
 				value: (row) => n(row[2]) / 40
 			},
-			{ text: "J'ai fini Piranesi.", kind: 'cell', row: 'Piranesi', field: 1, value: 'Lu' },
+			{ text: 'J’ai fini Piranesi.', kind: 'cell', row: 'Piranesi', field: 1, value: 'Lu' },
 			{
 				text: 'Fais un graphique des pages par statut.',
 				kind: 'chart',
