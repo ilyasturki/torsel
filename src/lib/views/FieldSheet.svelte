@@ -11,6 +11,8 @@
 	import { formatSet, hasChoices } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { CURRENCIES, currencyOf, ratingScale } from '#lib/core/values.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { fields as words } from '#lib/i18n/fields.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
@@ -39,7 +41,7 @@
 	const TYPES = typeOptions();
 	const AUTO = 'auto';
 	const DECIMALS = [
-		{ value: AUTO, label: 'Auto' },
+		{ value: AUTO, label: words.auto },
 		...['0', '1', '2', '3', '4'].map((value) => ({ value, label: value }))
 	];
 	const names = new Intl.DisplayNames(undefined, { type: 'currency' });
@@ -137,7 +139,14 @@
 			: retypeField(
 					app.ws,
 					existing.id,
-					{ type, target: target || null, expr, choices: $state.snapshot(choices), ...format() },
+					{
+						type,
+						target: target || null,
+						expr,
+						choices: $state.snapshot(choices),
+						checkWords: { yes: words.yes, no: words.no },
+						...format()
+					},
 					existing.type === 'formula' ? app.computed(tableId) : undefined
 				);
 	}
@@ -146,10 +155,10 @@
 		void app.version;
 		const result = open ? conversion() : null;
 		if (result === null) return undefined;
-		if (type === 'formula') return 'The values here give way to the formula.';
-		if (type === 'link' && target === '') return 'Pick the table to link to.';
-		if (result.lost === 0) return existing?.type === type ? undefined : 'Every value carries over.';
-		return `${result.lost} ${result.lost === 1 ? 'value' : 'values'} can't become ${typeLabel(type)} and will be cleared.`;
+		if (type === 'formula') return words.formulaTakesOver;
+		if (type === 'link' && target === '') return words.pickLinkTable;
+		if (result.lost === 0) return existing?.type === type ? undefined : words.allCarryOver;
+		return words.valuesLost(result.lost, typeLabel(type));
 	});
 
 	$effect(() => {
@@ -204,11 +213,11 @@
 	function save(): void {
 		problem = '';
 		if (name.trim() === '') {
-			problem = 'Give this field a name.';
+			problem = words.nameNeeded;
 			return;
 		}
 		if (type === 'link' && target === '') {
-			problem = 'Pick the table to link to.';
+			problem = words.pickLinkTable;
 			return;
 		}
 
@@ -244,12 +253,12 @@
 			).changes;
 			applyWithUndo(
 				[{ ...made, set: { ...made.set, ...set } }, ...moves],
-				`Field "${name.trim()}" added`
+				words.added(name.trim())
 			);
 		} else {
 			applyWithUndo(
 				[...(retyped?.changes ?? []), ...updateRecord(app.ws, existing.id, set)],
-				`Field "${name.trim()}" changed`
+				words.changed(name.trim())
 			);
 		}
 		open = false;
@@ -259,7 +268,7 @@
 		if (existing === undefined) {
 			return;
 		}
-		const label = `Field "${existing.name}" deleted`;
+		const label = words.deleted(existing.name);
 		const group = app.apply(deleteRecords(app.ws, [existing.id]), label);
 		showToast(label, group?.id ?? null);
 		open = false;
@@ -269,7 +278,7 @@
 		if (existing !== undefined) {
 			applyWithUndo(
 				reorder(app.ws, shifted(siblings, existing.id, by)),
-				`Field "${existing.name}" moved`
+				words.moved(existing.name)
 			);
 		}
 	}
@@ -277,23 +286,23 @@
 
 <Dialog
 	bind:open
-	title={existing === undefined ? 'New field' : 'Field'}
+	title={existing === undefined ? words.newField : words.field}
 	{dirty}
 	onsubmit={save}
 	{onCloseAutoFocus}
 >
 	<div class="flex flex-col gap-3">
-		<Field label="Name">
-			<input class={input} bind:value={name} placeholder="Weight, Exercise, Amount" />
+		<Field label={words.name}>
+			<input class={input} bind:value={name} placeholder={words.namePlaceholder} />
 		</Field>
 
-		<Field label="Type" hint={retypeHint}>
+		<Field label={words.type} hint={retypeHint}>
 			<Select options={TYPES} value={type} onchange={pickType} />
 		</Field>
 
 		{#if hasChoices(type)}
 			<div class="flex flex-col gap-2">
-				<span class="text-sm font-medium text-ink-2">Choices</span>
+				<span class="text-sm font-medium text-ink-2">{words.choiceList}</span>
 				<div class="flex flex-wrap gap-1">
 					{#each choices as choice, index (choice.name)}
 						<span class="inline-flex h-control items-center rounded-box bg-tint">
@@ -308,7 +317,7 @@
 							<button
 								type="button"
 								class="flex h-full w-control items-center justify-center text-ink-2 hover:text-ink"
-								aria-label="Remove {choice.name}"
+								aria-label={words.removeChoice(choice.name)}
 								onclick={() => choices.splice(index, 1)}
 							>
 								<Icon name="x" class="size-3" />
@@ -320,8 +329,8 @@
 					<input
 						class={input}
 						bind:value={newChoice}
-						placeholder="Add a choice"
-						aria-label="Add a choice"
+						placeholder={words.addChoice}
+						aria-label={words.addChoice}
 						onkeydown={(event) => {
 							if (event.key === 'Enter' && newChoice.trim() !== '') {
 								event.preventDefault();
@@ -329,87 +338,92 @@
 							}
 						}}
 					/>
-					<IconButton icon="plus" label="Add this choice" variant="secondary" onclick={addChoice} />
+					<IconButton
+						icon="plus"
+						label={words.addThisChoice}
+						variant="secondary"
+						onclick={addChoice}
+					/>
 				</div>
 			</div>
 		{/if}
 
 		{#if type === 'link'}
-			<Field label="Linked table">
+			<Field label={words.linkedTable}>
 				<Select
 					options={tables.map((table) => ({ value: table.id, label: table.name }))}
 					bind:value={target}
-					placeholder="Pick a table"
+					placeholder={words.pickTable}
 					disabled={existing?.type === 'link'}
 				/>
 			</Field>
 		{/if}
 
 		{#if type === 'formula'}
-			<Field label="Formula">
+			<Field label={words.formula}>
 				<textarea
 					class="{textarea} h-24"
 					bind:value={formula}
 					spellcheck="false"
-					placeholder={'"Weight" * (1 + "Reps" / 30.0)'}></textarea>
+					placeholder={words.formulaExample}></textarea>
 			</Field>
 		{/if}
 
 		{#if type === 'number'}
 			<div class="grid grid-cols-3 gap-2">
-				<Field label="Decimals">
+				<Field label={words.decimals}>
 					<Select options={DECIMALS} bind:value={decimals} />
 				</Field>
-				<Field label="Unit">
+				<Field label={words.unit}>
 					<input class={input} bind:value={unit} placeholder="kg" />
 				</Field>
-				<Field label="Step">
+				<Field label={words.step}>
 					<input class={input} inputmode="decimal" bind:value={step} placeholder="1" />
 				</Field>
 			</div>
 			<label class="flex items-center gap-2">
 				<input type="checkbox" class={checkbox} bind:checked={grouping} />
-				Group thousands
+				{words.groupThousands}
 			</label>
 		{:else if type === 'currency'}
 			<div class="grid grid-cols-3 gap-2">
 				<div class="col-span-2">
-					<Field label="Currency">
+					<Field label={words.currency}>
 						<Select options={MONEY} bind:value={currency} />
 					</Field>
 				</div>
-				<Field label="Decimals">
+				<Field label={words.decimals}>
 					<Select options={DECIMALS} bind:value={decimals} />
 				</Field>
 			</div>
 		{:else if type === 'percent'}
 			<div class="grid grid-cols-3 gap-2">
-				<Field label="Decimals">
+				<Field label={words.decimals}>
 					<Select options={DECIMALS} bind:value={decimals} />
 				</Field>
 			</div>
 		{:else if type === 'rating'}
 			<div class="grid grid-cols-3 gap-2">
-				<Field label="Lowest">
+				<Field label={words.lowest}>
 					<Select options={LOWEST} bind:value={lowest} />
 				</Field>
-				<Field label="Highest">
+				<Field label={words.highest}>
 					<Select options={HIGHEST} bind:value={highest} />
 				</Field>
 			</div>
 			<label class="flex items-center gap-2">
 				<input type="checkbox" class={checkbox} bind:checked={half} />
-				Half points
+				{words.halfPoints}
 			</label>
 		{:else if type === 'duration'}
 			<div class="grid grid-cols-3 gap-2">
-				<Field label="Format">
+				<Field label={words.format}>
 					<Select options={CLOCKS} bind:value={clock} />
 				</Field>
 			</div>
 		{/if}
 
-		<Field label="Description">
+		<Field label={words.description}>
 			<input class={input} bind:value={description} />
 		</Field>
 
@@ -420,21 +434,21 @@
 
 	{#snippet footer()}
 		{#if existing !== undefined}
-			<Button variant="ghost" onclick={remove}>Delete</Button>
+			<Button variant="ghost" onclick={remove}>{common.delete}</Button>
 			<IconButton
 				icon="arrow-left"
-				label="Move left"
+				label={words.moveLeft}
 				disabled={siblings[0] === existing.id}
 				onclick={() => move(-1)}
 			/>
 			<IconButton
 				icon="arrow-right"
-				label="Move right"
+				label={words.moveRight}
 				disabled={siblings.at(-1) === existing.id}
 				onclick={() => move(1)}
 			/>
 		{/if}
 		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>Save</Button>
+		<Button variant="primary" onclick={save}>{common.save}</Button>
 	{/snippet}
 </Dialog>

@@ -5,6 +5,8 @@
 
 <script lang="ts">
 	import type { FieldDef, FieldType } from '#lib/core/model.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { grid as words } from '#lib/i18n/grid.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
@@ -52,16 +54,16 @@
 
 	const entries = $derived.by((): Entry[] => [
 		...(field?.type === 'formula'
-			? [{ action: 'formula', label: 'Edit formula', icon: 'formula' } as const]
+			? [{ action: 'formula', label: words.editFormula, icon: 'formula' } as const]
 			: []),
-		{ action: 'insert-left', label: 'Insert left', icon: 'arrow-left' },
-		{ action: 'insert-right', label: 'Insert right', icon: 'arrow-right' },
+		{ action: 'insert-left', label: words.insertLeft, icon: 'arrow-left' },
+		{ action: 'insert-right', label: words.insertRight, icon: 'arrow-right' },
 		'gap',
-		{ action: 'hide', label: 'Hide', icon: 'eye-off' },
-		{ action: 'fit', label: 'Fit all columns', icon: 'fit' },
-		{ action: 'settings', label: 'Field settings', icon: 'settings' },
+		{ action: 'hide', label: words.hide, icon: 'eye-off' },
+		{ action: 'fit', label: words.fitAll, icon: 'fit' },
+		{ action: 'settings', label: words.fieldSettings, icon: 'settings' },
 		'gap',
-		{ action: 'delete', label: 'Delete', icon: 'x' }
+		{ action: 'delete', label: common.delete, icon: 'x' }
 	]);
 
 	function run(action: () => void): void {
@@ -82,8 +84,8 @@
 {#snippet filterInput(current: FieldDef)}
 	<input
 		class={input}
-		aria-label="Filter {current.name}"
-		placeholder="Filter"
+		aria-label={words.filterOf(current.name)}
+		placeholder={words.filter}
 		value={filter}
 		oninput={(event) => onfilter(event.currentTarget.value)}
 		onkeydown={onfilterkeydown}
@@ -93,18 +95,18 @@
 {#if field && wide.current}
 	<Menu bind:open {anchor} label={field.name} {onCloseAutoFocus}>
 		<MenuItem icon="arrow-up" checked={sorted === 'asc'} onSelect={() => onsort('asc')}
-			>Sort ascending</MenuItem
+			>{words.sortAscending}</MenuItem
 		>
 		<MenuItem icon="arrow-down" checked={sorted === 'desc'} onSelect={() => onsort('desc')}
-			>Sort descending</MenuItem
+			>{words.sortDescending}</MenuItem
 		>
 		{#if sorted !== null}
-			<MenuItem icon="x" onSelect={() => onsort(null)}>Clear sort</MenuItem>
+			<MenuItem icon="x" onSelect={() => onsort(null)}>{words.clearSort}</MenuItem>
 		{/if}
 		<div class="p-1">{@render filterInput(field)}</div>
 		<MenuSeparator />
-		<MenuItem icon="pencil" onSelect={() => onaction('rename')}>Rename</MenuItem>
-		<MenuSub label="Type" icon={fieldIcon(field.type)}>
+		<MenuItem icon="pencil" onSelect={() => onaction('rename')}>{common.rename}</MenuItem>
+		<MenuSub label={words.type} icon={fieldIcon(field.type)}>
 			{#each TYPES as option, at (option.value)}
 				{#if at > 0 && TYPES[at - 1].group !== option.group}<MenuSeparator />{/if}
 				<MenuItem
@@ -128,19 +130,19 @@
 	<Dialog bind:open title={field.name} typeOnOpen={false} {onCloseAutoFocus}>
 		<div class="-mx-2 flex flex-col items-stretch">
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onsort('asc'))}
-				>Sort ascending</Button
+				>{words.sortAscending}</Button
 			>
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onsort('desc'))}
-				>Sort descending</Button
+				>{words.sortDescending}</Button
 			>
 			{#if sorted !== null}
 				<Button variant="ghost" class="justify-start" onclick={() => run(() => onsort(null))}
-					>Clear sort</Button
+					>{words.clearSort}</Button
 				>
 			{/if}
 			<div class="px-2 py-1">{@render filterInput(field)}</div>
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onaction('rename'))}
-				>Rename</Button
+				>{common.rename}</Button
 			>
 			{#each entries as entry, index (index)}
 				{#if entry !== 'gap'}

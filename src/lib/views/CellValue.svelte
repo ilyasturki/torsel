@@ -4,6 +4,7 @@
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { isContact } from '#lib/core/model.ts';
 	import { hrefOf, ratingScale } from '#lib/core/values.ts';
+	import { fields as words } from '#lib/i18n/fields.ts';
 	import Chip from '#lib/ui/Chip.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Rating from '#lib/ui/Rating.svelte';
@@ -31,7 +32,7 @@
 	</span>
 {:else if field.type === 'check'}
 	{#if value === true || value === 1}
-		<Icon name="check" label="Yes" />
+		<Icon name="check" label={words.checked} />
 	{/if}
 {:else if field.type === 'link'}
 	<span class="truncate">{title}</span>

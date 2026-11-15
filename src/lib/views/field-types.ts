@@ -1,63 +1,28 @@
 import type { FieldType } from '#lib/core/model.ts';
+import { fields as words } from '#lib/i18n/fields.ts';
 import { fieldIcon } from '#lib/ui/field-icons.ts';
 import type { Option } from '#lib/ui/Select.svelte';
 
-export const TYPE_GROUPS: { name: string; types: [FieldType, string][] }[] = [
-	{
-		name: 'Text',
-		types: [
-			['text', 'Text'],
-			['longtext', 'Long text'],
-			['url', 'URL'],
-			['email', 'Email'],
-			['phone', 'Phone']
-		]
-	},
-	{
-		name: 'Numbers',
-		types: [
-			['number', 'Number'],
-			['currency', 'Currency'],
-			['percent', 'Percent'],
-			['rating', 'Rating'],
-			['duration', 'Duration']
-		]
-	},
-	{
-		name: 'Dates',
-		types: [
-			['date', 'Date'],
-			['datetime', 'Date and time']
-		]
-	},
-	{
-		name: 'Choices',
-		types: [
-			['choice', 'Choice'],
-			['choices', 'Multiple choice'],
-			['check', 'Checkbox']
-		]
-	},
-	{
-		name: 'Links and formulas',
-		types: [
-			['link', 'Link to a table'],
-			['formula', 'Formula']
-		]
-	}
+const TYPE_GROUPS: { group: keyof typeof words.groups; types: FieldType[] }[] = [
+	{ group: 'text', types: ['text', 'longtext', 'url', 'email', 'phone'] },
+	{ group: 'numbers', types: ['number', 'currency', 'percent', 'rating', 'duration'] },
+	{ group: 'dates', types: ['date', 'datetime'] },
+	{ group: 'choices', types: ['choice', 'choices', 'check'] },
+	{ group: 'links', types: ['link', 'formula'] }
 ];
 
-const LABELS = new Map(TYPE_GROUPS.flatMap((group) => group.types));
-
 export function typeLabel(type: FieldType): string {
-	return LABELS.get(type) ?? type;
+	return words.types[type];
 }
 
 export function typeOptions(keep: (type: FieldType) => boolean = () => true): Option<FieldType>[] {
-	return TYPE_GROUPS.flatMap((group) =>
-		group.types
-			.filter(([type]) => keep(type))
-			.map(([value, label]) => ({ value, label, icon: fieldIcon(value), group: group.name }))
+	return TYPE_GROUPS.flatMap(({ group, types }) =>
+		types.filter(keep).map((value) => ({
+			value,
+			label: typeLabel(value),
+			icon: fieldIcon(value),
+			group: words.groups[group]
+		}))
 	);
 }
 

@@ -5,6 +5,7 @@
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { isContact, isNumeric } from '#lib/core/model.ts';
 	import { nativeDateText, parseDate, ratingScale } from '#lib/core/values.ts';
+	import { fields as words } from '#lib/i18n/fields.ts';
 	import ChipPicker from '#lib/ui/ChipPicker.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Rating from '#lib/ui/Rating.svelte';
@@ -38,7 +39,7 @@
 			updateRecord(app.ws, field.id, {
 				choices: [...field.choices, nextChoice(field.choices, name)]
 			}),
-			`Choice "${name}" added`
+			words.choiceAdded(name)
 		);
 	}
 </script>

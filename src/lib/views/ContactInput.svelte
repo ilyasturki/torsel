@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FieldFormat, Value } from '#lib/core/model.ts';
 	import { coerce, hrefOf } from '#lib/core/values.ts';
+	import { fields as words } from '#lib/i18n/fields.ts';
 	import AffixInput from '#lib/ui/AffixInput.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import { focus } from '#lib/ui/styles.ts';
@@ -20,7 +21,9 @@
 	} = $props();
 
 	const INPUT = { url: 'url', email: 'email', phone: 'tel' } as const;
-	const OPEN = { url: 'Open link', email: 'Write an email', phone: 'Call' } as const;
+	const open = $derived(
+		{ url: words.openLink, email: words.writeEmail, phone: words.call }[field.type]
+	);
 
 	let text = $state(typeof value === 'string' ? value : '');
 
@@ -51,8 +54,8 @@
 				target={field.type === 'url' ? '_blank' : undefined}
 				rel="noopener noreferrer"
 				class="mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-box text-ink-2 transition-colors motion hover:bg-tint-2 hover:text-ink {focus}"
-				aria-label={OPEN[field.type]}
-				title={OPEN[field.type]}
+				aria-label={open}
+				title={open}
 			>
 				<Icon name="open" />
 			</a>

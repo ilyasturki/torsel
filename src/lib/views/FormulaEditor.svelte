@@ -8,6 +8,7 @@
 	import { updateRecord } from '#lib/core/actions.ts';
 	import { completeName, nameAt, namesFor, toDisplay } from '#lib/core/formula.ts';
 	import type { FieldDef } from '#lib/core/model.ts';
+	import { fields as words } from '#lib/i18n/fields.ts';
 	import { fieldFill, fieldFocusWithin, menuItem, popup } from '#lib/ui/styles.ts';
 	import Textarea from '#lib/ui/Textarea.svelte';
 
@@ -61,7 +62,7 @@
 			problem = read.problem;
 			return false;
 		}
-		const label = `${field.name} formula changed`;
+		const label = words.formulaChanged(field.name);
 		applyWithUndo(updateRecord(app.ws, field.id, { expr: read.expr }), label);
 		onclose();
 		return true;
@@ -139,12 +140,12 @@
 					bare
 					rows={1}
 					maxRows={6}
-					aria-label="Formula of {field.name}"
+					aria-label={words.formulaOf(field.name)}
 					aria-invalid={problem !== ''}
 					aria-autocomplete="list"
 					aria-controls={offered.length > 0 ? 'formula-names' : undefined}
 					aria-activedescendant={offered.length > 0 ? `formula-name-${active}` : undefined}
-					placeholder={'"Weight" * "Reps"'}
+					placeholder={words.formulaShort}
 					spellcheck="false"
 					autocomplete="off"
 					enterkeyhint="done"
@@ -162,7 +163,7 @@
 				<div
 					id="formula-names"
 					role="listbox"
-					aria-label="Fields"
+					aria-label={words.fieldList}
 					tabindex="-1"
 					class="flex flex-col"
 					onmousedown={(event) => event.preventDefault()}
@@ -186,7 +187,7 @@
 				class="px-2 pb-1 text-sm {problem === '' ? 'text-ink-3' : 'text-ink'}"
 				role={problem === '' ? undefined : 'alert'}
 			>
-				{problem === '' ? 'Applies to the whole column' : problem}
+				{problem === '' ? words.wholeColumn : problem}
 			</p>
 		</Popover.Content>
 	</Popover.Portal>

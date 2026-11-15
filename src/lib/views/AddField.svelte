@@ -7,6 +7,8 @@
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { addField } from '#lib/core/actions.ts';
 	import type { FieldType } from '#lib/core/model.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { fields as words } from '#lib/i18n/fields.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Select from '#lib/ui/Select.svelte';
@@ -35,7 +37,7 @@
 	const AUTO = 'auto';
 
 	const TYPES = [
-		{ value: AUTO, label: 'From the first value' },
+		{ value: AUTO, label: words.fromFirstValue },
 		...typeOptions().map((option) =>
 			needsSettings(option.value) ? { ...option, label: `${option.label}…` } : option
 		)
@@ -72,7 +74,7 @@
 			},
 			at
 		);
-		applyWithUndo(changes, `Field "${label}" added`);
+		applyWithUndo(changes, words.added(label));
 		name = '';
 		type = AUTO;
 		if (anchor !== null) {
@@ -90,14 +92,14 @@
 
 <Popover.Root bind:open>
 	{#if anchor === null}
-		<Popover.Trigger bind:ref={trigger} class={extra} aria-label="Add a field">
+		<Popover.Trigger bind:ref={trigger} class={extra} aria-label={words.addField}>
 			<Icon name="plus" />
 		</Popover.Trigger>
 	{/if}
 	<Popover.Portal>
 		<Popover.Content
 			role="dialog"
-			aria-label="Add a field"
+			aria-label={words.addField}
 			customAnchor={anchor}
 			align={anchor === null ? 'end' : 'start'}
 			sideOffset={4}
@@ -109,8 +111,8 @@
 				bind:this={field}
 				class={input}
 				bind:value={name}
-				placeholder="Field name"
-				aria-label="Field name"
+				placeholder={words.fieldName}
+				aria-label={words.fieldName}
 				onkeydown={(event) => {
 					if (event.key === 'Enter') {
 						event.preventDefault();
@@ -119,8 +121,8 @@
 				}}
 			/>
 			<div class="flex gap-2">
-				<Select class="flex-1" aria-label="Field type" options={TYPES} bind:value={type} />
-				<Button variant="primary" disabled={name.trim() === ''} onclick={add}>Add</Button>
+				<Select class="flex-1" aria-label={words.fieldType} options={TYPES} bind:value={type} />
+				<Button variant="primary" disabled={name.trim() === ''} onclick={add}>{common.add}</Button>
 			</div>
 		</Popover.Content>
 	</Popover.Portal>

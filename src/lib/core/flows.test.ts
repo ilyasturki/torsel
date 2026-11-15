@@ -157,10 +157,12 @@ describe('changing a field type', () => {
 		apply(updateRow(ws, ids[0], { [reps.id]: 8, [done.id]: true }));
 
 		apply(retypeField(ws, reps.id, { type: 'text' }).changes);
-		apply(retypeField(ws, done.id, { type: 'text' }).changes);
+		apply(
+			retypeField(ws, done.id, { type: 'text', checkWords: { yes: 'oui', no: 'non' } }).changes
+		);
 
 		expect(ws.live(ids[0])?.data[reps.id]).toBe('8');
-		expect(ws.live(ids[0])?.data[done.id]).toBe('yes');
+		expect(ws.live(ids[0])?.data[done.id]).toBe('oui');
 	});
 
 	it('finds linked rows by their title, and reads a link back as its title', () => {

@@ -1,4 +1,6 @@
+import grid from '../../src/lib/i18n/grid.ts';
 import names from '../../src/lib/i18n/names.ts';
+import views from '../../src/lib/i18n/views.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
@@ -63,11 +65,25 @@ async function retypeLast(input: Locator, char: string): Promise<void> {
 }
 
 const LOCALES = [
-	{ locale: 'en-US', budget: '190,000', edited: '190,001', seen: 'Mar 1, 2024 8:30 PM' },
-	{ locale: 'fr-FR', budget: '190 000', edited: '190 001', seen: '1 mars 2024 20:30' }
+	{
+		locale: 'en-US',
+		budget: '190,000',
+		edited: '190,001',
+		seen: 'Mar 1, 2024 8:30 PM',
+		words: grid.en,
+		entry: views.en
+	},
+	{
+		locale: 'fr-FR',
+		budget: '190 000',
+		edited: '190 001',
+		seen: '1 mars 2024 20:30',
+		words: grid.fr,
+		entry: views.fr
+	}
 ];
 
-for (const { locale, budget, edited, seen } of LOCALES) {
+for (const { locale, budget, edited, seen, words, entry } of LOCALES) {
 	test.describe(`numbers and dates in ${locale}`, () => {
 		test.use({ locale });
 
@@ -115,7 +131,7 @@ for (const { locale, budget, edited, seen } of LOCALES) {
 			const movies = await seedMovies(context.request);
 			await page.goto(movies.grid);
 
-			await page.getByRole('button', { name: 'Open row' }).first().click();
+			await page.getByRole('button', { name: words.openRow }).first().click();
 			const sheet = page.getByRole('dialog');
 			const year = sheet.getByLabel('Year');
 			const money = sheet.getByLabel('Budget');
@@ -158,7 +174,7 @@ for (const { locale, budget, edited, seen } of LOCALES) {
 
 			await retypeLast(year, '3');
 			await retypeLast(money, '1');
-			await page.getByRole('button', { name: 'Add row' }).click();
+			await page.getByRole('button', { name: entry.addRow }).click();
 
 			await expect
 				.poll(async () =>

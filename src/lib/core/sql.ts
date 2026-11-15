@@ -58,7 +58,7 @@ export function formulaColumns(ws: Workspace, tableId: string): Map<string, stri
 			return known;
 		}
 		if (visiting.has(field.id)) {
-			throw new FormulaError(`"${field.name}" depends on itself`);
+			throw new FormulaError('self-reference', field.name);
 		}
 
 		visiting.add(field.id);

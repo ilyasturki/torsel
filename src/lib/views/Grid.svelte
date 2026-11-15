@@ -28,6 +28,8 @@
 	import { CREATED, hasChoices, isDated, isNumeric } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { freshValue, nativeDateText, ratingScale } from '#lib/core/values.ts';
+	import { fields as fieldWords } from '#lib/i18n/fields.ts';
+	import { grid as words } from '#lib/i18n/grid.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -443,14 +445,14 @@
 		if (rowKey === BLANK) {
 			if (value === null) return null;
 			const made = insertRows(app.ws, tableId, [{ ...todayDates(), [field.id]: value }]);
-			applyCell([...extra, ...made.changes], 'Row added');
+			applyCell([...extra, ...made.changes], words.rowAdded);
 			return made.ids[0];
 		}
 		const row = app.ws.live(rowKey);
 		if (row !== undefined && JSON.stringify(row.data[field.id] ?? null) !== JSON.stringify(value)) {
 			applyCell(
 				[...extra, ...updateRow(app.ws, rowKey, { [field.id]: value })],
-				`${field.name} changed`
+				words.cellChanged(field.name)
 			);
 		}
 		return null;
@@ -515,7 +517,7 @@
 		}
 		const value = cellReader(app.ws)(field, draft);
 		if (value === undefined) {
-			showToast(`"${draft}" isn't ${invalidAs(field)}.`);
+			showToast(invalidText(field, draft));
 			if (leaving) editing = null;
 			return;
 		}
@@ -527,25 +529,28 @@
 		table?.focus({ preventScroll: true });
 	}
 
-	/** What a value the editor refused should have been, after "isn't". */
-	function invalidAs(field: FieldDef): string {
-		if (field.type === 'rating') {
-			const { min, max } = ratingScale(field);
-			return `a rating from ${min} to ${max}`;
+	function invalidText(field: FieldDef, draft: string): string {
+		const { invalid } = words;
+		switch (field.type) {
+			case 'rating': {
+				const { min, max } = ratingScale(field);
+				return invalid.rating(draft, min, max);
+			}
+			case 'link':
+				return invalid.link(draft, field.name);
+			case 'number':
+			case 'currency':
+			case 'percent':
+			case 'duration':
+			case 'date':
+			case 'datetime':
+			case 'url':
+			case 'email':
+			case 'phone':
+				return invalid[field.type](draft);
+			default:
+				return invalid.other(draft);
 		}
-		const names: Partial<Record<FieldDef['type'], string>> = {
-			number: 'a number',
-			currency: 'an amount',
-			percent: 'a percent',
-			duration: 'a duration',
-			date: 'a date',
-			datetime: 'a date and time',
-			url: 'a web address',
-			email: 'an email',
-			phone: 'a phone number',
-			link: `a row of ${field.name}`
-		};
-		return names[field.type] ?? 'valid';
 	}
 
 	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
@@ -605,9 +610,7 @@
 	function clearRange(): number | null {
 		const changes = clearChanges(app.ws, rangeFields(), rangeRows());
 		const count = changes.length;
-		return (
-			applyWithUndo(changes, count === 1 ? 'Cell cleared' : `${count} rows cleared`)?.id ?? null
-		);
+		return applyWithUndo(changes, words.cleared(count))?.id ?? null;
 	}
 
 	function onkeydown(event: KeyboardEvent): void {
@@ -641,7 +644,7 @@
 			const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, widths[headCol] + by));
 			setConfig(
 				{ widths: { ...view.config.widths, [field.id]: next } },
-				`${field.name} resized`,
+				words.columnResized(field.name),
 				applyCell
 			);
 			return;
@@ -933,7 +936,7 @@
 		const count = (bottom - top + 1) * rangeFields().length;
 		backToGrid();
 		const undo = cut ? clearRange() : null;
-		showToast(`${cut ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'cell' : 'cells'}`, undo);
+		showToast(cut ? words.cut(count) : words.copied(count), undo);
 	}
 
 	function oncatcherpaste(event: ClipboardEvent): void {
@@ -946,12 +949,8 @@
 		const matrix = fillSelection(parseTsv(text), bottom - top + 1, right - left + 1);
 		const paste = pasteChanges(app.ws, tableId, fields, rows, at, matrix);
 		const count = paste.rows * paste.cols;
-		const group = app.apply(paste.changes, count === 1 ? 'Cell pasted' : `${count} cells pasted`);
-		const skipped =
-			paste.skipped === 0
-				? ''
-				: `, ${paste.skipped} ${paste.skipped === 1 ? "value doesn't" : "values don't"} fit`;
-		showToast(`Pasted ${count} ${count === 1 ? 'cell' : 'cells'}${skipped}`, group?.id ?? null);
+		const group = app.apply(paste.changes, words.pasteLabel(count));
+		showToast(words.pasted(count, paste.skipped), group?.id ?? null);
 		flushSync();
 		if (paste.rows > 0 && paste.cols > 0) {
 			select(at.row, at.col);
@@ -979,7 +978,7 @@
 				const { width: next } = resizing;
 				setConfig(
 					{ widths: { ...view.config.widths, [field.id]: next } },
-					`${field.name} resized`,
+					words.columnResized(field.name),
 					applyCell
 				);
 			}
@@ -997,7 +996,7 @@
 		if (view.config.widths?.[field.id] !== undefined) {
 			const rest = { ...view.config.widths };
 			delete rest[field.id];
-			setConfig({ widths: rest }, `${field.name} refitted`, applyCell);
+			setConfig({ widths: rest }, fieldWords.refitted(field.name), applyCell);
 		}
 	}
 
@@ -1010,14 +1009,14 @@
 			);
 		}
 		if (Object.keys(view.config.widths ?? {}).length > 0) {
-			setConfig({ widths: {} }, 'Columns fitted');
+			setConfig({ widths: {} }, words.columnsFitted);
 		}
 	}
 
 	function applyFill(from: Box, to: Box, series: boolean): void {
 		const fill = fillChanges(app.ws, tableId, fields, rows, computed, from, to, series);
 		if (fill.cells === 0) return;
-		applyWithUndo(fill.changes, `Filled ${fill.cells} ${fill.cells === 1 ? 'cell' : 'cells'}`);
+		applyWithUndo(fill.changes, words.filled(fill.cells));
 	}
 
 	/** Ctrl+D and Ctrl+R: the first row or column copied over the rest, or the one before a single line. */
@@ -1101,11 +1100,14 @@
 				fieldOpen = true;
 			};
 		} else if (action === 'hide') {
-			setConfig({ hidden: [...(view.config.hidden ?? []), field.id] }, `${field.name} hidden`);
+			setConfig(
+				{ hidden: [...(view.config.hidden ?? []), field.id] },
+				fieldWords.hidden(field.name)
+			);
 		} else if (action === 'fit') {
 			fitAll();
 		} else {
-			const label = `Field "${field.name}" deleted`;
+			const label = fieldWords.deleted(field.name);
 			applyWithUndo(deleteRecords(app.ws, [field.id]), label);
 		}
 	}
@@ -1124,22 +1126,23 @@
 		const { changes, lost } = retypeField(
 			app.ws,
 			field.id,
-			{ type, currency: type === 'currency' ? localCurrency() : undefined },
+			{
+				type,
+				currency: type === 'currency' ? localCurrency() : undefined,
+				checkWords: { yes: fieldWords.yes, no: fieldWords.no }
+			},
 			field.type === 'formula' ? computed : undefined
 		);
-		const label = `${field.name} retyped`;
+		const label = fieldWords.retyped(field.name);
 		const group = app.apply(changes, label);
-		showToast(
-			lost === 0 ? label : `${label}, ${lost} ${lost === 1 ? 'value' : 'values'} cleared`,
-			group?.id ?? null
-		);
+		showToast(lost === 0 ? label : fieldWords.retypedLosing(field.name, lost), group?.id ?? null);
 	}
 
 	function renameField(field: FieldDef): void {
 		const name = renameDraft.trim();
 		renaming = null;
 		if (name !== '' && name !== field.name) {
-			applyWithUndo(updateRecord(app.ws, field.id, { name }), `Field "${name}" renamed`);
+			applyWithUndo(updateRecord(app.ws, field.id, { name }), fieldWords.renamed(name));
 		}
 		table?.focus({ preventScroll: true });
 	}
@@ -1186,7 +1189,7 @@
 		const next = created(ordered[index + (below ? 1 : -1)]);
 		const at = next === undefined ? here + (below ? 1 : -1) : (here + next) / 2;
 		const made = insertRows(app.ws, tableId, [todayDates()], at);
-		applyWithUndo(made.changes, 'Row added');
+		applyWithUndo(made.changes, words.rowAdded);
 		flushSync();
 		selectPos(made.ids[0], fields[Math.max(0, headCol)]?.id ?? '');
 	}
@@ -1194,7 +1197,7 @@
 	function deleteRows(): void {
 		const ids = rangeRows().map((row) => row.id);
 		if (ids.length === 0) return;
-		const label = ids.length === 1 ? 'Row deleted' : `${ids.length} rows deleted`;
+		const label = words.rowDeleted(ids.length);
 		applyWithUndo(deleteRecords(app.ws, ids), label);
 		flushSync();
 		select(Math.min(Math.max(0, top), rows.length), Math.max(0, headCol));
@@ -1204,9 +1207,9 @@
 		const count = rangeRows().length * rangeFields().length;
 		try {
 			await navigator.clipboard.writeText(rangeTsv());
-			showToast(`Copied ${count} ${count === 1 ? 'cell' : 'cells'}`);
+			showToast(words.copied(count));
 		} catch {
-			showToast("Couldn't copy");
+			showToast(words.copyFailed);
 		}
 	}
 
@@ -1260,7 +1263,7 @@
 		const ids = others.map((other) => other.id);
 		ids.splice(place, 0, field.id);
 		const changes = reorder(app.ws, ids);
-		applyWithUndo(changes, `${field.name} moved`);
+		applyWithUndo(changes, fieldWords.shifted(field.name));
 	}
 
 	function openMenu(event: MouseEvent, field: FieldDef): void {
@@ -1281,7 +1284,7 @@
 		backToTop();
 		setConfig(
 			{ sort: dir === null ? null : { field: field.id, dir } },
-			dir === null ? 'Sort cleared' : 'Sort changed'
+			dir === null ? words.sortCleared : words.sortChanged
 		);
 	}
 
@@ -1294,7 +1297,7 @@
 		liveFilter = null;
 		if (JSON.stringify(next) !== JSON.stringify(saved)) {
 			backToTop();
-			setConfig({ filter: next }, next === null ? 'Filter cleared' : 'Filter changed');
+			setConfig({ filter: next }, next === null ? words.filterCleared : words.filterChanged);
 		}
 	}
 
@@ -1435,10 +1438,10 @@
 	{#if filterField}
 		<div class="flex shrink-0 items-center gap-2 px-3 py-1 text-sm text-ink-2">
 			<span class="min-w-0 truncate">
-				{filterField.name} contains "{config.filter?.text}": {rows.length} of {allRows.length}
+				{words.filterBar(filterField.name, config.filter?.text ?? '', rows.length, allRows.length)}
 			</span>
-			<Button variant="ghost" onclick={() => setConfig({ filter: null }, 'Filter cleared')}
-				>Clear filter</Button
+			<Button variant="ghost" onclick={() => setConfig({ filter: null }, words.filterCleared)}
+				>{words.clearFilter}</Button
 			>
 		</div>
 	{/if}
@@ -1512,7 +1515,7 @@
 											node.select();
 										}}
 										class="{inputStyle} absolute inset-0 h-full rounded-none font-medium"
-										aria-label="Name of {field.name}"
+										aria-label={words.nameOf(field.name)}
 										placeholder={field.name}
 										autocomplete="off"
 										bind:value={renameDraft}
@@ -1612,7 +1615,7 @@
 								<button
 									type="button"
 									class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
-									aria-label="Open row"
+									aria-label={words.openRow}
 									onclick={() => {
 										rowId = row.id;
 										rowOpen = true;
@@ -1640,7 +1643,7 @@
 								<button
 									type="button"
 									class="absolute inset-0 flex items-center justify-end pr-2 text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
-									aria-label="Add row"
+									aria-label={words.addRow}
 									onclick={() => {
 										rowId = null;
 										rowOpen = true;

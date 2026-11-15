@@ -8,12 +8,14 @@ export type Retype = {
 	target?: string | null;
 	expr?: string | null;
 	choices?: Choice[];
+	/** How a check value reads once it is text, in the language of whoever converts it. */
+	checkWords?: { yes: string; no: string };
 } & Partial<Pick<FieldDef, FormatKey>>;
 
 /** A value as the person reads it, without a locale: what a text field keeps of it. */
-function asText(ws: Workspace, field: FieldDef, value: Value): string | null {
+function asText(ws: Workspace, field: FieldDef, to: Retype, value: Value): string | null {
 	if (typeof value === 'boolean') {
-		return value ? 'yes' : 'no';
+		return to.checkWords === undefined ? String(value) : to.checkWords[value ? 'yes' : 'no'];
 	}
 	if (typeof value === 'number') {
 		if (field.type === 'duration') {
@@ -59,7 +61,7 @@ function convert(
 		return [value];
 	}
 
-	const text = asText(ws, from, value);
+	const text = asText(ws, from, to, value);
 	if (text === null) {
 		return null;
 	}

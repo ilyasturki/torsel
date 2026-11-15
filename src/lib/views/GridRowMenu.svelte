@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { grid as words } from '#lib/i18n/grid.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import { keys } from '#lib/ui/keys.ts';
@@ -29,8 +30,8 @@
 		onCloseAutoFocus?: (event: Event) => void;
 	} = $props();
 
-	const remove = $derived(rows === 1 ? 'Delete row' : `Delete ${rows} rows`);
-	const copy = $derived(cells === 1 ? 'Copy' : `Copy ${cells} cells`);
+	const remove = $derived(words.deleteRows(rows));
+	const copy = $derived(words.copyCells(cells));
 
 	function run(action: () => void): void {
 		open = false;
@@ -39,22 +40,22 @@
 </script>
 
 {#if wide.current}
-	<Menu bind:open {anchor} label="Row" {onCloseAutoFocus}>
-		{#if rows === 1}<MenuItem icon="open" onSelect={onopen}>Open row</MenuItem>{/if}
-		<MenuItem icon="arrow-up" onSelect={() => oninsert(false)}>Insert row above</MenuItem>
-		<MenuItem icon="arrow-down" onSelect={() => oninsert(true)}>Insert row below</MenuItem>
+	<Menu bind:open {anchor} label={words.row} {onCloseAutoFocus}>
+		{#if rows === 1}<MenuItem icon="open" onSelect={onopen}>{words.openRow}</MenuItem>{/if}
+		<MenuItem icon="arrow-up" onSelect={() => oninsert(false)}>{words.insertAbove}</MenuItem>
+		<MenuItem icon="arrow-down" onSelect={() => oninsert(true)}>{words.insertBelow}</MenuItem>
 		<MenuItem icon="copy" shortcut={keys('mod', 'c')} onSelect={oncopy}>{copy}</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={ondelete}>{remove}</MenuItem>
 	</Menu>
 {:else}
-	<Dialog bind:open title={rows === 1 ? 'Row' : `${rows} rows`} {onCloseAutoFocus}>
+	<Dialog bind:open title={words.rows(rows)} {onCloseAutoFocus}>
 		<div class="-mx-2 flex flex-col items-stretch">
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(false))}
-				>Insert row above</Button
+				>{words.insertAbove}</Button
 			>
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(true))}
-				>Insert row below</Button
+				>{words.insertBelow}</Button
 			>
 			<Button variant="ghost" class="justify-start" onclick={() => run(oncopy)}>{copy}</Button>
 			<Button variant="ghost" class="justify-start" onclick={() => run(ondelete)}>{remove}</Button>

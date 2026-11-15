@@ -1,3 +1,4 @@
+import grid from '../../src/lib/i18n/grid.ts';
 import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
@@ -445,7 +446,7 @@ test.describe('every type in fr-FR', () => {
 		await typeInto(page, 'Share', '12,5');
 		await expect(cellOf(page, 'Share')).toHaveText('12,5 %');
 
-		await page.getByRole('button', { name: 'Open row' }).first().click();
+		await page.getByRole('button', { name: grid.fr.openRow }).first().click();
 		const sheet = page.getByRole('dialog');
 		await expect(sheet.getByLabel('Price')).toHaveValue('9,99');
 		await sheet.getByLabel('Price').fill('1 234,5');

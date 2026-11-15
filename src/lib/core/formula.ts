@@ -2,10 +2,25 @@
  * Formulas are SQL expressions over a row's own fields. They are written with field names and
  * stored with field ids (`{{f_…}}`), so renaming a field never breaks one.
  */
+export type FormulaProblem =
+	| 'unknown-field'
+	| 'unclosed-name'
+	| 'unclosed-text'
+	| 'one-expression'
+	| 'empty'
+	| 'self-reference';
+
+/** `subject` is the field the problem names; whoever shows it words the problem. */
 export class FormulaError extends Error {
-	public constructor(message: string) {
-		super(message);
+	public readonly problem: FormulaProblem;
+
+	public readonly subject: string;
+
+	public constructor(problem: FormulaProblem, subject = '') {
+		super(subject === '' ? problem : `${problem}: ${subject}`);
 		this.name = 'FormulaError';
+		this.problem = problem;
+		this.subject = subject;
 	}
 }
 
@@ -35,7 +50,7 @@ function readQuoted(expr: string, start: number, close: string): { text: string;
 		i += 1;
 	}
 
-	throw new FormulaError(`unclosed ${close === "'" ? 'text' : 'name'}`);
+	throw new FormulaError(close === "'" ? 'unclosed-text' : 'unclosed-name');
 }
 
 function nextNonSpace(expr: string, from: number): string {
@@ -64,7 +79,7 @@ export function toStored(expr: string, fields: Named[]): string {
 			const { text, end } = readQuoted(expr, i, char === '[' ? ']' : char);
 			const id = byName.get(normal(text));
 			if (id === undefined) {
-				throw new FormulaError(`unknown field: "${text}"`);
+				throw new FormulaError('unknown-field', text);
 			}
 			out += `{{${id}}}`;
 			i = end;
@@ -72,12 +87,12 @@ export function toStored(expr: string, fields: Named[]): string {
 			const end = expr.indexOf('}}', i);
 			const id = end < 0 ? '' : expr.slice(i + 2, end);
 			if (!ids.has(id)) {
-				throw new FormulaError(`unknown field: ${id || expr.slice(i)}`);
+				throw new FormulaError('unknown-field', id || expr.slice(i));
 			}
 			out += `{{${id}}}`;
 			i = end + 2;
 		} else if (char === ';') {
-			throw new FormulaError('a formula is one expression, with no ";"');
+			throw new FormulaError('one-expression');
 		} else if (char === '-' && expr[i + 1] === '-') {
 			const end = expr.indexOf('\n', i);
 			i = end < 0 ? expr.length : end;
@@ -97,7 +112,7 @@ export function toStored(expr: string, fields: Named[]): string {
 	}
 
 	if (out.trim() === '') {
-		throw new FormulaError('the formula is empty');
+		throw new FormulaError('empty');
 	}
 
 	return out;

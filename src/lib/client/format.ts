@@ -1,5 +1,6 @@
 import type { Choice, FieldFormat, Value } from '../core/model.ts';
 import { isDated } from '../core/model.ts';
+import { fields as words } from '../i18n/fields.ts';
 import {
 	CHOICES_JOIN,
 	coerce,
@@ -322,7 +323,7 @@ export function localeFormats(locale?: string) {
 				return edit ? shown : `${shown}/${formatNumber(ratingScale(field).max)}`;
 			}
 			case 'check':
-				return value ? 'yes' : 'no';
+				return value ? words.yes : words.no;
 			case 'number': {
 				const shown = formatNumber(value, {
 					edit,
@@ -344,7 +345,7 @@ export function localeFormats(locale?: string) {
 			return formatAmount(field, value);
 		}
 		if (typeof value === 'boolean') {
-			return value ? 'yes' : 'no';
+			return value ? words.yes : words.no;
 		}
 		if (Array.isArray(value)) {
 			return value.filter((item) => typeof item === 'string').join(CHOICES_JOIN);

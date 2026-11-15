@@ -2,6 +2,9 @@
 	import { Popover } from 'bits-ui';
 	import { untrack } from 'svelte';
 
+	import { common } from '#lib/i18n/common.ts';
+	import { grid as words } from '#lib/i18n/grid.ts';
+
 	import Chip from '#lib/ui/Chip.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 
@@ -61,11 +64,11 @@
 			}));
 		const clear =
 			needle === '' && value !== null && !multiple
-				? [{ key: 'clear', value: null, label: 'Clear' }]
+				? [{ key: 'clear', value: null, label: common.clear }]
 				: [];
 		const create =
 			creatable && needle !== '' && !options.some((option) => option.label.toLowerCase() === needle)
-				? [{ key: 'create', value: query.trim(), label: `Add "${query.trim()}"` }]
+				? [{ key: 'create', value: query.trim(), label: words.addOption(query.trim()) }]
 				: [];
 		return [...clear, ...matching, ...create];
 	});
@@ -203,7 +206,7 @@
 							{/if}
 						</button>
 					{:else}
-						<p class="flex h-control items-center px-2 text-ink-3">No match</p>
+						<p class="flex h-control items-center px-2 text-ink-3">{words.noMatch}</p>
 					{/each}
 				</div>
 			</Popover.Content>
