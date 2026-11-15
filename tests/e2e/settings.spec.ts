@@ -70,8 +70,8 @@ test('mints a read-only token that expires, and lists what it may do and when it
 
 	const command = await agents.locator('code', { hasText: 'claude mcp add' }).innerText();
 	const token = /Bearer (ts_[\w-]+)/u.exec(command)?.[1];
-	const details = agents.getByText(/^ts_\w+…, read only/u);
-	await expect(details).toHaveText(/^ts_\w+…, read only, never used, expires \w+ \d+, \d{4}$/u);
+	const details = agents.getByText(/^ts_[\w-]+…, read only/u);
+	await expect(details).toHaveText(/^ts_[\w-]+…, read only, never used, expires \w+ \d+, \d{4}$/u);
 
 	const listed = await page.request.post('/api/mcp', {
 		headers: {
@@ -102,8 +102,8 @@ test.describe('in French', () => {
 		await pick(agents.getByRole('combobox', { name: 'Expiration' }), '90 jours');
 		await agents.getByRole('button', { name: 'Créer un jeton' }).click();
 
-		await expect(agents.getByText(/^ts_\w+…, lecture seule/u)).toHaveText(
-			/^ts_\w+…, lecture seule, jamais utilisé, expire le \d+ \S+ \d{4}$/u
+		await expect(agents.getByText(/^ts_[\w-]+…, lecture seule/u)).toHaveText(
+			/^ts_[\w-]+…, lecture seule, jamais utilisé, expire le \d+ \S+ \d{4}$/u
 		);
 	});
 });

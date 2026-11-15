@@ -66,3 +66,44 @@ test('a table takes no name another table of its base has', async ({ page, conte
 	await expect(page.getByRole('status')).toContainText('A table named "Runs" already exists.');
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 });
+
+test("a field's settings refuse a name another field has", async ({ page, context, account }) => {
+	void account;
+	await page.goto(await seedGym(context.request));
+
+	await columnMenu(page, 'Kg', 'Field settings');
+	const sheet = page.getByRole('dialog', { name: 'Field', exact: true });
+	await sheet.getByRole('textbox').first().fill('exercise');
+	await sheet.getByRole('button', { name: 'Save' }).click();
+
+	await expect(sheet.getByRole('alert')).toHaveText('A field named "Exercise" already exists.');
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('columnheader', { name: 'Kg', exact: true })).toBeVisible();
+});
+
+test('an import names a new table apart from the ones there', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	await seedGym(context.request);
+	await page.goto('/app/settings');
+	await page.getByRole('button', { name: 'Import', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Import' });
+	await sheet.getByLabel('File to import').setInputFiles({
+		name: 'Lifts.csv',
+		mimeType: 'text/csv',
+		buffer: Buffer.from('Exercise,Kg\nSquat,100\n')
+	});
+
+	const name = sheet.getByRole('textbox', { name: 'Table name' });
+	await expect(name).toHaveValue('Lifts (2)');
+	await name.fill('runs');
+	await sheet.getByRole('button', { name: 'Import', exact: true }).click();
+	await expect(sheet.getByRole('alert')).toHaveText('A table named "Runs" already exists.');
+
+	await name.fill('Squats');
+	await sheet.getByRole('button', { name: 'Import', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Squats' })).toBeVisible();
+});
