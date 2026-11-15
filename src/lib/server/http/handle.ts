@@ -11,6 +11,10 @@ function isApiPath(pathname: string): boolean {
 	return pathname === '/api' || pathname.startsWith('/api/');
 }
 
+function apiTokenReaches(pathname: string): boolean {
+	return pathname === '/api/mcp' || pathname.startsWith('/api/v1/');
+}
+
 // SvelteKit routes on the decoded path, so `GET /%61pi/x` reaches `/api/x`: matching
 // the raw pathname instead is an auth bypass. `%25` is split, not decoded, on purpose.
 function routedPath(pathname: string): string {
@@ -77,6 +81,13 @@ export function createHandle(database: () => Database): Handle {
 
 		if (credential === null && !(pathname in PUBLIC_API_ROUTES)) {
 			return applyCors(json({ message: 'authentication required' }, { status: 401 }), origin);
+		}
+
+		if (credential?.token.kind === 'api' && !apiTokenReaches(pathname)) {
+			return applyCors(
+				json({ message: 'an API token reaches only /api/mcp' }, { status: 403 }),
+				origin
+			);
 		}
 
 		const response = applyCors(await resolve(event), origin);
