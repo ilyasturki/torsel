@@ -125,7 +125,7 @@
 		'field-hover',
 		'button',
 		'button-hover',
-		'control-edge',
+		'field-edge',
 		'selected',
 		'ink',
 		'ink-2',

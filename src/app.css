@@ -5,7 +5,7 @@
 :root {
 	color-scheme: light dark;
 
-	--canvas: #f6f6f8;
+	--canvas: #ebebee;
 	--raised: #ffffff;
 	--float: #ffffff;
 	--tint: rgb(17 18 22 / 0.04);
@@ -25,14 +25,14 @@
 	--rule-strong: #d0d1d1;
 	--band: #f7f7f7;
 	--selected: #e1e9fa;
-	--frame: #d9d9db;
+	--frame: #cfd0d2;
 	--scrim: rgb(0 0 0 / 0.3);
 	--focus: var(--accent);
 	--field: var(--tint);
 	--field-hover: var(--tint-2);
-	--button: var(--tint);
-	--button-hover: var(--tint-2);
-	--control-edge: transparent;
+	--button: rgb(17 18 22 / 0.08);
+	--button-hover: rgb(17 18 22 / 0.115);
+	--field-edge: transparent;
 	--elevation-1: 0 0 0 1px rgb(17 18 22 / 0.05), 0 1px 2px rgb(17 18 22 / 0.04);
 	--elevation-2:
 		0 0 0 1px rgb(17 18 22 / 0.06), 0 2px 4px rgb(17 18 22 / 0.05), 0 12px 32px rgb(17 18 22 / 0.12);
@@ -86,9 +86,9 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--canvas: #0d0e10;
-		--raised: #16171b;
-		--float: #1f2025;
+		--canvas: #09090b;
+		--raised: #1b1c20;
+		--float: #24252a;
 		--tint: rgb(255 255 255 / 0.05);
 		--tint-2: rgb(255 255 255 / 0.09);
 		--ink: #ededf0;
@@ -100,13 +100,18 @@
 		--on-fill: #0d0e10;
 		--accent: #6f9bff;
 		--on-accent: #0d0e10;
-		--rule: #2c2c30;
-		--rule-col: #25262a;
-		--rule-strong: #414246;
-		--band: #1e1e22;
-		--selected: #262f44;
-		--frame: #2a2b2d;
+		--rule: #303135;
+		--rule-col: #2a2b2f;
+		--rule-strong: #45464a;
+		--band: #222327;
+		--selected: #2a3348;
+		--frame: #272729;
 		--scrim: rgb(0 0 0 / 0.5);
+		--field: rgb(0 0 0 / 0.22);
+		--field-hover: rgb(0 0 0 / 0.3);
+		--button: rgb(255 255 255 / 0.08);
+		--button-hover: rgb(255 255 255 / 0.12);
+		--field-edge: rgb(255 255 255 / 0.06);
 		--glass: rgb(22 23 27 / 0.42);
 		--glass-strong: rgb(22 23 27 / 0.76);
 		--site-rest: 0.4;
@@ -228,7 +233,7 @@
 	--color-field-hover: var(--field-hover);
 	--color-button: var(--button);
 	--color-button-hover: var(--button-hover);
-	--color-control-edge: var(--control-edge);
+	--color-field-edge: var(--field-edge);
 	--color-ink: var(--ink);
 	--color-ink-2: var(--ink-2);
 	--color-ink-3: var(--ink-3);
