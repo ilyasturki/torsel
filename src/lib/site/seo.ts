@@ -112,11 +112,11 @@ export function llmsTxt(): string {
 
 > ${SITE_DESCRIPTION}
 
-${SITE_NAME} is a local-first data app. A base holds tables. A field is text, a number, a date, a choice, a check, a link to another table, or a formula, which is a SQLite expression over the row. Each table has views: Grid shows every row, editable in place. Entry adds a row, prefilled from the last row with the same key, with steppers on numbers. List groups rows into cards by a field. Chart draws bars or a line of an aggregate by day, week or month, with an optional rolling average.
+${SITE_NAME} is a local-first data app. A base holds tables. A field holds text or notes, a number, an amount of money, a percent, a rating, a duration, a date or a date and time, one choice or several, a check, a link to another table's row, a URL, an email, a phone number, or a formula, which is a SQLite expression over the row. Each table has views: Grid shows every row, editable in place. Entry adds a row, prefilled from the last row with the same key, with steppers on numbers. List groups rows into cards by a field. Chart draws bars or a line of an aggregate by day, week or month, with an optional rolling average.
 
 SQLite runs as WebAssembly on every device and on the server, so a formula gives the same number everywhere. Every device keeps a full copy of the data and syncs with a server when one is around. The app opens with no account: an account adds sync and the assistant.
 
-The assistant in the app and the MCP server share one set of tools. In the app, every change it makes applies at once and shows as a before and after you can undo. The server speaks MCP over Streamable HTTP at \`/api/mcp\`, with a token from Settings.
+The assistant in the app and the MCP server share one set of tools. In the app, every change it makes applies at once and shows as a before and after you can undo. The server speaks MCP over Streamable HTTP at \`/api/mcp\`, with a token from Settings that reads only, or reads and writes.
 
 Common uses are budgets, clients, projects, job searches, trips and reading lists. ${SITE_NAME} is MIT licensed and can be self-hosted on NixOS or with Node.
 

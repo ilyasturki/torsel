@@ -80,12 +80,20 @@ bun run start
 
 ## MCP
 
-The server speaks MCP over Streamable HTTP at `/api/mcp`. Create a token in Settings, Agents (MCP), then:
+The server speaks MCP over Streamable HTTP at `/api/mcp`, statelessly, to clients on the 2026-07-28 revision and to those still on the 2025 ones. Create a token in Settings, Agents (MCP), then:
 
 ```sh
 claude mcp add --transport http torsel https://your-instance/api/mcp \
   --header "Authorization: Bearer ts_..."
 ```
+
+A token reads only, or reads and writes, and can expire after 30, 90 or 365 days. It reaches `/api/mcp` and nothing else. Settings lists each token with the day it was last used, and revokes it.
+
+The 14 tools are the assistant's own, minus the three that need a screen or an attachment. A read-only token sees `list_bases`, `describe_base` and `query`. Every tool declares its input and output schemas and its annotations. Unknown keys are refused, and a refused call says what to change and writes nothing. `query` runs one SELECT in a worker thread and stops after 500 ms; a page holds up to 200 rows, and its `next` is the `offset` of the following page.
+
+Each token makes at most 120 calls a minute (`TORSEL_MCP_CALLS_PER_MINUTE`, 0 for no cap). A browser page reaches the endpoint only from the server's own origin or one listed in `CORS_ORIGINS`.
+
+`bun run test:e2e mcp.spec.ts` runs the MCP conformance suite against both revisions, with each scenario Torsel does not serve listed and explained in `tests/e2e/mcp-baseline-*.yml`, then Inspector's `--strict` schema check.
 
 ## Development
 
