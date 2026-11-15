@@ -99,7 +99,9 @@
 {#if wide.current}
 	<Menu bind:open {anchor} label={table.name} align="end" onCloseAutoFocus={keepRenameFocus}>
 		{#if onviewsettings !== undefined}
-			<MenuItem icon="eye" onSelect={() => run(onviewsettings)}>{viewWords.viewSettings}</MenuItem>
+			<MenuItem icon="settings" onSelect={() => run(onviewsettings)}
+				>{viewWords.viewSettings}</MenuItem
+			>
 		{/if}
 		<MenuSub icon="plus" label={viewWords.newView}>
 			{#each VIEW_TYPES as option (option.id)}
