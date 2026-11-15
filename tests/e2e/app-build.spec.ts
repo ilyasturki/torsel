@@ -1,5 +1,9 @@
 import type { BrowserContext, Page } from '@playwright/test';
 
+import home from '../../src/lib/i18n/home.ts';
+import names from '../../src/lib/i18n/names.ts';
+import shell from '../../src/lib/i18n/shell.ts';
+
 import type { Account } from './harness.ts';
 import {
 	expect,
@@ -224,4 +228,16 @@ test('a sign-up on the phone keeps its password: the claim comes back with the c
 		data: { ...account, client: 'device', label: 'check' }
 	});
 	expect(login.status()).toBe(201);
+});
+
+test.describe('on a phone in French', () => {
+	test.use({ locale: 'fr-FR' });
+
+	test('the static build opens in French', async ({ page }) => {
+		await page.goto('/app');
+		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+		await page.getByRole('button', { name: home.fr.newTable }).first().click();
+		await expect(page.getByRole('heading', { name: names.fr.table(1) })).toBeVisible();
+		await expect(page.getByRole('link', { name: shell.fr.allTables })).toBeVisible();
+	});
 });
