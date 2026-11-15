@@ -6,6 +6,7 @@ declare global {
 		readonly DEFAULT_SERVER: string;
 		readonly APP_VERSION: string;
 		readonly CHEAP_SCRYPT?: 'true';
+		readonly SQL_WORKER?: string;
 	}
 
 	namespace App {

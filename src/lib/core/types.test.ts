@@ -230,16 +230,16 @@ describe('detection', () => {
 			readQuery(engine, 'select "Price" * 2 as p, "Runtime" / 60 as m from "Movies" order by p')
 				.rows
 		).toEqual([
-			{ p: 16, m: 116 },
-			{ p: 18, m: 170 },
-			{ p: 25, m: 155 }
+			[16, 116],
+			[18, 170],
+			[25, 155]
 		]);
 		expect(
 			readQuery(
 				engine,
 				`select count(*) as n from "Movies", json_each("Movies"."Genres") where json_each.value = 'Drama'`
 			).rows
-		).toEqual([{ n: 3 }]);
+		).toEqual([[3]]);
 	});
 });
 

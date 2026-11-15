@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 import pkg from './package.json' with { type: 'json' };
+import { sqlWorker } from './scripts/sql-worker-plugin.ts';
 
 const isAppBuild = process.env.BUILD_TARGET === 'app';
 
@@ -24,6 +25,7 @@ export default defineConfig({
 		exclude: ['@sqlite.org/sqlite-wasm']
 	},
 	plugins: [
+		sqlWorker(),
 		tailwindcss(),
 		sveltekit({
 			compilerOptions: {

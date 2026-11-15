@@ -69,6 +69,7 @@ stdenv.mkDerivation {
       ../static
       ../drizzle
       ../scripts/account.ts
+      ../scripts/sql-worker-plugin.ts
     ];
   };
 

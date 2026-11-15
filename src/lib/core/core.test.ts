@@ -413,8 +413,8 @@ describe('materialize', () => {
 			'select "Exercice", "1RM estimé" from "Séries" order by "Exercice"'
 		);
 		expect(rows).toEqual([
-			{ Exercice: 'bench press', '1RM estimé': 96 },
-			{ Exercice: 'dips', '1RM estimé': null }
+			['bench press', 96],
+			['dips', null]
 		]);
 
 		expect(() => readQuery(engine, `delete from ${table.id}`)).toThrow();

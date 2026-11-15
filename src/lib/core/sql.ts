@@ -10,8 +10,8 @@ export type SqlRow = Record<string, SqlValue>;
 export interface Engine {
 	exec(sql: string, bind?: SqlValue[]): void;
 	all(sql: string, bind?: SqlValue[]): SqlRow[];
-	/** Steps through the rows until `take` returns false. */
-	each(sql: string, take: (row: SqlRow) => boolean): void;
+	/** Steps through the rows until `take` returns false; the statement's column names. */
+	each(sql: string, take: (row: SqlValue[]) => boolean): string[];
 }
 
 export function quote(name: string): string {
@@ -278,35 +278,64 @@ export class QueryError extends Error {
 	}
 }
 
-/** One read-only statement, capped in rows and in JSON bytes; the engine must already be in `query_only` mode. */
+export type QueryPage = {
+	columns: string[];
+	rows: SqlValue[][];
+	/** The offset of the next page, or null on the last one. */
+	next: number | null;
+	/** How many text cells were cut to `cell` characters. */
+	cut: number;
+};
+
+export type QueryLimits = { offset?: number; rows?: number; bytes?: number; cell?: number };
+
+// Literals, quoted names and comments blanked, so a `;` left over separates statements.
+const UNQUOTED =
+	/'(?:[^']|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/gu;
+
+/** One read-only statement, one page capped in rows, in JSON bytes and per text cell; the engine must already be in `query_only` mode. */
 export function readQuery(
 	engine: Engine,
 	sql: string,
-	{ rows: most = 200, bytes = 64_000 }: { rows?: number; bytes?: number } = {}
-): { rows: SqlRow[]; truncated: boolean } {
+	{ offset = 0, rows: most = 200, bytes = 48_000, cell = 2_000 }: QueryLimits = {}
+): QueryPage {
 	const statement = sql.trim().replace(/;\s*$/u, '');
 
-	if (statement.includes(';')) {
-		throw new QueryError('one query at a time');
+	if (statement.replace(UNQUOTED, ' ').includes(';')) {
+		throw new QueryError('one statement at a time');
 	}
 
-	const rows: SqlRow[] = [];
-	let size = 0;
-	let truncated = false;
+	const rows: SqlValue[][] = [];
+	let size = 2;
+	let cut = 0;
+	let more = false;
 
+	let columns: string[];
 	try {
-		engine.each(`select * from (${statement}) limit ${most + 1}`, (row) => {
-			size += JSON.stringify(row).length;
-			if (rows.length === most || size > bytes) {
-				truncated = true;
-				return false;
+		columns = engine.each(
+			`select * from (${statement}) limit ${most + 1} offset ${offset}`,
+			(row) => {
+				let shortened = 0;
+				const values = row.map((value) => {
+					if (typeof value === 'string' && value.length > cell) {
+						shortened += 1;
+						return `${value.slice(0, cell)}…`;
+					}
+					return value;
+				});
+				size += JSON.stringify(values).length + 1;
+				if (rows.length === most || (size > bytes && rows.length > 0)) {
+					more = true;
+					return false;
+				}
+				cut += shortened;
+				rows.push(values);
+				return true;
 			}
-			rows.push(row);
-			return true;
-		});
+		);
 	} catch (error) {
 		throw new QueryError(errorText(error));
 	}
 
-	return { rows, truncated };
+	return { columns, rows, next: more ? offset + rows.length : null, cut };
 }

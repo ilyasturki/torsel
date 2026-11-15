@@ -8,7 +8,7 @@ import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
 import type { ToolContext } from './toolkit.ts';
-import { TOOLS, closeEngines, runTool } from './toolkit.ts';
+import { TOOLS, runTool } from './toolkit.ts';
 
 export const INSTRUCTIONS = `Torsel holds a person's data as bases of typed tables (fields: text, number, date, choice, check, link, formula) shown through views (grid, entry, list, chart).
 
@@ -58,7 +58,7 @@ export function buildMcpServer(
 		);
 	}
 
-	return { server, release: () => closeEngines(ws) };
+	return { server, release: () => undefined };
 }
 
 async function readBody(request: Request): Promise<{ request: Request; parsed?: unknown } | null> {

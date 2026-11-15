@@ -22,31 +22,26 @@ import {
 } from '../../core/actions.ts';
 import { restoreChanges } from '../../core/backup.ts';
 import { appendRows, guessColumns, guessTargets, importTable } from '../../core/csv.ts';
-import type { MemoryEngine } from '../../core/engine.ts';
-import { openEngine } from '../../core/engine.ts';
 import { FormulaError, toDisplay, toStored } from '../../core/formula.ts';
 import type {
 	Change,
 	Choice,
 	FieldDef,
 	FormatKey,
+	Rec,
 	TableDef,
 	Value,
 	ViewConfig
 } from '../../core/model.ts';
 import { FIELD_TYPES, FORMAT_OF, VIEW_TYPES, hasChoices } from '../../core/model.ts';
 import { retypeField } from '../../core/retype.ts';
-import {
-	QueryError,
-	formulaProblem,
-	formulaValues,
-	materializeBase,
-	readQuery
-} from '../../core/sql.ts';
+import type { SqlValue } from '../../core/sql.ts';
 import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { nextChoice } from '../../ui/colors.ts';
+import type { SqlResult, SqlTask } from '../sql/jobs.ts';
+import { SQL_LIMITS, SqlRefusal, sqlPool } from '../sql/pool.ts';
 import type { Sheet } from './files.ts';
 
 export type Action = { summary: string; changes: Change[] };
@@ -155,49 +150,39 @@ function storedFormula(
 	}
 }
 
-// A query holds the server's one thread, shared by every account, for up to this long.
-const QUERY_MS = 500;
+const QUERY_MS = SQL_LIMITS.ms;
 
 function sqlRefusal(message: string): string {
-	return message === 'interrupted'
-		? `the query ran past ${QUERY_MS} ms; aggregate, filter or read fewer rows`
-		: message;
+	if (message === 'interrupted') {
+		return `the query ran past ${QUERY_MS} ms; aggregate, filter or read fewer rows`;
+	}
+	return message === 'failed' ? 'the query failed on the server' : message;
 }
 
 function formulaRefusal(message: string): string {
-	return message === 'interrupted'
-		? `the formula ran past ${QUERY_MS} ms over this table's rows; simplify it`
+	if (message === 'interrupted') {
+		return `the formula ran past ${QUERY_MS} ms over this table's rows; simplify it`;
+	}
+	return message === 'failed'
+		? 'the formula check failed on the server'
 		: `SQLite refuses the formula: ${message}`;
 }
 
-const engines = new WeakMap<Workspace, Map<string, { version: number; engine: MemoryEngine }>>();
-const versions = new WeakMap<Workspace, number>();
-
-function bump(ws: Workspace): void {
-	versions.set(ws, (versions.get(ws) ?? 0) + 1);
+function baseRecords(ws: Workspace, baseId: string): Rec[] {
+	return [...ws.records.values()].filter((rec) => rec.base === baseId);
 }
 
-async function engineFor(ws: Workspace, baseId: string): Promise<MemoryEngine> {
-	const version = versions.get(ws) ?? 0;
-	let perBase = engines.get(ws);
-	if (perBase === undefined) {
-		perBase = new Map();
-		engines.set(ws, perBase);
+async function inWorker<K extends SqlTask['kind']>(
+	ws: Workspace,
+	baseId: string,
+	task: Extract<SqlTask, { kind: K }>,
+	refusal: (message: string) => string
+): Promise<SqlResult[K]> {
+	try {
+		return await sqlPool.run(baseRecords(ws, baseId), baseId, task);
+	} catch (error) {
+		throw error instanceof SqlRefusal ? new ToolError(refusal(error.message)) : error;
 	}
-
-	const cached = perBase.get(baseId);
-	if (cached !== undefined && cached.version === version) {
-		return cached.engine;
-	}
-	cached?.engine.close();
-
-	const engine = await openEngine();
-	materializeBase(engine, ws, baseId, true);
-	engine.readOnly();
-	engine.bound({ ms: QUERY_MS, length: 1_000_000 });
-	perBase.set(baseId, { version, engine });
-
-	return engine;
 }
 
 async function frozenValues(
@@ -205,12 +190,10 @@ async function frozenValues(
 	baseId: string,
 	tableId: string,
 	stored: string
-): Promise<ReturnType<typeof formulaValues>> {
-	try {
-		return formulaValues(await engineFor(ws, baseId), ws, tableId, stored);
-	} catch (error) {
-		throw error instanceof QueryError ? new ToolError(formulaRefusal(error.message)) : error;
-	}
+): Promise<Map<string, SqlValue>> {
+	return new Map(
+		await inWorker(ws, baseId, { kind: 'formula-values', table: tableId, stored }, formulaRefusal)
+	);
 }
 
 async function validateFormula(ws: Workspace, tableId: string, stored: string): Promise<void> {
@@ -218,22 +201,19 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	if (table === undefined) {
 		return;
 	}
-	const problem = formulaProblem(await engineFor(ws, table.base), ws, tableId, stored);
+	const problem = await inWorker(
+		ws,
+		table.base,
+		{ kind: 'formula-problem', table: tableId, stored },
+		formulaRefusal
+	);
 	if (problem !== null) {
 		throw new ToolError(formulaRefusal(problem));
 	}
 }
 
-export function closeEngines(ws: Workspace): void {
-	for (const { engine } of engines.get(ws)?.values() ?? []) {
-		engine.close();
-	}
-	engines.delete(ws);
-}
-
 function commit(ctx: ToolContext, action: Action): void {
 	ctx.commit(action);
-	bump(ctx.ws);
 }
 
 const BASE = z.string().describe('name or id of the base');
@@ -642,16 +622,15 @@ export const TOOLS: Tool[] = [
 		name: 'query',
 		title: TITLES.query,
 		description: `A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. At most 200 rows and about 64 KB, and a query stops after ${QUERY_MS} ms: truncated is true when rows were cut, so aggregate, filter or select fewer columns.`,
-		input: z.object({ base: BASE, sql: z.string().min(1) }),
+		input: z.object({
+			base: BASE,
+			sql: z.string().min(1),
+			offset: z.number().int().min(0).optional()
+		}),
 		kind: 'read',
-		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {
+		run: ({ ws }, { base, sql, offset }: { base: string; sql: string; offset?: number }) => {
 			const found = findBase(ws, base);
-			try {
-				const { rows, truncated } = readQuery(await engineFor(ws, found.id), sql);
-				return { rows, count: rows.length, truncated };
-			} catch (error) {
-				throw new ToolError(sqlRefusal(error instanceof Error ? error.message : String(error)));
-			}
+			return inWorker(ws, found.id, { kind: 'query', sql, offset: offset ?? 0 }, sqlRefusal);
 		}
 	},
 	{

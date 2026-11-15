@@ -36,7 +36,7 @@ import {
 	unreportDecisions
 } from './threads.ts';
 import type { Action, ToolContext } from './toolkit.ts';
-import { TOOLS, closeEngines, runTool, toolNamed } from './toolkit.ts';
+import { TOOLS, runTool, toolNamed } from './toolkit.ts';
 
 const MAX_ROUNDS = 12;
 
@@ -559,7 +559,5 @@ export async function runTurn(turn: Turn): Promise<void> {
 			console.error('assistant:', thrown);
 			finish({ kind: 'error', message: errorText(thrown) });
 		}
-	} finally {
-		closeEngines(ws);
 	}
 }

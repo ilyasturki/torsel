@@ -6,7 +6,7 @@ import type { Effect } from '../../core/thread.ts';
 import { inLocale, requestLocale } from '../http/locale.ts';
 import type { Sheet } from './files.ts';
 import type { Action, ToolContext } from './toolkit.ts';
-import { closeEngines, runTool, toolNamed } from './toolkit.ts';
+import { runTool, toolNamed } from './toolkit.ts';
 
 vi.mock('$app/env', () => ({ building: false }));
 
@@ -98,16 +98,15 @@ describe('assistant tools', () => {
 		const rows = (await call('query', {
 			base: 'Muscu',
 			sql: 'select "Exercice", "1RM estimé", "_id" from "Séries" order by "Exercice"'
-		})) as { rows: { Exercice: string; '1RM estimé': number; _id: string }[] };
-		expect(rows.rows.map((row) => [row.Exercice, row['1RM estimé']])).toEqual([
+		})) as { columns: string[]; rows: [string, number, string][] };
+		expect(rows.columns).toEqual(['Exercice', '1RM estimé', '_id']);
+		expect(rows.rows.map(([exercise, max]) => [exercise, max])).toEqual([
 			['bench press', 101.3],
 			['squat', 117.3]
 		]);
 
-		await call('delete_rows', { base: 'Muscu', table: 'Séries', ids: [rows.rows[1]._id] });
+		await call('delete_rows', { base: 'Muscu', table: 'Séries', ids: [rows.rows[1][2]] });
 		expect(actions.at(-1)?.summary).toBe('Delete 1 row from Séries');
-
-		closeEngines(ctx.ws);
 	});
 
 	it('creates a table without naming a base', async () => {
@@ -125,7 +124,6 @@ describe('assistant tools', () => {
 		expect(actions).toHaveLength(2);
 		expect(second.base).toBe(first.base);
 		expect(ctx.ws.tables(first.base).map((table) => table.name)).toEqual(['Weight', 'Expenses']);
-		closeEngines(ctx.ws);
 	});
 
 	it('colors the choices it creates as the app does, and keeps those already there', async () => {
@@ -173,7 +171,6 @@ describe('assistant tools', () => {
 			choices: ['Big']
 		});
 		expect(colors('Size')).toEqual({ Big: 'orange' });
-		closeEngines(ctx.ws);
 	});
 
 	it('answers a bad name with the way to find the right one', async () => {
@@ -219,7 +216,6 @@ describe('assistant tools', () => {
 		await call('delete', { base: made.base, id: made.base });
 		expect(ctx.ws.bases()).toEqual([]);
 		expect(actions.at(-1)?.summary).toMatch(/^Delete base/u);
-		closeEngines(ctx.ws);
 	});
 
 	it('shows a table or a page rather than changing anything', async () => {
@@ -348,13 +344,13 @@ describe('assistant tools', () => {
 			base: 'Tables',
 			sql: `select count(*) as n from "Movies", json_each("Movies"."Genres") where json_each.value = 'Sci-fi'`
 		})) as { rows: unknown[] };
-		expect(query.rows).toEqual([{ n: 1 }]);
+		expect(query.rows).toEqual([[1]]);
 	});
 });
 
 describe('query limits', () => {
 	it('stops a runaway query at its deadline', async () => {
-		const { call, ctx } = session();
+		const { call } = session();
 		await call('create_base', { name: 'B' });
 
 		const started = Date.now();
@@ -365,40 +361,57 @@ describe('query limits', () => {
 
 		expect(answer).toEqual({ error: expect.stringMatching(/ran past 500 ms/u) });
 		expect(Date.now() - started).toBeLessThan(1500);
-		closeEngines(ctx.ws);
 	});
 
 	it('refuses a value too long to hold', async () => {
-		const { call, ctx } = session();
+		const { call } = session();
 		await call('create_base', { name: 'B' });
 
 		expect(
 			await call('query', { base: 'B', sql: `select printf('%.*c', 100000000, 'x') as v` })
 		).toEqual({ error: expect.stringMatching(/too big/u) });
-		closeEngines(ctx.ws);
 	});
 
-	it('caps the answer by size and says so', async () => {
-		const { call, ctx } = session();
+	it('pages an answer cut by size, by rows or by cell', async () => {
+		const { call } = session();
 		await call('create_base', { name: 'B' });
 
 		const big = (await call('query', {
 			base: 'B',
-			sql: `with recursive c(x) as (select 1 union all select x + 1 from c where x < 150) select x, printf('%.*c', 2000, 'x') as pad from c`
-		})) as { rows: unknown[]; count: number; truncated: boolean };
-		expect(big.truncated).toBe(true);
-		expect(big.count).toBe(big.rows.length);
-		expect(JSON.stringify(big.rows).length).toBeLessThan(70_000);
+			sql: `with recursive c(x) as (select 1 union all select x + 1 from c where x < 150) select x, printf('%.*c', 1900, 'x') as pad from c`
+		})) as { rows: unknown[][]; next: number };
+		expect(big.next).toBe(big.rows.length);
+		expect(JSON.stringify(big.rows).length).toBeLessThan(50_000);
 
 		const many = (await call('query', {
 			base: 'B',
 			sql: 'with recursive c(x) as (select 1 union all select x + 1 from c where x < 300) select x from c'
-		})) as { count: number; truncated: boolean };
-		expect(many).toMatchObject({ count: 200, truncated: true });
+		})) as { rows: unknown[][]; next: number };
+		expect(many.rows).toHaveLength(200);
+		expect(many.next).toBe(200);
 
-		const small = await call('query', { base: 'B', sql: 'select 1 as x' });
-		expect(small).toEqual({ rows: [{ x: 1 }], count: 1, truncated: false });
-		closeEngines(ctx.ws);
+		const rest = (await call('query', {
+			base: 'B',
+			sql: 'with recursive c(x) as (select 1 union all select x + 1 from c where x < 300) select x from c',
+			offset: many.next
+		})) as { rows: unknown[][]; next: number | null };
+		expect(rest.rows).toHaveLength(100);
+		expect(rest.rows[0]).toEqual([201]);
+		expect(rest.next).toBeNull();
+
+		expect(
+			await call('query', { base: 'B', sql: `select printf('%.*c', 3000, 'y') as long` })
+		).toEqual({ columns: ['long'], rows: [[`${'y'.repeat(2000)}…`]], next: null, cut: 1 });
+
+		expect(await call('query', { base: 'B', sql: "select 'a;b' as x;" })).toEqual({
+			columns: ['x'],
+			rows: [['a;b']],
+			next: null,
+			cut: 0
+		});
+		expect(await call('query', { base: 'B', sql: 'select 1; select 2' })).toEqual({
+			error: 'one statement at a time'
+		});
 	});
 
 	it('bounds a formula checked on the server', async () => {
@@ -417,7 +430,6 @@ describe('query limits', () => {
 
 		expect(answer).toEqual({ error: expect.stringMatching(/too big/u) });
 		expect(Date.now() - started).toBeLessThan(1500);
-		closeEngines(ctx.ws);
 	});
 });
 
@@ -461,7 +473,6 @@ describe('row tools', () => {
 		expect(actions).toHaveLength(before);
 		expect(ctx.ws.live(field)).toBeDefined();
 		expect(ctx.ws.live(view)).toBeDefined();
-		closeEngines(ctx.ws);
 	});
 
 	it.each([
@@ -488,7 +499,6 @@ describe('row tools', () => {
 		expect(added).toEqual({ error: expect.stringMatching(message) });
 		expect((added as { error: string }).error).toMatch(/^rows\[1\]\./u);
 		expect(actions).toHaveLength(before);
-		closeEngines(ctx.ws);
 	});
 
 	it('refuse an unreadable change too, and still take an empty value as a clear', async () => {
@@ -517,7 +527,6 @@ describe('row tools', () => {
 				updates: [{ id: added[0], values: { Year: null, Title: '' } }]
 			})
 		).toEqual({ updated: 1 });
-		closeEngines(ctx.ws);
 	});
 });
 
