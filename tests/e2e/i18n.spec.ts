@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import common from '../../src/lib/i18n/common.ts';
 import email from '../../src/lib/i18n/email.ts';
 import errors from '../../src/lib/i18n/errors.ts';
 import home from '../../src/lib/i18n/home.ts';
@@ -7,6 +8,7 @@ import importing from '../../src/lib/i18n/importing.ts';
 import login from '../../src/lib/i18n/login.ts';
 import names from '../../src/lib/i18n/names.ts';
 import shell from '../../src/lib/i18n/shell.ts';
+import views from '../../src/lib/i18n/views.ts';
 import { expect, freshEmail, test } from './harness.ts';
 
 function pasteText(text: string): void {
@@ -59,6 +61,27 @@ test.describe('in fr-FR', () => {
 				.map((element) => element.textContent?.trim())
 		);
 		expect(clipped, 'French labels fit their controls').toEqual([]);
+	});
+
+	test('the view sheet fits its French labels', async ({ page, account }) => {
+		void account;
+		await page.goto('/app');
+		await page.getByRole('button', { name: home.fr.newTable }).first().click();
+		await page.getByRole('button', { name: common.fr.more }).last().click();
+		await page
+			.getByRole('menuitem', { name: views.fr.viewSettings })
+			.or(page.getByRole('dialog').getByRole('button', { name: views.fr.viewSettings }))
+			.click();
+		const picker = page.getByRole('group', { name: views.fr.viewType });
+		await expect(picker.getByRole('button')).toHaveCount(4);
+		const clipped = await picker
+			.getByRole('button')
+			.evaluateAll((buttons) =>
+				buttons
+					.filter((button) => button.scrollWidth > button.clientWidth + 1)
+					.map((button) => button.textContent?.trim())
+			);
+		expect(clipped).toEqual([]);
 	});
 
 	test('an empty table counts 0 as singular', async ({ page, account }) => {

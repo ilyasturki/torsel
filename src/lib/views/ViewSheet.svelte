@@ -152,14 +152,14 @@
 			{#each VIEW_TYPES as option (option.id)}
 				<button
 					type="button"
-					class="flex h-control items-center justify-center gap-2 rounded-box font-medium transition-colors motion {focus} {type ===
+					class="flex h-control items-center justify-center gap-2 rounded-box font-medium transition-colors motion max-sm:h-auto max-sm:flex-col max-sm:gap-1 max-sm:py-2 {focus} {type ===
 					option.id
 						? 'bg-fill text-on-fill'
 						: 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink'}"
 					aria-pressed={type === option.id}
 					onclick={() => pickType(option.id)}
 				>
-					<Icon name={option.icon} />{viewLabel(option.id)}
+					<Icon name={option.icon} /><span class="max-sm:text-sm">{viewLabel(option.id)}</span>
 				</button>
 			{/each}
 		</div>

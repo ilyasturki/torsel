@@ -127,7 +127,7 @@
 			readonly={!searchable}
 			autocomplete="off"
 			spellcheck="false"
-			class="{input} pr-7 text-left disabled:text-ink-3 {searchable
+			class="{input} pr-7 text-left text-ellipsis disabled:text-ink-3 {searchable
 				? ''
 				: 'cursor-default'} {selected?.icon !== undefined || selected?.color !== undefined
 				? 'pl-8'
