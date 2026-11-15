@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	let { done, total }: { done: number; total: number } = $props();
 
 	const W = 120;
@@ -18,7 +20,7 @@
 	width={W}
 	height={H}
 	role="img"
-	aria-label="{done} of {total}"
+	aria-label={words.tally(done, total)}
 	class="block shrink-0"
 >
 	{#if ticked}

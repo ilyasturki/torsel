@@ -6,6 +6,7 @@ import { SESSION_COOKIE, bearerToken, resolveCredential, secureCookies } from '.
 import type { Database } from '../db/client.ts';
 import { applyCors, preflightResponse } from './cors.ts';
 import { PUBLIC_API_ROUTES } from './public-routes.ts';
+import { errors } from '../../i18n/errors.ts';
 
 function isApiPath(pathname: string): boolean {
 	return pathname === '/api' || pathname.startsWith('/api/');
@@ -70,13 +71,13 @@ export function createHandle(database: () => Database): Handle {
 			credential = resolveCredential(database(), secret);
 		} catch (error) {
 			console.error('could not resolve a credential:', error);
-			return applyCors(json({ message: 'database unavailable' }, { status: 503 }), origin);
+			return applyCors(json({ message: errors.databaseUnavailable }, { status: 503 }), origin);
 		}
 
 		event.locals.credential = credential;
 
 		if (credential === null && !(pathname in PUBLIC_API_ROUTES)) {
-			return applyCors(json({ message: 'authentication required' }, { status: 401 }), origin);
+			return applyCors(json({ message: errors.authRequired }, { status: 401 }), origin);
 		}
 
 		if (credential?.token.kind === 'api' && pathname !== '/api/mcp') {

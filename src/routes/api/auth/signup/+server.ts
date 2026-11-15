@@ -13,6 +13,7 @@ import { readClient } from '#lib/server/http/grant.ts';
 import { sendSignInMail } from '#lib/server/http/sign-in.ts';
 
 import type { RequestHandler } from './$types';
+import { errors } from '#lib/i18n/errors.ts';
 
 export const POST: RequestHandler = async ({ request, cookies, url, getClientAddress }) => {
 	const body = await readJsonBody(request);
@@ -23,7 +24,7 @@ export const POST: RequestHandler = async ({ request, cookies, url, getClientAdd
 	enforce(LIMITS.signUp, getClientAddress(), email);
 
 	if (!signUpOpen()) {
-		error(403, 'this server does not take new accounts');
+		error(403, errors.noNewAccounts);
 	}
 
 	const problem =
@@ -32,7 +33,7 @@ export const POST: RequestHandler = async ({ request, cookies, url, getClientAdd
 		error(400, problem);
 	}
 	if (saturated()) {
-		error(503, 'too many sign-in attempts in flight, try again');
+		error(503, errors.busy);
 	}
 
 	let passwordHash: string | null = null;

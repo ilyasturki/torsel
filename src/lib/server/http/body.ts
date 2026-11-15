@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import { jsonObject } from '../json.ts';
+import { errors } from '../../i18n/errors.ts';
 
 export async function readJsonBody(request: Request): Promise<Record<string, unknown>> {
 	const body = await jsonObject(request);
@@ -16,7 +17,7 @@ export function requiredString(body: Record<string, unknown>, field: string): st
 	const value = body[field];
 
 	if (typeof value !== 'string' || value.trim() === '') {
-		error(400, `${field} is required`);
+		error(400, errors.required(field));
 	}
 
 	return value;

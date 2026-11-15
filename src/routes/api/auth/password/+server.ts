@@ -9,12 +9,13 @@ import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
 import { requireCredential } from '#lib/server/http/guards.ts';
 
 import type { RequestHandler } from './$types';
+import { errors } from '#lib/i18n/errors.ts';
 
 // No old password asked: an emailed code already stands in for it, and the notice below tells the owner.
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, token } = requireCredential(locals);
 	if (token.kind === 'api') {
-		error(403, 'an API token cannot change the password');
+		error(403, errors.tokenCannotChangePassword);
 	}
 
 	const password = requiredString(await readJsonBody(request), 'password');
@@ -23,7 +24,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(400, problem);
 	}
 	if (saturated()) {
-		error(503, 'too many sign-in attempts in flight, try again');
+		error(503, errors.busy);
 	}
 
 	const db = getDatabase();

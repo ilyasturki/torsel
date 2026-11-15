@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	import { fieldFill, fieldFocus } from './styles.ts';
 
 	const LENGTH = 6;
@@ -102,7 +104,7 @@
 			inputmode="numeric"
 			autocomplete={index === 0 ? 'one-time-code' : 'off'}
 			name={index === 0 ? 'code' : undefined}
-			aria-label="Digit {index + 1} of {LENGTH}"
+			aria-label={words.digit(index + 1, LENGTH)}
 			value={digit}
 			{disabled}
 			oninput={(event) => onInput(index, event)}

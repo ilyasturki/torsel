@@ -14,6 +14,7 @@ import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
 import { grantCredential, readClient } from '#lib/server/http/grant.ts';
 
 import type { RequestHandler } from './$types';
+import { errors } from '#lib/i18n/errors.ts';
 
 export const POST: RequestHandler = async (event) => {
 	const { request, getClientAddress } = event;
@@ -27,10 +28,10 @@ export const POST: RequestHandler = async (event) => {
 	const account = normalizeEmail(email);
 
 	if (loginBlocked(address, account)) {
-		error(429, 'Too many tries. Wait a moment and try again.');
+		error(429, errors.tooMany);
 	}
 	if (saturated()) {
-		error(503, 'too many sign-in attempts in flight, try again');
+		error(503, errors.busy);
 	}
 
 	const db = getDatabase();
@@ -45,13 +46,13 @@ export const POST: RequestHandler = async (event) => {
 
 	if (user === null) {
 		recordLoginFailure(address, account);
-		error(401, 'invalid email or password');
+		error(401, errors.wrongLogin);
 	}
 
 	clearLoginFailures(address, account);
 
 	if (user.emailVerifiedAt === null) {
-		error(403, 'confirm your email first');
+		error(403, errors.confirmFirst);
 	}
 
 	const grant = grantCredential(db, user, client, event);

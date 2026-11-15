@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	import Icon from './Icon.svelte';
 	import { fieldFill, fieldFocusWithin } from './styles.ts';
 
@@ -30,7 +32,7 @@
 </script>
 
 <div class="flex rounded-box {fieldFill} {fieldFocusWithin} {sizes[size]}">
-	<button type="button" class={side} aria-label="{label} minus" onclick={() => onstep(-1)}>
+	<button type="button" class={side} aria-label={words.minus(label)} onclick={() => onstep(-1)}>
 		<Icon name="minus" class={icon} />
 	</button>
 	<label class="relative flex min-w-0 flex-1 items-center justify-center">
@@ -51,7 +53,7 @@
 			oninput={(event) => oninput(event.currentTarget.value)}
 		/>
 	</label>
-	<button type="button" class={side} aria-label="{label} plus" onclick={() => onstep(1)}>
+	<button type="button" class={side} aria-label={words.plus(label)} onclick={() => onstep(1)}>
 		<Icon name="plus" class={icon} />
 	</button>
 </div>

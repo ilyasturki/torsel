@@ -12,6 +12,7 @@ import type { Database } from '../db/client.ts';
 import { deliver, passwordNoticeMail, signInMail } from '../email.ts';
 import type { Client, Grant } from './grant.ts';
 import { grantCredential } from './grant.ts';
+import { errors } from '../../i18n/errors.ts';
 
 export function signInLink(url: URL, token: string, to: unknown): string | null {
 	const origin = siteOrigin(url);
@@ -42,7 +43,7 @@ export async function sendSignInMail(
 	const delivery = await deliver(signInMail(user.email, purpose, link, code));
 
 	if (delivery === 'failed') {
-		error(502, 'the email could not be sent');
+		error(502, errors.emailNotSent);
 	}
 }
 

@@ -5,6 +5,7 @@ import type { AuthToken, User } from '../db/schema.ts';
 import { authTokens, syncCounters, users } from '../db/schema.ts';
 import { decoyHash, hashPassword, passwordProblem, verifyPassword } from './password.ts';
 import { mintToken } from './tokens.ts';
+import { errors } from '../../i18n/errors.ts';
 
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
@@ -12,7 +13,7 @@ export function normalizeEmail(email: string): string {
 
 export function emailProblem(email: string): string | undefined {
 	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(normalizeEmail(email))) {
-		return 'email is not a valid address';
+		return errors.emailInvalid;
 	}
 
 	return undefined;

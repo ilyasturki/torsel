@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { deliver, signInMail } from './email.ts';
+import { deliver, passwordNoticeMail, signInMail } from './email.ts';
+import type { Locale } from '../i18n/locale.ts';
+import { readServerLocale } from '../i18n/runtime.ts';
 
 const LINK = 'https://torsel.example/app/login/link?token=abc&to=%2Fapp';
 
@@ -94,5 +96,22 @@ describe('signInMail', () => {
 		expect(mail.link).toBeUndefined();
 		expect(mail.html).not.toContain('<a ');
 		expect(mail.text).toContain('123 456');
+	});
+
+	it('speaks the language of the request', () => {
+		let current: Locale = 'fr';
+		readServerLocale(() => current);
+		const french = signInMail('me@example.com', 'verify', LINK, '123456');
+		const notice = passwordNoticeMail('me@example.com', 'set');
+		current = 'en';
+		expect(french.subject).toBe('Confirme ton email pour Torsel');
+		expect(french.html).toContain('<html lang="fr">');
+		expect(french.html).toContain('Confirmer mon email');
+		expect(french.text).toContain('Si ce n’était pas toi');
+
+		const english = signInMail('me@example.com', 'verify', LINK, '123456');
+		expect(english.subject).toBe('Confirm your email for Torsel');
+		expect(english.html).toContain('<html lang="en">');
+		expect(notice.subject).toBe('Ton mot de passe Torsel a changé');
 	});
 });

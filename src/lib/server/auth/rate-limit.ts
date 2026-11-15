@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { errors } from '../../i18n/errors.ts';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -35,14 +36,12 @@ export function slidingWindow(limit: number, windowMs: number): Window {
 	};
 }
 
-const TOO_MANY = 'Too many tries. Wait a moment and try again.';
-
 // By address alone: every sign-in starts here, so a window per email would let anyone lock its owner out.
 const lookups = slidingWindow(30, 15 * MINUTE);
 
 export function enforceLookup(address: string): void {
 	if (lookups.hit(address)) {
-		error(429, TOO_MANY);
+		error(429, errors.tooMany);
 	}
 }
 
@@ -62,7 +61,7 @@ export function enforce(
 	const byEmail = limit.email.hit(email);
 
 	if (byIp || byEmail) {
-		error(429, TOO_MANY);
+		error(429, errors.tooMany);
 	}
 }
 

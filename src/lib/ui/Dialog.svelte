@@ -3,6 +3,8 @@
 	import type { Snippet } from 'svelte';
 
 	import { dismissEarlierToast } from '#lib/client/toast.svelte.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { ui as words } from '#lib/i18n/ui.ts';
 
 	import Button from './Button.svelte';
 	import IconButton from './IconButton.svelte';
@@ -122,7 +124,7 @@
 					>{title}</Dialog.Title
 				>
 				{@render actions?.()}
-				<IconButton icon="x" label="Close" tooltip={false} onclick={close} />
+				<IconButton icon="x" label={common.close} tooltip={false} onclick={close} />
 			</div>
 			<div bind:this={body} class="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
 				{#if description}
@@ -134,11 +136,11 @@
 				<div
 					class="flex shrink-0 items-center gap-2 p-4 pt-2"
 					role="alertdialog"
-					aria-label="Discard changes"
+					aria-label={words.discardChanges}
 				>
-					<span class="min-w-0 flex-1 font-medium">Discard your changes?</span>
-					<Button onclick={() => (confirming = false)}>Keep editing</Button>
-					<Button variant="primary" onclick={() => (open = false)}>Discard</Button>
+					<span class="min-w-0 flex-1 font-medium">{words.discardYours}</span>
+					<Button onclick={() => (confirming = false)}>{words.keepEditing}</Button>
+					<Button variant="primary" onclick={() => (open = false)}>{words.discard}</Button>
 				</div>
 			{:else if footer}
 				<div class="flex shrink-0 gap-2 p-4 pt-2">

@@ -17,6 +17,8 @@
 	import { SETTINGS } from '#lib/client/nav.ts';
 	import { adoptSession } from '#lib/client/sync.svelte.ts';
 	import { returnPath, returnTarget } from '#lib/core/return-path.ts';
+	import Rich from '#lib/i18n/Rich.svelte';
+	import { login as words } from '#lib/i18n/login.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import CodeInput from '#lib/ui/CodeInput.svelte';
 	import Field from '#lib/ui/Field.svelte';
@@ -28,15 +30,15 @@
 
 	const inApp = import.meta.env.APP_BUILD;
 	const OAUTH_REFUSALS = new Map([
-		['google', 'Google sign-in didn’t go through. Try again, or use your email.'],
-		['google-closed', 'This server doesn’t take new accounts, and this Google address has none.']
+		['google', words.googleFailed],
+		['google-closed', words.googleClosed]
 	]);
 
 	const rawTo = page.url.searchParams.get('to');
 	const to = returnPath(rawTo);
 	const target = returnTarget(rawTo);
 	const googleHref = `/api/auth/google${to === null ? '' : `?to=${encodeURIComponent(to)}`}`;
-	const emailLabel = inApp ? 'Email me a code' : 'Email me a sign-in link';
+	const emailLabel = inApp ? words.emailCode : words.emailLink;
 
 	type Step = 'server' | 'email' | 'methods' | 'sent';
 
@@ -75,14 +77,14 @@
 
 	function refusal(error: unknown, unauthorized: string): string {
 		if (!(error instanceof ApiError)) {
-			return 'Couldn’t sign in. Check your connection and try again.';
+			return words.offline;
 		}
 		return error.status === 401 ? unauthorized : error.message;
 	}
 
 	async function attempt(
 		action: () => Promise<void>,
-		unauthorized = 'Wrong email or password.'
+		unauthorized = words.wrongPassword
 	): Promise<void> {
 		if (busy) {
 			return;
@@ -153,7 +155,7 @@
 				code = '';
 				throw error;
 			}
-		}, 'That code is wrong or has expired.');
+		}, words.wrongCode);
 	}
 
 	function legalHref(path: string): string {
@@ -162,7 +164,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign in · Torsel</title>
+	<title>{words.title}</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -170,7 +172,7 @@
 	<button
 		type="button"
 		class="-mt-1 inline-flex w-fit max-w-full items-center gap-1 text-ink-2 transition-colors motion hover:text-ink"
-		aria-label="Use another email"
+		aria-label={words.otherEmail}
 		onclick={backToEmail}><Icon name="arrow-left" /><span class="truncate">{email}</span></button
 	>
 {/snippet}
@@ -190,7 +192,7 @@
 {/snippet}
 
 {#snippet googleButton()}
-	<a class={linkButton} href={googleHref} data-sveltekit-reload>Continue with Google</a>
+	<a class={linkButton} href={googleHref} data-sveltekit-reload>{words.google}</a>
 {/snippet}
 
 {#snippet alert()}
@@ -202,8 +204,8 @@
 		<div class="mb-1"><Logo wordmark class="h-6" /></div>
 
 		{#if step === 'server'}
-			<h1 class="text-lg font-semibold">Connect a server</h1>
-			<p class="text-ink-2">Your account lives on a server. Enter its address to sign in.</p>
+			<h1 class="text-lg font-semibold">{words.connectServer}</h1>
+			<p class="text-ink-2">{words.serverIntro}</p>
 			<ServerForm
 				onconnected={(address) => {
 					base = address;
@@ -211,13 +213,15 @@
 					void loadConfig();
 				}}
 			/>
-			<a class="text-ink-2 underline" href={target}>Keep using Torsel on this phone</a>
+			<a class="text-ink-2 underline" href={target}>{words.keepOnPhone}</a>
 		{:else if step === 'email'}
-			<h1 class="text-lg font-semibold">Sign in or create an account</h1>
+			<h1 class="text-lg font-semibold">{words.signInOrUp}</h1>
 			{#if inApp}
 				<p class="flex items-center gap-1 text-ink-2">
-					<span class="min-w-0 truncate">Server: {base}</span>
-					<button type="button" class="underline" onclick={() => (step = 'server')}>Change</button>
+					<span class="min-w-0 truncate">{words.server(base ?? '')}</span>
+					<button type="button" class="underline" onclick={() => (step = 'server')}
+						>{words.change}</button
+					>
 				</p>
 			{/if}
 			<form
@@ -227,7 +231,7 @@
 					void submitEmail();
 				}}
 			>
-				<Field label="Email"
+				<Field label={words.email}
 					><input
 						class={input}
 						type="email"
@@ -239,58 +243,58 @@
 						required
 					/></Field
 				>
-				<Button type="submit" variant="primary" disabled={busy}>Continue</Button>
+				<Button type="submit" variant="primary" disabled={busy}>{words.continue}</Button>
 				{@render alert()}
 			</form>
 			{#if google}{@render googleButton()}{/if}
-			<a class="text-ink-2 underline" href={target}>Keep using Torsel without an account</a>
+			<a class="text-ink-2 underline" href={target}>{words.keepWithout}</a>
 			<p class="text-sm text-ink-3">
-				By continuing you accept the
-				<a class="underline" href={legalHref('/terms')}>terms</a>
-				and the
-				<a class="underline" href={legalHref('/privacy')}>privacy policy</a>.
+				<Rich text={words.consent}>
+					{#snippet terms(label: string)}
+						<a class="underline" href={legalHref('/terms')}>{label}</a>
+					{/snippet}
+					{#snippet privacy(label: string)}
+						<a class="underline" href={legalHref('/privacy')}>{label}</a>
+					{/snippet}
+				</Rich>
 			</p>
 		{:else if step === 'sent'}
-			<h1 class="text-lg font-semibold">Check your email</h1>
+			<h1 class="text-lg font-semibold">{words.checkEmail}</h1>
 			{@render back()}
 			{#if config?.emailDelivers === false}
-				<p role="status" class="text-ink-2">
-					This server has no email service set up, so the message went to its log. Find the code
-					there, or ask whoever runs the server.
-				</p>
+				<p role="status" class="text-ink-2">{words.noEmailService}</p>
 			{:else if inApp}
-				<p role="status" class="text-ink-2">We sent a 6-digit code to {email}. Enter it here.</p>
+				<p role="status" class="text-ink-2">{words.codeSent(email)}</p>
 			{:else}
-				<p role="status" class="text-ink-2">
-					We sent an email to {email}. Enter its 6-digit code here, or open its link on this device.
-				</p>
+				<p role="status" class="text-ink-2">{words.mailSent(email)}</p>
 			{/if}
 			<CodeInput bind:value={code} disabled={busy} oncomplete={() => void submitCode()} />
 			{@render alert()}
 			<p class="text-sm text-ink-3">
 				{#if sentAgain}
-					Sent again. Check your spam folder too.
-				{:else if config?.emailDelivers === false}
-					Lost it?
-					<button type="button" class="underline" disabled={busy} onclick={() => void sendMail()}
-						>Send a new one</button
-					>.
+					{words.sentAgain}
 				{:else}
-					Nothing after a minute? Check your spam folder, or
-					<button type="button" class="underline" disabled={busy} onclick={() => void sendMail()}
-						>send it again</button
-					>.
+					<Rich text={config?.emailDelivers === false ? words.lostIt : words.nothingYet}>
+						{#snippet send(label: string)}
+							<button
+								type="button"
+								class="underline"
+								disabled={busy}
+								onclick={() => void sendMail()}>{label}</button
+							>
+						{/snippet}
+					</Rich>
 				{/if}
 			</p>
 		{:else if found?.exists && !found.verified}
-			<h1 class="text-lg font-semibold">Confirm your email</h1>
+			<h1 class="text-lg font-semibold">{words.confirmEmail}</h1>
 			{@render back()}
-			<p class="text-ink-2">This account isn’t confirmed yet. We’ll email you a way in.</p>
+			<p class="text-ink-2">{words.notConfirmed}</p>
 			<Button variant="primary" disabled={busy} onclick={() => void sendMail()}>{emailLabel}</Button
 			>
 			{@render alert()}
 		{:else if found?.exists && found.hasPassword}
-			<h1 class="text-lg font-semibold">Sign in</h1>
+			<h1 class="text-lg font-semibold">{words.signIn}</h1>
 			{@render back()}
 			<form
 				class="flex flex-col gap-3"
@@ -300,24 +304,24 @@
 				}}
 			>
 				{@render hiddenUsername()}
-				<Field label="Password">
+				<Field label={words.password}>
 					<!-- svelte-ignore a11y_autofocus -->
 					<PasswordInput bind:value={password} autocomplete="current-password" required autofocus />
 				</Field>
-				<Button type="submit" variant="primary" disabled={busy}>Sign in</Button>
+				<Button type="submit" variant="primary" disabled={busy}>{words.signIn}</Button>
 				{@render alert()}
 			</form>
 			<Button disabled={busy} onclick={() => void sendMail()}>{emailLabel}</Button>
 			{#if google && found.hasGoogle}{@render googleButton()}{/if}
 		{:else if found?.exists}
-			<h1 class="text-lg font-semibold">Sign in</h1>
+			<h1 class="text-lg font-semibold">{words.signIn}</h1>
 			{@render back()}
 			{#if google && found.hasGoogle}{@render googleButton()}{/if}
 			<Button variant="primary" disabled={busy} onclick={() => void sendMail()}>{emailLabel}</Button
 			>
 			{@render alert()}
 		{:else if config?.signUp}
-			<h1 class="text-lg font-semibold">Create your account</h1>
+			<h1 class="text-lg font-semibold">{words.createYours}</h1>
 			{@render back()}
 			<form
 				class="flex flex-col gap-3"
@@ -327,18 +331,18 @@
 				}}
 			>
 				{@render hiddenUsername()}
-				<Field label="Password" hint="Optional. Without one, you sign in with an emailed code.">
+				<Field label={words.password} hint={words.passwordOptional}>
 					<PasswordInput bind:value={password} autocomplete="new-password" minlength={8} />
 				</Field>
-				<Button type="submit" variant="primary" disabled={busy}>Create account</Button>
+				<Button type="submit" variant="primary" disabled={busy}>{words.createAccount}</Button>
 				{@render alert()}
 			</form>
 			{#if google}{@render googleButton()}{/if}
 		{:else}
-			<h1 class="text-lg font-semibold">No account for this email</h1>
+			<h1 class="text-lg font-semibold">{words.noAccount}</h1>
 			{@render back()}
-			<p class="text-ink-2">This server doesn’t take new accounts.</p>
-			<a class="text-ink-2 underline" href={target}>Keep using Torsel without an account</a>
+			<p class="text-ink-2">{words.noNewAccounts}</p>
+			<a class="text-ink-2 underline" href={target}>{words.keepWithout}</a>
 		{/if}
 	</div>
 </main>

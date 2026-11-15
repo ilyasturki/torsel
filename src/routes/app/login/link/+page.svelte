@@ -8,6 +8,7 @@
 	import { SETTINGS } from '#lib/client/nav.ts';
 	import { adoptSession } from '#lib/client/sync.svelte.ts';
 	import { returnTarget, signInPath } from '#lib/core/return-path.ts';
+	import { login as words } from '#lib/i18n/login.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 
 	const to = page.url.searchParams.get('to');
@@ -36,7 +37,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign in · Torsel</title>
+	<title>{words.title}</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -44,17 +45,14 @@
 	<div class="flex w-full max-w-sm flex-col gap-3 rounded-panel bg-raised p-6 shadow-raised">
 		<div class="mb-1"><Logo wordmark class="h-6" /></div>
 		{#if outcome === 'checking'}
-			<p role="status" class="text-ink-2">Signing you in…</p>
+			<p role="status" class="text-ink-2">{words.signingIn}</p>
 		{:else if outcome === 'dropped'}
-			<p role="status">You’re signed in.</p>
-			<p class="text-ink-2">
-				This link opened in a different browser from the one that created the account, so its
-				password was removed. Set a new one in Settings.
-			</p>
-			<a class="font-medium underline" href={SETTINGS}>Open Settings</a>
+			<p role="status">{words.signedIn}</p>
+			<p class="text-ink-2">{words.passwordDropped}</p>
+			<a class="font-medium underline" href={SETTINGS}>{words.openSettings}</a>
 		{:else}
-			<p role="alert">This link has expired or was already used.</p>
-			<a class="font-medium underline" href={signInPath(to)}>Back to sign in</a>
+			<p role="alert">{words.linkExpired}</p>
+			<a class="font-medium underline" href={signInPath(to)}>{words.backToSignIn}</a>
 		{/if}
 	</div>
 </main>

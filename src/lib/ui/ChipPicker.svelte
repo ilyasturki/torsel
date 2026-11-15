@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	import { swatch } from './colors.ts';
 	import Icon from './Icon.svelte';
 	import { chip, chipOff, chipOn, input } from './styles.ts';
@@ -55,8 +57,8 @@
 		<input
 			class={input}
 			bind:value={search}
-			placeholder="Search {label}"
-			aria-label="Search {label}"
+			placeholder={words.searchIn(label)}
+			aria-label={words.searchIn(label)}
 		/>
 	{/if}
 	<div class="flex flex-wrap gap-1">
@@ -78,8 +80,8 @@
 				<input
 					class="{input} w-40 shrink-0"
 					bind:value={fresh}
-					placeholder="New choice"
-					aria-label="New choice"
+					placeholder={words.newChoice}
+					aria-label={words.newChoice}
 					autofocus
 					onkeydown={(event) => {
 						if (event.key === 'Enter') {
@@ -95,7 +97,8 @@
 				/>
 			{:else}
 				<button type="button" class="{chip} {chipOff}" onclick={() => (adding = true)}>
-					<Icon name="plus" /> New
+					<Icon name="plus" />
+					{words.new}
 				</button>
 			{/if}
 		{/if}

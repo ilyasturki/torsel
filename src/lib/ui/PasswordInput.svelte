@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { HTMLInputAttributes } from 'svelte/elements';
 
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	import Icon from './Icon.svelte';
 	import { input } from './styles.ts';
 
@@ -25,7 +27,7 @@
 	<button
 		type="button"
 		class="absolute inset-y-0 right-0 flex w-control items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
-		aria-label={revealed ? 'Hide password' : 'Show password'}
+		aria-label={revealed ? words.hidePassword : words.showPassword}
 		onclick={() => (revealed = !revealed)}><Icon name={revealed ? 'eye-off' : 'eye'} /></button
 	>
 </span>

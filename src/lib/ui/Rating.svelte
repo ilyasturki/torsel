@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	import { focus } from './styles.ts';
 
 	let {
@@ -29,7 +31,7 @@
 
 	const stars = $derived(Array.from({ length: max }, (_, at) => at + 1));
 	const shown = $derived(hover ?? value ?? 0);
-	const text = $derived(value === null ? 'None' : `${value} out of ${max}`);
+	const text = $derived(value === null ? words.noRating : words.rating(value, max));
 
 	function fill(star: number): number {
 		return Math.min(1, Math.max(0, shown - (star - 1)));

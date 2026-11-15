@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.ts';
 import type { AuthToken, User } from '../db/schema.ts';
 import { authTokens, users } from '../db/schema.ts';
+import { settings } from '../../i18n/settings.ts';
 import { envText } from '../env.ts';
 import { issueToken, revokeToken } from './accounts.ts';
 import { hashToken } from './tokens.ts';
@@ -99,5 +100,5 @@ export function startWebSession(
 		revokeToken(db, userId, previous.token.id);
 	}
 
-	return issueToken(db, userId, 'Web', 'web', webCredentialExpiry());
+	return issueToken(db, userId, settings.webToken, 'web', webCredentialExpiry());
 }

@@ -6,12 +6,13 @@ import { getDatabase } from '#lib/server/db/client.ts';
 import { requireCredential } from '#lib/server/http/guards.ts';
 
 import type { RequestHandler } from './$types';
+import { errors } from '#lib/i18n/errors.ts';
 
 export const DELETE: RequestHandler = ({ locals, params, cookies }) => {
 	const { user, token } = requireCredential(locals);
 
 	if (!revokeToken(getDatabase(), user.id, params.id)) {
-		error(404, 'no such credential');
+		error(404, errors.noSuchCredential);
 	}
 
 	if (params.id === token.id) {

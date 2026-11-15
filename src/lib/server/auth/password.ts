@@ -1,4 +1,5 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { errors } from '../../i18n/errors.ts';
 
 type ScryptParams = { N: number; r: number; p: number };
 
@@ -109,7 +110,7 @@ export const MIN_PASSWORD_LENGTH = 8;
 
 export function passwordProblem(password: string): string | undefined {
 	if (password.normalize('NFKC').length < MIN_PASSWORD_LENGTH) {
-		return `password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+		return errors.passwordTooShort(MIN_PASSWORD_LENGTH);
 	}
 
 	return undefined;

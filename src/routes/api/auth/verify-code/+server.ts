@@ -9,6 +9,7 @@ import { readClient } from '#lib/server/http/grant.ts';
 import { finishProof } from '#lib/server/http/sign-in.ts';
 
 import type { RequestHandler } from './$types';
+import { errors } from '#lib/i18n/errors.ts';
 
 export const POST: RequestHandler = async (event) => {
 	const body = await readJsonBody(event.request);
@@ -26,12 +27,12 @@ export const POST: RequestHandler = async (event) => {
 		!/^\d{6}$/u.test(code) ||
 		consumeEmailCode(db, user.id, code) === null
 	) {
-		error(401, 'invalid or expired code');
+		error(401, errors.badCode);
 	}
 
 	const response = finishProof(db, event, user.id, client, body.claim);
 	if (response === null) {
-		error(401, 'invalid or expired code');
+		error(401, errors.badCode);
 	}
 	return response;
 };

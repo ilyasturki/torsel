@@ -6,6 +6,7 @@ import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
 import { finishProof } from '#lib/server/http/sign-in.ts';
 
 import type { RequestHandler } from './$types';
+import { errors } from '#lib/i18n/errors.ts';
 
 export const POST: RequestHandler = async (event) => {
 	const body = await readJsonBody(event.request);
@@ -13,12 +14,12 @@ export const POST: RequestHandler = async (event) => {
 
 	const consumed = consumeEmailToken(db, requiredString(body, 'token'));
 	if (consumed === null) {
-		error(401, 'invalid or expired link');
+		error(401, errors.badLink);
 	}
 
 	const response = finishProof(db, event, consumed.userId, { kind: 'web' }, undefined);
 	if (response === null) {
-		error(401, 'invalid or expired link');
+		error(401, errors.badLink);
 	}
 	return response;
 };

@@ -11,6 +11,7 @@
 	import { eraseDevice, signOut } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { signInPath } from '#lib/core/return-path.ts';
+	import { settings as words } from '#lib/i18n/settings.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import PasswordInput from '#lib/ui/PasswordInput.svelte';
@@ -44,11 +45,7 @@
 	});
 
 	async function leave(): Promise<void> {
-		showToast(
-			(await signOut())
-				? 'Signed out. Your data stays on this device.'
-				: 'Couldn’t reach the server, so you’re still signed in.'
-		);
+		showToast((await signOut()) ? words.signedOut : words.stillSignedIn);
 	}
 
 	async function savePassword(): Promise<void> {
@@ -58,10 +55,9 @@
 			newPassword = '';
 			if (me.account) me.account.hasPassword = true;
 			await refreshTokens();
-			showToast('Password saved.');
+			showToast(words.passwordSaved);
 		} catch (error) {
-			passwordProblem =
-				error instanceof ApiError ? error.message : 'Couldn’t save the password. Try again.';
+			passwordProblem = error instanceof ApiError ? error.message : words.passwordFailed;
 		}
 	}
 
@@ -72,7 +68,7 @@
 			minted = token;
 			await refreshTokens();
 		} catch {
-			tokenProblem = 'Couldn’t create the token. Try again.';
+			tokenProblem = words.tokenFailed;
 		}
 	}
 
@@ -82,7 +78,7 @@
 			await revokeToken(id);
 			await refreshTokens();
 		} catch {
-			tokenProblem = 'Couldn’t revoke the token. Try again.';
+			tokenProblem = words.revokeFailed;
 		}
 	}
 
@@ -97,7 +93,7 @@
 <div class="flex flex-col gap-6 p-4 sm:max-w-4xl sm:gap-0 sm:px-6 sm:py-0">
 	{#if import.meta.env.APP_BUILD}
 		<details open={!base}>
-			<summary class="font-semibold">Server{base ? `: ${base}` : ''}</summary>
+			<summary class="font-semibold">{words.server(base ?? '')}</summary>
 			<div class="mt-3 flex flex-col gap-3">
 				<ServerForm
 					onconnected={(address) => {
@@ -111,12 +107,12 @@
 
 	{#if base}
 		<section class={row}>
-			<h2 class={rowName}>Account</h2>
+			<h2 class={rowName}>{words.account}</h2>
 			<div class={rowBody}>
 				{#if me.account}
 					<div class="flex items-center justify-between gap-3">
 						<span class="min-w-0 truncate">{me.account.email}</span>
-						<Button onclick={leave}>Sign out</Button>
+						<Button onclick={leave}>{words.signOut}</Button>
 					</div>
 					<form
 						class="flex flex-col gap-2"
@@ -136,10 +132,8 @@
 							aria-hidden="true"
 						/>
 						<Field
-							label={me.account.hasPassword ? 'New password' : 'Password'}
-							hint={me.account.hasPassword
-								? 'Changing it signs out your other devices and revokes your MCP tokens.'
-								: 'You sign in with an emailed code. A password makes it one step.'}
+							label={me.account.hasPassword ? words.newPassword : words.password}
+							hint={me.account.hasPassword ? words.changeHint : words.setHint}
 						>
 							<PasswordInput
 								bind:value={newPassword}
@@ -149,14 +143,14 @@
 							/>
 						</Field>
 						<Button type="submit" class="self-start">
-							{me.account.hasPassword ? 'Change password' : 'Set password'}
+							{me.account.hasPassword ? words.changePassword : words.setPassword}
 						</Button>
 						{#if passwordProblem}<p role="alert">{passwordProblem}</p>{/if}
 					</form>
 				{:else if me.account === null}
-					<a class="self-start font-medium underline" href={signInPath(SETTINGS)}>Sign in</a>
+					<a class="self-start font-medium underline" href={signInPath(SETTINGS)}>{words.signIn}</a>
 				{:else}
-					<p class="text-ink-2">Can’t reach the server right now.</p>
+					<p class="text-ink-2">{words.serverUnreachable}</p>
 				{/if}
 			</div>
 		</section>
@@ -164,7 +158,7 @@
 
 	{#if me.account}
 		<section class={row}>
-			<h2 class={rowName}>Agents (MCP)</h2>
+			<h2 class={rowName}>{words.agents}</h2>
 			<div class={rowBody}>
 				<code class="font-mono text-sm break-all text-ink-2">{mcpUrl}</code>
 				<form
@@ -174,15 +168,16 @@
 						void mint();
 					}}
 				>
-					<input class={input} bind:value={label} aria-label="Token name" />
-					<Button type="submit">Create token</Button>
+					<input class={input} bind:value={label} aria-label={words.tokenName} />
+					<Button type="submit">{words.createToken}</Button>
 				</form>
 				{#if tokenProblem}<p role="alert">{tokenProblem}</p>{/if}
 				{#if minted}
 					<div class="flex flex-col items-start gap-2 rounded-box bg-tint p-3">
-						<p class="font-medium">Copy it now. It won’t be shown again.</p>
+						<p class="font-medium">{words.copyNow}</p>
 						<code class="font-mono text-sm break-all">{command}</code>
-						<Button onclick={() => void navigator.clipboard.writeText(command)}>Copy command</Button
+						<Button onclick={() => void navigator.clipboard.writeText(command)}
+							>{words.copyCommand}</Button
 						>
 					</div>
 				{/if}
@@ -193,13 +188,15 @@
 								<span class="flex min-w-0 flex-col">
 									<span class="truncate">{token.label}</span>
 									<span class="truncate text-sm text-ink-3"
-										>{token.prefix}…, created {formatDate(
-											new Date(token.createdAt).toISOString().slice(0, 10),
-											{ withYear: true }
+										>{words.tokenCreated(
+											token.prefix,
+											formatDate(new Date(token.createdAt).toISOString().slice(0, 10), {
+												withYear: true
+											})
 										)}</span
 									>
 								</span>
-								<Button variant="ghost" onclick={() => revoke(token.id)}>Revoke</Button>
+								<Button variant="ghost" onclick={() => revoke(token.id)}>{words.revoke}</Button>
 							</div>
 						{/each}
 					</div>
@@ -209,10 +206,10 @@
 	{/if}
 
 	<section class="{row} max-sm:flex-row max-sm:items-center">
-		<h2 class="{rowName} max-sm:flex-1 max-sm:font-normal">All data on this device</h2>
+		<h2 class="{rowName} max-sm:flex-1 max-sm:font-normal">{words.allData}</h2>
 		<div class="flex gap-3">
-			<Button onclick={() => (shell.importing = { into: null })}>Import</Button>
-			<Button onclick={downloadBackup}>Export</Button>
+			<Button onclick={() => (shell.importing = { into: null })}>{words.import}</Button>
+			<Button onclick={downloadBackup}>{words.export}</Button>
 		</div>
 	</section>
 
@@ -220,13 +217,15 @@
 		<section class="{row} max-sm:flex-row max-sm:items-center">
 			<h2 class="{rowName} max-sm:flex-1 max-sm:font-normal">
 				{erasing
-					? 'This can’t be undone.'
-					: `Leaving this ${import.meta.env.APP_BUILD ? 'device' : 'browser'} for good?`}
+					? words.cantUndo
+					: import.meta.env.APP_BUILD
+						? words.leavingDevice
+						: words.leavingBrowser}
 			</h2>
 			{#if erasing}
-				<Button onclick={() => void eraseDevice()}>Erase for good</Button>
+				<Button onclick={() => void eraseDevice()}>{words.eraseForGood}</Button>
 			{:else}
-				<Button onclick={() => (erasing = true)}>Erase this device</Button>
+				<Button onclick={() => (erasing = true)}>{words.eraseDevice}</Button>
 			{/if}
 		</section>
 	{/if}

@@ -8,7 +8,10 @@
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { createBase, deleteRecords, updateRecord } from '#lib/core/actions.ts';
 	import { lastEntry, tableFigure, type Figure } from '#lib/core/figure.ts';
+	import { views as viewWords } from '#lib/i18n/views.ts';
 	import type { BaseDef } from '#lib/core/model.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { home as words } from '#lib/i18n/home.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -49,11 +52,12 @@
 
 	function caption(figure: Figure): string {
 		if (figure.kind === 'check') return figure.label;
-		const { label, at, config } = figure;
+		const { at, config } = figure;
+		const label = viewWords.chartValue[config.agg ?? 'count'](figure.of);
 		if (!figure.byDate) return at === '' ? label : `${label}, ${at}`;
-		if (config.bucket === 'week') return `${label}, week of ${formatDate(at)}`;
+		if (config.bucket === 'week') return words.weekOf(label, formatDate(at));
 		if (config.bucket === 'month') return `${label}, ${formatMonth(at)}`;
-		return (config.rolling ?? 0) > 1 ? `${label}, ${config.rolling}-day rolling average` : label;
+		return (config.rolling ?? 0) > 1 ? words.rolling(label, config.rolling ?? 0) : label;
 	}
 
 	/** The headline as its field shows it: an amount, a percent, a clock. */
@@ -64,11 +68,11 @@
 	}
 
 	function count(rows: number): string {
-		return rows === 0 ? 'Empty' : `${formatNumber(rows)} ${rows === 1 ? 'row' : 'rows'}`;
+		return rows === 0 ? words.empty : words.rows(rows, formatNumber(rows));
 	}
 
 	function removeBase(base: BaseDef): void {
-		const label = `Base "${base.name}" deleted`;
+		const label = words.baseDeleted(base.name);
 		const group = app.apply(deleteRecords(app.ws, [base.id]), label);
 		showToast(label, group?.id ?? null);
 	}
@@ -102,7 +106,7 @@
 
 <div class="flex min-h-full flex-col pb-4">
 	{#if empty}
-		<Empty text="No tables yet. Name one, drop a CSV here, or paste cells.">
+		<Empty text={words.noTables}>
 			<form
 				class="flex gap-2"
 				onsubmit={(event) => {
@@ -114,25 +118,25 @@
 					use:focusAtDesk
 					class={input}
 					bind:value={name}
-					placeholder="Table name"
-					aria-label="Table name"
+					placeholder={words.tableName}
+					aria-label={words.tableName}
 					onpaste={pasteCells}
 				/>
-				<Button variant="primary" type="submit">New table</Button>
+				<Button variant="primary" type="submit">{words.newTable}</Button>
 			</form>
-			<Button onclick={() => (shell.importing = { into: null })}>Import a file</Button>
+			<Button onclick={() => (shell.importing = { into: null })}>{words.importFile}</Button>
 		</Empty>
 	{:else}
 		<div
 			class="sticky top-0 z-10 grid h-8 grid-cols-home items-center gap-x-4 border-b border-rule-strong bg-raised px-4 text-sm font-medium text-ink-3 max-sm:hidden"
 			aria-hidden="true"
 		>
-			<span>Table</span>
-			<span>Figure</span>
+			<span>{words.table}</span>
+			<span>{words.figure}</span>
 			<span></span>
-			<span>Trend</span>
-			<span class="max-lg:hidden">Last entry</span>
-			<span class="text-right">Rows</span>
+			<span>{words.trend}</span>
+			<span class="max-lg:hidden">{words.lastEntry}</span>
+			<span class="text-right">{words.rowsHeading}</span>
 		</div>
 		{#each bases as base (base.id)}
 			{#if grouped}
@@ -142,11 +146,11 @@
 					<h2 class="min-w-0 flex-1 truncate text-sm font-medium text-ink-2">{base.name}</h2>
 					<Menu label={base.name} align="end">
 						{#snippet trigger(props)}
-							<IconButton {...props} icon="more" label="More" tooltip={false} />
+							<IconButton {...props} icon="more" label={common.more} tooltip={false} />
 						{/snippet}
-						<MenuItem icon="plus" onSelect={() => startTable(base.id)}>New table</MenuItem>
-						<MenuItem icon="pencil" onSelect={() => (renaming = base)}>Rename</MenuItem>
-						<MenuItem icon="x" onSelect={() => removeBase(base)}>Delete</MenuItem>
+						<MenuItem icon="plus" onSelect={() => startTable(base.id)}>{words.newTable}</MenuItem>
+						<MenuItem icon="pencil" onSelect={() => (renaming = base)}>{common.rename}</MenuItem>
+						<MenuItem icon="x" onSelect={() => removeBase(base)}>{common.delete}</MenuItem>
 					</Menu>
 				</div>
 			{/if}
@@ -178,7 +182,7 @@
 							<span class="text-lg font-semibold tight">{amount(figure)}</span>
 						{:else if figure?.kind === 'check'}
 							<span class="text-lg font-semibold tight">{figure.done}</span>
-							<span class="text-ink-2">of {figure.total}</span>
+							<span class="text-ink-2">{words.ofTotal(figure.total)}</span>
 						{:else}
 							<span class="text-ink-3 sm:hidden">{count(table.rows)}</span>
 						{/if}
@@ -191,7 +195,7 @@
 							<Spark
 								values={figure.trend}
 								kind={figure.config.kind === 'line' ? 'line' : 'bar'}
-								label="Trend"
+								label={words.trend}
 							/>
 						{:else if figure?.kind === 'check'}
 							<Tally done={figure.done} total={figure.total} />
@@ -205,27 +209,27 @@
 			{/each}
 		{/each}
 		<div class="flex flex-wrap gap-2 p-4">
-			<Button onclick={() => startTable()}>New table</Button>
-			<Button onclick={() => (shell.importing = { into: null })}>Import a file</Button>
-			<Button onclick={() => (creatingBase = true)}>New base</Button>
+			<Button onclick={() => startTable()}>{words.newTable}</Button>
+			<Button onclick={() => (shell.importing = { into: null })}>{words.importFile}</Button>
+			<Button onclick={() => (creatingBase = true)}>{words.newBase}</Button>
 		</div>
 	{/if}
 </div>
 
 <NameSheet
 	bind:open={creatingBase}
-	title="New base"
-	placeholder="Gym, Money, Reading"
-	onsave={(name) => applyWithUndo(createBase(app.ws, name).changes, `Base "${name}" created`)}
+	title={words.newBase}
+	placeholder={words.basePlaceholder}
+	onsave={(name) => applyWithUndo(createBase(app.ws, name).changes, words.baseCreated(name))}
 />
 <NameSheet
 	open={renaming !== null}
 	onclose={() => (renaming = null)}
-	title="Rename base"
+	title={words.renameBase}
 	initial={renaming?.name ?? ''}
-	action="Rename"
+	action={common.rename}
 	onsave={(name) => {
 		if (renaming !== null)
-			applyWithUndo(updateRecord(app.ws, renaming.id, { name }), 'Base renamed');
+			applyWithUndo(updateRecord(app.ws, renaming.id, { name }), words.baseRenamed);
 	}}
 />

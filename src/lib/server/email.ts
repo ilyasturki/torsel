@@ -1,3 +1,5 @@
+import { email as words } from '../i18n/email.ts';
+import { locale } from '../i18n/runtime.ts';
 import { brevoKey, emailSender } from './config.ts';
 
 export type Delivery = 'sent' | 'logged' | 'failed';
@@ -68,7 +70,7 @@ export async function deliver(mail: Mail): Promise<Delivery> {
 
 function frame(content: string): string {
 	return `<!doctype html>
-<html lang="en">
+<html lang="${locale()}">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
 <body style="margin: 0; padding: 32px 16px; background: #f6f6f8; color: #17181c; font: 15px/1.5 -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
 <div style="max-width: 480px; margin: 0 auto; padding: 28px; background: #ffffff; border-radius: 3px;">
@@ -82,8 +84,6 @@ function paragraph(text: string): string {
 	return `<p style="margin: 0 0 20px;">${escapeHtml(text)}</p>`;
 }
 
-const IGNORE = 'If this wasn’t you, ignore this email. Nothing changes.';
-
 export function signInMail(
 	to: string,
 	purpose: 'verify' | 'login',
@@ -91,13 +91,10 @@ export function signInMail(
 	code: string
 ): Mail {
 	const verify = purpose === 'verify';
-	const subject = verify ? 'Confirm your email for Torsel' : 'Your Torsel sign-in code';
-	const lifetime = verify ? '24 hours' : '30 minutes';
+	const subject = verify ? words.verifySubject : words.loginSubject;
 	const shown = `${code.slice(0, 3)} ${code.slice(3)}`;
-	const intro = verify
-		? `Enter this code in Torsel to finish creating your account. It works once, for ${lifetime}.`
-		: `Enter this code in Torsel to sign in. It works once, for ${lifetime}.`;
-	const action = verify ? 'Confirm my email' : 'Sign in';
+	const intro = verify ? words.verifyIntro : words.loginIntro;
+	const action = verify ? words.verifyAction : words.loginAction;
 
 	const button =
 		link === null
@@ -107,18 +104,13 @@ export function signInMail(
 	return {
 		to,
 		subject,
-		text: [
-			intro,
-			shown,
-			...(link === null ? [] : [`Or open this link on this device: ${link}`]),
-			IGNORE
-		].join('\n\n'),
+		text: [intro, shown, ...(link === null ? [] : [words.orLink(link)]), words.ignore].join('\n\n'),
 		html: frame(
 			[
 				paragraph(intro),
 				`<p style="margin: 0 0 20px; font-size: 28px; font-weight: 600; letter-spacing: 0.12em;">${shown}</p>`,
 				button,
-				`<p style="margin: 0; color: #62656d; font-size: 13px;">${escapeHtml(IGNORE)}</p>`
+				`<p style="margin: 0; color: #62656d; font-size: 13px;">${escapeHtml(words.ignore)}</p>`
 			].join('\n')
 		),
 		...(link === null ? {} : { link }),
@@ -127,14 +119,11 @@ export function signInMail(
 }
 
 export function passwordNoticeMail(to: string, kind: 'set' | 'dropped'): Mail {
-	const body =
-		kind === 'set'
-			? 'The password on your Torsel account was just set or changed. If this wasn’t you, sign in with an emailed code and set a new one.'
-			: 'You confirmed your Torsel account from a different browser than the one that created it, so its password was removed. Set a new one in Settings, or keep signing in with an emailed code.';
+	const body = kind === 'set' ? words.passwordSet : words.passwordDropped;
 
 	return {
 		to,
-		subject: 'Your Torsel password changed',
+		subject: words.passwordSubject,
 		text: body,
 		html: frame(paragraph(body))
 	};

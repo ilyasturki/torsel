@@ -15,6 +15,8 @@
 <script lang="ts" generics="T extends string">
 	import { Combobox } from 'bits-ui';
 
+	import { ui as words } from '#lib/i18n/ui.ts';
+
 	import { swatch } from './colors.ts';
 	import Icon from './Icon.svelte';
 	import { input, menuItem, popup } from './styles.ts';
@@ -164,7 +166,7 @@
 						</Combobox.Group>
 					{/if}
 				{:else}
-					<p class="flex h-control items-center px-2 text-ink-3">No match</p>
+					<p class="flex h-control items-center px-2 text-ink-3">{words.noMatch}</p>
 				{/each}
 			</Combobox.Viewport>
 		</Combobox.Content>
