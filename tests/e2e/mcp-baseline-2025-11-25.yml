@@ -1,0 +1,32 @@
+# What the 2025-11-25 requirements expect and Torsel does not serve, each with its reason.
+# Anything not listed must pass; an entry that starts passing fails the run until it is removed.
+server:
+  # Stateless serving: no session id and no resumable stream, by design.
+  - server-sse-multiple-streams:server-sse-multiple-streams-session
+  - completion-complete # no completions capability
+  - logging-set-level # no logging capability: the server logs nothing to the client
+  - prompts-list # no prompts capability
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+  - resources-list # no resources capability: describe_base is the schema, as a tool
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  - resources-subscribe
+  - resources-unsubscribe
+  # These call the reference server's own test_* tools, which Torsel has no reason to carry.
+  - tools-call-simple-text
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - tools-call-with-logging
+  - tools-call-error
+  - tools-call-with-progress
+  - tools-call-sampling
+  - tools-call-elicitation
+  - elicitation-sep1034-defaults
+  - elicitation-sep1330-enums
+  - json-schema-2020-12 # needs json_schema_2020_12_tool; Torsel's own schemas are 2020-12 and Inspector checks them

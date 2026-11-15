@@ -1,0 +1,1628 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`lists the same tools in every era 1`] = `
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "description": "The bases of the person, with their tables and the row count of each table.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "name": "list_bases",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "bases": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "tables": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "rows": {
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "rows",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+            },
+            "required": [
+              "id",
+              "name",
+              "tables",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "bases",
+      ],
+      "type": "object",
+    },
+    "title": "List bases",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "description": "The schema of a base: its tables, their fields (type, choices, formula, description) and their views.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+      ],
+      "type": "object",
+    },
+    "name": "describe_base",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+        },
+        "name": {
+          "type": "string",
+        },
+        "tables": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "fields": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "choices": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "currency": {
+                      "type": "string",
+                    },
+                    "decimals": {
+                      "type": "number",
+                    },
+                    "description": {
+                      "type": "string",
+                    },
+                    "formula": {
+                      "type": "string",
+                    },
+                    "grouping": {
+                      "type": "boolean",
+                    },
+                    "id": {
+                      "type": "string",
+                    },
+                    "max": {
+                      "type": "number",
+                    },
+                    "min": {
+                      "type": "number",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "seconds": {
+                      "type": "boolean",
+                    },
+                    "step": {
+                      "type": "number",
+                    },
+                    "target": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "enum": [
+                        "text",
+                        "longtext",
+                        "number",
+                        "currency",
+                        "percent",
+                        "rating",
+                        "duration",
+                        "date",
+                        "datetime",
+                        "choice",
+                        "choices",
+                        "check",
+                        "link",
+                        "url",
+                        "email",
+                        "phone",
+                        "formula",
+                      ],
+                      "type": "string",
+                    },
+                    "unit": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "id": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "rows": {
+                "type": "number",
+              },
+              "views": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "config": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "agg": {
+                          "enum": [
+                            "count",
+                            "sum",
+                            "avg",
+                            "max",
+                            "min",
+                          ],
+                          "type": "string",
+                        },
+                        "bucket": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "color": {
+                          "type": "string",
+                        },
+                        "fields": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "filter": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "field": {
+                                  "type": "string",
+                                },
+                                "text": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "field",
+                                "text",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "group": {
+                          "type": "string",
+                        },
+                        "hidden": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "kind": {
+                          "enum": [
+                            "bar",
+                            "line",
+                          ],
+                          "type": "string",
+                        },
+                        "match": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "rolling": {
+                          "type": "number",
+                        },
+                        "show": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "sort": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "dir": {
+                                  "enum": [
+                                    "asc",
+                                    "desc",
+                                  ],
+                                  "type": "string",
+                                },
+                                "field": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "field",
+                                "dir",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "title": {
+                          "type": "string",
+                        },
+                        "x": {
+                          "type": "string",
+                        },
+                        "y": {
+                          "type": "string",
+                        },
+                      },
+                      "type": "object",
+                    },
+                    "id": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "enum": [
+                        "grid",
+                        "entry",
+                        "list",
+                        "chart",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "type",
+                    "config",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+            },
+            "required": [
+              "id",
+              "name",
+              "rows",
+              "fields",
+              "views",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "id",
+        "name",
+        "tables",
+      ],
+      "type": "object",
+    },
+    "title": "Read the schema",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "description": "A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. One page holds at most 200 rows and about 48 KB, text cut at 2,000 characters (cut counts the cells cut); next is the offset of the following page, null on the last. A query stops after 500 ms: aggregate or filter rather than page through a whole table.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "offset": {
+          "description": "the next of the previous page, to read the following one",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "sql": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "sql",
+      ],
+      "type": "object",
+    },
+    "name": "query",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "cut": {
+          "type": "number",
+        },
+        "next": {
+          "anyOf": [
+            {
+              "description": "the offset of the following page",
+              "type": "number",
+            },
+            {
+              "description": "this is the last page",
+              "type": "null",
+            },
+          ],
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "description": "text",
+                  "type": "string",
+                },
+                {
+                  "description": "a number",
+                  "type": "number",
+                },
+                {
+                  "description": "an empty cell",
+                  "type": "null",
+                },
+              ],
+            },
+            "type": "array",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "columns",
+        "rows",
+        "next",
+        "cut",
+      ],
+      "type": "object",
+    },
+    "title": "Read with SQL",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Adds rows to a table. Values are given by field name; a choice not seen before is added to its field. A value the field cannot hold refuses the whole call.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "type": "number",
+                },
+                {
+                  "type": "boolean",
+                },
+                {
+                  "type": "null",
+                },
+                {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              ],
+            },
+            "description": "values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text",
+            "propertyNames": {
+              "type": "string",
+            },
+            "type": "object",
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "type": "array",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "rows",
+      ],
+      "type": "object",
+    },
+    "name": "add_rows",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "added": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "added",
+      ],
+      "type": "object",
+    },
+    "title": "Add rows",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Changes existing rows, named by their "_id". Only the fields given change.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "updates": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+              },
+              "values": {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "number",
+                    },
+                    {
+                      "type": "boolean",
+                    },
+                    {
+                      "type": "null",
+                    },
+                    {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  ],
+                },
+                "description": "values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text",
+                "propertyNames": {
+                  "type": "string",
+                },
+                "type": "object",
+              },
+            },
+            "required": [
+              "id",
+              "values",
+            ],
+            "type": "object",
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "updates",
+      ],
+      "type": "object",
+    },
+    "name": "update_rows",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "updated": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "updated",
+      ],
+      "type": "object",
+    },
+    "title": "Change rows",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Deletes rows named by their "_id".",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "ids": {
+          "items": {
+            "type": "string",
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "type": "array",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "ids",
+      ],
+      "type": "object",
+    },
+    "name": "delete_rows",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "deleted",
+      ],
+      "type": "object",
+    },
+    "title": "Delete rows",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Creates an empty base, to fill with create_table afterwards.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "name",
+      ],
+      "type": "object",
+    },
+    "name": "create_base",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "title": "Create a base",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Creates a table with its fields and its Grid and Entry views. Formulas come afterwards through add_field, once the fields they read are in place. Table names are unique in a base, field names in a table.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base; leave it out for the default base, unless the person names one",
+          "type": "string",
+        },
+        "fields": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "description": "for a choice or choices field",
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "currency": {
+                "description": "currency: the ISO code, such as EUR or USD",
+                "pattern": "^[A-Z]{3}$",
+                "type": "string",
+              },
+              "decimals": {
+                "description": "number, currency, percent: the decimals shown; leave out for automatic",
+                "maximum": 6,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "description": {
+                "description": "one sentence saying what the field holds",
+                "type": "string",
+              },
+              "grouping": {
+                "description": "number: false for a year, an ID or a code, so 12345 never reads 12,345",
+                "type": "boolean",
+              },
+              "max": {
+                "description": "rating: the highest score, 5 when left out",
+                "maximum": 10,
+                "minimum": 2,
+                "type": "integer",
+              },
+              "min": {
+                "description": "rating: the lowest score, 0 or 1",
+                "maximum": 1,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string",
+              },
+              "seconds": {
+                "description": "duration: shown as h:mm:ss rather than h:mm",
+                "type": "boolean",
+              },
+              "step": {
+                "description": "number: the step of the entry form's plus and minus; rating: 0.5 for half points",
+                "exclusiveMinimum": 0,
+                "type": "number",
+              },
+              "target": {
+                "description": "for a link field: the linked table",
+                "type": "string",
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "longtext",
+                  "number",
+                  "currency",
+                  "percent",
+                  "rating",
+                  "duration",
+                  "date",
+                  "datetime",
+                  "choice",
+                  "choices",
+                  "check",
+                  "link",
+                  "url",
+                  "email",
+                  "phone",
+                ],
+                "type": "string",
+              },
+              "unit": {
+                "description": "number: shown after it, such as kg or km",
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "type",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "name",
+        "fields",
+      ],
+      "type": "object",
+    },
+    "name": "create_table",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "type": "string",
+        },
+        "id": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+        "base",
+      ],
+      "type": "object",
+    },
+    "title": "Create a table",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Adds a field to a table, a computed one (formula) included. SQLite checks a formula first. Field names are unique in a table.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "choices": {
+          "description": "for a choice or choices field",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "currency": {
+          "description": "currency: the ISO code, such as EUR or USD",
+          "pattern": "^[A-Z]{3}$",
+          "type": "string",
+        },
+        "decimals": {
+          "description": "number, currency, percent: the decimals shown; leave out for automatic",
+          "maximum": 6,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "description": {
+          "description": "one sentence saying what the field holds",
+          "type": "string",
+        },
+        "formula": {
+          "description": "for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers.",
+          "type": "string",
+        },
+        "grouping": {
+          "description": "number: false for a year, an ID or a code, so 12345 never reads 12,345",
+          "type": "boolean",
+        },
+        "max": {
+          "description": "rating: the highest score, 5 when left out",
+          "maximum": 10,
+          "minimum": 2,
+          "type": "integer",
+        },
+        "min": {
+          "description": "rating: the lowest score, 0 or 1",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "seconds": {
+          "description": "duration: shown as h:mm:ss rather than h:mm",
+          "type": "boolean",
+        },
+        "step": {
+          "description": "number: the step of the entry form's plus and minus; rating: 0.5 for half points",
+          "exclusiveMinimum": 0,
+          "type": "number",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "target": {
+          "description": "for a link field: the linked table",
+          "type": "string",
+        },
+        "type": {
+          "description": "text; longtext for notes over several lines; number for counts, measures and years (a year without grouping); currency for money; percent; rating for a score on a scale, such as stars or out of 10; duration for a length of time; date; datetime when the time of day matters; choice for one label out of a few; choices for several labels, such as tags; check for yes or no; link to a row of another table; url; email; phone; formula for a computed value",
+          "enum": [
+            "text",
+            "longtext",
+            "number",
+            "currency",
+            "percent",
+            "rating",
+            "duration",
+            "date",
+            "datetime",
+            "choice",
+            "choices",
+            "check",
+            "link",
+            "url",
+            "email",
+            "phone",
+            "formula",
+          ],
+          "type": "string",
+        },
+        "unit": {
+          "description": "number: shown after it, such as kg or km",
+          "type": "string",
+        },
+      },
+      "required": [
+        "name",
+        "type",
+        "base",
+        "table",
+      ],
+      "type": "object",
+    },
+    "name": "add_field",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "title": "Add a field",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Renames a field, or changes its type, format, choices, formula or description. A new type or scale converts every value; \`lost\` counts those it cannot hold, now empty.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "choices": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "currency": {
+          "description": "currency: the ISO code, such as EUR or USD",
+          "pattern": "^[A-Z]{3}$",
+          "type": "string",
+        },
+        "decimals": {
+          "description": "number, currency, percent: the decimals shown; leave out for automatic",
+          "maximum": 6,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "description": {
+          "type": "string",
+        },
+        "field": {
+          "description": "name or id of the field",
+          "type": "string",
+        },
+        "formula": {
+          "type": "string",
+        },
+        "grouping": {
+          "description": "number: false for a year, an ID or a code, so 12345 never reads 12,345",
+          "type": "boolean",
+        },
+        "max": {
+          "description": "rating: the highest score, 5 when left out",
+          "maximum": 10,
+          "minimum": 2,
+          "type": "integer",
+        },
+        "min": {
+          "description": "rating: the lowest score, 0 or 1",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "seconds": {
+          "description": "duration: shown as h:mm:ss rather than h:mm",
+          "type": "boolean",
+        },
+        "step": {
+          "description": "number: the step of the entry form's plus and minus; rating: 0.5 for half points",
+          "exclusiveMinimum": 0,
+          "type": "number",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "target": {
+          "description": "for a field becoming a link: the linked table",
+          "type": "string",
+        },
+        "type": {
+          "description": "text; longtext for notes over several lines; number for counts, measures and years (a year without grouping); currency for money; percent; rating for a score on a scale, such as stars or out of 10; duration for a length of time; date; datetime when the time of day matters; choice for one label out of a few; choices for several labels, such as tags; check for yes or no; link to a row of another table; url; email; phone; formula for a computed value",
+          "enum": [
+            "text",
+            "longtext",
+            "number",
+            "currency",
+            "percent",
+            "rating",
+            "duration",
+            "date",
+            "datetime",
+            "choice",
+            "choices",
+            "check",
+            "link",
+            "url",
+            "email",
+            "phone",
+            "formula",
+          ],
+          "type": "string",
+        },
+        "unit": {
+          "description": "number: shown after it, such as kg or km",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "field",
+      ],
+      "type": "object",
+    },
+    "name": "update_field",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "lost": {
+          "type": "number",
+        },
+        "updated": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "updated",
+        "lost",
+      ],
+      "type": "object",
+    },
+    "title": "Change a field",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Adds a view to a table: grid (the spreadsheet), entry (fast input on a phone, prefilled from the last row with the same match values), list (grouped cards) or chart (bars or a line of an aggregate).",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "config": {
+          "additionalProperties": false,
+          "description": "the view settings, fields given by name",
+          "properties": {
+            "agg": {
+              "description": "chart",
+              "enum": [
+                "count",
+                "sum",
+                "avg",
+                "max",
+                "min",
+              ],
+              "type": "string",
+            },
+            "bucket": {
+              "description": "chart: how dates are grouped",
+              "enum": [
+                "day",
+                "week",
+                "month",
+              ],
+              "type": "string",
+            },
+            "color": {
+              "description": "chart: a choice field that splits the series",
+              "type": "string",
+            },
+            "fields": {
+              "description": "entry: the fields to fill, in order",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "filter": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                    },
+                    "text": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "field",
+                    "text",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid: rows whose field contains the text",
+            },
+            "group": {
+              "description": "list: the field to group by",
+              "type": "string",
+            },
+            "hidden": {
+              "description": "grid: hidden fields",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "kind": {
+              "description": "chart",
+              "enum": [
+                "bar",
+                "line",
+              ],
+              "type": "string",
+            },
+            "match": {
+              "description": "entry: the fields that identify "last time" for prefilling, in order, such as ["Exercise"]; with two or more, the first repeats its last occurrence row by row, such as ["Session", "Exercise"]",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "rolling": {
+              "description": "line chart: rolling average over N days",
+              "maximum": 90,
+              "minimum": 2,
+              "type": "integer",
+            },
+            "show": {
+              "description": "list: the fields shown under the title",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "sort": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "dir": {
+                      "enum": [
+                        "asc",
+                        "desc",
+                      ],
+                      "type": "string",
+                    },
+                    "field": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "field",
+                    "dir",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid",
+            },
+            "title": {
+              "description": "list: the field shown as the title",
+              "type": "string",
+            },
+            "x": {
+              "description": "chart: the x field, often a date",
+              "type": "string",
+            },
+            "y": {
+              "description": "chart: the aggregated field, except for count",
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "type": {
+          "enum": [
+            "grid",
+            "entry",
+            "list",
+            "chart",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "name",
+        "type",
+        "config",
+      ],
+      "type": "object",
+    },
+    "name": "create_view",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "title": "Create a view",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Deletes a base, table, field or view by its id. A base goes with its tables, a table with its rows.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "id": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "id",
+      ],
+      "type": "object",
+    },
+    "name": "delete",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "deleted",
+      ],
+      "type": "object",
+    },
+    "title": "Delete a base, table, field or view",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Renames a base, a table or a view by its id; update_field renames a field. Table names are unique in a base.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "id": {
+          "type": "string",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "id",
+        "name",
+      ],
+      "type": "object",
+    },
+    "name": "rename",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "renamed": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "renamed",
+      ],
+      "type": "object",
+    },
+    "title": "Rename a base, table or view",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Changes a view: its name, or its settings (sort, filter and hidden fields of a grid, the fields of an entry, a list or a chart). Only the settings given change; null clears a sort or a filter.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "config": {
+          "additionalProperties": false,
+          "description": "the view settings, fields given by name",
+          "properties": {
+            "agg": {
+              "description": "chart",
+              "enum": [
+                "count",
+                "sum",
+                "avg",
+                "max",
+                "min",
+              ],
+              "type": "string",
+            },
+            "bucket": {
+              "description": "chart: how dates are grouped",
+              "enum": [
+                "day",
+                "week",
+                "month",
+              ],
+              "type": "string",
+            },
+            "color": {
+              "description": "chart: a choice field that splits the series",
+              "type": "string",
+            },
+            "fields": {
+              "description": "entry: the fields to fill, in order",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "filter": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                    },
+                    "text": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "field",
+                    "text",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid: rows whose field contains the text",
+            },
+            "group": {
+              "description": "list: the field to group by",
+              "type": "string",
+            },
+            "hidden": {
+              "description": "grid: hidden fields",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "kind": {
+              "description": "chart",
+              "enum": [
+                "bar",
+                "line",
+              ],
+              "type": "string",
+            },
+            "match": {
+              "description": "entry: the fields that identify "last time" for prefilling, in order, such as ["Exercise"]; with two or more, the first repeats its last occurrence row by row, such as ["Session", "Exercise"]",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "rolling": {
+              "description": "line chart: rolling average over N days",
+              "maximum": 90,
+              "minimum": 2,
+              "type": "integer",
+            },
+            "show": {
+              "description": "list: the fields shown under the title",
+              "items": {
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "sort": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "dir": {
+                      "enum": [
+                        "asc",
+                        "desc",
+                      ],
+                      "type": "string",
+                    },
+                    "field": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "field",
+                    "dir",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid",
+            },
+            "title": {
+              "description": "list: the field shown as the title",
+              "type": "string",
+            },
+            "x": {
+              "description": "chart: the x field, often a date",
+              "type": "string",
+            },
+            "y": {
+              "description": "chart: the aggregated field, except for count",
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "view": {
+          "description": "name or id of the view",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "view",
+      ],
+      "type": "object",
+    },
+    "name": "update_view",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "updated": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "updated",
+      ],
+      "type": "object",
+    },
+    "title": "Change a view",
+  },
+]
+`;

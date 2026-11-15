@@ -1,0 +1,59 @@
+# What the 2026-07-28 requirements expect and Torsel does not serve, each with its reason.
+# Anything not listed must pass; an entry that starts passing fails the run until it is removed.
+server:
+  # Torsel serves tools only: no prompts, resources, completions or subscriptions to cache.
+  - caching:sep-2549-prompts-list-caching-hints
+  - caching:sep-2549-resources-list-caching-hints
+  - caching:sep-2549-resources-templates-list-caching-hints
+  - completion-complete # no completions capability
+  - prompts-list # no prompts capability
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+  - resources-list # no resources capability: describe_base is the schema, as a tool
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  # resources/read is not a method here, so it answers -32601 rather than a missing resource's -32602.
+  - sep-2164-resource-not-found:sep-2164-error-code
+  - sep-2164-resource-not-found:sep-2164-data-uri
+  # These call the reference server's own test_* tools, which Torsel has no reason to carry.
+  - tools-call-simple-text
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - tools-call-error
+  - tools-call-with-progress
+  - json-schema-2020-12 # needs json_schema_2020_12_tool; Torsel's own schemas are 2020-12 and Inspector checks them
+  # No tool declares x-mcp-header parameters, so the suite has nothing to send them to.
+  - http-custom-header-server-validation
+  # Diagnostic fixture tools (test_missing_capability, test_streaming_elicitation, test_logging_tool) only.
+  - server-stateless:sep-2575-server-rejects-undeclared-capability
+  - server-stateless:sep-2575-missing-capability-http-400
+  - server-stateless:sep-2575-http-server-no-independent-requests-on-stream
+  - server-stateless:sep-2575-server-no-log-without-loglevel
+  # No tool asks the client for input mid-call (elicitation, sampling, roots): every tool answers in one round.
+  - input-required-result-basic-elicitation
+  - input-required-result-basic-sampling
+  - input-required-result-basic-list-roots
+  - input-required-result-request-state
+  - input-required-result-multiple-input-requests
+  - input-required-result-multi-round
+  - input-required-result-non-tool-request
+  - input-required-result-result-type
+  - input-required-result-tampered-state
+  - input-required-result-capability-check
+  - input-required-result-missing-input-response:sep-2322-missing-response-rerequests
+  - input-required-result-ignore-extra-params:sep-2322-ignore-unexpected-params
+  # The tasks extension is not offered: no tool runs long enough to need one.
+  - tasks-lifecycle
+  - tasks-capability-negotiation
+  - tasks-wire-fields
+  - tasks-request-state-removal
+  - tasks-mrtr-input
+  - tasks-mrtr-composition
+  - tasks-request-headers
+  - tasks-dispatch-and-envelope
+  - tasks-required-task-error

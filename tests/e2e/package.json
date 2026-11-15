@@ -5,6 +5,8 @@
 	"description": "The browser suite's own dependencies, kept out of the app's package.json so they never enter the Nix closure or the deps hash.",
 	"comment": "Pinned to the version whose browser build matches the Nix-provided PLAYWRIGHT_BROWSERS_PATH, so nothing is downloaded.",
 	"devDependencies": {
+		"@modelcontextprotocol/conformance": "0.2.0-alpha.12",
+		"@modelcontextprotocol/inspector": "2.15.0",
 		"@playwright/test": "1.59.1",
 		"sirv-cli": "3.0.1"
 	}
