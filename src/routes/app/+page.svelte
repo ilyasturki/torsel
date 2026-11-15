@@ -164,7 +164,7 @@
 					data-home-row
 					aria-current={here ? 'true' : undefined}
 					class="grid h-13 grid-cols-home items-center gap-x-4 border-b border-rule px-4 transition-colors motion focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus max-sm:h-auto max-sm:min-h-row max-sm:gap-y-0.5 max-sm:py-2.5 {here
-						? 'bg-selected'
+						? 'bg-selected mark-selected'
 						: 'hover:bg-tint'}"
 				>
 					<span class="flex min-w-0 items-baseline gap-2">

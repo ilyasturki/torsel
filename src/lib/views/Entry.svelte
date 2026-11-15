@@ -328,7 +328,7 @@
 							<button
 								type="button"
 								class="col-span-full grid min-h-row grid-cols-subgrid items-center border-b border-rule text-left transition-colors motion {focus} {on
-									? 'bg-selected text-ink'
+									? 'bg-selected text-ink mark-selected'
 									: item.logged !== null
 										? 'text-ink hover:bg-tint'
 										: 'hover:bg-tint'}"
@@ -352,7 +352,7 @@
 						type="button"
 						class="col-span-full flex min-h-row items-center gap-2 px-4 text-left transition-colors motion hover:bg-tint {focus} {chosen ===
 						FREE
-							? 'bg-selected text-ink'
+							? 'bg-selected text-ink mark-selected'
 							: ''}"
 						aria-pressed={chosen === FREE}
 						onclick={() => {

@@ -11,20 +11,20 @@
 	--tint: rgb(17 18 22 / 0.04);
 	--tint-2: rgb(17 18 22 / 0.07);
 	--ink: #16171b;
-	--ink-2: #5f6269;
-	--ink-3: #8d9097;
+	--ink-2: #4f5259;
+	--ink-3: #62656c;
 	--hair: rgb(17 18 22 / 0.045);
 	--edge: rgb(17 18 22 / 0.16);
 	--fill: #16171b;
 	--on-fill: #ffffff;
-	--accent: #2f6bec;
+	--accent: #2560dc;
 	--on-accent: #ffffff;
-	/* Ink (accent for selected) at 10, 7, 20, 3.5 and 10% over raised, frame at 13% over canvas: opaque, so sticky cells hide what scrolls under them. */
+	/* Ink (accent for selected) at 10, 7, 20, 3.5 and 14% over raised, frame at 13% over canvas: opaque, so sticky cells hide what scrolls under them. */
 	--rule: #e8e8e8;
 	--rule-col: #efefef;
 	--rule-strong: #d0d1d1;
 	--band: #f7f7f7;
-	--selected: #eaf0fd;
+	--selected: #e1e9fa;
 	--frame: #d9d9db;
 	--scrim: rgb(0 0 0 / 0.3);
 	--focus: var(--accent);
@@ -59,13 +59,13 @@
 	--d-gray: #8a8c94;
 	--d-orange-fg: #9a3412;
 	--d-orange-bg: #ffedd5;
-	--d-orange: #f0702a;
+	--d-orange: #dd6420;
 	--d-amber-fg: #92400e;
 	--d-amber-bg: #fef3c7;
-	--d-amber: #e0a020;
+	--d-amber: #c27c0e;
 	--d-green-fg: #166534;
 	--d-green-bg: #dcfce7;
-	--d-green: #2fae5c;
+	--d-green: #25984d;
 	--d-teal-fg: #115e59;
 	--d-teal-bg: #ccfbf1;
 	--d-teal: #14a39a;
@@ -88,8 +88,8 @@
 		--tint: rgb(255 255 255 / 0.05);
 		--tint-2: rgb(255 255 255 / 0.09);
 		--ink: #ededf0;
-		--ink-2: #a3a5ad;
-		--ink-3: #74767e;
+		--ink-2: #b8bac1;
+		--ink-3: #9b9da5;
 		--hair: rgb(255 255 255 / 0.05);
 		--edge: rgb(255 255 255 / 0.22);
 		--fill: #ededf0;
@@ -100,7 +100,7 @@
 		--rule-col: #25262a;
 		--rule-strong: #414246;
 		--band: #1e1e22;
-		--selected: #1f2432;
+		--selected: #262f44;
 		--frame: #2a2b2d;
 		--scrim: rgb(0 0 0 / 0.5);
 		--glass: rgb(22 23 27 / 0.42);
@@ -258,6 +258,10 @@
 /* Fields that read as their value until pointed at or focused. */
 @utility quiet-fields {
 	--field: transparent;
+}
+
+@utility mark-selected {
+	box-shadow: inset 2px 0 0 var(--accent);
 }
 
 @utility grid-cols-props {
