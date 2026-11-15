@@ -1,7 +1,8 @@
-import { McpServer } from '@modelcontextprotocol/server';
+import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server';
 
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
+import { serially } from '../db/serial.ts';
 import type { ToolContext } from './toolkit.ts';
 import { TOOLS, closeEngines, runTool } from './toolkit.ts';
 
@@ -54,4 +55,49 @@ export function buildMcpServer(
 	}
 
 	return { server, release: () => closeEngines(ws) };
+}
+
+async function readBody(request: Request): Promise<{ request: Request; parsed?: unknown }> {
+	const text = await request.text();
+	const copy = new Request(request.url, {
+		method: request.method,
+		headers: request.headers,
+		body: text
+	});
+	try {
+		return { request: copy, parsed: JSON.parse(text) };
+	} catch {
+		return { request: copy };
+	}
+}
+
+// Stateless: one server per request, so a restart between two calls loses nothing. The body is
+// read before the account's turn, so a slow upload holds no one else's writes.
+export async function serveMcp(
+	db: Database,
+	userId: string,
+	request: Request,
+	version: string
+): Promise<Response> {
+	const body = await readBody(request);
+
+	return serially(userId, async () => {
+		const { server, release } = buildMcpServer(db, userId, version);
+		const transport = new WebStandardStreamableHTTPServerTransport({
+			sessionIdGenerator: undefined,
+			enableJsonResponse: true
+		});
+
+		await server.connect(transport);
+
+		try {
+			return await transport.handleRequest(
+				body.request,
+				'parsed' in body ? { parsedBody: body.parsed } : undefined
+			);
+		} finally {
+			await server.close();
+			release();
+		}
+	});
 }
