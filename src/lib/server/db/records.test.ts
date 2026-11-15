@@ -1,5 +1,5 @@
 import names from '#lib/i18n/names.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
 	createBase,
@@ -92,5 +92,25 @@ describe('sync', () => {
 		writeChanges(db, userId, ws, updateRecord(ws, base.id, { name: 'Renommée' }));
 
 		expect(loadWorkspace(db, userId).base(base.id)?.name).toBe('Renommée');
+	});
+
+	it('orders two server writes made in the same millisecond from the same snapshot', async () => {
+		const { db, userId } = await setup();
+		const phone = device('phone');
+		const base = createBase(phone.ws, 'B');
+		act(phone, base.changes);
+		syncExchange(db, userId, { watermark: 0, push: [...phone.pending.values()] });
+
+		const first = loadWorkspace(db, userId);
+		const second = loadWorkspace(db, userId);
+		const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now());
+		try {
+			writeChanges(db, userId, first, updateRecord(first, base.id, { name: 'First' }));
+			writeChanges(db, userId, second, updateRecord(second, base.id, { name: 'Second' }));
+		} finally {
+			now.mockRestore();
+		}
+
+		expect(loadWorkspace(db, userId).base(base.id)?.name).toBe('Second');
 	});
 });

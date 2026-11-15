@@ -97,6 +97,9 @@ export function loadWorkspace(db: Database, userId: string, baseId?: string): Wo
 	return ws;
 }
 
+// One clock for every server write: two calls in the same millisecond still stamp distinct, ordered clocks.
+const hlc = new Hlc('srv');
+
 /** Writes changes made on the server — an MCP call — stamped later than anything they touch. */
 export function writeChanges(
 	db: Database,
@@ -104,8 +107,6 @@ export function writeChanges(
 	ws: Workspace,
 	changes: Change[]
 ): Rec[] {
-	const hlc = new Hlc('srv');
-
 	for (const change of changes) {
 		const existing = ws.get(change.id);
 		if (existing !== undefined) {
