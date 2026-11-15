@@ -1,6 +1,8 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
-import { createBase, createTable, insertRows } from '../../core/actions.ts';
+import names from '#lib/i18n/names.ts';
+
+import { createBase, createTable, defaultViews, insertRows } from '../../core/actions.ts';
 import { Hlc } from '../../core/clock.ts';
 import type { Change, Rec } from '../../core/model.ts';
 import { Workspace } from '../../core/workspace.ts';
@@ -17,10 +19,16 @@ function base(): { records: Rec[]; base: string } {
 	};
 	const made = createBase(ws, 'Gym');
 	apply(made);
-	const table = createTable(ws, made.id, 'Sets', [
-		{ name: 'Exercise', type: 'text' },
-		{ name: 'Weight', type: 'number' }
-	]);
+	const table = createTable(
+		ws,
+		made.id,
+		'Sets',
+		[
+			{ name: 'Exercise', type: 'text' },
+			{ name: 'Weight', type: 'number' }
+		],
+		() => defaultViews(names.en)
+	);
 	apply(table);
 	apply(insertRows(ws, table.id, [{}, {}]));
 	return { records: [...ws.records.values()], base: made.id };

@@ -104,7 +104,7 @@ const TITLES = {
 
 const LISTED = 30;
 
-function names(candidates: readonly { name: string }[]): string {
+function listed(candidates: readonly { name: string }[]): string {
 	const shown = candidates.slice(0, LISTED).map((candidate) => JSON.stringify(candidate.name));
 	return `${shown.join(', ')}${candidates.length > LISTED ? ', …' : ''}`;
 }
@@ -133,7 +133,7 @@ function resolve<T extends { id: string; name: string }>(
 	throw new ToolError(
 		candidates.length === 0
 			? `no ${missing}: there is none`
-			: `no ${missing}; the ${kind}s are ${names(candidates)}`
+			: `no ${missing}; the ${kind}s are ${listed(candidates)}`
 	);
 }
 

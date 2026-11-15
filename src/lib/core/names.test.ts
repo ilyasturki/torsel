@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import names from '#lib/i18n/names.ts';
+
 import { fieldSpecs, guessColumns } from './csv.ts';
 import { nameTaken, numberedName } from './names.ts';
 
@@ -21,10 +23,13 @@ describe('names', () => {
 	});
 
 	it('numbers a header the file repeats, and one the table already has', () => {
-		const columns = guessColumns([
-			['Weight', 'weight', 'Reps'],
-			['80', '82', '8']
-		]);
+		const columns = guessColumns(
+			[
+				['Weight', 'weight', 'Reps'],
+				['80', '82', '8']
+			],
+			names.en
+		);
 
 		expect(fieldSpecs(columns).map((spec) => spec.name)).toEqual(['Weight', 'weight (2)', 'Reps']);
 		expect(fieldSpecs(columns, ['Reps']).map((spec) => spec.name)).toEqual([

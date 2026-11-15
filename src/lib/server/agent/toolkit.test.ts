@@ -566,6 +566,5 @@ describe('the language of what the assistant writes', () => {
 		]);
 		const [table] = ctx.ws.tables(ctx.ws.bases()[0].id);
 		expect(ctx.ws.views(table.id).map((view) => view.name)).toEqual(['Grille', 'Saisie']);
-		closeEngines(ctx.ws);
 	});
 });

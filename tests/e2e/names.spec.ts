@@ -1,18 +1,28 @@
 import type { APIRequestContext } from '@playwright/test';
 
-import { createBase, createTable } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews } from '../../src/lib/core/actions.ts';
+import names from '../../src/lib/i18n/names.ts';
 import { columnMenu, expect, seed, tableMenu, tablePath, test } from './harness.ts';
 
 function seedGym(request: APIRequestContext): Promise<string> {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const lifts = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Exercise', type: 'text' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const lifts = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Exercise', type: 'text' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(lifts.changes);
-		commit(createTable(ws, base.id, 'Runs', [{ name: 'Km', type: 'number' }]).changes);
+		const runs = createTable(ws, base.id, 'Runs', [{ name: 'Km', type: 'number' }], () =>
+			defaultViews(names.en)
+		);
+		commit(runs.changes);
 		return tablePath(lifts.id);
 	});
 }
