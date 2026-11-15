@@ -257,7 +257,7 @@
 			</div>
 			<SyncStatus />
 			<div class="ml-auto flex shrink-0 items-center gap-1">
-				{#if assistant.available && sync.status !== 'offline'}
+				{#if assistant.available && me.account && sync.status !== 'offline'}
 					<Tooltip shortcut={keys('mod', 'k')}>
 						{#snippet children(props)}
 							<Button
@@ -333,7 +333,7 @@
 			>
 				{@render children()}
 			</main>
-			{#if assistant.available}
+			{#if assistant.available && me.account}
 				<AskPanel bind:open={asking} table={table ?? null} view={view ?? null} />
 			{/if}
 		</div>

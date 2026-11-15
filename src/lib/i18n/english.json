@@ -343,7 +343,6 @@
 	"src/lib/ui/keys.ts\tAlt",
 	"src/lib/ui/keys.ts\tCtrl",
 	"src/lib/views/AskPanel.svelte\tFiles",
-	"src/lib/views/AskPanel.svelte\t{LOGIN}?to={encodeURIComponent(page.url.pathname + page.url.search)}",
 	"src/lib/views/Entry.svelte\tgrid-template-columns: var(--spacing-control) repeat({count}, minmax(0, {roomy.current ? '7rem' : '1fr'}))",
 	"src/lib/views/Grid.svelte\tArrow",
 	"src/lib/views/Grid.svelte\tinput, textarea",

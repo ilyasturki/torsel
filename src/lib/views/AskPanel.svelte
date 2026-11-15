@@ -29,9 +29,8 @@
 	} from '#lib/client/assistant.svelte.ts';
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatNumber } from '#lib/client/format.ts';
-	import { LOGIN, SETTINGS } from '#lib/client/nav.ts';
+	import { SETTINGS } from '#lib/client/nav.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
-	import { me } from '#lib/client/session.svelte.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import type {
 		Attachment,
@@ -241,10 +240,6 @@
 
 	const uploading = $derived(
 		pending.some((item) => item.file === undefined && item.error === undefined)
-	);
-
-	const loginHref = $derived(
-		`${LOGIN}?to=${encodeURIComponent(page.url.pathname + page.url.search)}`
 	);
 
 	$effect(() => {
@@ -494,7 +489,7 @@
 		: 'invisible translate-x-ask-out'} {dropping ? 'ring-2 ring-ink ring-inset' : ''}"
 	aria-label={words.ask}
 	ondragover={(event) => {
-		if (me.account && hasFiles(event)) {
+		if (hasFiles(event)) {
 			event.preventDefault();
 			event.stopPropagation();
 			dropping = true;
@@ -505,7 +500,7 @@
 	}}
 	ondrop={(event) => {
 		dropping = false;
-		if (me.account && hasFiles(event)) {
+		if (hasFiles(event)) {
 			event.preventDefault();
 			event.stopPropagation();
 			void attach([...(event.dataTransfer?.files ?? [])]);
@@ -516,15 +511,13 @@
 		<span class="min-w-0 flex-1 truncate font-semibold" data-testid="thread-title"
 			>{assistant.title || words.ask}</span
 		>
-		{#if me.account}
-			<Button
-				variant="ghost"
-				class={assistant.listing ? 'bg-tint-2 text-ink' : ''}
-				aria-pressed={assistant.listing}
-				onclick={() => void showThreads()}>{words.history}</Button
-			>
-			<IconButton icon="plus" label={words.newThread} onclick={newThread} />
-		{/if}
+		<Button
+			variant="ghost"
+			class={assistant.listing ? 'bg-tint-2 text-ink' : ''}
+			aria-pressed={assistant.listing}
+			onclick={() => void showThreads()}>{words.history}</Button
+		>
+		<IconButton icon="plus" label={words.newThread} onclick={newThread} />
 		<Tooltip text={common.close} shortcut={keys('mod', 'k')}>
 			{#snippet children(props)}
 				<IconButton
@@ -538,11 +531,7 @@
 		</Tooltip>
 	</div>
 
-	{#if !me.account}
-		<div class="flex flex-1 flex-col gap-2 px-4 pb-4">
-			<a class="font-medium underline" href={loginHref}>{words.signIn}</a>
-		</div>
-	{:else if assistant.listing}
+	{#if assistant.listing}
 		<ul class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label={words.threads}>
 			{#each assistant.threads as thread (thread.id)}
 				<li
