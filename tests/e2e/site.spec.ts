@@ -34,6 +34,7 @@ test('prerenders the home page with its meta and structured data', async ({ requ
 	const response = await request.get('/', RETRY_RESET);
 	expect(response.status()).toBe(200);
 	const html = await response.text();
+	expect(html).toContain('<html lang="en">');
 	expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/"`);
 	expect(html).toContain(`property="og:image" content="${ORIGIN}/og.png"`);
 	expect(html).toContain('name="twitter:card" content="summary_large_image"');

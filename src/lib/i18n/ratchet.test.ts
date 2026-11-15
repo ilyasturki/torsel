@@ -69,7 +69,13 @@ function prose(text: string): boolean {
 	if (!/\s/u.test(value) && /^[\w.:/@-]+$/u.test(value) && !/^[A-Z][a-z]+$/u.test(value)) {
 		return false;
 	}
-	if (/^[\w:[\]/.%!()&>*+#,-]+(?: [\w:[\]/.%!()&>*+#,-]+)+$/u.test(value) && /[-:[]/u.test(value)) {
+	if (/^M[\d.]/u.test(value)) return false;
+	const tokens = value.split(/\s+/u);
+	const classes = tokens.filter((token) => /[-:[/]/u.test(token)).length;
+	if (
+		tokens.every((token) => /^[\w:[\]/.%!()&>*+#,-]+$/u.test(token)) &&
+		classes * 2 >= tokens.length
+	) {
 		return false;
 	}
 	if (/^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|PRAGMA|WITH|ALTER|DROP)\b/u.test(value)) return false;
