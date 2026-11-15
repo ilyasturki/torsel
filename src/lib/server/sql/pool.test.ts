@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { createBase, createTable, insertRows } from '../../core/actions.ts';
 import { Hlc } from '../../core/clock.ts';
@@ -55,6 +55,32 @@ describe('sql pool', () => {
 		await expect(runaway).rejects.toThrow('interrupted');
 		expect(tick).toBeLessThan(100);
 		expect(Date.now() - started).toBeLessThan(2_000);
+	});
+
+	it('writes nothing of a refused query to the logs', async () => {
+		const { records, base: id } = base();
+		const written: string[] = [];
+		const write = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+			written.push(String(chunk));
+			return true;
+		});
+		const warn = vi.spyOn(console, 'warn').mockImplementation((...args) => {
+			written.push(args.join(' '));
+		});
+		try {
+			await expect(
+				pool.run(records, id, { kind: 'query', sql: "select secret_fn('hunter2')", offset: 0 })
+			).rejects.toThrow('no such function: secret_fn');
+			await expect(
+				pool.run(records, id, { kind: 'query', sql: RUNAWAY, offset: 0 })
+			).rejects.toThrow('interrupted');
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		} finally {
+			write.mockRestore();
+			warn.mockRestore();
+		}
+
+		expect(written.join('')).not.toMatch(/hunter2|recursive|sqlite3_step/u);
 	});
 
 	it('kills a worker past the backstop and serves the next job', async () => {
