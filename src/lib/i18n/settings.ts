@@ -34,13 +34,13 @@ const en = {
 		prefix: string,
 		access: 'read' | 'write',
 		lastUsed: string | null,
-		expires: string | null
+		expires: { date: string; past: boolean } | null
 	) =>
 		[
 			`${prefix}…`,
 			access === 'read' ? 'read only' : 'read and write',
 			lastUsed === null ? 'never used' : `last used ${lastUsed}`,
-			...(expires === null ? [] : [`expires ${expires}`])
+			...(expires === null ? [] : [`${expires.past ? 'expired' : 'expires'} ${expires.date}`])
 		].join(', '),
 	revoke: 'Revoke',
 	allData: 'All data on this device',
@@ -90,7 +90,7 @@ const fr: typeof en = {
 			`${prefix}…`,
 			access === 'read' ? 'lecture seule' : 'lecture et écriture',
 			lastUsed === null ? 'jamais utilisé' : `utilisé le ${lastUsed}`,
-			...(expires === null ? [] : [`expire le ${expires}`])
+			...(expires === null ? [] : [`${expires.past ? 'a expiré le' : 'expire le'} ${expires.date}`])
 		].join(', '),
 	revoke: 'Révoquer',
 	allData: 'Toutes les données de cet appareil',

@@ -109,7 +109,9 @@
 			token.prefix,
 			token.access,
 			token.lastUsedAt === null ? null : day(token.lastUsedAt),
-			token.expiresAt === null ? null : day(token.expiresAt)
+			token.expiresAt === null
+				? null
+				: { date: day(token.expiresAt), past: token.expiresAt <= Date.now() }
 		);
 	}
 
