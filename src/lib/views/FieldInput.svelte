@@ -110,7 +110,7 @@
 		onchange={(picked) => (value = picked || null)}
 	/>
 {:else if field.type === 'formula'}
-	<p class="flex h-control items-center rounded-box bg-tint px-2 text-ink-2">
+	<p class="flex h-control items-center px-2 text-ink-2">
 		{formatValue(field, computed ?? null)}
 	</p>
 {:else if field.type === 'longtext'}

@@ -28,8 +28,8 @@
 	--frame: #cfd0d2;
 	--scrim: rgb(0 0 0 / 0.3);
 	--focus: var(--accent);
-	--field: var(--tint);
-	--field-hover: var(--tint-2);
+	--field: rgb(17 18 22 / 0.06);
+	--field-hover: rgb(17 18 22 / 0.09);
 	--button: rgb(17 18 22 / 0.08);
 	--button-hover: rgb(17 18 22 / 0.115);
 	--field-edge: transparent;

@@ -8,7 +8,7 @@
 	import { updateRecord } from '#lib/core/actions.ts';
 	import { completeName, nameAt, namesFor, toDisplay } from '#lib/core/formula.ts';
 	import type { FieldDef } from '#lib/core/model.ts';
-	import { fieldFocusWithin, menuItem, popup } from '#lib/ui/styles.ts';
+	import { fieldFill, fieldFocusWithin, menuItem, popup } from '#lib/ui/styles.ts';
 	import Textarea from '#lib/ui/Textarea.svelte';
 
 	let {
@@ -132,7 +132,7 @@
 			}}
 			class="{popup} flex w-(--bits-popover-anchor-width) max-w-(--bits-popover-content-available-width) min-w-80 flex-col gap-1"
 		>
-			<div class="rounded-box bg-tint-2 px-2 py-1.5 font-mono {fieldFocusWithin}">
+			<div class="rounded-box px-2 py-1.5 font-mono {fieldFill} {fieldFocusWithin}">
 				<Textarea
 					bind:ref
 					bind:value={text}
