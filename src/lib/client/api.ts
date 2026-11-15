@@ -85,7 +85,9 @@ export function setDeviceToken(token: string | null): void {
 export async function checkServer(base: string): Promise<void> {
 	let response: Response;
 	try {
-		response = await fetch(new URL('/api/health', base));
+		response = await fetch(new URL('/api/health', base), {
+			headers: { 'accept-language': locale() }
+		});
 	} catch {
 		throw new ApiError(OFFLINE, words.unreachable);
 	}

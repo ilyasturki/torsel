@@ -15,6 +15,7 @@ import type {
 } from '../core/thread.ts';
 import { MAX_FILE_BYTES, UPLOAD_PART, droppedSeqs } from '../core/thread.ts';
 import { assistant as words } from '../i18n/assistant.ts';
+import { locale } from '../i18n/runtime.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, deviceToken, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
 import { app } from './app.svelte.ts';
@@ -546,6 +547,7 @@ function sendDelete(id: string, keepalive = false): void {
 		keepalive,
 		headers: {
 			'content-type': 'application/json',
+			'accept-language': locale(),
 			...(token === null ? {} : { authorization: `Bearer ${token}` })
 		}
 	}).catch(() => undefined);
