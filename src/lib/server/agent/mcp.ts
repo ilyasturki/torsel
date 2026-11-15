@@ -1,4 +1,8 @@
-import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server';
+import {
+	McpServer,
+	WebStandardStreamableHTTPServerTransport,
+	readRequestBody
+} from '@modelcontextprotocol/server';
 
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
@@ -57,8 +61,12 @@ export function buildMcpServer(
 	return { server, release: () => closeEngines(ws) };
 }
 
-async function readBody(request: Request): Promise<{ request: Request; parsed?: unknown }> {
-	const text = await request.text();
+async function readBody(request: Request): Promise<{ request: Request; parsed?: unknown } | null> {
+	const body = await readRequestBody(request);
+	if (body.tooLarge) {
+		return null;
+	}
+	const { text } = body;
 	const copy = new Request(request.url, {
 		method: request.method,
 		headers: request.headers,
@@ -80,6 +88,12 @@ export async function serveMcp(
 	version: string
 ): Promise<Response> {
 	const body = await readBody(request);
+	if (body === null) {
+		return Response.json(
+			{ jsonrpc: '2.0', error: { code: -32000, message: 'Payload Too Large' }, id: null },
+			{ status: 413 }
+		);
+	}
 
 	return serially(userId, async () => {
 		const { server, release } = buildMcpServer(db, userId, version);
