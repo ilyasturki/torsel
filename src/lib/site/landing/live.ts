@@ -7,6 +7,7 @@ import type { Cell, Example, Prompt } from './examples.ts';
 import type { Sample } from './seed.ts';
 import { changesFor } from './seed.ts';
 
+export { app } from '#lib/client/app.svelte.ts';
 export { default as ChangeCard } from '#lib/views/ChangeCard.svelte';
 export { seedExamples } from './seed.ts';
 

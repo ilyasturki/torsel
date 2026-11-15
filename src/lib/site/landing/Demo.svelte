@@ -2,7 +2,6 @@
 	import type { Component } from 'svelte';
 	import { onMount, tick } from 'svelte';
 
-	import { app } from '#lib/client/app.svelte.ts';
 	import type { ThreadAction } from '#lib/core/thread.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
@@ -29,7 +28,14 @@
 	let live = $state<Live | null>(null);
 	let View = $state<Component<{ tableId: string; viewId: string | undefined }> | null>(null);
 	let Toast = $state<Component | null>(null);
-	const threads = $state<Record<string, Thread>>({});
+	const worked = (which: Example): number[] =>
+		which.prompts.flatMap((prompt, index) =>
+			prompt.kind === 'formula' || prompt.kind === 'chart' ? [index] : []
+		);
+	// The server renders the first example's prompts as already asked, so nothing moves when its thread fills.
+	const threads = $state<Record<string, Thread>>({
+		[examples[0].id]: { items: [], used: worked(examples[0]), view: undefined }
+	});
 	let typed = $state('');
 	let busy = $state(false);
 	let working = $state(false);
@@ -54,14 +60,16 @@
 	const sample = $derived(samples?.[example.id]);
 
 	const views = $derived.by(() => {
-		void app.version;
-		return sample === undefined ? [] : app.ws.views(sample.table);
+		if (sample === undefined || live === null) return [];
+		void live.app.version;
+		return live.app.ws.views(sample.table);
 	});
 	const viewId = $derived(thread.view ?? views[0]?.id);
 	const entryId = $derived(views.find((view) => view.type === 'entry')?.id);
 	const rowCount = $derived.by(() => {
-		void app.version;
-		return sample === undefined ? example.rows.length : app.ws.rows(sample.table).length;
+		if (sample === undefined || live === null) return example.rows.length;
+		void live.app.version;
+		return live.app.ws.rows(sample.table).length;
 	});
 	const left = $derived(
 		example.prompts
@@ -72,7 +80,7 @@
 	/** SQLite loads on the first sign the visitor means to use the table, not with the page. */
 	function warm(): Promise<void> {
 		openEngine();
-		return app.load();
+		return live?.app.load() ?? Promise.resolve();
 	}
 
 	function show(view: string | undefined): void {
@@ -83,16 +91,15 @@
 	function startWorked(module: Live, made: Record<string, Sample>): void {
 		const which = examples[0];
 		const own = threadOf(which.id);
-		which.prompts.forEach((prompt, index) => {
-			if (prompt.kind !== 'formula' && prompt.kind !== 'chart') return;
+		for (const index of worked(which)) {
+			const prompt = which.prompts[index];
 			const item: Item = { key: (key += 1), text: prompt.text, action: null };
 			own.items.push(item);
-			own.used.push(index);
 			const applied = module.applyPrompt(which, made[which.id], prompt, item.key);
 			own.items[own.items.length - 1].action = applied.action;
 			own.items[own.items.length - 1].view = applied.view;
-		});
-		own.view = app.ws.views(made[which.id].table).find((view) => view.type === 'grid')?.id;
+		}
+		own.view = module.app.ws.views(made[which.id].table).find((view) => view.type === 'grid')?.id;
 		module.showEarly(which, made[which.id]);
 	}
 
@@ -118,7 +125,9 @@
 		await Promise.all([warm(), wait(700)]);
 
 		const made = live.applyPrompt(which, samples[which.id], prompt, item.key);
-		const grid = app.ws.views(samples[which.id].table).find((view) => view.type === 'grid')?.id;
+		const grid = live.app.ws
+			.views(samples[which.id].table)
+			.find((view) => view.type === 'grid')?.id;
 		const shown = own.items[own.items.length - 1];
 		shown.action = made.action;
 		shown.view = made.view ?? grid;
@@ -146,7 +155,7 @@
 		void import('./live.ts').then((module) => {
 			let made: Record<string, Sample> | null = null;
 			const narrow = matchMedia('(max-width: 1023px)').matches;
-			void app.openSample((ws, commit) => {
+			void module.app.openSample((ws, commit) => {
 				made = module.seedExamples(ws, commit, examples, narrow);
 			}, engineWanted);
 			if (made !== null) startWorked(module, made);
@@ -229,7 +238,7 @@
 		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">{t.ask}</div>
 		<div
 			bind:this={scroller}
-			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:max-h-36 max-lg:pt-3"
+			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:h-36 max-lg:flex-none max-lg:pt-3"
 			data-testid="thread"
 		>
 			{#each thread.items as item (item.key)}
