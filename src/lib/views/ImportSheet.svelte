@@ -9,6 +9,7 @@
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { homeBase, nextTableName } from '#lib/core/actions.ts';
+	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { parseExport, restoreChanges } from '#lib/core/backup.ts';
 	import { names } from '#lib/i18n/names.ts';
 	import type { ColumnGuess } from '#lib/core/csv.ts';
@@ -109,8 +110,14 @@
 			}
 			rows = parsed;
 			columns = guessColumns(parsed, names);
+			const fileName = start.file?.name.replace(/\.(csv|tsv|txt)$/iu, '');
 			tableName =
-				start.file?.name.replace(/\.(csv|tsv|txt)$/iu, '') ?? nextTableName(app.ws, names);
+				fileName === undefined
+					? nextTableName(app.ws, names)
+					: numberedName(
+							app.ws.bases().flatMap((item) => app.ws.tables(item.id).map((table) => table.name)),
+							fileName
+						);
 			pickTable(into);
 		}
 
@@ -157,6 +164,11 @@
 	function create(): void {
 		const name = tableName.trim() || nextTableName(app.ws, names);
 		const home = base === '' ? homeBase(app.ws, names) : { id: base, changes: [] };
+		const holder = nameTaken(app.ws.tables(home.id), name);
+		if (holder !== undefined) {
+			problem = tableWords.nameTaken(holder.name);
+			return;
+		}
 		const made = importTable(app.ws, names, home.id, name, rows, $state.snapshot(columns));
 		const label = words.imported(rows.length - 1, name);
 		const group = app.apply([...home.changes, ...made.changes], label);

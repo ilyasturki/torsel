@@ -6,6 +6,7 @@ import type { Change, FieldDef, FieldFormat, FieldType, Value } from './model.ts
 import { CREATED, formatSet, hasChoices, isDated } from './model.ts';
 import type { Detected } from './values.ts';
 import { coerce, detectType, parseDate, parseNumber, splitChoices } from './values.ts';
+import { numberedName } from './names.ts';
 import type { Workspace } from './workspace.ts';
 
 export function detectDelimiter(text: string): string {
@@ -164,11 +165,14 @@ export function guessColumns(rows: string[][], names: DefaultNames): ColumnGuess
 	});
 }
 
-export function fieldSpecs(columns: ColumnGuess[]): FieldSpec[] {
-	return columns.map(({ choices, ...column }) => ({
-		...column,
-		choices: choices.map((name) => ({ name, color: null }))
-	}));
+/** One field per column, a header repeated in the file numbered so each name stays unique. */
+export function fieldSpecs(columns: ColumnGuess[], taken: readonly string[] = []): FieldSpec[] {
+	const names = [...taken];
+	return columns.map(({ choices, ...column }) => {
+		const name = numberedName(names, column.name);
+		names.push(name);
+		return { ...column, name, choices: choices.map((choice) => ({ name: choice, color: null })) };
+	});
 }
 
 function distinctValues(body: string[][], at: number, type: FieldType): string[] {
@@ -294,6 +298,7 @@ export function appendRows(
 	const fields = new Map(ws.fields(tableId).map((field) => [field.id, field]));
 	const changes: Change[] = [];
 	const mapped: Mapped[] = [];
+	const added: string[] = [];
 	let order = ws.nextOrder(tableId, 'field');
 
 	targets.forEach((target, at) => {
@@ -303,7 +308,11 @@ export function appendRows(
 		}
 
 		if (target === NEW_FIELD) {
-			const [spec] = fieldSpecs([column]);
+			const [spec] = fieldSpecs(
+				[column],
+				[...[...fields.values()].map((field) => field.name), ...added]
+			);
+			added.push(spec.name);
 			const [change] = addField(ws, tableId, spec).changes;
 			changes.push({ ...change, set: { ...change.set, order } });
 			order += 1;

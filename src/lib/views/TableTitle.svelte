@@ -3,8 +3,9 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { pastedCells, shell } from '#lib/client/shell.svelte.ts';
-	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
+	import { nameTaken } from '#lib/core/names.ts';
 	import type { TableDef } from '#lib/core/model.ts';
 	import { table as words } from '#lib/i18n/table.ts';
 	import { fieldFill, fieldFocus } from '#lib/ui/styles.ts';
@@ -39,7 +40,10 @@
 		if (!editing) return;
 		editing = false;
 		const name = draft.trim();
-		if (name !== '' && name !== table.name) {
+		const holder = nameTaken(app.ws.tables(table.base), name, table.id);
+		if (holder !== undefined) {
+			showToast(words.nameTaken(holder.name));
+		} else if (name !== '' && name !== table.name) {
 			applyWithUndo(updateRecord(app.ws, table.id, { name }), words.tableRenamed);
 		}
 	}

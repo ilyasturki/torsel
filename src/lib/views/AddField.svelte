@@ -6,6 +6,7 @@
 	import { localCurrency } from '#lib/client/format.ts';
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { addField } from '#lib/core/actions.ts';
+	import { nameTaken } from '#lib/core/names.ts';
 	import type { FieldType } from '#lib/core/model.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { fields as words } from '#lib/i18n/fields.ts';
@@ -45,6 +46,7 @@
 
 	let name = $state('');
 	let type = $state<FieldType | typeof AUTO>(AUTO);
+	const taken = $derived(nameTaken(app.ws.fields(tableId), name));
 	let field: HTMLInputElement | undefined = $state();
 	let trigger: HTMLButtonElement | null = $state(null);
 
@@ -52,6 +54,9 @@
 		const label = name.trim();
 		if (label === '') {
 			open = false;
+			return;
+		}
+		if (taken !== undefined) {
 			return;
 		}
 
@@ -120,9 +125,14 @@
 					}
 				}}
 			/>
+			{#if taken}
+				<p class="px-1 text-sm text-ink-2" role="alert">{words.nameTaken(taken.name)}</p>
+			{/if}
 			<div class="flex gap-2">
 				<Select class="flex-1" aria-label={words.fieldType} options={TYPES} bind:value={type} />
-				<Button variant="primary" disabled={name.trim() === ''} onclick={add}>{common.add}</Button>
+				<Button variant="primary" disabled={name.trim() === '' || taken !== undefined} onclick={add}
+					>{common.add}</Button
+				>
 			</div>
 		</Popover.Content>
 	</Popover.Portal>

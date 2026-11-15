@@ -35,7 +35,7 @@ import type {
 	ViewDef
 } from '../../core/model.ts';
 import { FIELD_TYPES, FORMAT_OF, VIEW_TYPES, hasChoices } from '../../core/model.ts';
-import { nameTaken, sameName } from '../../core/names.ts';
+import { nameTaken, numberedName, sameName } from '../../core/names.ts';
 import { retypeField } from '../../core/retype.ts';
 import type { SqlValue } from '../../core/sql.ts';
 import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
@@ -1283,12 +1283,14 @@ export const TOOLS: Tool[] = [
 				});
 				return { added: made.count, unread: made.unread };
 			}
-			const name = freeName(
-				ctx.ws.tables(base.id),
-				input.name ?? sheet.name.replace(/\.[^.]+$/u, ''),
-				'table',
-				ctx.ws.base(base.id)?.name ?? 'this base'
-			);
+			const tables = ctx.ws.tables(base.id);
+			const name =
+				input.name === undefined
+					? numberedName(
+							tables.map((table) => table.name),
+							sheet.name.replace(/\.[^.]+$/u, '')
+						)
+					: freeName(tables, input.name, 'table', ctx.ws.base(base.id)?.name ?? 'this base');
 			const made = importTable(ctx.ws, names, base.id, name, sheet.rows, columns);
 			commit(ctx, {
 				summary: words.newTableFrom(name, sheet.name),

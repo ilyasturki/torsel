@@ -6,6 +6,7 @@
 	import { readFormula } from '#lib/client/formula.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
+	import { nameTaken } from '#lib/core/names.ts';
 	import { toDisplay } from '#lib/core/formula.ts';
 	import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from '#lib/core/model.ts';
 	import { formatSet, hasChoices } from '#lib/core/model.ts';
@@ -214,6 +215,11 @@
 		problem = '';
 		if (name.trim() === '') {
 			problem = words.nameNeeded;
+			return;
+		}
+		const holder = nameTaken(app.ws.fields(tableId), name, existing?.id);
+		if (holder !== undefined) {
+			problem = words.nameTaken(holder.name);
 			return;
 		}
 		if (type === 'link' && target === '') {

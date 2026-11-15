@@ -81,6 +81,7 @@ const en = {
 			? `1 value can't become ${type} and will be cleared.`
 			: `${count} values can't become ${type} and will be cleared.`,
 	nameNeeded: 'Give this field a name.',
+	nameTaken: (name: string) => `A field named "${name}" already exists.`,
 	unknownField: (name: string) => `unknown field: "${name}"`,
 	unclosedName: 'unclosed name',
 	unclosedText: 'unclosed text',
@@ -182,6 +183,7 @@ const fr: typeof en = {
 			other: `# valeurs ne peuvent pas devenir ${type} et seront effacées.`
 		}),
 	nameNeeded: 'Donne un nom à ce champ.',
+	nameTaken: (name) => `Un champ « ${name} » existe déjà.`,
 	unknownField: (name) => `champ inconnu : « ${name} »`,
 	unclosedName: 'nom de champ non fermé',
 	unclosedText: 'texte non fermé',

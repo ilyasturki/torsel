@@ -26,6 +26,7 @@
 		ViewDef
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric } from '#lib/core/model.ts';
+	import { nameTaken } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { freshValue, nativeDateText, ratingScale } from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
@@ -1141,7 +1142,10 @@
 	function renameField(field: FieldDef): void {
 		const name = renameDraft.trim();
 		renaming = null;
-		if (name !== '' && name !== field.name) {
+		const holder = nameTaken(app.ws.fields(field.table), name, field.id);
+		if (holder !== undefined) {
+			showToast(fieldWords.nameTaken(holder.name));
+		} else if (name !== '' && name !== field.name) {
 			applyWithUndo(updateRecord(app.ws, field.id, { name }), fieldWords.renamed(name));
 		}
 		table?.focus({ preventScroll: true });
