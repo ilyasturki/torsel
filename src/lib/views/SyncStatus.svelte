@@ -5,10 +5,12 @@
 	import { me } from '#lib/client/session.svelte.ts';
 	import { resolveSession, sync, syncNow } from '#lib/client/sync.svelte.ts';
 	import { signInPath } from '#lib/core/return-path.ts';
+	import Rich from '#lib/i18n/Rich.svelte';
+	import { shell as words } from '#lib/i18n/shell.ts';
 
 	const action = 'underline';
 
-	function retry(): void {
+	function retryAll(): void {
 		void (me.account === undefined ? resolveSession() : syncNow());
 	}
 </script>
@@ -19,21 +21,31 @@
 		class="flex shrink-0 items-center gap-1 font-medium max-lg:order-last max-lg:basis-full max-lg:flex-wrap"
 	>
 		{#if app.saveFailed}
-			Couldn’t save on this device,
-			<button type="button" class={action} onclick={() => app.retrySave()}>retry</button>
+			<Rich text={words.saveFailed}>
+				{#snippet retry(label: string)}
+					<button type="button" class={action} onclick={() => app.retrySave()}>{label}</button>
+				{/snippet}
+			</Rich>
 		{:else if sync.status === 'offline'}
-			Offline, {app.pending} change{app.pending === 1 ? '' : 's'} waiting
+			{words.offline(app.pending)}
 		{:else if sync.status === 'signed-out'}
-			Session expired, {app.pending === 0
-				? 'your data stays here,'
-				: `${app.pending} waiting edit${app.pending === 1 ? ' stays' : 's stay'} here until you`}
-			<a class={action} href={signInPath(page.url.pathname + page.url.search)}>sign in again</a>
+			<Rich text={words.signedOut(app.pending)}>
+				{#snippet signin(label: string)}
+					<a class={action} href={signInPath(page.url.pathname + page.url.search)}>{label}</a>
+				{/snippet}
+			</Rich>
 		{:else if sync.status === 'error'}
-			Sync failed,
-			<button type="button" class={action} onclick={retry}>retry</button>
+			<Rich text={words.syncFailed}>
+				{#snippet retry(label: string)}
+					<button type="button" class={action} onclick={retryAll}>{label}</button>
+				{/snippet}
+			</Rich>
 		{:else}
-			This device holds another account’s data,
-			<button type="button" class={action} onclick={() => void app.reset()}>erase it</button>
+			<Rich text={words.otherAccount}>
+				{#snippet erase(label: string)}
+					<button type="button" class={action} onclick={() => void app.reset()}>{label}</button>
+				{/snippet}
+			</Rich>
 		{/if}
 	</p>
 {/if}

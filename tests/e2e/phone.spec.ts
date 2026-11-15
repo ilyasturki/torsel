@@ -1,6 +1,7 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import { expect, newView, pick, seed, tableMenu, tablePath, test } from './harness.ts';
 
 test.beforeEach(() => {
@@ -11,21 +12,27 @@ function seedSpending(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Home');
 		commit(base.changes);
-		const spending = createTable(ws, base.id, 'Spending', [
-			{
-				name: 'Category',
-				type: 'choice',
-				choices: [
-					{ name: 'groceries', color: null },
-					{ name: 'rent', color: null }
-				]
-			},
-			{ name: 'Amount', type: 'number' },
-			{ name: 'Count', type: 'number' },
-			{ name: 'Note', type: 'text' },
-			{ name: 'Shop', type: 'text' },
-			{ name: 'Day', type: 'date' }
-		]);
+		const spending = createTable(
+			ws,
+			base.id,
+			'Spending',
+			[
+				{
+					name: 'Category',
+					type: 'choice',
+					choices: [
+						{ name: 'groceries', color: null },
+						{ name: 'rent', color: null }
+					]
+				},
+				{ name: 'Amount', type: 'number' },
+				{ name: 'Count', type: 'number' },
+				{ name: 'Note', type: 'text' },
+				{ name: 'Shop', type: 'text' },
+				{ name: 'Day', type: 'date' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(spending.changes);
 		const [category, amount, count, note, shop, day] = spending.fieldIds;
 		commit(

@@ -1,24 +1,31 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import { cell, expect, pick, seed, tablePath, test, toastButton } from './harness.ts';
 
 function seedFilms(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Films');
 		commit(base.changes);
-		const films = createTable(ws, base.id, 'Films', [
-			{ name: 'Title', type: 'text' },
-			{
-				name: 'Status',
-				type: 'choice',
-				choices: [
-					{ name: 'watched', color: 'amber' },
-					{ name: 'to watch', color: 'orange' }
-				]
-			},
-			{ name: 'Rating', type: 'number' }
-		]);
+		const films = createTable(
+			ws,
+			base.id,
+			'Films',
+			[
+				{ name: 'Title', type: 'text' },
+				{
+					name: 'Status',
+					type: 'choice',
+					choices: [
+						{ name: 'watched', color: 'amber' },
+						{ name: 'to watch', color: 'orange' }
+					]
+				},
+				{ name: 'Rating', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(films.changes);
 		const [title, status, rating] = films.fieldIds;
 		commit(

@@ -1,6 +1,13 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
-import { createBase, createTable, insertRows, updateRecord } from '../../core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	insertRows,
+	updateRecord
+} from '../../core/actions.ts';
 import { Hlc } from '../../core/clock.ts';
 import type { Change } from '../../core/model.ts';
 import type { ThreadContext } from '../../core/thread.ts';
@@ -15,11 +22,17 @@ function movies() {
 	};
 	const base = createBase(ws, 'Movies');
 	commit(base.changes);
-	const table = createTable(ws, base.id, 'Movies', [
-		{ name: 'Title', type: 'text' },
-		{ name: 'Status', type: 'choice', choices: [{ name: 'watched', color: null }] },
-		{ name: 'Rating', type: 'number', description: 'Out of 10' }
-	]);
+	const table = createTable(
+		ws,
+		base.id,
+		'Movies',
+		[
+			{ name: 'Title', type: 'text' },
+			{ name: 'Status', type: 'choice', choices: [{ name: 'watched', color: null }] },
+			{ name: 'Rating', type: 'number', description: 'Out of 10' }
+		],
+		() => defaultViews(names.en)
+	);
 	commit(table.changes);
 	const rows = insertRows(ws, table.id, [
 		{ [table.fieldIds[0]]: 'Dune', [table.fieldIds[2]]: 8 },

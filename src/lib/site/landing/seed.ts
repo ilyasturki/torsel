@@ -1,7 +1,9 @@
+import names from '#lib/i18n/names.ts';
 import {
 	addField,
 	createBase,
 	createTable,
+	defaultViews,
 	createView,
 	insertRows,
 	updateRow
@@ -21,7 +23,9 @@ export function seedExample(
 	baseId: string,
 	example: Example
 ): Sample {
-	const table = createTable(ws, baseId, example.table, example.fields);
+	const table = createTable(ws, baseId, example.table, example.fields, () =>
+		defaultViews(names.en)
+	);
 	commit(table.changes);
 	commit(
 		insertRows(

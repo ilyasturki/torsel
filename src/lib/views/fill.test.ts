@@ -1,6 +1,7 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
-import { createBase, createTable, insertRows } from '#lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '#lib/core/actions.ts';
 import { Hlc } from '#lib/core/clock.ts';
 import type { Change, Value } from '#lib/core/model.ts';
 import { Workspace } from '#lib/core/workspace.ts';
@@ -80,13 +81,19 @@ function fixture() {
 	};
 	const base = createBase(ws, 'Base');
 	commit(base.changes);
-	const table = createTable(ws, base.id, 'Lifts', [
-		{ name: 'Note', type: 'text' },
-		{ name: 'Kg', type: 'number' },
-		{ name: 'Day', type: 'date' },
-		{ name: 'Style', type: 'choice', choices: [{ name: 'Strict', color: 'blue' }] },
-		{ name: 'Sum', type: 'formula', expr: '1' }
-	]);
+	const table = createTable(
+		ws,
+		base.id,
+		'Lifts',
+		[
+			{ name: 'Note', type: 'text' },
+			{ name: 'Kg', type: 'number' },
+			{ name: 'Day', type: 'date' },
+			{ name: 'Style', type: 'choice', choices: [{ name: 'Strict', color: 'blue' }] },
+			{ name: 'Sum', type: 'formula', expr: '1' }
+		],
+		() => defaultViews(names.en)
+	);
 	commit(table.changes);
 	const fields = ws.fields(table.id);
 	const [note, kg, day] = fields;

@@ -1,3 +1,6 @@
+import { shell as words } from '../i18n/shell.ts';
+import { locale } from '../i18n/runtime.ts';
+
 export class ApiError extends Error {
 	public readonly status: number;
 
@@ -84,7 +87,7 @@ export async function checkServer(base: string): Promise<void> {
 	try {
 		response = await fetch(new URL('/api/health', base));
 	} catch {
-		throw new ApiError(OFFLINE, 'Can’t reach this server.');
+		throw new ApiError(OFFLINE, words.unreachable);
 	}
 
 	let payload: unknown;
@@ -95,11 +98,11 @@ export async function checkServer(base: string): Promise<void> {
 	}
 
 	if (typeof payload !== 'object' || payload === null || !('ok' in payload)) {
-		throw new ApiError(response.status, 'This address isn’t a Torsel server.');
+		throw new ApiError(response.status, words.notTorsel);
 	}
 
 	if (!response.ok) {
-		throw new ApiError(response.status, 'This server is up but reports a problem.');
+		throw new ApiError(response.status, words.serverProblem);
 	}
 }
 
@@ -129,9 +132,9 @@ function sentence(text: string): string {
 
 function refusal(status: number, payload: unknown): string {
 	if (status === 401) {
-		return 'Your session has ended. Sign in again.';
+		return words.sessionEnded;
 	}
-	return sentence(messageFrom(payload, `Request failed (${status})`));
+	return sentence(messageFrom(payload, words.requestFailed(status)));
 }
 
 /** A POST whose answer arrives as one JSON object per line. `EventSource` can't POST or send a bearer token. */
@@ -142,10 +145,13 @@ export async function streamLines<T>(
 ): Promise<void> {
 	const base = apiBase();
 	if (base === null) {
-		throw new ApiError(NO_SERVER, 'No server connected.');
+		throw new ApiError(NO_SERVER, words.noServer);
 	}
 
-	const headers = new Headers({ 'content-type': 'application/json' });
+	const headers = new Headers({
+		'content-type': 'application/json',
+		'accept-language': locale()
+	});
 	const token = deviceToken();
 	if (token !== null) {
 		headers.set('authorization', `Bearer ${token}`);
@@ -163,7 +169,7 @@ export async function streamLines<T>(
 		if (options.signal.aborted) {
 			throw error;
 		}
-		throw new ApiError(OFFLINE, 'Can’t reach this server.');
+		throw new ApiError(OFFLINE, words.unreachable);
 	}
 
 	if (!response.ok || response.body === null) {
@@ -199,10 +205,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 	const base = apiBase();
 
 	if (base === null) {
-		throw new ApiError(NO_SERVER, 'No server connected.');
+		throw new ApiError(NO_SERVER, words.noServer);
 	}
 
-	const headers = new Headers();
+	const headers = new Headers({ 'accept-language': locale() });
 
 	// SvelteKit's built server answers 403 to a cross-origin mutation with no content type, body or not.
 	if (method !== 'GET') {
@@ -225,7 +231,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 			body: bytes ?? (body === undefined ? undefined : JSON.stringify(body))
 		});
 	} catch {
-		throw new ApiError(OFFLINE, 'Can’t reach this server.');
+		throw new ApiError(OFFLINE, words.unreachable);
 	}
 
 	let payload: unknown;

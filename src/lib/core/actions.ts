@@ -27,6 +27,15 @@ export type FieldSpec = {
 
 export type ViewSpec = { name: string; type: ViewType; config?: ViewConfig };
 
+/** What a new record is called, in the language of whoever makes it. */
+export type DefaultNames = {
+	base: string;
+	field: string;
+	table: (number: number) => string;
+	column: (number: number) => string;
+	views: Record<ViewType, string>;
+};
+
 function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {
 	const set: Record<string, Value> = { name: spec.name.trim(), type: spec.type, order };
 
@@ -77,7 +86,7 @@ export function createBase(ws: Workspace, name: string): { id: string; changes: 
 // Fixed id: two offline devices making their first table converge on one base.
 const HOME_BASE = 'b_home';
 
-export function homeBase(ws: Workspace): { id: string; changes: Change[] } {
+export function homeBase(ws: Workspace, names: DefaultNames): { id: string; changes: Change[] } {
 	const existing = ws.base(HOME_BASE) ?? ws.bases()[0];
 	if (existing !== undefined) {
 		return { id: existing.id, changes: [] };
@@ -85,29 +94,34 @@ export function homeBase(ws: Workspace): { id: string; changes: Change[] } {
 
 	// Reviving a deleted home would bring back the tables hidden with it.
 	return ws.get(HOME_BASE) === undefined
-		? { id: HOME_BASE, changes: [baseChange(ws, HOME_BASE, 'Tables')] }
-		: createBase(ws, 'Tables');
+		? { id: HOME_BASE, changes: [baseChange(ws, HOME_BASE, names.base)] }
+		: createBase(ws, names.base);
 }
 
-export const BLANK_FIELD = 'Name';
-
-export function nextTableName(ws: Workspace): string {
+export function nextTableName(ws: Workspace, names: DefaultNames): string {
 	const taken = new Set(
 		ws.bases().flatMap((base) => ws.tables(base.id).map((table) => table.name))
 	);
 	let number = 1;
-	while (taken.has(`Table ${number}`)) number += 1;
-	return `Table ${number}`;
+	while (taken.has(names.table(number))) number += 1;
+	return names.table(number);
 }
 
 export function blankTable(
 	ws: Workspace,
+	names: DefaultNames,
 	baseId?: string,
 	wanted?: string
 ): { id: string; name: string; viewIds: string[]; changes: Change[] } {
-	const home = baseId === undefined ? homeBase(ws) : { id: baseId, changes: [] };
-	const name = wanted?.trim() || nextTableName(ws);
-	const made = createTable(ws, home.id, name, [{ name: BLANK_FIELD, type: 'text', auto: true }]);
+	const home = baseId === undefined ? homeBase(ws, names) : { id: baseId, changes: [] };
+	const name = wanted?.trim() || nextTableName(ws, names);
+	const made = createTable(
+		ws,
+		home.id,
+		name,
+		[{ name: names.field, type: 'text', auto: true }],
+		() => defaultViews(names)
+	);
 
 	return {
 		id: made.id,
@@ -124,10 +138,10 @@ export function defaultMatch(fields: FieldDef[]): string[] {
 	return best === undefined ? [] : [best.id];
 }
 
-export function defaultViews(): ViewSpec[] {
+export function defaultViews(names: DefaultNames): ViewSpec[] {
 	return [
-		{ name: 'Grid', type: 'grid', config: {} },
-		{ name: 'Entry', type: 'entry', config: {} }
+		{ name: names.views.grid, type: 'grid', config: {} },
+		{ name: names.views.entry, type: 'entry', config: {} }
 	];
 }
 
@@ -200,7 +214,7 @@ export function createTable(
 	baseId: string,
 	name: string,
 	fields: FieldSpec[],
-	views?: (fieldIds: { id: string; type: FieldType }[]) => ViewSpec[]
+	views: (fieldIds: { id: string; type: FieldType }[]) => ViewSpec[]
 ): { id: string; fieldIds: string[]; viewIds: string[]; changes: Change[] } {
 	const id = newId('t');
 	const now = Date.now();
@@ -226,7 +240,7 @@ export function createTable(
 		return { id: fieldId, type: spec.type };
 	});
 
-	const viewIds = (views ?? defaultViews)(made).map((spec, order) => {
+	const viewIds = views(made).map((spec, order) => {
 		const viewId = newId('v');
 		changes.push({
 			id: viewId,

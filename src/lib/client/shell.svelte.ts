@@ -2,6 +2,8 @@ import { goto } from '$app/navigation';
 
 import { blankTable } from '../core/actions.ts';
 import { exportOf } from '../core/backup.ts';
+import { names } from '../i18n/names.ts';
+import { shell as words } from '../i18n/shell.ts';
 import { app } from './app.svelte.ts';
 import { tableUrl } from './nav.ts';
 import { applyWithUndo } from './toast.svelte.ts';
@@ -37,8 +39,8 @@ export function startTable(baseId?: string, name?: string): void {
 	// The second click of a double-click lands before the page has moved on: one table, not two.
 	if (Date.now() - startedAt < 500) return;
 	startedAt = Date.now();
-	const made = blankTable(app.ws, baseId, name);
-	applyWithUndo(made.changes, `Table "${made.name}" created`);
+	const made = blankTable(app.ws, names, baseId, name);
+	applyWithUndo(made.changes, words.tableCreated(made.name));
 	if (name?.trim()) {
 		shell.addingField = true;
 	} else {

@@ -1,10 +1,13 @@
 import { z } from 'zod';
 
+import { names } from '../../i18n/names.ts';
+
 import type { FieldSpec } from '../../core/actions.ts';
 import {
 	addField,
 	createBase,
 	createTable,
+	defaultViews,
 	createView,
 	deleteRecords,
 	homeBase,
@@ -763,10 +766,10 @@ export const TOOLS: Tool[] = [
 		run: (ctx, input: { base?: string; name: string; fields: FieldInput[] }) => {
 			const base =
 				input.base === undefined
-					? homeBase(ctx.ws)
+					? homeBase(ctx.ws, names)
 					: { id: findBase(ctx.ws, input.base).id, changes: [] };
 			const specs = input.fields.map((field) => fieldSpec(ctx.ws, base.id, field));
-			const made = createTable(ctx.ws, base.id, input.name, specs);
+			const made = createTable(ctx.ws, base.id, input.name, specs, () => defaultViews(names));
 			commit(ctx, {
 				summary: `New table "${input.name}"`,
 				changes: [...base.changes, ...made.changes]
@@ -1047,13 +1050,13 @@ export const TOOLS: Tool[] = [
 			}
 			const base =
 				input.base === undefined
-					? homeBase(ctx.ws)
+					? homeBase(ctx.ws, names)
 					: { id: findBase(ctx.ws, input.base).id, changes: [] };
-			const columns = guessColumns(sheet.rows);
+			const columns = guessColumns(sheet.rows, names);
 			if (input.table !== undefined) {
 				const table = findTable(ctx.ws, base.id, input.table);
 				const targets = guessTargets(columns, ctx.ws.fields(table.id));
-				const made = appendRows(ctx.ws, table.id, sheet.rows, columns, targets);
+				const made = appendRows(ctx.ws, names, table.id, sheet.rows, columns, targets);
 				commit(ctx, {
 					summary: `Import ${plural(made.count, 'row')} into ${table.name}`,
 					changes: made.changes
@@ -1061,7 +1064,7 @@ export const TOOLS: Tool[] = [
 				return { added: made.count, unread: made.unread };
 			}
 			const name = input.name ?? sheet.name.replace(/\.[^.]+$/u, '');
-			const made = importTable(ctx.ws, base.id, name, sheet.rows, columns);
+			const made = importTable(ctx.ws, names, base.id, name, sheet.rows, columns);
 			commit(ctx, {
 				summary: `New table "${name}" from ${sheet.name}`,
 				changes: [...base.changes, ...made.changes]

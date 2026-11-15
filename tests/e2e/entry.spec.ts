@@ -1,6 +1,13 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import { expect, seed, tablePath, test } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
@@ -12,13 +19,19 @@ function seedSessions(request: APIRequestContext) {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
 		const choices = (names: string[]) => names.map((name) => ({ name, color: null }));
-		const sets = createTable(ws, base.id, 'Sets', [
-			{ name: 'Session', type: 'choice', choices: choices(['push', 'legs']) },
-			{ name: 'Date', type: 'date' },
-			{ name: 'Exercise', type: 'choice', choices: choices(['bench', 'dips', 'squat']) },
-			{ name: 'Reps', type: 'number' },
-			{ name: 'Kg', type: 'number', step: 2.5 }
-		]);
+		const sets = createTable(
+			ws,
+			base.id,
+			'Sets',
+			[
+				{ name: 'Session', type: 'choice', choices: choices(['push', 'legs']) },
+				{ name: 'Date', type: 'date' },
+				{ name: 'Exercise', type: 'choice', choices: choices(['bench', 'dips', 'squat']) },
+				{ name: 'Reps', type: 'number' },
+				{ name: 'Kg', type: 'number', step: 2.5 }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(sets.changes);
 		const [session, date, exercise, reps, kg] = sets.fieldIds;
 		const set = (day: string, name: string, lift: string, count: number, load: number) => ({
@@ -132,10 +145,16 @@ test('a double click on Add row logs one row, and the desktop button is mouse-si
 	const path = await seed(context.request, (ws, commit) => {
 		const base = createBase(ws, 'Body');
 		commit(base.changes);
-		const weight = createTable(ws, base.id, 'Weight', [
-			{ name: 'Date', type: 'date' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const weight = createTable(
+			ws,
+			base.id,
+			'Weight',
+			[
+				{ name: 'Date', type: 'date' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(weight.changes);
 		commit(insertRows(ws, weight.id, [{ [weight.fieldIds[1]]: 80 }]).changes);
 		const entry = createView(ws, weight.id, { name: 'Log', type: 'entry', config: {} });

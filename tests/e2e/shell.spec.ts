@@ -1,6 +1,13 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import {
 	allTables,
 	expect,
@@ -19,11 +26,17 @@ function seedTwoTables(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
 		commit(base.changes);
-		const lifts = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Date', type: 'date' },
-			{ name: 'Reps', type: 'number' },
-			{ name: 'Kg', type: 'number', step: 2.5 }
-		]);
+		const lifts = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Date', type: 'date' },
+				{ name: 'Reps', type: 'number' },
+				{ name: 'Kg', type: 'number', step: 2.5 }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(lifts.changes);
 		commit(
 			insertRows(ws, lifts.id, [
@@ -36,7 +49,9 @@ function seedTwoTables(request: APIRequestContext) {
 			config: { kind: 'bar', x: lifts.fieldIds[0], agg: 'sum', y: lifts.fieldIds[2] }
 		});
 		commit(chart.changes);
-		const weight = createTable(ws, base.id, 'Weight', [{ name: 'Kg', type: 'number' }]);
+		const weight = createTable(ws, base.id, 'Weight', [{ name: 'Kg', type: 'number' }], () =>
+			defaultViews(names.en)
+		);
 		commit(weight.changes);
 		return { lifts: lifts.id, weight: weight.id, entry: lifts.viewIds[1], chart: chart.id };
 	});
@@ -140,12 +155,18 @@ test('the table list filters as it is typed in, and opens with Ctrl P', async ({
 	const { lifts } = await seed(context.request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
 		commit(base.changes);
-		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Reps', type: 'number' }]);
+		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Reps', type: 'number' }], () =>
+			defaultViews(names.en)
+		);
 		commit(table.changes);
 		const rows = Array.from({ length: 40 }, (_, reps) => ({ [table.fieldIds[0]]: reps }));
 		commit(insertRows(ws, table.id, rows).changes);
 		for (const name of ['Body weight', 'Expenses', 'Reading list']) {
-			commit(createTable(ws, base.id, name, [{ name: 'Value', type: 'text' }]).changes);
+			commit(
+				createTable(ws, base.id, name, [{ name: 'Value', type: 'text' }], () =>
+					defaultViews(names.en)
+				).changes
+			);
 		}
 		return { lifts: table.id };
 	});
@@ -550,21 +571,27 @@ test('entry fills in from the last row done, past rows planned and left blank', 
 	const { path } = await seed(context.request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const sets = createTable(ws, base.id, 'Sets', [
-			{ name: 'Date', type: 'date' },
-			{
-				name: 'Exercise',
-				type: 'choice',
-				choices: [
-					'Squat',
-					'Bench',
-					'Dip',
-					...Array.from({ length: 10 }, (_, i) => `Lift ${i}`)
-				].map((name) => ({ name, color: null }))
-			},
-			{ name: 'Kg', type: 'number' },
-			{ name: 'Reps', type: 'number' }
-		]);
+		const sets = createTable(
+			ws,
+			base.id,
+			'Sets',
+			[
+				{ name: 'Date', type: 'date' },
+				{
+					name: 'Exercise',
+					type: 'choice',
+					choices: [
+						'Squat',
+						'Bench',
+						'Dip',
+						...Array.from({ length: 10 }, (_, i) => `Lift ${i}`)
+					].map((name) => ({ name, color: null }))
+				},
+				{ name: 'Kg', type: 'number' },
+				{ name: 'Reps', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(sets.changes);
 		const [date, exercise, kg, reps] = sets.fieldIds;
 		const row = (day: string, name: string, load: number | null, count: number | null) => ({

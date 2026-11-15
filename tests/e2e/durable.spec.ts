@@ -1,6 +1,7 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Page } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import {
 	askAddsDeadlift,
 	askButton,
@@ -468,7 +469,9 @@ test('a record whose save failed still lands, before the watermark passes it', a
 	const path = await seed(context.request, (ws, commit) => {
 		const base = createBase(ws, 'Other');
 		commit(base.changes);
-		const made = createTable(ws, base.id, 'More', [{ name: 'Exercise', type: 'text' }]);
+		const made = createTable(ws, base.id, 'More', [{ name: 'Exercise', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
 		commit(made.changes);
 		commit(insertRows(ws, made.id, [{ [made.fieldIds[0]]: 'Deadlift' }]).changes);
 		return tablePath(made.id);

@@ -4,6 +4,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { parseExport } from '../../core/backup.ts';
 import { parseCsv, withHeader } from '../../core/csv.ts';
+import { names } from '../../i18n/names.ts';
 import type { Rec } from '../../core/model.ts';
 import type { StoredFile } from './threads.ts';
 
@@ -46,7 +47,7 @@ export function sheetOf(file: StoredFile): Sheet | null {
 	if (kind === 'delimited' || kind === 'text') {
 		const rows = parseCsv(text(file));
 		return rows.length > 1 && rows[0].length > 1
-			? { kind: 'table', name: file.name, rows: withHeader(rows) }
+			? { kind: 'table', name: file.name, rows: withHeader(rows, names) }
 			: null;
 	}
 	if (kind === 'excel') {
@@ -311,5 +312,8 @@ export function xlsxRows(data: Buffer): string[][] | null {
 	const width = Math.max(0, ...rows.map((cells) => cells.length));
 	return rows.length === 0
 		? null
-		: withHeader(rows.map((cells) => [...cells, ...Array<string>(width - cells.length).fill('')]));
+		: withHeader(
+				rows.map((cells) => [...cells, ...Array<string>(width - cells.length).fill('')]),
+				names
+			);
 }

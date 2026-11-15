@@ -10,6 +10,7 @@
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import { homeBase, nextTableName } from '#lib/core/actions.ts';
 	import { parseExport, restoreChanges } from '#lib/core/backup.ts';
+	import { names } from '#lib/i18n/names.ts';
 	import type { ColumnGuess } from '#lib/core/csv.ts';
 	import {
 		NEW_FIELD,
@@ -88,7 +89,7 @@
 			targets = [];
 			records = null;
 			problem = '';
-			base = bases.length > 1 ? homeBase(app.ws).id : '';
+			base = bases.length > 1 ? homeBase(app.ws, names).id : '';
 			into = start.into ?? NEW_TABLE;
 			tableName = '';
 			open = true;
@@ -104,14 +105,15 @@
 			records = parseExport(text);
 			if (records === null) problem = 'This file isn’t a Torsel export.';
 		} else {
-			const parsed = withHeader(parseCsv(text, start.text === undefined ? undefined : '\t'));
+			const parsed = withHeader(parseCsv(text, start.text === undefined ? undefined : '\t'), names);
 			if (parsed.length < 2) {
 				problem = 'This has no rows to import.';
 				return;
 			}
 			rows = parsed;
-			columns = guessColumns(parsed);
-			tableName = start.file?.name.replace(/\.(csv|tsv|txt)$/iu, '') ?? nextTableName(app.ws);
+			columns = guessColumns(parsed, names);
+			tableName =
+				start.file?.name.replace(/\.(csv|tsv|txt)$/iu, '') ?? nextTableName(app.ws, names);
 			pickTable(into);
 		}
 
@@ -141,6 +143,7 @@
 	function append(): void {
 		const { changes, count, unread } = appendRows(
 			app.ws,
+			names,
 			into,
 			rows,
 			$state.snapshot(columns),
@@ -158,9 +161,9 @@
 	}
 
 	function create(): void {
-		const name = tableName.trim() || nextTableName(app.ws);
-		const home = base === '' ? homeBase(app.ws) : { id: base, changes: [] };
-		const made = importTable(app.ws, home.id, name, rows, $state.snapshot(columns));
+		const name = tableName.trim() || nextTableName(app.ws, names);
+		const home = base === '' ? homeBase(app.ws, names) : { id: base, changes: [] };
+		const made = importTable(app.ws, names, home.id, name, rows, $state.snapshot(columns));
 		const count = rows.length - 1;
 		const label = `${count} ${count === 1 ? 'row' : 'rows'} imported into "${name}"`;
 		const group = app.apply([...home.changes, ...made.changes], label);

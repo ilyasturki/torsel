@@ -1,5 +1,6 @@
 import type { FieldSpec } from './actions.ts';
-import { BLANK_FIELD, addField, createTable, deleteRecords } from './actions.ts';
+import type { DefaultNames } from './actions.ts';
+import { addField, createTable, deleteRecords } from './actions.ts';
 import { newId } from './ids.ts';
 import type { Change, FieldDef, FieldFormat, FieldType, Value } from './model.ts';
 import { CREATED, formatSet, hasChoices, isDated } from './model.ts';
@@ -86,13 +87,13 @@ export function parseCsv(input: string, delimiter: string = detectDelimiter(inpu
 }
 
 /** Rows with a header first: cells pasted with none get numbered columns, data never being names. */
-export function withHeader(rows: string[][]): string[][] {
+export function withHeader(rows: string[][], names: DefaultNames): string[][] {
 	const [first] = rows;
 	const named =
 		first === undefined ||
 		!first.some((cell) => parseNumber(cell) !== null || parseDate(cell) !== null);
 
-	return named ? rows : [first.map((_, index) => `Column ${index + 1}`), ...rows];
+	return named ? rows : [first.map((_, index) => names.column(index + 1)), ...rows];
 }
 
 export type ColumnGuess = { name: string; choices: string[] } & Detected;
@@ -147,12 +148,12 @@ function guessType(values: string[]): Omit<ColumnGuess, 'name'> {
 	return choices === null ? { type: 'text', choices: [] } : { type: 'choice', choices };
 }
 
-export function guessColumns(rows: string[][]): ColumnGuess[] {
+export function guessColumns(rows: string[][], names: DefaultNames): ColumnGuess[] {
 	const [header = [], ...body] = rows;
 	const used = new Set<string>();
 
 	return header.map((raw, index) => {
-		const base = raw.trim() === '' ? `Column ${index + 1}` : raw.trim();
+		const base = raw.trim() === '' ? names.column(index + 1) : raw.trim();
 		let name = base;
 		for (let n = 2; used.has(name.toLowerCase()); n += 1) {
 			name = `${base} (${n})`;
@@ -209,18 +210,19 @@ function settled(body: string[][], at: number): boolean {
 
 export function importTable(
 	ws: Workspace,
+	names: DefaultNames,
 	baseId: string,
 	name: string,
 	rows: string[][],
-	columns: ColumnGuess[] = guessColumns(rows),
+	columns: ColumnGuess[] = guessColumns(rows, names),
 	now: number = Date.now()
 ): { id: string; changes: Change[] } {
 	const body = rows.slice(1);
 	const typed = chosenColumns(columns, body);
 	const { id, fieldIds, changes } = createTable(ws, baseId, name, fieldSpecs(typed), (made) => [
-		{ name: 'Grid', type: 'grid', config: {} },
+		{ name: names.views.grid, type: 'grid', config: {} },
 		{
-			name: 'Entry',
+			name: names.views.entry,
 			type: 'entry',
 			config: { hidden: made.filter((_, at) => settled(body, at)).map((field) => field.id) }
 		}
@@ -275,6 +277,7 @@ type Mapped = { at: number; id: string; format: FieldFormat };
  */
 export function appendRows(
 	ws: Workspace,
+	names: DefaultNames,
 	tableId: string,
 	rows: string[][],
 	columns: ColumnGuess[],
@@ -355,7 +358,7 @@ export function appendRows(
 	if (ws.rows(tableId).length === 0) {
 		const filled = new Set(mapped.map((item) => item.id));
 		const unfilled = [...fields.values()].filter(
-			(field) => field.auto && field.name === BLANK_FIELD && !filled.has(field.id)
+			(field) => field.auto && field.name === names.field && !filled.has(field.id)
 		);
 		changes.push(
 			...deleteRecords(

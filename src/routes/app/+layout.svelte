@@ -15,6 +15,9 @@
 	import { isTyping, pastedCells, shell } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
 	import { redoChange, undoChange } from '#lib/client/toast.svelte.ts';
+	import { common } from '#lib/i18n/common.ts';
+	import { markDocumentLocale } from '#lib/i18n/runtime.ts';
+	import { shell as words } from '#lib/i18n/shell.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -35,6 +38,8 @@
 	import ViewTabs from '#lib/views/ViewTabs.svelte';
 
 	let { children } = $props();
+
+	markDocumentLocale();
 
 	onMount(followOtherTabs);
 
@@ -114,7 +119,7 @@
 		return table === undefined ? 0 : app.ws.rows(table.id).length;
 	});
 
-	const heading = $derived(table?.name ?? (onSettings ? 'Settings' : 'Tables'));
+	const heading = $derived(table?.name ?? (onSettings ? words.settings : words.tables));
 
 	let asking = $state(false);
 	let menuOpen = $state(false);
@@ -198,7 +203,7 @@
 </script>
 
 <svelte:head>
-	<title>{heading === 'Tables' ? 'Torsel' : `${heading} · Torsel`}</title>
+	<title>{table === undefined && !onSettings ? 'Torsel' : `${heading} · Torsel`}</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -222,7 +227,7 @@
 			<a
 				href={HOME}
 				class="shrink-0 rounded-box text-ink transition-colors motion hover:text-ink-2"
-				aria-label="All tables"
+				aria-label={words.allTables}
 			>
 				<Logo class="size-4" />
 			</a>
@@ -235,7 +240,7 @@
 					</h1>
 				{/if}
 				{#if table !== undefined}
-					<span class="shrink-0 text-ink-3">{rowCount} {rowCount === 1 ? 'row' : 'rows'}</span>
+					<span class="shrink-0 text-ink-3">{words.rowCount(rowCount)}</span>
 				{/if}
 			</div>
 			<SyncStatus />
@@ -247,7 +252,7 @@
 								{...props}
 								class={asking ? 'bg-button-hover' : ''}
 								aria-pressed={asking}
-								onclick={() => (asking = !asking)}>Ask</Button
+								onclick={() => (asking = !asking)}>{words.ask}</Button
 							>
 						{/snippet}
 					</Tooltip>
@@ -262,13 +267,15 @@
 						if (onSettings && event.detail > 1) event.preventDefault();
 					}}
 				>
-					<span class="col-start-1 row-start-1 {onSettings ? 'invisible' : ''}">Settings</span>
-					<span class="col-start-1 row-start-1 {onSettings ? '' : 'invisible'}">Back</span>
+					<span class="col-start-1 row-start-1 {onSettings ? 'invisible' : ''}"
+						>{words.settings}</span
+					>
+					<span class="col-start-1 row-start-1 {onSettings ? '' : 'invisible'}">{common.back}</span>
 				</a>
 				{#if table !== undefined}
 					<IconButton
 						icon="more"
-						label="More"
+						label={common.more}
 						tooltip={false}
 						class="sm:hidden"
 						onclick={() => (menuOpen = true)}
@@ -282,7 +289,7 @@
 				<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
 				<IconButton
 					icon="more"
-					label="More"
+					label={common.more}
 					class="max-sm:hidden"
 					onclick={(event) => {
 						menuAnchor = event.currentTarget;
@@ -293,14 +300,14 @@
 					<Button
 						variant="primary"
 						class="ml-auto max-sm:w-control max-sm:px-0"
-						aria-label="New row"
+						aria-label={words.newRow}
 						onclick={() => {
 							if (view?.type === 'grid') gridJump.blankRow += 1;
 							else shell.newRow = true;
 						}}
 					>
 						<Icon name="plus" class="size-4 sm:hidden" />
-						<span class="max-sm:hidden">New row</span>
+						<span class="max-sm:hidden">{words.newRow}</span>
 					</Button>
 				{/if}
 			</div>

@@ -1,3 +1,4 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { ChildProcess } from 'node:child_process';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -7,7 +8,7 @@ import { join } from 'node:path';
 
 import type { APIRequestContext, Page } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import { cell, expect, RETRY_RESET, seed, tablePath, test, watchErrors } from './harness.ts';
 
 const DEV = process.env.TORSEL_TEST_DEV === '1';
@@ -21,10 +22,16 @@ function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const lifts = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Exercise', type: 'text' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const lifts = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Exercise', type: 'text' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(lifts.changes);
 		commit(
 			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes

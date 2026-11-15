@@ -1,6 +1,7 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import { expect, openTable, script, seed, tablePath, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
@@ -24,11 +25,17 @@ function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
 		commit(base.changes);
-		const table = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Exercise', type: 'text' },
-			{ name: 'Reps', type: 'number' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Exercise', type: 'text' },
+				{ name: 'Reps', type: 'number' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(table.changes);
 		const [exercise, reps, kg] = table.fieldIds;
 		const rows = insertRows(ws, table.id, [

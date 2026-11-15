@@ -1,7 +1,15 @@
+import names from '#lib/i18n/names.ts';
 import { localeFormats } from '#lib/client/format.ts';
 import { describe, expect, it } from 'vitest';
 
-import { addField, createBase, createTable, insertRows, reorder } from '#lib/core/actions.ts';
+import {
+	addField,
+	createBase,
+	createTable,
+	defaultViews,
+	insertRows,
+	reorder
+} from '#lib/core/actions.ts';
 import { Hlc } from '#lib/core/clock.ts';
 import { guessColumns, parseCells, parseCsv, toCsv } from '#lib/core/csv.ts';
 import type { Change, FieldDef } from '#lib/core/model.ts';
@@ -30,18 +38,26 @@ function fixture() {
 	};
 	const base = createBase(ws, 'Base');
 	commit(base.changes);
-	const target = createTable(ws, base.id, 'Exercises', [{ name: 'Name', type: 'text' }]);
+	const target = createTable(ws, base.id, 'Exercises', [{ name: 'Name', type: 'text' }], () =>
+		defaultViews(names.en)
+	);
 	commit(target.changes);
 	commit(insertRows(ws, target.id, [{ [target.fieldIds[0]]: 'Squat' }]).changes);
-	const table = createTable(ws, base.id, 'Lifts', [
-		{ name: 'Note', type: 'text' },
-		{ name: 'Kg', type: 'number' },
-		{ name: 'Day', type: 'date' },
-		{ name: 'Style', type: 'choice', choices: [{ name: 'Strict', color: 'blue' }] },
-		{ name: 'Lift', type: 'link', target: target.id },
-		{ name: 'Done', type: 'check' },
-		{ name: 'Sum', type: 'formula', expr: '1' }
-	]);
+	const table = createTable(
+		ws,
+		base.id,
+		'Lifts',
+		[
+			{ name: 'Note', type: 'text' },
+			{ name: 'Kg', type: 'number' },
+			{ name: 'Day', type: 'date' },
+			{ name: 'Style', type: 'choice', choices: [{ name: 'Strict', color: 'blue' }] },
+			{ name: 'Lift', type: 'link', target: target.id },
+			{ name: 'Done', type: 'check' },
+			{ name: 'Sum', type: 'formula', expr: '1' }
+		],
+		() => defaultViews(names.en)
+	);
 	commit(table.changes);
 	const [note, kg, day, style, lift, done, sum] = ws.fields(table.id);
 	return { ws, commit, tableId: table.id, target, note, kg, day, style, lift, done, sum };
@@ -141,7 +157,7 @@ describe('exporting a view', () => {
 		if (view === undefined) throw new Error('no grid view');
 
 		const cells = viewCells(ws, tableId, view, new Map());
-		const columns = guessColumns(parseCsv(toCsv(cells))).slice(-5);
+		const columns = guessColumns(parseCsv(toCsv(cells)), names.en).slice(-5);
 		expect(columns.map((column) => column.type)).toEqual([
 			'currency',
 			'percent',

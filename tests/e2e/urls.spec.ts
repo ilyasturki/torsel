@@ -1,6 +1,13 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import { expect, seed, tableMenu, tablePath, test, toastButton } from './harness.ts';
 
 const at = (path: string): RegExp => new RegExp(`${path}$`, 'u');
@@ -9,7 +16,9 @@ function seedSeries(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
 		commit(base.changes);
-		const series = createTable(ws, base.id, 'Séries', [{ name: 'Title', type: 'text' }]);
+		const series = createTable(ws, base.id, 'Séries', [{ name: 'Title', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
 		commit(series.changes);
 		commit(insertRows(ws, series.id, [{ [series.fieldIds[0]]: 'Severance' }]).changes);
 		const watched = createView(ws, series.id, { name: 'Date watched', type: 'list', config: {} });
@@ -70,7 +79,9 @@ test('two tables with one name each get their own address', async ({ page, conte
 		]) {
 			const base = createBase(ws, baseName);
 			commit(base.changes);
-			const sets = createTable(ws, base.id, 'Sets', [{ name: 'Name', type: 'text' }]);
+			const sets = createTable(ws, base.id, 'Sets', [{ name: 'Name', type: 'text' }], () =>
+				defaultViews(names.en)
+			);
 			commit(sets.changes);
 			commit(insertRows(ws, sets.id, [{ [sets.fieldIds[0]]: row }]).changes);
 		}
@@ -122,7 +133,9 @@ test('a name in another script keeps its letters in the address', async ({
 	const { courses } = await seed(context.request, (ws, commit) => {
 		const base = createBase(ws, 'Tables');
 		commit(base.changes);
-		const made = createTable(ws, base.id, 'Курсы', [{ name: 'Name', type: 'text' }]);
+		const made = createTable(ws, base.id, 'Курсы', [{ name: 'Name', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
 		commit(made.changes);
 		return { courses: made.id };
 	});

@@ -1,3 +1,4 @@
+import { shell as words } from '../i18n/shell.ts';
 import { request, setDeviceToken } from './api.ts';
 
 export type Account = { id: string; email: string; createdAt: number; hasPassword: boolean };
@@ -25,7 +26,7 @@ type Proof = { droppedPassword: boolean; token?: string };
 
 function clientFields(): Record<string, string> {
 	return import.meta.env.APP_BUILD
-		? { client: 'device', label: 'Torsel on Android' }
+		? { client: 'device', label: words.androidToken }
 		: { client: 'web' };
 }
 

@@ -1,8 +1,10 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
 import {
 	createBase,
 	createTable,
+	defaultViews,
 	deleteRecords,
 	insertRows,
 	updateRecord,
@@ -28,11 +30,17 @@ function movies() {
 	});
 	const base = createBase(ws, 'Movies');
 	act('base', base.changes);
-	const table = createTable(ws, base.id, 'Movies', [
-		{ name: 'Title', type: 'text' },
-		{ name: 'Rating', type: 'number' },
-		{ name: 'Notes', type: 'text' }
-	]);
+	const table = createTable(
+		ws,
+		base.id,
+		'Movies',
+		[
+			{ name: 'Title', type: 'text' },
+			{ name: 'Rating', type: 'number' },
+			{ name: 'Notes', type: 'text' }
+		],
+		() => defaultViews(names.en)
+	);
 	const made = act('table', table.changes);
 	const [title, rating, notes] = table.fieldIds;
 	return { ws, act, made, table, title, rating, notes };

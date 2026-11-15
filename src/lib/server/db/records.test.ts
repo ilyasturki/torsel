@@ -1,6 +1,13 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
-import { createBase, createTable, insertRows, updateRecord } from '../../core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	insertRows,
+	updateRecord
+} from '../../core/actions.ts';
 import { Hlc } from '../../core/clock.ts';
 import type { Rec } from '../../core/model.ts';
 import { Workspace } from '../../core/workspace.ts';
@@ -35,10 +42,16 @@ describe('sync', () => {
 
 		const base = createBase(phone.ws, 'Muscu');
 		act(phone, base.changes);
-		const table = createTable(phone.ws, base.id, 'Séries', [
-			{ name: 'Poids', type: 'number' },
-			{ name: 'Reps', type: 'number' }
-		]);
+		const table = createTable(
+			phone.ws,
+			base.id,
+			'Séries',
+			[
+				{ name: 'Poids', type: 'number' },
+				{ name: 'Reps', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		act(phone, table.changes);
 		const [poids, reps] = table.fieldIds;
 		const rows = insertRows(phone.ws, table.id, [{ [poids]: 80, [reps]: 6 }]);

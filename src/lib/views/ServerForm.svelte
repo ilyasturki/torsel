@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ApiError, DEFAULT_SERVER, apiBase, checkServer, setApiBase } from '#lib/client/api.ts';
+	import { shell as words } from '#lib/i18n/shell.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { input } from '#lib/ui/styles.ts';
 
@@ -16,7 +17,7 @@
 			setApiBase(address);
 			onconnected(address);
 		} catch (error) {
-			problem = error instanceof ApiError ? error.message : 'That address doesn’t work.';
+			problem = error instanceof ApiError ? error.message : words.badAddress;
 		}
 	}
 </script>
@@ -33,8 +34,8 @@
 		bind:value={server}
 		inputmode="url"
 		placeholder="https://torsel.example.com"
-		aria-label="Server address"
+		aria-label={words.serverAddress}
 	/>
-	<Button type="submit">Connect</Button>
+	<Button type="submit">{words.connect}</Button>
 </form>
 {#if problem}<p role="alert">{problem}</p>{/if}

@@ -1,6 +1,7 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Page } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import {
 	expect,
 	newAccount,
@@ -16,7 +17,9 @@ function seedRow(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }]);
+		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
 		commit(table.changes);
 		commit(insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Squat' }]).changes);
 		return tablePath(table.id);

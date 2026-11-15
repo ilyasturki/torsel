@@ -1,10 +1,11 @@
 import type { Change } from '../core/model.ts';
 import type { Group } from './app.svelte.ts';
+import { shell as words } from '../i18n/shell.ts';
 import { app } from './app.svelte.ts';
 
 // An undo is a step of the history, or what takes back a change kept out of it.
 type ToastAction =
-	{ label: 'Undo'; group: number } | { label: 'Undo'; run: () => void } | { label: 'Redo' };
+	{ kind: 'undo'; group: number } | { kind: 'undo'; run: () => void } | { kind: 'redo' };
 
 export const toast = $state({ text: '', action: null as ToastAction | null, seq: 0 });
 
@@ -29,8 +30,8 @@ export function showToast(text: string, undo: number | (() => void) | null = nul
 		undo === null
 			? null
 			: typeof undo === 'function'
-				? { label: 'Undo', run: undo }
-				: { label: 'Undo', group: undo }
+				? { kind: 'undo', run: undo }
+				: { kind: 'undo', group: undo }
 	);
 }
 
@@ -44,14 +45,14 @@ export function applyWithUndo(changes: Change[], label: string): Group | null {
 /** The last change, or the one `id` names. */
 export function undoChange(id?: number): void {
 	const group = app.undo(id);
-	if (group === undefined) show('Nothing to undo', null);
-	else show(`Undid: ${group.label}`, { label: 'Redo' });
+	if (group === undefined) show(words.nothingToUndo, null);
+	else show(words.undid(group.label), { kind: 'redo' });
 }
 
 export function redoChange(): void {
 	const group = app.redo();
-	if (group === undefined) show('Nothing to redo', null);
-	else show(`Redid: ${group.label}`, { label: 'Undo', group: group.id });
+	if (group === undefined) show(words.nothingToRedo, null);
+	else show(words.redid(group.label), { kind: 'undo', group: group.id });
 }
 
 /** A toast from before a sheet opened would cover its footer; one the sheet's own change raised stays. */
@@ -70,6 +71,6 @@ export function runToastAction(): void {
 		toast.text = '';
 		toast.action = null;
 		action.run();
-	} else if (action.label === 'Undo') undoChange(action.group);
+	} else if (action.kind === 'undo') undoChange(action.group);
 	else redoChange();
 }

@@ -1,6 +1,13 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import { expect, seed, tablePath, test, toastButton } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
@@ -12,10 +19,16 @@ function seedHome(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const body = createBase(ws, 'Body');
 		commit(body.changes);
-		const weighIns = createTable(ws, body.id, 'Weigh-ins', [
-			{ name: 'Date', type: 'date' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const weighIns = createTable(
+			ws,
+			body.id,
+			'Weigh-ins',
+			[
+				{ name: 'Date', type: 'date' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(weighIns.changes);
 		const [date, kg] = weighIns.fieldIds;
 		commit(
@@ -31,14 +44,24 @@ function seedHome(request: APIRequestContext) {
 			config: { kind: 'line', x: date, agg: 'avg', y: kg, rolling: 7 }
 		});
 		commit(curve.changes);
-		commit(createTable(ws, body.id, 'Blank', [{ name: 'Name', type: 'text' }]).changes);
+		commit(
+			createTable(ws, body.id, 'Blank', [{ name: 'Name', type: 'text' }], () =>
+				defaultViews(names.en)
+			).changes
+		);
 
 		const shopping = createBase(ws, 'Shopping');
 		commit(shopping.changes);
-		const list = createTable(ws, shopping.id, 'List', [
-			{ name: 'Item', type: 'text' },
-			{ name: 'Bought', type: 'check' }
-		]);
+		const list = createTable(
+			ws,
+			shopping.id,
+			'List',
+			[
+				{ name: 'Item', type: 'text' },
+				{ name: 'Bought', type: 'check' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(list.changes);
 		const [item, bought] = list.fieldIds;
 		commit(
@@ -48,7 +71,9 @@ function seedHome(request: APIRequestContext) {
 				{ [item]: 'Rice', [bought]: false }
 			]).changes
 		);
-		const shops = createTable(ws, shopping.id, 'Shops', [{ name: 'Name', type: 'text' }]);
+		const shops = createTable(ws, shopping.id, 'Shops', [{ name: 'Name', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
 		commit(shops.changes);
 		commit(
 			insertRows(ws, shops.id, [

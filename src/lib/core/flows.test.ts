@@ -1,3 +1,4 @@
+import defaultNames from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +6,7 @@ import {
 	blankTable,
 	createBase,
 	createTable,
+	defaultViews,
 	deleteRecords,
 	entryFields,
 	insertRows,
@@ -39,10 +41,16 @@ function lifts() {
 	const { ws, apply } = setup();
 	const base = createBase(ws, 'Gym');
 	apply(base.changes);
-	const table = createTable(ws, base.id, 'Lifts', [
-		{ name: 'Exercise', type: 'text' },
-		{ name: 'Kg', type: 'text' }
-	]);
+	const table = createTable(
+		ws,
+		base.id,
+		'Lifts',
+		[
+			{ name: 'Exercise', type: 'text' },
+			{ name: 'Kg', type: 'text' }
+		],
+		() => defaultViews(defaultNames.en)
+	);
 	apply(table.changes);
 	const [exercise, kg] = table.fieldIds;
 	const { ids, changes } = insertRows(ws, table.id, [
@@ -57,7 +65,7 @@ function lifts() {
 describe('a field nobody typed', () => {
 	function fresh() {
 		const { ws, apply } = setup();
-		const made = blankTable(ws);
+		const made = blankTable(ws, defaultNames.en);
 		apply(made.changes);
 		const { id, changes } = addField(ws, made.id, { name: 'Kg', type: 'text', auto: true });
 		apply(changes);
@@ -157,7 +165,9 @@ describe('changing a field type', () => {
 
 	it('finds linked rows by their title, and reads a link back as its title', () => {
 		const { ws, apply, baseId, exercise, ids } = lifts();
-		const names = createTable(ws, baseId, 'Exercises', [{ name: 'Name', type: 'text' }]);
+		const names = createTable(ws, baseId, 'Exercises', [{ name: 'Name', type: 'text' }], () =>
+			defaultViews(defaultNames.en)
+		);
 		apply(names.changes);
 		const squat = insertRows(ws, names.id, [{ [names.fieldIds[0]]: 'squat' }]);
 		apply(squat.changes);
@@ -238,8 +248,11 @@ describe('importing', () => {
 	].join('\r\n');
 
 	it('leaves a header alone and numbers columns when the first row is data', () => {
-		expect(withHeader(parseCsv('name\tkg\nSquat\t100', '\t'))[0]).toEqual(['name', 'kg']);
-		expect(withHeader(parseCsv('Squat\t100\nBench\t80', '\t'))).toEqual([
+		expect(withHeader(parseCsv('name\tkg\nSquat\t100', '\t'), defaultNames.en)[0]).toEqual([
+			'name',
+			'kg'
+		]);
+		expect(withHeader(parseCsv('Squat\t100\nBench\t80', '\t'), defaultNames.en)).toEqual([
 			['Column 1', 'Column 2'],
 			['Squat', '100'],
 			['Bench', '80']
@@ -251,7 +264,7 @@ describe('importing', () => {
 		const base = createBase(ws, 'Gym');
 		apply(base.changes);
 		const rows = parseCsv(csv);
-		const { id, changes } = importTable(ws, base.id, 'Lifts', rows);
+		const { id, changes } = importTable(ws, defaultNames.en, base.id, 'Lifts', rows);
 		apply(changes);
 
 		const kg = ws.fields(id).find((field) => field.name === 'kg');
@@ -260,7 +273,7 @@ describe('importing', () => {
 
 	it('maps columns by name, whatever their case and punctuation', () => {
 		const { ws, tableId, exercise, kg } = lifts();
-		const columns = guessColumns(parseCsv('EXERCISE,k_g,other\na,1,x'));
+		const columns = guessColumns(parseCsv('EXERCISE,k_g,other\na,1,x'), defaultNames.en);
 
 		expect(guessTargets(columns, ws.fields(tableId))).toEqual([exercise, kg, NEW_FIELD]);
 	});
@@ -270,10 +283,11 @@ describe('importing', () => {
 		apply(retypeField(ws, exercise, { type: 'choice' }).changes);
 		const before = ws.rows(tableId).length;
 		const rows = parseCsv(csv);
-		const columns = guessColumns(rows);
+		const columns = guessColumns(rows, defaultNames.en);
 
 		const { changes, count, unread } = appendRows(
 			ws,
+			defaultNames.en,
 			tableId,
 			rows,
 			columns,
@@ -300,19 +314,33 @@ describe('importing', () => {
 		const reps = addField(ws, tableId, { name: 'Reps', type: 'number' });
 		apply(reps.changes);
 		const rows = parseCsv('exercise,reps\nSquat,8\nBench,lots');
-		const { unread } = appendRows(ws, tableId, rows, guessColumns(rows), [exercise, reps.id]);
+		const { unread } = appendRows(
+			ws,
+			defaultNames.en,
+			tableId,
+			rows,
+			guessColumns(rows, defaultNames.en),
+			[exercise, reps.id]
+		);
 
 		expect(unread).toBe(1);
 	});
 
 	it('fills a blank table: its starting column goes unless a column fills it', () => {
 		const { ws, apply } = setup();
-		const blank = blankTable(ws);
+		const blank = blankTable(ws, defaultNames.en);
 		apply(blank.changes);
 		const rows = parseCsv(csv);
-		const columns = guessColumns(rows);
+		const columns = guessColumns(rows, defaultNames.en);
 		apply(
-			appendRows(ws, blank.id, rows, columns, guessTargets(columns, ws.fields(blank.id))).changes
+			appendRows(
+				ws,
+				defaultNames.en,
+				blank.id,
+				rows,
+				columns,
+				guessTargets(columns, ws.fields(blank.id))
+			).changes
 		);
 
 		expect(ws.fields(blank.id).map((field) => field.name)).toEqual([
@@ -326,13 +354,20 @@ describe('importing', () => {
 
 	it('keeps a field someone added to a blank table, even unfilled', () => {
 		const { ws, apply } = setup();
-		const blank = blankTable(ws);
+		const blank = blankTable(ws, defaultNames.en);
 		apply(blank.changes);
 		apply(addField(ws, blank.id, { name: 'Day', type: 'text', auto: true }).changes);
 		const rows = parseCsv('kg\n1');
-		const columns = guessColumns(rows);
+		const columns = guessColumns(rows, defaultNames.en);
 		apply(
-			appendRows(ws, blank.id, rows, columns, guessTargets(columns, ws.fields(blank.id))).changes
+			appendRows(
+				ws,
+				defaultNames.en,
+				blank.id,
+				rows,
+				columns,
+				guessTargets(columns, ws.fields(blank.id))
+			).changes
 		);
 
 		expect(ws.fields(blank.id).map((field) => field.name)).toEqual(['Day', 'kg']);
@@ -345,6 +380,7 @@ describe('importing', () => {
 		const lines = Array.from({ length: 12 }, (_, set) => `Squat,${set},total,`);
 		const { id, changes } = importTable(
 			ws,
+			defaultNames.en,
 			base.id,
 			'Lifts',
 			parseCsv(['exercise,kg,mode,grip', ...lines].join('\n'))
@@ -360,12 +396,19 @@ describe('importing', () => {
 
 	it('types a blank table’s starting column from what fills it', () => {
 		const { ws, apply } = setup();
-		const blank = blankTable(ws);
+		const blank = blankTable(ws, defaultNames.en);
 		apply(blank.changes);
 		const rows = parseCsv('name,kg\n80,1\n90,2');
-		const columns = guessColumns(rows);
+		const columns = guessColumns(rows, defaultNames.en);
 		apply(
-			appendRows(ws, blank.id, rows, columns, guessTargets(columns, ws.fields(blank.id))).changes
+			appendRows(
+				ws,
+				defaultNames.en,
+				blank.id,
+				rows,
+				columns,
+				guessTargets(columns, ws.fields(blank.id))
+			).changes
 		);
 
 		const [name] = ws.fields(blank.id);

@@ -1,6 +1,14 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
-import { createBase, createTable, createView, insertRows, type FieldSpec } from './actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows,
+	type FieldSpec
+} from './actions.ts';
 import { chartData } from './chart.ts';
 import { Hlc } from './clock.ts';
 import { openEngine } from './engine.ts';
@@ -26,7 +34,7 @@ function table(
 	fields: FieldSpec[],
 	rows: unknown[][]
 ): { id: string; fieldIds: string[] } {
-	const made = createTable(ws, base, name, fields);
+	const made = createTable(ws, base, name, fields, () => defaultViews(names.en));
 	apply(made.changes);
 	apply(
 		insertRows(

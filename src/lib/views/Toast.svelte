@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 
 	import { runToastAction, toast } from '#lib/client/toast.svelte.ts';
+	import { common } from '#lib/i18n/common.ts';
 	import { keys } from '#lib/ui/keys.ts';
 	import { focus } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
@@ -32,14 +33,14 @@
 				{#if toast.action !== null}
 					<Tooltip
 						side="top"
-						shortcut={toast.action.label === 'Undo' ? keys('mod', 'z') : keys('mod', 'shift', 'z')}
+						shortcut={toast.action.kind === 'undo' ? keys('mod', 'z') : keys('mod', 'shift', 'z')}
 					>
 						{#snippet children(props)}
 							<button
 								{...props}
 								type="button"
 								class="h-full shrink-0 rounded-box px-2 font-semibold {focus}"
-								onclick={act}>{toast.action?.label}</button
+								onclick={act}>{toast.action?.kind === 'redo' ? common.redo : common.undo}</button
 							>
 						{/snippet}
 					</Tooltip>

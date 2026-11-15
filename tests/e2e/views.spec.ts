@@ -1,6 +1,7 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, createView } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, createView } from '../../src/lib/core/actions.ts';
 import { expect, newView, seed, tablePath, test, toastButton } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
@@ -9,7 +10,9 @@ function seedViews(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const sets = createTable(ws, base.id, 'Sets', [{ name: 'Kg', type: 'number' }]);
+		const sets = createTable(ws, base.id, 'Sets', [{ name: 'Kg', type: 'number' }], () =>
+			defaultViews(names.en)
+		);
 		commit(sets.changes);
 		for (const [name, type] of [
 			['Trend', 'chart'],

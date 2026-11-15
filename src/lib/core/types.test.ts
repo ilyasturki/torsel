@@ -1,7 +1,8 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
 import type { FieldSpec } from './actions.ts';
-import { createBase, createTable, insertRows } from './actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from './actions.ts';
 import { Hlc } from './clock.ts';
 import { guessColumns, importTable, parseCsv } from './csv.ts';
 import { openEngine } from './engine.ts';
@@ -36,7 +37,7 @@ function setup() {
 /** A one-field table holding `values`, retyped to `to`: what each value became and how many went. */
 function retyped(from: FieldSpec, values: Value[], to: Retype) {
 	const { ws, apply, baseId } = setup();
-	const table = createTable(ws, baseId, 'T', [from]);
+	const table = createTable(ws, baseId, 'T', [from], () => defaultViews(names.en));
 	apply(table.changes);
 	const [field] = table.fieldIds;
 	const rows = insertRows(
@@ -177,7 +178,7 @@ describe('detection', () => {
 			'Up,2009,€7.99,50%,1:36,2024-03-03 18:15,"Animation, Drama, Sci-fi",https://up.film,e@f.co,06 11 22 33 44,Fun,Bad',
 			'Jaws,1975,€5,20%,2:04,2024-03-04 22:00,Drama,https://jaws.film,g@h.co,+1 555 010 2030,Sharp,Good'
 		].join('\n');
-		const columns = guessColumns(parseCsv(csv));
+		const columns = guessColumns(parseCsv(csv), names.en);
 		const types: [string, FieldType][] = columns.map((column) => [column.name, column.type]);
 		expect(types).toEqual([
 			['Title', 'text'],
@@ -201,7 +202,7 @@ describe('detection', () => {
 		const csv = ['note', ...[3, 4, 5, 6, 7].map((seat) => `"seat ${seat}, low"`), '', ''].join(
 			'\n'
 		);
-		expect(guessColumns(parseCsv(csv))[0].type).toBe('text');
+		expect(guessColumns(parseCsv(csv), names.en)[0].type).toBe('text');
 	});
 
 	it('imports each type as its stored form, and SQL reads it', async () => {
@@ -212,7 +213,7 @@ describe('detection', () => {
 			'Heat,€9,2:50,"Crime, Drama"',
 			'Arrival,€8,1:56,"Drama, Sci-fi"'
 		].join('\n');
-		const made = importTable(ws, baseId, 'Movies', parseCsv(csv));
+		const made = importTable(ws, names.en, baseId, 'Movies', parseCsv(csv));
 		apply(made.changes);
 		const fields = ws.fields(made.id);
 		const [price, runtime, genres] = fields.slice(1).map((field) => field.id);

@@ -1,4 +1,12 @@
-import { addField, createBase, createTable, createView, insertRows } from '#lib/core/actions.ts';
+import names from '#lib/i18n/names.ts';
+import {
+	addField,
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '#lib/core/actions.ts';
 import { toStored } from '#lib/core/formula.ts';
 import type { Change, FieldDef } from '#lib/core/model.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
@@ -16,7 +24,9 @@ export function seedFixture(ws: Workspace, commit: (changes: Change[]) => void):
 	const base = createBase(ws, 'Gym');
 	commit(base.changes);
 
-	const exercises = createTable(ws, base.id, 'Exercises', [{ name: 'Name', type: 'text' }]);
+	const exercises = createTable(ws, base.id, 'Exercises', [{ name: 'Name', type: 'text' }], () =>
+		defaultViews(names.en)
+	);
 	commit(exercises.changes);
 	const lifts = insertRows(
 		ws,
@@ -25,23 +35,29 @@ export function seedFixture(ws: Workspace, commit: (changes: Change[]) => void):
 	);
 	commit(lifts.changes);
 
-	const sets = createTable(ws, base.id, 'Sets', [
-		{ name: 'Date', type: 'date' },
-		{ name: 'Exercise', type: 'link', target: exercises.id },
-		{
-			name: 'Session',
-			type: 'choice',
-			choices: [
-				{ name: 'Push', color: 'orange' },
-				{ name: 'Pull', color: 'blue' },
-				{ name: 'Legs', color: 'green' }
-			]
-		},
-		{ name: 'Kg', type: 'number', step: 2.5 },
-		{ name: 'Reps', type: 'number' },
-		{ name: 'Done', type: 'check' },
-		{ name: 'Notes', type: 'text' }
-	]);
+	const sets = createTable(
+		ws,
+		base.id,
+		'Sets',
+		[
+			{ name: 'Date', type: 'date' },
+			{ name: 'Exercise', type: 'link', target: exercises.id },
+			{
+				name: 'Session',
+				type: 'choice',
+				choices: [
+					{ name: 'Push', color: 'orange' },
+					{ name: 'Pull', color: 'blue' },
+					{ name: 'Legs', color: 'green' }
+				]
+			},
+			{ name: 'Kg', type: 'number', step: 2.5 },
+			{ name: 'Reps', type: 'number' },
+			{ name: 'Done', type: 'check' },
+			{ name: 'Notes', type: 'text' }
+		],
+		() => defaultViews(names.en)
+	);
 	commit(sets.changes);
 	const [date, exercise, session, kg, reps, done, notes] = sets.fieldIds;
 
@@ -99,32 +115,38 @@ function seedTypes(
 	linked: string,
 	linkedRow: string
 ): { table: string; row: string; grid: string } {
-	const table = createTable(ws, baseId, 'Every type', [
-		{ name: 'Text', type: 'text' },
-		{ name: 'Long text', type: 'longtext' },
-		{ name: 'Number', type: 'number', unit: 'kg' },
-		{ name: 'Currency', type: 'currency', currency: 'EUR' },
-		{ name: 'Percent', type: 'percent' },
-		{ name: 'Rating', type: 'rating', max: 5 },
-		{ name: 'Duration', type: 'duration' },
-		{ name: 'Date', type: 'date' },
-		{ name: 'Date and time', type: 'datetime' },
-		{ name: 'Choice', type: 'choice', choices: [{ name: 'Legs', color: 'green' }] },
-		{
-			name: 'Multiple choice',
-			type: 'choices',
-			choices: [
-				{ name: 'Strength', color: 'violet' },
-				{ name: 'Outdoors', color: 'teal' },
-				{ name: 'Morning', color: 'amber' }
-			]
-		},
-		{ name: 'Check', type: 'check' },
-		{ name: 'Link', type: 'link', target: linked },
-		{ name: 'URL', type: 'url' },
-		{ name: 'Email', type: 'email' },
-		{ name: 'Phone', type: 'phone' }
-	]);
+	const table = createTable(
+		ws,
+		baseId,
+		'Every type',
+		[
+			{ name: 'Text', type: 'text' },
+			{ name: 'Long text', type: 'longtext' },
+			{ name: 'Number', type: 'number', unit: 'kg' },
+			{ name: 'Currency', type: 'currency', currency: 'EUR' },
+			{ name: 'Percent', type: 'percent' },
+			{ name: 'Rating', type: 'rating', max: 5 },
+			{ name: 'Duration', type: 'duration' },
+			{ name: 'Date', type: 'date' },
+			{ name: 'Date and time', type: 'datetime' },
+			{ name: 'Choice', type: 'choice', choices: [{ name: 'Legs', color: 'green' }] },
+			{
+				name: 'Multiple choice',
+				type: 'choices',
+				choices: [
+					{ name: 'Strength', color: 'violet' },
+					{ name: 'Outdoors', color: 'teal' },
+					{ name: 'Morning', color: 'amber' }
+				]
+			},
+			{ name: 'Check', type: 'check' },
+			{ name: 'Link', type: 'link', target: linked },
+			{ name: 'URL', type: 'url' },
+			{ name: 'Email', type: 'email' },
+			{ name: 'Phone', type: 'phone' }
+		],
+		() => defaultViews(names.en)
+	);
 	commit(table.changes);
 	const formula = addField(ws, table.id, {
 		name: 'Formula',

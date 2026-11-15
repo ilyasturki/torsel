@@ -1,6 +1,13 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import { expect, seed, tablePath, test } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
@@ -9,10 +16,16 @@ function seedWeighIns(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Body');
 		commit(base.changes);
-		const weights = createTable(ws, base.id, 'Weigh-ins', [
-			{ name: 'Day', type: 'date' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const weights = createTable(
+			ws,
+			base.id,
+			'Weigh-ins',
+			[
+				{ name: 'Day', type: 'date' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(weights.changes);
 		const [day, kg] = weights.fieldIds;
 		commit(

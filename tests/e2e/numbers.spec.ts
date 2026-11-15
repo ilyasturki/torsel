@@ -1,6 +1,7 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import type { Rec } from '../../src/lib/core/model.ts';
 import { expect, seed, tablePath, test } from './harness.ts';
 
@@ -17,12 +18,18 @@ function seedMovies(request: APIRequestContext): Promise<Movies> {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Films');
 		commit(base.changes);
-		const table = createTable(ws, base.id, 'Movies', [
-			{ name: 'Title', type: 'text' },
-			{ name: 'Year', type: 'number' },
-			{ name: 'Budget', type: 'number' },
-			{ name: 'Seen', type: 'datetime' }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'Movies',
+			[
+				{ name: 'Title', type: 'text' },
+				{ name: 'Year', type: 'number' },
+				{ name: 'Budget', type: 'number' },
+				{ name: 'Seen', type: 'datetime' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(table.changes);
 		const [title, year, budget, seen] = table.fieldIds;
 		commit(

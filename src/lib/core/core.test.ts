@@ -1,3 +1,4 @@
+import defaultNames from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +6,7 @@ import {
 	blankTable,
 	createBase,
 	createTable,
+	defaultViews,
 	deleteRecords,
 	doneRows,
 	entryFields,
@@ -60,7 +62,9 @@ describe('default entry view', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'Gym');
 		apply(ws, hlc, base.changes);
-		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }]);
+		const table = createTable(ws, base.id, 'Lifts', [{ name: 'Name', type: 'text' }], () =>
+			defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, table.changes);
 
 		const later = addField(ws, table.id, { name: 'Weight', type: 'number' });
@@ -79,10 +83,16 @@ describe('default entry view', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'Gym');
 		apply(ws, hlc, base.changes);
-		const table = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Name', type: 'text' },
-			{ name: 'Weight', type: 'number' }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Name', type: 'text' },
+				{ name: 'Weight', type: 'number' }
+			],
+			() => defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, table.changes);
 
 		const chosen = entryFields(ws.fields(table.id), { fields: [table.fieldIds[1]] });
@@ -131,10 +141,16 @@ describe('workspace', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'Muscu');
 		apply(ws, hlc, base.changes);
-		const table = createTable(ws, base.id, 'Séries', [
-			{ name: 'Poids', type: 'number' },
-			{ name: 'Reps', type: 'number' }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'Séries',
+			[
+				{ name: 'Poids', type: 'number' },
+				{ name: 'Reps', type: 'number' }
+			],
+			() => defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, table.changes);
 
 		const [poids] = table.fieldIds;
@@ -156,7 +172,7 @@ describe('workspace', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'B');
 		apply(ws, hlc, base.changes);
-		const table = createTable(ws, base.id, 'T', []);
+		const table = createTable(ws, base.id, 'T', [], () => defaultViews(defaultNames.en));
 		apply(ws, hlc, table.changes);
 		apply(ws, hlc, deleteRecords(ws, [base.id]));
 
@@ -169,10 +185,16 @@ describe('workspace', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'B');
 		apply(ws, hlc, base.changes);
-		const table = createTable(ws, base.id, 'T', [
-			{ name: 'A', type: 'text' },
-			{ name: 'B', type: 'text' }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'T',
+			[
+				{ name: 'A', type: 'text' },
+				{ name: 'B', type: 'text' }
+			],
+			() => defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, table.changes);
 		const names = (): string[] => ws.fields(table.id).map((field) => field.name);
 
@@ -188,9 +210,13 @@ describe('workspace', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'B');
 		apply(ws, hlc, base.changes);
-		const weights = createTable(ws, base.id, 'Weights', [{ name: 'Kg', type: 'number' }]);
+		const weights = createTable(ws, base.id, 'Weights', [{ name: 'Kg', type: 'number' }], () =>
+			defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, weights.changes);
-		const sets = createTable(ws, base.id, 'Sets', [{ name: 'Reps', type: 'number' }]);
+		const sets = createTable(ws, base.id, 'Sets', [{ name: 'Reps', type: 'number' }], () =>
+			defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, sets.changes);
 		const before = { weights: ws.revision(weights.id), sets: ws.revision(sets.id) };
 
@@ -214,14 +240,14 @@ describe('home base', () => {
 	it('is made once, by the first table, and two devices land on the same one', () => {
 		const phone = new Workspace();
 		const desk = new Workspace();
-		const home = homeBase(phone);
+		const home = homeBase(phone, defaultNames.en);
 
 		expect(home.changes).toHaveLength(1);
-		expect(homeBase(desk).id).toBe(home.id);
+		expect(homeBase(desk, defaultNames.en).id).toBe(home.id);
 
 		const hlc = new Hlc('a');
 		apply(phone, hlc, home.changes);
-		expect(homeBase(phone)).toEqual({ id: home.id, changes: [] });
+		expect(homeBase(phone, defaultNames.en)).toEqual({ id: home.id, changes: [] });
 	});
 
 	it('reuses a base that already exists', () => {
@@ -229,16 +255,16 @@ describe('home base', () => {
 		const made = createBase(ws, 'Gym');
 		apply(ws, new Hlc('a'), made.changes);
 
-		expect(homeBase(ws)).toEqual({ id: made.id, changes: [] });
+		expect(homeBase(ws, defaultNames.en)).toEqual({ id: made.id, changes: [] });
 	});
 
 	it('names a blank table with the first free number', () => {
 		const ws = new Workspace();
 		const hlc = new Hlc('a');
 
-		const first = blankTable(ws);
+		const first = blankTable(ws, defaultNames.en);
 		apply(ws, hlc, first.changes);
-		const second = blankTable(ws);
+		const second = blankTable(ws, defaultNames.en);
 		apply(ws, hlc, second.changes);
 
 		expect([first.name, second.name]).toEqual(['Table 1', 'Table 2']);
@@ -249,13 +275,15 @@ describe('home base', () => {
 	it('leaves the tables of a deleted home deleted', () => {
 		const ws = new Workspace();
 		const hlc = new Hlc('a');
-		const home = homeBase(ws);
+		const home = homeBase(ws, defaultNames.en);
 		apply(ws, hlc, home.changes);
-		const table = createTable(ws, home.id, 'Weight', [{ name: 'Kg', type: 'number' }]);
+		const table = createTable(ws, home.id, 'Weight', [{ name: 'Kg', type: 'number' }], () =>
+			defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, table.changes);
 		apply(ws, hlc, deleteRecords(ws, [home.id]));
 
-		const next = homeBase(ws);
+		const next = homeBase(ws, defaultNames.en);
 		apply(ws, hlc, next.changes);
 
 		expect(next.id).not.toBe(home.id);
@@ -343,11 +371,17 @@ describe('materialize', () => {
 		const hlc = new Hlc('a');
 		const base = createBase(ws, 'Muscu');
 		apply(ws, hlc, base.changes);
-		const table = createTable(ws, base.id, 'Séries', [
-			{ name: 'Exercice', type: 'choice' },
-			{ name: 'Poids', type: 'number' },
-			{ name: 'Reps', type: 'number' }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'Séries',
+			[
+				{ name: 'Exercice', type: 'choice' },
+				{ name: 'Poids', type: 'number' },
+				{ name: 'Reps', type: 'number' }
+			],
+			() => defaultViews(defaultNames.en)
+		);
 		apply(ws, hlc, table.changes);
 		const [exercice, poids, reps] = table.fieldIds;
 
@@ -404,7 +438,7 @@ describe('csv', () => {
 	].join('\r\n');
 
 	it('infers the Google Sheet export', () => {
-		const types = guessColumns(parseCsv(sheet)).map((column) => column.type);
+		const types = guessColumns(parseCsv(sheet), defaultNames.en).map((column) => column.type);
 		expect(types).toEqual([
 			'choice',
 			'date',
@@ -419,7 +453,7 @@ describe('csv', () => {
 
 	it('infers the kilorep export and keeps quoted commas', () => {
 		const rows = parseCsv(kilorep);
-		const columns = guessColumns(rows);
+		const columns = guessColumns(rows, defaultNames.en);
 
 		expect(rows[2][13]).toBe('seat 5, low');
 		expect(columns.find((column) => column.name === 'date')?.type).toBe('date');
@@ -433,7 +467,7 @@ describe('csv', () => {
 		const base = createBase(ws, 'Muscu');
 		apply(ws, hlc, base.changes);
 
-		const { id, changes } = importTable(ws, base.id, 'Séries', parseCsv(sheet));
+		const { id, changes } = importTable(ws, defaultNames.en, base.id, 'Séries', parseCsv(sheet));
 		apply(ws, hlc, changes);
 
 		const fields = ws.fields(id);

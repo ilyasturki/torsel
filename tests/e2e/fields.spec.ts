@@ -1,7 +1,14 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import type { FieldSpec } from '../../src/lib/core/actions.ts';
-import { addField, createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	addField,
+	createBase,
+	createTable,
+	defaultViews,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
 import type { Rec, Value } from '../../src/lib/core/model.ts';
 import { columnMenu, expect, script, seed, tablePath, test } from './harness.ts';
@@ -62,17 +69,22 @@ function seedMovies(request: APIRequestContext): Promise<Movies> {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Films');
 		commit(base.changes);
-		const people = createTable(ws, base.id, 'Directors', [{ name: 'Name', type: 'text' }]);
+		const people = createTable(ws, base.id, 'Directors', [{ name: 'Name', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
 		commit(people.changes);
 		const made = insertRows(ws, people.id, [
 			{ [people.fieldIds[0]]: 'Villeneuve' },
 			{ [people.fieldIds[0]]: 'Lynch' }
 		]);
 		commit(made.changes);
-		const table = createTable(ws, base.id, 'Movies', [
-			...FIELDS,
-			{ name: 'Director', type: 'link', target: people.id }
-		]);
+		const table = createTable(
+			ws,
+			base.id,
+			'Movies',
+			[...FIELDS, { name: 'Director', type: 'link', target: people.id }],
+			() => defaultViews(names.en)
+		);
 		commit(table.changes);
 		const ids = Object.fromEntries(
 			[...FIELDS.map((field) => field.name), 'Director'].map((name, at) => [

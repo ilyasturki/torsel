@@ -1,3 +1,4 @@
+import names from '../../src/lib/i18n/names.ts';
 import { spawnSync } from 'node:child_process';
 import { randomInt, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -7,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { APIRequestContext, BrowserContext, Locator, Page } from '@playwright/test';
 import { test as base, expect } from '@playwright/test';
 
-import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import { Hlc } from '../../src/lib/core/clock.ts';
 import { isId } from '../../src/lib/core/ids.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
@@ -239,10 +240,16 @@ export function seedLifts(request: APIRequestContext): Promise<string> {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const lifts = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Exercise', type: 'text' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const lifts = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Exercise', type: 'text' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(lifts.changes);
 		commit(
 			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes

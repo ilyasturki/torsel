@@ -1,10 +1,12 @@
+import { common } from '../i18n/common.ts';
+
 export const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/u.test(navigator.platform);
 
 /** A shortcut as the platform spells it: `keys('mod', 'shift', '→')` reads ⇧⌘→ on a Mac, Ctrl+Shift+→ elsewhere. */
 export function keys(...parts: string[]): string {
 	const names: Record<string, [string, string]> = {
 		mod: ['⌘', 'Ctrl'],
-		shift: ['⇧', 'Shift'],
+		shift: ['⇧', common.keyShift],
 		alt: ['⌥', 'Alt']
 	};
 	if (mac) {

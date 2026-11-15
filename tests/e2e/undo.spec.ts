@@ -1,6 +1,13 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import {
 	columnMenu,
 	expect,
@@ -20,10 +27,16 @@ function seedLifts(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
-		const lifts = createTable(ws, base.id, 'Lifts', [
-			{ name: 'Exercise', type: 'text' },
-			{ name: 'Kg', type: 'number' }
-		]);
+		const lifts = createTable(
+			ws,
+			base.id,
+			'Lifts',
+			[
+				{ name: 'Exercise', type: 'text' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(lifts.changes);
 		commit(
 			insertRows(ws, lifts.id, [{ [lifts.fieldIds[0]]: 'Squat', [lifts.fieldIds[1]]: 100 }]).changes
@@ -31,7 +44,11 @@ function seedLifts(request: APIRequestContext) {
 		commit(createView(ws, lifts.id, { name: 'Sessions', type: 'list', config: {} }).changes);
 		const other = createBase(ws, 'Money');
 		commit(other.changes);
-		commit(createTable(ws, other.id, 'Expenses', [{ name: 'Amount', type: 'number' }]).changes);
+		commit(
+			createTable(ws, other.id, 'Expenses', [{ name: 'Amount', type: 'number' }], () =>
+				defaultViews(names.en)
+			).changes
+		);
 		return tablePath(lifts.id);
 	});
 }

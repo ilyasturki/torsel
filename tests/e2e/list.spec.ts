@@ -1,25 +1,38 @@
+import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext } from '@playwright/test';
 
-import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	createView,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import { expect, seed, tablePath, test, toastButton } from './harness.ts';
 
 function seedChores(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Home');
 		commit(base.changes);
-		const chores = createTable(ws, base.id, 'Chores', [
-			{ name: 'Task', type: 'text' },
-			{ name: 'Done', type: 'check' },
-			{
-				name: 'Room',
-				type: 'choice',
-				choices: [
-					{ name: 'kitchen', color: 'amber' },
-					{ name: 'garden', color: 'green' }
-				]
-			},
-			{ name: 'Minutes', type: 'number' }
-		]);
+		const chores = createTable(
+			ws,
+			base.id,
+			'Chores',
+			[
+				{ name: 'Task', type: 'text' },
+				{ name: 'Done', type: 'check' },
+				{
+					name: 'Room',
+					type: 'choice',
+					choices: [
+						{ name: 'kitchen', color: 'amber' },
+						{ name: 'garden', color: 'green' }
+					]
+				},
+				{ name: 'Minutes', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
 		commit(chores.changes);
 		const [task, done, room, minutes] = chores.fieldIds;
 		commit(
