@@ -48,7 +48,7 @@ test('says what it is, shows the work done and loads no SQLite on the way', asyn
 		demo.getByTestId('change').filter({ hasText: 'New view "By category" on Budget' })
 	).toBeInViewport();
 	await expect(prompt(page, 'Add Netflix 13 and climbing 45, both fun.')).toBeVisible();
-	await page.getByRole('heading', { name: 'Free, offline, open source.' }).scrollIntoViewIfNeeded();
+	await page.getByRole('heading', { name: 'Free and open source.' }).scrollIntoViewIfNeeded();
 	await page.waitForTimeout(300);
 	expect(wasm).toEqual([]);
 });

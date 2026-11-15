@@ -102,9 +102,7 @@ test.describe('in french', () => {
 				.getByRole('group', { name: 'Demandes' })
 				.getByRole('button', { name: 'Ajoute Netflix 13 et escalade 45, en loisirs.' })
 		).toBeVisible();
-		await expect(
-			page.getByRole('heading', { name: 'Gratuit, hors ligne, open source.' })
-		).toBeAttached();
+		await expect(page.getByRole('heading', { name: 'Gratuit et open source.' })).toBeAttached();
 		await page.waitForTimeout(300);
 		expect(wasm).toEqual([]);
 	});
