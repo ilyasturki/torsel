@@ -50,6 +50,15 @@ test.describe('in fr-FR', () => {
 		await expect(page.getByRole('columnheader', { name: names.fr.column(2) })).toBeVisible();
 		await expect(page.getByRole('link', { name: names.fr.views.grid })).toBeVisible();
 		await expect(page).toHaveTitle(`${name} · Torsel`);
+
+		const controls = page.locator('header a, header button, [role="group"] a');
+		expect(await controls.count()).toBeGreaterThan(4);
+		const clipped = await controls.evaluateAll((elements) =>
+			elements
+				.filter((element) => element.scrollWidth > element.clientWidth + 1)
+				.map((element) => element.textContent?.trim())
+		);
+		expect(clipped, 'French labels fit their controls').toEqual([]);
 	});
 
 	test('an empty table counts 0 as singular', async ({ page, account }) => {
