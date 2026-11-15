@@ -264,6 +264,19 @@ test.describe('with motion', () => {
 	});
 });
 
+test('a change card made ahead opens its view by touch or click', async ({ page, isMobile }) => {
+	await page.goto('/');
+	const demo = page.getByTestId('demo');
+	const show = demo
+		.getByTestId('change')
+		.filter({ hasText: 'New view "By category" on Budget' })
+		.getByRole('button', { name: /Show/u });
+	if (isMobile) await show.tap();
+	else await show.click();
+	await expect(demo.getByText('Total amount')).toBeVisible();
+	await expect(demo.getByText('1230')).toBeVisible();
+});
+
 test('the form below logs a row into the table above', async ({ page }) => {
 	await page.goto('/');
 	const form = page.getByTestId('form');

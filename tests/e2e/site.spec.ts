@@ -1,3 +1,5 @@
+import type { Page } from '@playwright/test';
+
 import { expect, RETRY_RESET, test } from './harness.ts';
 
 const ORIGIN = 'https://torsel.ilyasturki.com';
@@ -86,27 +88,39 @@ test('shows signed-out visitors a way in and signed-in ones the way back', async
 	await expect(header.getByRole('link', { name: 'Open Torsel' })).toBeHidden();
 });
 
-test('keeps the header still from the site into the app', async ({ page }) => {
-	const place = async (): Promise<unknown> => {
-		const header = page.getByRole('banner');
-		await expect(header.locator('svg').first()).toBeVisible();
-		const [box, mark, last] = await Promise.all([
-			header.boundingBox(),
-			header.locator('svg').first().boundingBox(),
-			header.locator('a:visible, button:visible').last().boundingBox()
-		]);
-		return {
-			height: box?.height,
-			width: box?.width,
-			mark: [mark?.x, mark?.y],
-			end: (last?.x ?? 0) + (last?.width ?? 0)
-		};
+async function headerPlace(page: Page): Promise<unknown> {
+	const header = page.getByRole('banner');
+	await expect(header.locator('svg').first()).toBeVisible();
+	const [box, mark, last] = await Promise.all([
+		header.boundingBox(),
+		header.locator('svg').first().boundingBox(),
+		header.locator('a:visible, button:visible').last().boundingBox()
+	]);
+	return {
+		height: box?.height,
+		width: box?.width,
+		mark: [mark?.x, mark?.y],
+		end: (last?.x ?? 0) + (last?.width ?? 0)
 	};
+}
+
+test('keeps the header still from the site into the app', async ({ page }) => {
 	await page.goto('/');
-	const site = await place();
+	const site = await headerPlace(page);
 	await page.getByRole('banner').getByRole('link', { name: 'Start now' }).click();
 	await expect(page).toHaveURL(/\/app$/u);
-	expect(await place()).toEqual(site);
+	expect(await headerPlace(page)).toEqual(site);
+});
+
+test('keeps the header still when a signed-in visitor opens Torsel', async ({ page, account }) => {
+	void account;
+	await page.goto('/');
+	const open = page.getByRole('banner').getByRole('link', { name: 'Open Torsel' });
+	await expect(open).toBeVisible();
+	const site = await headerPlace(page);
+	await open.click();
+	await expect(page).toHaveURL(/\/app$/u);
+	expect(await headerPlace(page)).toEqual(site);
 });
 
 test('answers an unknown address with a real error page', async ({ page }) => {

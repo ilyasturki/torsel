@@ -1,40 +1,31 @@
 <script lang="ts">
-	import type { Component } from 'svelte';
 	import { onMount, tick } from 'svelte';
 
 	import type { ThreadAction } from '#lib/core/thread.ts';
+	import { siteCopy } from '#lib/i18n/site.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 
 	import { wave } from './backdrop.ts';
-	import { siteCopy } from '#lib/i18n/site.ts';
-
-	import { EXAMPLES, type Example } from './examples.ts';
-	import { EXAMPLES_FR } from './examples-fr.ts';
+	import type { Example } from './examples.ts';
+	import type { Live, Samples } from './samples.svelte.ts';
 	import type { Sample } from './seed.ts';
 
-	type Live = typeof import('./live.ts');
 	type Item = { key: number; text: string; action: ThreadAction | null; view?: string };
 	type Thread = { items: Item[]; used: number[]; view: string | undefined };
 
-	let { locale = 'en' }: { locale?: 'en' | 'fr' } = $props();
-	// Switching language is a full page load: the dataset is the page's for its whole life.
-	// svelte-ignore state_referenced_locally
-	const examples = locale === 'fr' ? EXAMPLES_FR : EXAMPLES;
+	let { samples, locale = 'en' }: { samples: Samples; locale?: 'en' | 'fr' } = $props();
 	const t = $derived(siteCopy[locale]);
 
-	let example = $state<Example>(examples[0]);
-	let samples = $state<Record<string, Sample> | null>(null);
-	let live = $state<Live | null>(null);
-	let View = $state<Component<{ tableId: string; viewId: string | undefined }> | null>(null);
-	let Toast = $state<Component | null>(null);
 	const worked = (which: Example): number[] =>
 		which.prompts.flatMap((prompt, index) =>
 			prompt.kind === 'formula' || prompt.kind === 'chart' ? [index] : []
 		);
+	// svelte-ignore state_referenced_locally
+	const first = samples.examples[0];
 	// The server renders the first example's prompts as already asked, so nothing moves when its thread fills.
 	const threads = $state<Record<string, Thread>>({
-		[examples[0].id]: { items: [], used: worked(examples[0]), view: undefined }
+		[first.id]: { items: [], used: worked(first), view: undefined }
 	});
 	let typed = $state('');
 	let busy = $state(false);
@@ -43,9 +34,6 @@
 
 	let body = $state<HTMLElement>();
 	let scroller = $state<HTMLElement>();
-
-	let openEngine: () => void = () => undefined;
-	const engineWanted = new Promise<void>((resolve) => (openEngine = resolve));
 
 	const reduced = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
 	const wait = (ms: number): Promise<void> =>
@@ -56,32 +44,15 @@
 		return threads[id];
 	}
 
+	const example = $derived(samples.example);
+	const live = $derived(samples.live);
 	const thread = $derived(threads[example.id] ?? { items: [], used: [], view: undefined });
-	const sample = $derived(samples?.[example.id]);
-
-	const views = $derived.by(() => {
-		if (sample === undefined || live === null) return [];
-		void live.app.version;
-		return live.app.ws.views(sample.table);
-	});
-	const viewId = $derived(thread.view ?? views[0]?.id);
-	const entryId = $derived(views.find((view) => view.type === 'entry')?.id);
-	const rowCount = $derived.by(() => {
-		if (sample === undefined || live === null) return example.rows.length;
-		void live.app.version;
-		return live.app.ws.rows(sample.table).length;
-	});
+	const viewId = $derived(thread.view ?? samples.views[0]?.id);
 	const left = $derived(
 		example.prompts
 			.map((prompt, index) => ({ prompt, index }))
 			.filter(({ index }) => !thread.used.includes(index))
 	);
-
-	/** SQLite loads on the first sign the visitor means to use the table, not with the page. */
-	function warm(): Promise<void> {
-		openEngine();
-		return live?.app.load() ?? Promise.resolve();
-	}
 
 	function show(view: string | undefined): void {
 		threadOf(example.id).view = view;
@@ -89,27 +60,27 @@
 
 	/** The first example opens with its column and chart already made: the visitor reads the result before pressing anything. */
 	function startWorked(module: Live, made: Record<string, Sample>): void {
-		const which = examples[0];
-		const own = threadOf(which.id);
-		for (const index of worked(which)) {
-			const prompt = which.prompts[index];
+		const own = threadOf(first.id);
+		for (const index of worked(first)) {
+			const prompt = first.prompts[index];
 			const item: Item = { key: (key += 1), text: prompt.text, action: null };
 			own.items.push(item);
-			const applied = module.applyPrompt(which, made[which.id], prompt, item.key);
+			const applied = module.applyPrompt(first, made[first.id], prompt, item.key);
 			own.items[own.items.length - 1].action = applied.action;
 			own.items[own.items.length - 1].view = applied.view;
 		}
-		own.view = module.app.ws.views(made[which.id].table).find((view) => view.type === 'grid')?.id;
-		module.showEarly(which, made[which.id]);
+		own.view = module.app.ws.views(made[first.id].table).find((view) => view.type === 'grid')?.id;
+		module.showEarly(first, made[first.id]);
 	}
 
 	async function run(index: number): Promise<void> {
-		if (busy || live === null || samples === null) return;
+		const tables = samples.tables;
+		if (busy || live === null || tables === null) return;
 		const which = example;
 		const own = threadOf(which.id);
 		const prompt = which.prompts[index];
 		busy = true;
-		void warm();
+		void samples.warm();
 		for (let at = 2; at < prompt.text.length && !reduced(); at += 2) {
 			typed = prompt.text.slice(0, at);
 			await wait(14);
@@ -122,12 +93,10 @@
 		own.used.push(index);
 		typed = '';
 		working = true;
-		await Promise.all([warm(), wait(700)]);
+		await Promise.all([samples.warm(), wait(700)]);
 
-		const made = live.applyPrompt(which, samples[which.id], prompt, item.key);
-		const grid = live.app.ws
-			.views(samples[which.id].table)
-			.find((view) => view.type === 'grid')?.id;
+		const made = live.applyPrompt(which, tables[which.id], prompt, item.key);
+		const grid = live.app.ws.views(tables[which.id].table).find((view) => view.type === 'grid')?.id;
 		const shown = own.items[own.items.length - 1];
 		shown.action = made.action;
 		shown.view = made.view ?? grid;
@@ -152,22 +121,7 @@
 	});
 
 	onMount(() => {
-		void import('./live.ts').then((module) => {
-			let made: Record<string, Sample> | null = null;
-			const narrow = matchMedia('(max-width: 1023px)').matches;
-			void module.app.openSample((ws, commit) => {
-				made = module.seedExamples(ws, commit, examples, narrow);
-			}, engineWanted);
-			if (made !== null) startWorked(module, made);
-			samples = made;
-			live = module;
-		});
-		void import('./SampleView.svelte').then((module) => {
-			View = module.default;
-		});
-		void import('#lib/views/Toast.svelte').then((module) => {
-			Toast = module.default;
-		});
+		void samples.load(startWorked);
 	});
 
 	const tab =
@@ -179,9 +133,10 @@
 	aria-label={t.demo}
 	data-testid="demo"
 	onpointerenter={(event) => {
-		if (event.pointerType === 'mouse') void warm();
+		if (event.pointerType === 'mouse') void samples.warm();
 	}}
-	onfocusin={() => void warm()}
+	onpointerdown={() => void samples.warm()}
+	onfocusin={() => void samples.warm()}
 >
 	<div class="flex min-h-0 min-w-0 flex-col bg-glass-strong max-lg:h-stage-narrow">
 		<div
@@ -189,7 +144,7 @@
 			role="group"
 			aria-label={t.examples}
 		>
-			{#each examples as item (item.id)}
+			{#each samples.examples as item (item.id)}
 				<button
 					type="button"
 					class="{tab} {item.id === example.id
@@ -197,7 +152,7 @@
 						: 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink'}"
 					aria-pressed={item.id === example.id}
 					onclick={() => {
-						example = item;
+						samples.example = item;
 						typed = '';
 					}}>{item.label}</button
 				>
@@ -206,18 +161,18 @@
 		<div class="flex min-h-12 shrink-0 items-center gap-2.5 py-1 pr-2 pl-3">
 			<span class="truncate text-lg font-semibold tight">{example.table}</span>
 			<span class="shrink-0 pt-0.5 text-sm text-ink-2" data-testid="row-count"
-				>{t.rows(rowCount)}</span
+				>{t.rows(samples.rowCount)}</span
 			>
-			{#if views.length > 0}
+			{#if samples.views.length > 0}
 				<Segmented
 					label={t.views}
 					class="ml-auto"
-					items={views.map((view) => ({
+					items={samples.views.map((view) => ({
 						id: view.id,
 						label: view.name,
 						active: view.id === viewId,
 						onclick: () => {
-							if (view.type === 'chart') void warm();
+							if (view.type === 'chart') void samples.warm();
 							show(view.id);
 						}
 					}))}
@@ -225,8 +180,8 @@
 			{/if}
 		</div>
 		<div bind:this={body} class="relative min-h-0 flex-1 overflow-auto">
-			{#if View !== null && sample !== undefined}
-				<View tableId={sample.table} {viewId} />
+			{#if samples.View !== null && samples.sample !== undefined}
+				<samples.View tableId={samples.sample.table} {viewId} />
 			{/if}
 		</div>
 	</div>
@@ -259,7 +214,7 @@
 				<button
 					type="button"
 					class="rounded-box bg-raised px-2.5 py-2 text-left font-medium shadow-raised transition-shadow motion hover:ring-1 hover:ring-ink-3 disabled:opacity-50"
-					disabled={busy || samples === null}
+					disabled={busy || samples.tables === null}
 					onclick={() => void run(index)}>{prompt.text}</button
 				>
 			{:else}
@@ -282,32 +237,3 @@
 		</div>
 	</aside>
 </section>
-
-<section
-	class="grid items-center gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
-	aria-labelledby="landing-form"
-	onpointerenter={(event) => {
-		if (event.pointerType === 'mouse') void warm();
-	}}
-	onfocusin={() => void warm()}
->
-	<div class="grid gap-3 px-4 lg:px-8">
-		<h2 id="landing-form" class="text-h2 leading-tight font-semibold tighter text-balance">
-			{t.formTitle}
-		</h2>
-		<p class="max-w-md text-lg text-ink-2">
-			{t.formLead}
-		</p>
-	</div>
-	<div
-		class="h-stage-narrow min-w-0 overflow-hidden rounded-panel bg-glass-strong text-base shadow-raised backdrop-blur-glass"
-		data-testid="form"
-	>
-		{#if View !== null && sample !== undefined && entryId !== undefined}
-			<View tableId={sample.table} viewId={entryId} />
-		{/if}
-	</div>
-</section>
-{#if Toast !== null}
-	<Toast />
-{/if}
