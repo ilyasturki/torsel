@@ -1,6 +1,7 @@
+import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
-import { createBase, createTable } from '../../core/actions.ts';
+import { createBase, createTable, defaultViews } from '../../core/actions.ts';
 import { createUser } from '../auth/accounts.ts';
 import { createDatabase } from '../db/client.ts';
 import { runMigrations } from '../db/migrate.ts';
@@ -17,10 +18,16 @@ async function account(): Promise<{ db: Database; userId: string }> {
 	const ws = loadWorkspace(db, user.id);
 	const base = createBase(ws, 'Films');
 	writeChanges(db, user.id, ws, base.changes);
-	const table = createTable(ws, base.id, 'Movies', [
-		{ name: 'Title', type: 'text' },
-		{ name: 'Genre', type: 'choice' }
-	]);
+	const table = createTable(
+		ws,
+		base.id,
+		'Movies',
+		[
+			{ name: 'Title', type: 'text' },
+			{ name: 'Genre', type: 'choice' }
+		],
+		() => defaultViews(names.en)
+	);
 	writeChanges(db, user.id, ws, table.changes);
 
 	return { db, userId: user.id };

@@ -517,6 +517,9 @@ describe('row tools', () => {
 				updates: [{ id: added[0], values: { Year: null, Title: '' } }]
 			})
 		).toEqual({ updated: 1 });
+		closeEngines(ctx.ws);
+	});
+});
 
 describe('the language of what the assistant writes', () => {
 	it('follows the request, even once the turn runs on in its stream', async () => {
