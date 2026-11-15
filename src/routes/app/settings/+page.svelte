@@ -211,7 +211,7 @@
 						aria-label={words.access}
 					/>
 					<Select
-						class="flex-1 sm:w-32 sm:flex-none"
+						class="flex-1 sm:w-40 sm:flex-none"
 						options={LIFETIMES}
 						bind:value={lifetime}
 						aria-label={words.expiry}
