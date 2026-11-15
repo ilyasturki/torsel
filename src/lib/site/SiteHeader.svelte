@@ -20,11 +20,12 @@
 		'inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink';
 </script>
 
+<!-- The app header's geometry, so the mark and the buttons hold still when the app opens. -->
 <header
-	class="flex items-center justify-between gap-3 rounded-panel bg-glass py-2 pr-2 pl-4 shadow-raised backdrop-blur-glass"
+	class="flex min-h-13 items-center justify-between gap-3 bg-glass px-gutter py-2.5 shadow-raised backdrop-blur-glass max-sm:pr-2"
 >
 	<a href="/" class="text-ink" aria-label="Torsel home">
-		<Logo wordmark class="h-4.5" />
+		<Logo wordmark class="h-4" />
 	</a>
 	<nav class="flex items-center gap-1" aria-label="Site">
 		<a href={REPOSITORY} class="{quiet} max-sm:hidden" rel="me">GitHub</a>

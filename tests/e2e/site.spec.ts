@@ -86,6 +86,29 @@ test('shows signed-out visitors a way in and signed-in ones the way back', async
 	await expect(header.getByRole('link', { name: 'Open Torsel' })).toBeHidden();
 });
 
+test('keeps the header still from the site into the app', async ({ page }) => {
+	const place = async (): Promise<unknown> => {
+		const header = page.getByRole('banner');
+		await expect(header.locator('svg').first()).toBeVisible();
+		const [box, mark, last] = await Promise.all([
+			header.boundingBox(),
+			header.locator('svg').first().boundingBox(),
+			header.locator('a:visible, button:visible').last().boundingBox()
+		]);
+		return {
+			height: box?.height,
+			width: box?.width,
+			mark: [mark?.x, mark?.y],
+			end: (last?.x ?? 0) + (last?.width ?? 0)
+		};
+	};
+	await page.goto('/');
+	const site = await place();
+	await page.getByRole('banner').getByRole('link', { name: 'Start now' }).click();
+	await expect(page).toHaveURL(/\/app$/u);
+	expect(await place()).toEqual(site);
+});
+
 test('answers an unknown address with a real error page', async ({ page }) => {
 	const response = await page.goto('/no-such-page');
 	expect(response?.status()).toBe(404);
