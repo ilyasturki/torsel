@@ -1,4 +1,9 @@
-import type { AuthInfo, CallToolResult, McpHttpHandler } from '@modelcontextprotocol/server';
+import type {
+	AuthInfo,
+	CallToolResult,
+	McpHttpHandler,
+	StandardSchemaWithJSON
+} from '@modelcontextprotocol/server';
 import {
 	McpServer,
 	createMcpHandler,
@@ -13,9 +18,9 @@ import { allowedOrigins, siteOrigin } from '../config.ts';
 import type { Tool, ToolContext } from './toolkit.ts';
 import { TOOLS, runTool } from './toolkit.ts';
 
-export const INSTRUCTIONS = `Torsel holds a person's data as bases of typed tables (fields: text, number, date, choice, check, link, formula) shown through views (grid, entry, list, chart).
+export const INSTRUCTIONS = `Torsel holds a person's data as bases of typed tables shown through views (grid, entry, list, chart). Table names are unique in a base, field names in a table; ids work wherever a name does.
 
-Read describe_base before writing: names, types and choices come from there. Read data with query, a read-only SQLite SELECT over views named like the tables and fields. Every write here applies at once on the server and reaches the person's devices at their next sync; delete has no undo here, so resolve what you mean before you remove it.`;
+Read describe_base before writing: names, types and choices come from there. Read data with query, a read-only SQLite SELECT over views named like the tables and fields. Every write applies at once on the server and reaches the person's devices at their next sync; what they typed on a device in the last minute may not show here yet. Nothing written here can be undone from the app, so resolve what you mean before you change or delete it. A refused call says what to change; nothing of it was written.`;
 
 /** Who calls: the account, and the credential that reached the endpoint. */
 export type McpCaller = { userId: string; tokenId: string };
@@ -38,6 +43,12 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 	return tool.kind === 'read' ? work() : serially(caller.userId, work);
 }
 
+// The toolkit validates input itself, to answer in the one error shape: the SDK only lists the schema.
+function listedOnly(schema: Tool['input']): StandardSchemaWithJSON {
+	const standard = schema['~standard'] as StandardSchemaWithJSON['~standard'];
+	return { '~standard': { ...standard, validate: (value: unknown) => ({ value }) } };
+}
+
 export function buildMcpServer(db: Database, caller: McpCaller, version: string): McpServer {
 	const server = new McpServer(
 		{ name: 'torsel', version },
@@ -50,16 +61,24 @@ export function buildMcpServer(db: Database, caller: McpCaller, version: string)
 			{
 				title: tool.title,
 				description: tool.description,
-				inputSchema: tool.input,
+				inputSchema: listedOnly(tool.input),
+				outputSchema: tool.output,
 				annotations: {
 					readOnlyHint: tool.kind === 'read',
-					destructiveHint: tool.destructive === true
+					destructiveHint: tool.destructive,
+					idempotentHint: tool.idempotent,
+					openWorldHint: false
 				}
 			},
 			async (input: unknown): Promise<CallToolResult> => {
 				const outcome = await call(db, caller, tool, input);
-				const text = JSON.stringify(outcome.ok ? outcome.result : { error: outcome.error });
-				return { content: [{ type: 'text' as const, text }], isError: !outcome.ok };
+				if (!outcome.ok) {
+					return { content: [{ type: 'text', text: outcome.error }], isError: true };
+				}
+				return {
+					content: [{ type: 'text', text: JSON.stringify(outcome.result) }],
+					structuredContent: outcome.result
+				};
 			}
 		);
 	}

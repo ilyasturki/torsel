@@ -515,7 +515,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				}
 
 				const action = committed as ThreadAction | null;
-				const body = JSON.stringify(outcome.ok ? outcome.result : { error: outcome.error });
+				const body = outcome.ok ? JSON.stringify(outcome.result) : outcome.error;
 				if (action !== null) {
 					recordAction(db, threadId, action);
 				}

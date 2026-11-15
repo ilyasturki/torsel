@@ -177,7 +177,11 @@ describe('assistant tools', () => {
 		const { call } = session();
 
 		expect(await call('describe_base', { base: 'Nulle part' })).toEqual({
-			error: expect.stringMatching(/list_bases/u)
+			error: 'no base "Nulle part": there is none'
+		});
+		await call('create_base', { name: 'Muscu' });
+		expect(await call('describe_base', { base: 'Nulle part' })).toEqual({
+			error: 'no base "Nulle part"; the bases are "Muscu"'
 		});
 		expect(await call('add_rows', { base: 'x' })).toEqual({ error: expect.any(String) });
 	});
@@ -458,8 +462,10 @@ describe('row tools', () => {
 		const before = actions.length;
 
 		for (const id of [field, view, table]) {
+			const kind = ctx.ws.live(id)?.kind;
+			const refusal = `${id} is a ${kind}, not a row of Movies; rows are the "_id" column of query`;
 			expect(await call('delete_rows', { base, table: 'Movies', ids: [id] })).toEqual({
-				error: `no row ${id} in Movies`
+				error: refusal
 			});
 			expect(
 				await call('update_rows', {
@@ -467,7 +473,7 @@ describe('row tools', () => {
 					table: 'Movies',
 					updates: [{ id, values: { Title: 'x' } }]
 				})
-			).toEqual({ error: `no row ${id} in Movies` });
+			).toEqual({ error: refusal });
 		}
 
 		expect(actions).toHaveLength(before);
@@ -482,7 +488,7 @@ describe('row tools', () => {
 		['Year', 'MMXXI', /"Year": "MMXXI" is not a number/u],
 		['Title', true, /"Title": true is not text/u],
 		['Favorite', 'maybe', /"Favorite": "maybe" is not a check \(true or false\)/u],
-		['Genre', { name: 'Drama' }, /"Genre": \{"name":"Drama"\} is not a choice/u]
+		['Genre', { name: 'Drama' }, /Genre: \{"name":"Drama"\} is not a value/u]
 	])('refuse the whole call when %s cannot hold %j', async (field, value, message) => {
 		const { call, ctx, actions } = await movies();
 		const before = actions.length;
