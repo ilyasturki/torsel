@@ -72,7 +72,9 @@ const SURFACES = [
 	'field@raised',
 	'field-hover@raised',
 	'field@float',
-	'field-hover@float'
+	'field-hover@float',
+	'tint-2@raised',
+	'tint-2@float'
 ];
 const INKS = ['ink', 'ink-2', 'ink-3', 'accent'];
 const BUTTONS = ['button@raised', 'button-hover@raised', 'button@float', 'button-hover@float'];
