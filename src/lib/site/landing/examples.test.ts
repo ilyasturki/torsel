@@ -11,13 +11,18 @@ import { Workspace } from '#lib/core/workspace.ts';
 
 import type { Cell } from './examples.ts';
 import { EXAMPLES } from './examples.ts';
+import { EXAMPLES_FR } from './examples-fr.ts';
 import { changesFor, seedExample } from './seed.ts';
 
 const round = (value: unknown): unknown =>
 	typeof value === 'number' ? Math.round(value * 100) / 100 : (value ?? '');
 
 describe('each prepared prompt does what the engine computes', () => {
-	it.each(EXAMPLES.map((example) => [example.id, example] as const))('%s', async (_id, example) => {
+	const cases = [
+		...EXAMPLES.map((example) => [example.table, 'en', example] as const),
+		...EXAMPLES_FR.map((example) => [example.table, 'fr', example] as const)
+	];
+	it.each(cases)('%s', async (_table, locale, example) => {
 		const ws = new Workspace();
 		const hlc = new Hlc('landing');
 		const commit = (changes: Change[]): void => {
@@ -62,7 +67,7 @@ describe('each prepared prompt does what the engine computes', () => {
 				expect(view?.name).toBe(prompt.name);
 				materializeTable(engine, ws, sample.table);
 				const data = chartData(engine, ws, sample.table, view?.config ?? {});
-				expect(data && viewWords.en.chartValue[data.agg](data.yName)).toBe(prompt.label);
+				expect(data && viewWords[locale].chartValue[data.agg](data.yName)).toBe(prompt.label);
 				const totals = new Map<string, number>();
 				for (const row of rows) {
 					const key = String(row[prompt.group]);
