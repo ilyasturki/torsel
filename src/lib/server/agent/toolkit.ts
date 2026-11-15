@@ -267,13 +267,10 @@ function commit(ctx: ToolContext, action: Action): void {
 
 const BASE = z.string().describe('name or id of the base');
 const TABLE = z.string().describe('name or id of the table');
-const CELL = z.union(
-	[z.string(), z.number(), z.boolean(), z.null(), z.array(z.union([z.string(), z.number()]))],
-	{
-		error: (issue) =>
-			`${JSON.stringify(issue.input)} is not a value: give text, a number, a boolean, null, or an array of texts`
-	}
-);
+const CELL = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())], {
+	error: (issue) =>
+		`${JSON.stringify(issue.input)} is not a value: give text, a number, a boolean, null, or an array of texts`
+});
 const ROW_VALUES = z
 	.record(z.string(), CELL)
 	.describe(
@@ -621,7 +618,7 @@ const FIELD_OUT = z.strictObject({
 	step: z.number().optional(),
 	seconds: z.boolean().optional(),
 	choices: z.array(z.string()).optional(),
-	target: z.string().nullable().optional(),
+	target: z.string().optional(),
 	formula: z.string().optional(),
 	description: z.string().optional()
 });
@@ -633,8 +630,9 @@ function describeField(ws: Workspace, field: FieldDef): z.infer<typeof FIELD_OUT
 		if (field[key] !== null && !(key === 'grouping' && field[key])) out[key] = field[key];
 	}
 	if (hasChoices(field.type)) out.choices = field.choices.map((choice) => choice.name);
-	if (field.type === 'link' && field.target !== null)
-		out.target = ws.table(field.target)?.name ?? null;
+	const target =
+		field.type === 'link' && field.target !== null ? ws.table(field.target) : undefined;
+	if (target !== undefined) out.target = target.name;
 	if (field.type === 'formula' && field.expr !== null)
 		out.formula = toDisplay(field.expr, ws.fields(field.table));
 	if (field.description !== null) out.description = field.description;
@@ -655,16 +653,16 @@ const VIEW_OUT = z.strictObject({
 		filter: z.strictObject({ field: z.string(), text: z.string() }).nullable().optional(),
 		fields: z.array(z.string()).optional(),
 		match: z.array(z.string()).optional(),
-		group: z.string().nullable().optional(),
-		title: z.string().nullable().optional(),
+		group: z.string().optional(),
+		title: z.string().optional(),
 		show: z.array(z.string()).optional(),
 		kind: z.enum(['bar', 'line']).optional(),
-		x: z.string().nullable().optional(),
+		x: z.string().optional(),
 		bucket: z.enum(['day', 'week', 'month']).nullable().optional(),
 		agg: z.enum(['count', 'sum', 'avg', 'max', 'min']).optional(),
-		y: z.string().nullable().optional(),
-		color: z.string().nullable().optional(),
-		rolling: z.number().nullable().optional()
+		y: z.string().optional(),
+		color: z.string().optional(),
+		rolling: z.number().optional()
 	})
 });
 
@@ -679,7 +677,7 @@ function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_OUT> {
 	}
 	for (const key of ['group', 'title', 'x', 'y', 'color'] as const) {
 		const id = config[key];
-		if (id !== undefined) out[key] = id === null ? null : name(id);
+		if (typeof id === 'string') out[key] = name(id);
 	}
 	if (config.sort !== undefined)
 		out.sort = config.sort === null ? null : { ...config.sort, field: name(config.sort.field) };
@@ -689,7 +687,7 @@ function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_OUT> {
 	if (config.kind !== undefined) out.kind = config.kind;
 	if (config.bucket !== undefined) out.bucket = config.bucket;
 	if (config.agg !== undefined) out.agg = config.agg;
-	if (config.rolling !== undefined) out.rolling = config.rolling;
+	if (typeof config.rolling === 'number') out.rolling = config.rolling;
 
 	return { id: view.id, name: view.name, type: view.type, config: out };
 }
@@ -777,8 +775,19 @@ export const TOOLS: Tool[] = [
 		}),
 		output: z.strictObject({
 			columns: z.array(z.string()),
-			rows: z.array(z.array(z.union([z.string(), z.number(), z.null()]))),
-			next: z.number().nullable(),
+			rows: z.array(
+				z.array(
+					z.union([
+						z.string().describe('text'),
+						z.number().describe('a number'),
+						z.null().describe('an empty cell')
+					])
+				)
+			),
+			next: z.union([
+				z.number().describe('the offset of the following page'),
+				z.null().describe('this is the last page')
+			]),
 			cut: z.number()
 		}),
 		kind: 'read',
