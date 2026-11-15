@@ -86,10 +86,11 @@ export class SqlPool {
 
 	private pump(): void {
 		for (const slot of this.slots) {
-			if (slot.job !== null) continue;
-			const next = this.queue.shift();
-			if (next === undefined) return;
-			this.start(slot, next);
+			while (slot.job === null) {
+				const next = this.queue.shift();
+				if (next === undefined) return;
+				this.start(slot, next);
+			}
 		}
 	}
 
@@ -124,7 +125,9 @@ export class SqlPool {
 			this.pump();
 		});
 		worker.on('error', () => {
-			void this.stop(slot, new SqlRefusal('failed'));
+			if (slot.worker === worker) {
+				void this.stop(slot, new SqlRefusal('failed'));
+			}
 		});
 		worker.on('exit', () => {
 			if (slot.worker === worker) {
