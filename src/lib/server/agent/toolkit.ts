@@ -138,12 +138,12 @@ function storedFormula(
 	}
 }
 
-// Every query runs on the server's one thread, shared by every account.
-const QUERY_SECONDS = 2;
+// A query holds the server's one thread, shared by every account, for up to this long.
+const QUERY_MS = 500;
 
 function sqlRefusal(message: string): string {
 	return message === 'interrupted'
-		? `the query ran past ${QUERY_SECONDS} s; aggregate, filter or read fewer rows`
+		? `the query ran past ${QUERY_MS} ms; aggregate, filter or read fewer rows`
 		: message;
 }
 
@@ -171,7 +171,7 @@ async function engineFor(ws: Workspace, baseId: string): Promise<MemoryEngine> {
 	const engine = await openEngine();
 	materializeBase(engine, ws, baseId, true);
 	engine.readOnly();
-	engine.bound({ ms: QUERY_SECONDS * 1000, length: 1_000_000 });
+	engine.bound({ ms: QUERY_MS, length: 1_000_000 });
 	perBase.set(baseId, { version, engine });
 
 	return engine;
@@ -610,7 +610,7 @@ export const TOOLS: Tool[] = [
 		name: 'query',
 		title: TITLES.query,
 		description:
-			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. At most 200 rows and about 64 KB, and a query stops after 2 s: truncated is true when rows were cut, so aggregate, filter or select fewer columns.',
+			'A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. At most 200 rows and about 64 KB, and a query stops after 500 ms: truncated is true when rows were cut, so aggregate, filter or select fewer columns.',
 		input: z.object({ base: BASE, sql: z.string().min(1) }),
 		kind: 'read',
 		run: async ({ ws }, { base, sql }: { base: string; sql: string }) => {

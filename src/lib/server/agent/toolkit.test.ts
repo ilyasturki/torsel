@@ -360,8 +360,8 @@ describe('query limits', () => {
 			sql: 'with recursive c(x) as (select 1 union all select x + 1 from c) select count(*) from c'
 		});
 
-		expect(answer).toEqual({ error: expect.stringMatching(/ran past 2 s/u) });
-		expect(Date.now() - started).toBeLessThan(3000);
+		expect(answer).toEqual({ error: expect.stringMatching(/ran past 500 ms/u) });
+		expect(Date.now() - started).toBeLessThan(1500);
 		closeEngines(ctx.ws);
 	});
 
@@ -413,7 +413,7 @@ describe('query limits', () => {
 		});
 
 		expect(answer).toEqual({ error: expect.stringMatching(/too big/u) });
-		expect(Date.now() - started).toBeLessThan(3000);
+		expect(Date.now() - started).toBeLessThan(1500);
 		closeEngines(ctx.ws);
 	});
 });
