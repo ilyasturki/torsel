@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -11,7 +11,17 @@ import { Hlc } from '../../src/lib/core/clock.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
 
-import { RETRY_RESET, expect, newAccount, seed, signIn, tablePath, test } from './harness.ts';
+import {
+	RETRY_RESET,
+	columnMenu,
+	expect,
+	newAccount,
+	pick,
+	seed,
+	signIn,
+	tablePath,
+	test
+} from './harness.ts';
 
 const POSTER = readFileSync(join(import.meta.dirname, 'images/poster.jpg'));
 const STILL = readFileSync(join(import.meta.dirname, 'images/still.jpg'));
@@ -547,4 +557,180 @@ test('a device on the first local store keeps its unsent rows and takes images',
 	});
 	await expect(sheet.getByRole('button', { name: 'dune.jpg', exact: true })).toBeVisible();
 	await expect.poll(() => serverValue(context.request, rows.ids[0])).toHaveLength(1);
+});
+
+const LINKS = process.env.TORSEL_TEST_SOURCES ?? '';
+
+/** Puts a poster, a still and a web page on the fixture server, under a key of this test's own. */
+async function servePosters(request: APIRequestContext): Promise<(path: string) => string> {
+	const key = randomUUID().slice(0, 8);
+	const image = (bytes: Buffer) => ({
+		type: 'image/jpeg',
+		body: '',
+		bytes: bytes.toString('base64')
+	});
+	const response = await request.post(`${LINKS}/__set?key=${key}`, {
+		data: {
+			'/dune.jpg': image(POSTER),
+			'/still.jpg': image(STILL),
+			'/page': { type: 'text/html', body: '<!doctype html><p>not a poster</p>' }
+		}
+	});
+	expect(response.ok()).toBe(true);
+	return (path) => `${LINKS}/${key}${path}`;
+}
+
+async function pasteText(target: Locator, text: string): Promise<void> {
+	await target.evaluate((element, pasted) => {
+		const data = new DataTransfer();
+		data.setData('text/plain', pasted);
+		element.dispatchEvent(
+			new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
+		);
+	}, text);
+}
+
+test.describe('image links', () => {
+	test('a pasted link is fetched by the server into the cell, and a page is refused', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const url = await servePosters(context.request);
+		const movies = await seedMovies(context.request);
+		await page.goto(movies.grid);
+		const catcher = page.locator('textarea[aria-hidden="true"]').first();
+
+		await posterCell(page, 'Alien').click();
+		await pasteText(catcher, url('/dune.jpg'));
+		await expect(posterCell(page, 'Alien').getByRole('img')).toHaveCount(1);
+		await expect(page.getByRole('status')).toContainText('Image added');
+		await expectPosterShape(posterCell(page, 'Alien').getByRole('img'), 1.5);
+		await expect
+			.poll(() => serverValue(context.request, movies.rows[1]))
+			.toMatchObject([{ src: url('/dune.jpg'), name: 'dune.jpg', w: 342, h: 513 }]);
+
+		await posterCell(page, 'Dune').click();
+		await pasteText(catcher, url('/page'));
+		await expect(page.getByRole('status')).toContainText(
+			'This link isn’t a JPEG, PNG, WebP, GIF or AVIF image'
+		);
+		await expect(posterCell(page, 'Dune').getByRole('img')).toHaveCount(0);
+	});
+
+	test('the row sheet adds an image from a link', async ({ page, context, account, isMobile }) => {
+		void account;
+		const url = await servePosters(context.request);
+		const movies = await seedMovies(context.request);
+		await page.goto(movies.grid);
+
+		await posterCell(page, 'Alien').click();
+		await page.keyboard.press('Enter');
+		const sheet = page.getByRole('dialog', { name: 'Poster' });
+		if (isMobile) {
+			await sheet.getByRole('button', { name: 'Add' }).click();
+			await page.getByRole('menuitem', { name: 'From a link' }).click();
+		} else {
+			await sheet.getByRole('button', { name: 'Add from a link' }).click();
+		}
+		const link = sheet.getByRole('textbox', { name: 'Image link' });
+		await expect(link).toBeFocused();
+		await link.fill(url('/still.jpg'));
+		await link.press('Enter');
+		await expect(sheet.getByRole('button', { name: 'still.jpg', exact: true })).toBeVisible();
+		await expect(link).toBeHidden();
+		await expect
+			.poll(() => serverValue(context.request, movies.rows[1]))
+			.toMatchObject([{ src: url('/still.jpg') }]);
+	});
+
+	test('a column of links becomes images, a link that fails cleared', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const url = await servePosters(context.request);
+		const table = await seed(context.request, (ws, commit) => {
+			const base = createBase(ws, 'Films');
+			commit(base.changes);
+			const movies = createTable(
+				ws,
+				base.id,
+				'Movies',
+				[
+					{ name: 'Title', type: 'text' },
+					{ name: 'Poster', type: 'url' }
+				],
+				() => [{ name: names.en.views.grid, type: 'grid', config: {} }]
+			);
+			commit(movies.changes);
+			const [title, poster] = movies.fieldIds;
+			commit(
+				insertRows(ws, movies.id, [
+					{ [title]: 'Dune', [poster]: url('/dune.jpg') },
+					{ [title]: 'Alien', [poster]: url('/page') }
+				]).changes
+			);
+			return movies.id;
+		});
+		await page.goto(tablePath(table));
+
+		await columnMenu(page, 'Poster', 'Field settings');
+		const sheet = page.getByRole('dialog', { name: 'Field', exact: true });
+		await pick(sheet.getByRole('combobox').first(), 'Image');
+		await expect(page.getByRole('status')).toContainText('Poster retyped, 1 value cleared');
+		await page.keyboard.press('Escape');
+
+		await expectPosterShape(posterCell(page, 'Dune').getByRole('img'), 1.5);
+		await expect(posterCell(page, 'Alien').getByRole('img')).toHaveCount(0);
+	});
+
+	test('tall rows show posters larger, and the header keeps its height', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const films = createBase(new Workspace(), 'Films');
+		const poster = (await upload(context.request, films.id, POSTER)).ref as ImageRef;
+		const movies = await seedFor(context.request, films, [{ ...poster, name: 'dune.jpg' }]);
+		await page.goto(movies.grid);
+
+		const header = page.getByRole('columnheader', { name: 'Poster', exact: true });
+		const thumb = posterCell(page, 'Dune').getByRole('img');
+		await expectPosterShape(thumb, 1.5);
+		const height = async (target: Locator): Promise<number> =>
+			(await target.boundingBox())?.height ?? 0;
+		const row = await height(posterCell(page, 'Dune'));
+		const head = await height(header);
+
+		await page.getByRole('button', { name: 'More' }).click();
+		await page
+			.getByRole('menuitem', { name: 'View settings' })
+			.or(page.getByRole('dialog').getByRole('button', { name: 'View settings' }))
+			.click();
+		const settings = page.getByRole('dialog', { name: 'View settings' });
+		await pick(settings.getByRole('combobox', { name: 'Row height' }), 'Tall');
+		await page.keyboard.press('Escape');
+		await expect(settings).toBeHidden();
+
+		await expect.poll(() => height(posterCell(page, 'Dune'))).toBeCloseTo(row * 3, 0);
+		expect(await height(header)).toBeCloseTo(head, 0);
+		await expectPosterShape(thumb, 1.5);
+		expect(await height(thumb)).toBeCloseTo(row * 3 - 8, 0);
+	});
+
+	test('the fetch route refuses a link it must never follow', async ({ context, account }) => {
+		void account;
+		const films = await seedMovies(context.request);
+		for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'ftp://example.com/x.jpg']) {
+			const response = await context.request.post(`/api/blobs/${films.base}/fetch`, {
+				...RETRY_RESET,
+				data: { url }
+			});
+			expect(response.status(), url).toBe(400);
+		}
+	});
 });

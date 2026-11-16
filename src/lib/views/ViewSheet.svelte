@@ -253,6 +253,20 @@
 					{/key}
 				{/if}
 			</fieldset>
+			<Field label={words.rowHeight}>
+				<Select
+					options={[
+						{ value: 'normal', label: words.rowsNormal },
+						{ value: 'tall', label: words.rowsTall }
+					]}
+					value={config.tall === true ? 'tall' : 'normal'}
+					onchange={(height) =>
+						edit((next) => {
+							if (height === 'tall') next.tall = true;
+							else delete next.tall;
+						})}
+				/>
+			</Field>
 			{#if config.filter}
 				<div class="flex items-center gap-2">
 					<span class="min-w-0 flex-1 truncate">

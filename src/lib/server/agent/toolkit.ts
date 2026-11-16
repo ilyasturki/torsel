@@ -489,6 +489,10 @@ const VIEW_CONFIG = z
 			.nullable()
 			.optional()
 			.describe('grid: rows whose field contains the text; null clears it'),
+		tall: z
+			.boolean()
+			.optional()
+			.describe('grid: rows three times as tall, for larger images and text on three lines'),
 		fields: z.array(z.string()).optional().describe('entry: the fields to fill, in order'),
 		match: z
 			.array(z.string())
@@ -546,6 +550,7 @@ function viewConfig(
 			input.filter === null
 				? null
 				: { field: findField(ws, tableId, input.filter.field).id, text: input.filter.text };
+	if (input.tall !== undefined) config.tall = input.tall;
 	if (input.fields !== undefined) config.fields = ids(input.fields);
 	if (input.match !== undefined) config.match = ids(input.match);
 	if (input.group !== undefined) config.group = id(input.group);
@@ -634,7 +639,7 @@ function expected(field: FieldDef): string {
 		case 'phone':
 			return 'a phone number';
 		case 'image':
-			return 'an image: a link to one, an attached file\'s id, a stored image\'s id, or an array of them';
+			return "an image: a link to one, an attached file's id, a stored image's id, or an array of them";
 		case 'text':
 		case 'longtext':
 		case 'formula':
@@ -710,7 +715,7 @@ const FETCH_PROBLEMS: Record<IngestProblem, string> = {
 	size: 'it is over 10 MB',
 	'not-an-image': 'it is not a JPEG, PNG, WebP, GIF or AVIF image',
 	'too-many-pixels': 'it has over 40 million pixels',
-	full: 'the account\'s image storage is full',
+	full: "the account's image storage is full",
 	busy: 'too many images were fetched this minute; try again in a minute'
 };
 
@@ -745,14 +750,18 @@ async function storedImages(
 				const ref = imageRef(item);
 				if (ref !== null) return { at, given: ref.id, ref };
 				if (typeof item !== 'string') {
-					throw new ToolError(`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`);
+					throw new ToolError(
+						`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`
+					);
 				}
 				const text = item.trim();
 				const stored = isImageId(text) ? host.fromId(baseId, text) : null;
 				const attached = stored ?? host.fromFile(baseId, text);
 				if (attached !== null) return { at, given: text, ref: attached };
 				if (!isImageSource(text)) {
-					throw new ToolError(`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`);
+					throw new ToolError(
+						`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`
+					);
 				}
 				return { at, given: text, ref: null };
 			});
@@ -760,20 +769,32 @@ async function storedImages(
 		}
 	}
 
-	const links = [...new Set(wanted.flatMap(({ items }) => items.filter((item) => item.ref === null).map((item) => item.given)))];
+	const links = [
+		...new Set(
+			wanted.flatMap(({ items }) =>
+				items.filter((item) => item.ref === null).map((item) => item.given)
+			)
+		)
+	];
 	if (links.length > MAX_FETCHES) {
-		throw new ToolError(`a call fetches up to ${MAX_FETCHES} image links; split the rest into further calls`);
+		throw new ToolError(
+			`a call fetches up to ${MAX_FETCHES} image links; split the rest into further calls`
+		);
 	}
 	const host = links.length === 0 ? null : imageHostOf(ctx);
-	const fetched = host === null ? new Map() : await ingestAll(links, (url) => host.fromUrl(baseId, url));
+	const fetched =
+		host === null ? new Map() : await ingestAll(links, (url) => host.fromUrl(baseId, url));
 
 	const out = rows.map((values) => ({ ...values }));
 	for (const { row, field, items } of wanted) {
 		const refs = items.map((item) => {
 			const got = item.ref ?? fetched.get(item.given);
 			if (got instanceof IngestFailed || got === undefined) {
-				const why = got instanceof IngestFailed ? FETCH_PROBLEMS[got.problem] : 'it could not be fetched';
-				throw new ToolError(`${item.at}: ${item.given} was not stored: ${why}; nothing was written`);
+				const why =
+					got instanceof IngestFailed ? FETCH_PROBLEMS[got.problem] : 'it could not be fetched';
+				throw new ToolError(
+					`${item.at}: ${item.given} was not stored: ${why}; nothing was written`
+				);
 			}
 			return got;
 		});
@@ -891,6 +912,7 @@ const VIEW_OUT = z.strictObject({
 			.nullable()
 			.optional(),
 		filter: z.strictObject({ field: z.string(), text: z.string() }).nullable().optional(),
+		tall: z.boolean().optional(),
 		fields: z.array(z.string()).optional(),
 		match: z.array(z.string()).optional(),
 		group: fieldOrNull('no groups').optional(),
@@ -929,6 +951,7 @@ export function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_
 	if (config.filter !== undefined)
 		out.filter =
 			config.filter === null ? null : { ...config.filter, field: name(config.filter.field) };
+	if (config.tall === true) out.tall = true;
 	if (config.kind !== undefined) out.kind = config.kind;
 	if (config.bucket !== undefined) out.bucket = config.bucket;
 	if (config.agg !== undefined) out.agg = config.agg;

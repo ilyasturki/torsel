@@ -45,6 +45,8 @@
 	--row: 34px;
 	/* An image in a cell, a row's height less its breathing room; in a sheet, large enough to tell posters apart. */
 	--thumb: calc(var(--row) - 8px);
+	/* A grid row; a tall view redefines it below. */
+	--cell: var(--row);
 	--picture: 120px;
 	--control: 32px;
 	--cta: 44px;
@@ -160,6 +162,7 @@
 	:root {
 		--row: 44px;
 		--thumb: calc(var(--row) - 8px);
+		--cell: var(--row);
 		--picture: 96px;
 		--control: 44px;
 		--cta: 56px;
@@ -237,6 +240,7 @@
 
 	--spacing-row: var(--row);
 	--spacing-thumb: var(--thumb);
+	--spacing-cell: var(--cell);
 	--spacing-picture: var(--picture);
 	--spacing-control: var(--control);
 	--spacing-cta: var(--cta);
@@ -399,4 +403,10 @@ button {
 		outline: 2px solid var(--focus);
 		outline-offset: -2px;
 	}
+}
+
+/* Grid.svelte's TALL_ROWS: rows three base rows tall. */
+[data-tall] {
+	--cell: calc(var(--row) * 3);
+	--thumb: calc(var(--row) * 3 - 8px);
 }

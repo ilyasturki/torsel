@@ -192,6 +192,8 @@ export type GridConfig = {
 	sort?: SortKey[] | null;
 	filter?: { field: string; text: string } | null;
 	widths?: Record<string, number>;
+	// Rows three times as tall: larger images, text on up to three lines.
+	tall?: boolean;
 };
 
 export type EntryConfig = { fields?: string[]; match?: string[] };

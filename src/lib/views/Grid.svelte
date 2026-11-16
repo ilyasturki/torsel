@@ -122,7 +122,13 @@
 	let scrollLeft = $state(0);
 	let viewHeight = $state(0);
 	let viewWidth = $state(0);
-	let rowHeight = $state(34);
+	// app.css's [data-tall] rule makes a tall row this many base rows.
+	const TALL_ROWS = 3;
+
+	// The header row keeps the base height; a tall view's rows are taller.
+	let headHeight = $state(34);
+	const tall = $derived(view.config.tall === true);
+	const rowHeight = $derived(tall ? headHeight * TALL_ROWS : headHeight);
 
 	let anchor = $state.raw<Pos | null>(null);
 	let head = $state.raw<Pos | null>(null);
@@ -327,7 +333,7 @@
 	$effect(() => {
 		void viewWidth;
 		const styles = getComputedStyle(document.documentElement);
-		rowHeight = parseFloat(styles.getPropertyValue('--row')) || rowHeight;
+		headHeight = parseFloat(styles.getPropertyValue('--row')) || headHeight;
 	});
 
 	$effect(() => {
@@ -446,10 +452,10 @@
 
 	function reveal(r: number, c: number): void {
 		if (scroller === undefined) return;
-		const y = rowHeight + r * rowHeight;
+		const y = headHeight + r * rowHeight;
 		const height = scroller.clientHeight;
-		if (y < scroller.scrollTop + rowHeight) {
-			scroller.scrollTop = y - rowHeight;
+		if (y < scroller.scrollTop + headHeight) {
+			scroller.scrollTop = y - headHeight;
 		} else if (y + rowHeight > scroller.scrollTop + height) {
 			scroller.scrollTop = y + rowHeight - height;
 		}
@@ -732,7 +738,7 @@
 		const extend = event.shiftKey;
 		const lastRow = Math.max(0, rows.length - 1);
 		const lastCol = fields.length - 1;
-		const page = Math.max(1, Math.floor((viewHeight - rowHeight) / rowHeight));
+		const page = Math.max(1, Math.floor((viewHeight - headHeight) / rowHeight));
 
 		const moves: Record<string, () => [number, number]> = {
 			ArrowUp: () => [command ? 0 : headRow - 1, headCol],
@@ -952,7 +958,7 @@
 
 	function cellAtPoint(x: number, y: number): { r: number; c: number } {
 		const box = (scroller as HTMLElement).getBoundingClientRect();
-		const r = Math.floor((y - box.top + scrollTop - rowHeight) / rowHeight);
+		const r = Math.floor((y - box.top + scrollTop - headHeight) / rowHeight);
 		const inside = x - box.left;
 		const across = inside >= stickyEnd ? inside + scrollLeft : inside;
 		const c = lefts.findIndex((edge, index) => index > 0 && across < edge);
@@ -972,8 +978,8 @@
 				const dy =
 					point.y > box.bottom - 24
 						? point.y - (box.bottom - 24)
-						: point.y < box.top + rowHeight
-							? point.y - (box.top + rowHeight)
+						: point.y < box.top + headHeight
+							? point.y - (box.top + headHeight)
 							: 0;
 				if (dx !== 0 || dy !== 0) {
 					scroller.scrollBy(dx / 4, dy / 4);
@@ -1518,7 +1524,7 @@
 	function onheaderdown(event: PointerEvent, field: FieldDef): void {
 		if (event.button !== 0 || event.pointerType === 'touch') return;
 		const from = event.clientX;
-		const point = { x: event.clientX, y: event.clientY + rowHeight * 2 };
+		const point = { x: event.clientX, y: event.clientY + headHeight + rowHeight };
 		let stopScroll: (() => void) | null = null;
 
 		const update = (): void => {
@@ -1770,7 +1776,7 @@
 		aria-colindex={c + 2}
 		aria-selected={inRange}
 		aria-readonly={locked.has(field.id) || undefined}
-		class="h-row border-r border-b border-b-rule p-0 {c === 0
+		class="h-cell border-r border-b border-b-rule p-0 {c === 0
 			? 'sticky left-11 z-10 border-r-rule-strong bg-raised'
 			: 'relative border-r-rule-col'}"
 	>
@@ -1798,7 +1804,7 @@
 			{:else if row === null && field.type !== 'formula'}
 				<span class="truncate text-ink-3">{field.name}</span>
 			{:else}
-				<CellValue {field} {value} />
+				<CellValue {field} {value} wrap={tall} />
 			{/if}
 		</div>
 		{#if isEditing && editing !== null}
@@ -2158,7 +2164,7 @@
 						></th>
 					</tr>
 				</thead>
-				<tbody>
+				<tbody data-tall={tall || undefined}>
 					{#if start > 0}
 						<tr aria-hidden="true" style="height: {start * rowHeight}px">
 							<td colspan={fields.length + 3} class="p-0"></td>
@@ -2170,7 +2176,7 @@
 							<td
 								role="rowheader"
 								data-r={r}
-								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
+								class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
 							>
 								{#if readOnly}
 									<span
@@ -2228,7 +2234,7 @@
 						<tr class="group" aria-rowindex={rows.length + 2}>
 							<td
 								role="rowheader"
-								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
+								class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
 							>
 								<button
 									type="button"
@@ -2252,15 +2258,16 @@
 				<div
 					aria-hidden="true"
 					class="pointer-events-none absolute ring-1 ring-accent ring-inset"
-					style="left: {lefts[left]}px; top: {(top + 1) * rowHeight}px; width: {lefts[right + 1] -
-						lefts[left]}px; height: {(bottom - top + 1) * rowHeight}px"
+					style="left: {lefts[left]}px; top: {headHeight + top * rowHeight}px; width: {lefts[
+						right + 1
+					] - lefts[left]}px; height: {(bottom - top + 1) * rowHeight}px"
 				></div>
 			{/if}
 			{#if filling !== null}
 				<div
 					aria-hidden="true"
 					class="pointer-events-none absolute z-15 border border-dashed border-accent"
-					style="top: {rowHeight * (filling.top + 1)}px; left: {lefts[
+					style="top: {headHeight + rowHeight * filling.top}px; left: {lefts[
 						filling.left
 					]}px; width: {lefts[filling.right + 1] - lefts[filling.left]}px; height: {rowHeight *
 						(filling.bottom - filling.top + 1)}px"

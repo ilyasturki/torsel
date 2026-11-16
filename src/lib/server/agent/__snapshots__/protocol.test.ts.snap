@@ -390,6 +390,9 @@ exports[`lists the same tools in every era 1`] = `
                             },
                           ],
                         },
+                        "tall": {
+                          "type": "boolean",
+                        },
                         "title": {
                           "type": "string",
                         },
@@ -1590,6 +1593,10 @@ exports[`lists the same tools in every era 1`] = `
               ],
               "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
+            "tall": {
+              "description": "grid: rows three times as tall, for larger images and text on three lines",
+              "type": "boolean",
+            },
             "title": {
               "anyOf": [
                 {
@@ -2001,6 +2008,10 @@ exports[`lists the same tools in every era 1`] = `
                 },
               ],
               "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
+            },
+            "tall": {
+              "description": "grid: rows three times as tall, for larger images and text on three lines",
+              "type": "boolean",
             },
             "title": {
               "anyOf": [

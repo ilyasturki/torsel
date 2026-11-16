@@ -13,7 +13,18 @@
 
 	import ImageThumb from './ImageThumb.svelte';
 
-	let { field, value }: { field: FieldDef; value: Value | undefined } = $props();
+	let {
+		field,
+		value,
+		wrap = false
+	}: {
+		field: FieldDef;
+		value: Value | undefined;
+		/** Room for three lines: text wraps, and tags flow onto further lines. */
+		wrap?: boolean;
+	} = $props();
+
+	const line = $derived(wrap ? 'line-clamp-3 break-words' : 'truncate');
 
 	// Past three, a cell says how many more rather than shrink them.
 	const SHOWN = 3;
@@ -32,7 +43,7 @@
 {:else if field.type === 'choice'}
 	<Chip name={String(value)} color={colorOf(String(value))} />
 {:else if field.type === 'choices' && Array.isArray(value)}
-	<span class="flex min-w-0 items-center gap-1 overflow-hidden">
+	<span class="flex min-w-0 items-center gap-1 overflow-hidden {wrap ? 'flex-wrap' : ''}">
 		{#each value as name, at (at)}
 			<span class="shrink-0"><Chip name={String(name)} color={colorOf(String(name))} /></span>
 		{/each}
@@ -54,7 +65,7 @@
 		<Icon name="check" label={words.checked} />
 	{/if}
 {:else if field.type === 'link'}
-	<span class="truncate">{title}</span>
+	<span class={line}>{title}</span>
 {:else if field.type === 'rating' && typeof value === 'number'}
 	<Rating {...ratingScale(field)} {value} size="sm" />
 {:else if isContact(field.type) && typeof value === 'string'}
@@ -62,9 +73,9 @@
 		href={hrefOf(field.type, value)}
 		target={field.type === 'url' ? '_blank' : undefined}
 		rel="noopener noreferrer"
-		class="truncate underline decoration-edge underline-offset-2 hover:decoration-ink"
+		class="{line} underline decoration-edge underline-offset-2 hover:decoration-ink"
 		>{formatValue(field, value)}</a
 	>
 {:else}
-	<span class="truncate">{formatValue(field, value)}</span>
+	<span class={line}>{formatValue(field, value)}</span>
 {/if}
