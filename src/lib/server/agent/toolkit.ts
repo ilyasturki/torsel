@@ -435,6 +435,11 @@ function fieldSpec(ws: Workspace, baseId: string, input: FieldInput, tableId?: s
 	return spec;
 }
 
+// A described null keeps the two branches apart: `type: ["string", "null"]` is less portable.
+function fieldOrNull(cleared: string) {
+	return z.union([z.string(), z.null().describe(`clears it: ${cleared}`)]);
+}
+
 const VIEW_CONFIG = z
 	.strictObject({
 		hidden: z.array(z.string()).optional().describe('grid: hidden fields'),
@@ -457,31 +462,23 @@ const VIEW_CONFIG = z
 			.describe(
 				'entry: the fields that identify "last time" for prefilling, in order, such as ["Exercise"]; with two or more, the first repeats its last occurrence row by row, such as ["Session", "Exercise"]'
 			),
-		group: z
-			.string()
-			.nullable()
+		group: fieldOrNull('no groups').optional().describe('list: the field to group by'),
+		title: fieldOrNull('the first text field')
 			.optional()
-			.describe('list: the field to group by; null for no groups'),
-		title: z
-			.string()
-			.nullable()
-			.optional()
-			.describe('list: the field shown as the title; null for the first text field'),
+			.describe('list: the field shown as the title'),
 		show: z.array(z.string()).optional().describe('list: the fields shown under the title'),
 		kind: z.enum(['bar', 'line']).optional().describe('chart'),
-		x: z.string().nullable().optional().describe('chart: the x field, often a date'),
+		x: fieldOrNull('no x').optional().describe('chart: the x field, often a date'),
 		bucket: z
 			.enum(['day', 'week', 'month'])
 			.nullable()
 			.optional()
 			.describe('chart: how dates are grouped'),
 		agg: z.enum(['count', 'sum', 'avg', 'max', 'min']).optional().describe('chart'),
-		y: z.string().nullable().optional().describe('chart: the aggregated field, except for count'),
-		color: z
-			.string()
-			.nullable()
+		y: fieldOrNull('no y').optional().describe('chart: the aggregated field, except for count'),
+		color: fieldOrNull('one series')
 			.optional()
-			.describe('chart: a choice field that splits the series; null for one series'),
+			.describe('chart: a choice field that splits the series'),
 		rolling: z
 			.number()
 			.int()
@@ -770,7 +767,7 @@ const VIEW_OUT = z.strictObject({
 		filter: z.strictObject({ field: z.string(), text: z.string() }).nullable().optional(),
 		fields: z.array(z.string()).optional(),
 		match: z.array(z.string()).optional(),
-		group: z.string().nullable().optional(),
+		group: fieldOrNull('no groups').optional(),
 		title: z.string().optional(),
 		show: z.array(z.string()).optional(),
 		kind: z.enum(['bar', 'line']).optional(),

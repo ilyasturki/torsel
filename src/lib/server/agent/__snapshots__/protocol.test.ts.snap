@@ -313,9 +313,14 @@ exports[`lists the same tools in every era 1`] = `
                           ],
                         },
                         "group": {
-                          "type": [
-                            "string",
-                            "null",
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "description": "clears it: no groups",
+                              "type": "null",
+                            },
                           ],
                         },
                         "hidden": {
@@ -1416,11 +1421,16 @@ exports[`lists the same tools in every era 1`] = `
               "description": "chart: how dates are grouped",
             },
             "color": {
-              "description": "chart: a choice field that splits the series; null for one series",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: one series",
+                  "type": "null",
+                },
               ],
+              "description": "chart: a choice field that splits the series",
             },
             "fields": {
               "description": "entry: the fields to fill, in order",
@@ -1454,11 +1464,16 @@ exports[`lists the same tools in every era 1`] = `
               "description": "grid: rows whose field contains the text; null clears it",
             },
             "group": {
-              "description": "list: the field to group by; null for no groups",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: no groups",
+                  "type": "null",
+                },
               ],
+              "description": "list: the field to group by",
             },
             "hidden": {
               "description": "grid: hidden fields",
@@ -1534,25 +1549,40 @@ exports[`lists the same tools in every era 1`] = `
               "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
             "title": {
-              "description": "list: the field shown as the title; null for the first text field",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: the first text field",
+                  "type": "null",
+                },
               ],
+              "description": "list: the field shown as the title",
             },
             "x": {
-              "description": "chart: the x field, often a date",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: no x",
+                  "type": "null",
+                },
               ],
+              "description": "chart: the x field, often a date",
             },
             "y": {
-              "description": "chart: the aggregated field, except for count",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: no y",
+                  "type": "null",
+                },
               ],
+              "description": "chart: the aggregated field, except for count",
             },
           },
           "type": "object",
@@ -1803,11 +1833,16 @@ exports[`lists the same tools in every era 1`] = `
               "description": "chart: how dates are grouped",
             },
             "color": {
-              "description": "chart: a choice field that splits the series; null for one series",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: one series",
+                  "type": "null",
+                },
               ],
+              "description": "chart: a choice field that splits the series",
             },
             "fields": {
               "description": "entry: the fields to fill, in order",
@@ -1841,11 +1876,16 @@ exports[`lists the same tools in every era 1`] = `
               "description": "grid: rows whose field contains the text; null clears it",
             },
             "group": {
-              "description": "list: the field to group by; null for no groups",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: no groups",
+                  "type": "null",
+                },
               ],
+              "description": "list: the field to group by",
             },
             "hidden": {
               "description": "grid: hidden fields",
@@ -1921,25 +1961,40 @@ exports[`lists the same tools in every era 1`] = `
               "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
             "title": {
-              "description": "list: the field shown as the title; null for the first text field",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: the first text field",
+                  "type": "null",
+                },
               ],
+              "description": "list: the field shown as the title",
             },
             "x": {
-              "description": "chart: the x field, often a date",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: no x",
+                  "type": "null",
+                },
               ],
+              "description": "chart: the x field, often a date",
             },
             "y": {
-              "description": "chart: the aggregated field, except for count",
-              "type": [
-                "string",
-                "null",
+              "anyOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "description": "clears it: no y",
+                  "type": "null",
+                },
               ],
+              "description": "chart: the aggregated field, except for count",
             },
           },
           "type": "object",
