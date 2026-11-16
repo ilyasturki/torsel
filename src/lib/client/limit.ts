@@ -1,4 +1,5 @@
 import { assistant } from '../i18n/assistant.ts';
+import { formatLocale } from '../i18n/runtime.ts';
 
 export type AssistantLimit = { scope: 'account' | 'instance'; until: number };
 
@@ -19,6 +20,6 @@ function sameDay(a: Date, b: Date): boolean {
 
 export function limitMessage(limit: AssistantLimit, now: Date = new Date()): string {
 	const back = new Date(limit.until);
-	const time = back.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+	const time = back.toLocaleTimeString(formatLocale(), { hour: 'numeric', minute: '2-digit' });
 	return assistant.limit(limit.scope, time, sameDay(back, now));
 }

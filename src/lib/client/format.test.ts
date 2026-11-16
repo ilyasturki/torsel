@@ -1,11 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { createBase, createTable } from '../core/actions.ts';
 import { Hlc } from '../core/clock.ts';
 import { DATE_STYLES } from '../core/model.ts';
 import type { Change } from '../core/model.ts';
 import { Workspace } from '../core/workspace.ts';
-import { currencyFor, localeFormats, timeFrom } from './format.ts';
+import { readServerLocale, readServerTags } from '../i18n/runtime.ts';
+import {
+	currencyFor,
+	currencyName,
+	formatDate,
+	formatNumber,
+	formatValue,
+	localCurrency,
+	localeFormats,
+	timeFrom
+} from './format.ts';
 
 const LOCALES = [
 	'en-US',
@@ -296,5 +306,29 @@ describe('timeFrom', () => {
 		expect(timeFrom(now + 48 * 60_000, now, 'en-US')).toBe('in 48 min.');
 		expect(timeFrom(now - 2 * 3_600_000, now, 'fr-FR')).toMatch(/^il y a\s2\sh$/u);
 		expect(timeFrom(now, now, 'en-US')).toBe('now');
+	});
+});
+
+describe('the formats of the words’ language', () => {
+	afterEach(() => {
+		readServerLocale(() => undefined);
+		readServerTags(() => undefined);
+	});
+
+	it('follow French words in the system’s French locale, whatever Intl’s default', () => {
+		readServerLocale(() => 'fr');
+		readServerTags(() => ['fr-FR', 'fr', 'en-US', 'en']);
+		expect(formatNumber(90.7)).toBe('90,7');
+		expect(formatDate('2026-10-24', {}, NOW)).toBe('24 oct.');
+		expect(formatValue({ type: 'currency', currency: 'EUR' }, 10)).toBe('10,00\u00a0€');
+		expect(localCurrency()).toBe('EUR');
+		expect(currencyName('USD')).toBe('dollars des États-Unis');
+	});
+
+	it('take the region the system names for that language', () => {
+		readServerLocale(() => 'en');
+		readServerTags(() => ['en-GB']);
+		expect(formatDate('2026-10-24', {}, NOW)).toBe('24 Oct');
+		expect(localCurrency()).toBe('GBP');
 	});
 });

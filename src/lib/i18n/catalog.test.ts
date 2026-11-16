@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { acceptedLanguages, pickLocale, plural } from './locale.ts';
+import { acceptedLanguages, formatTag, pickLocale, plural } from './locale.ts';
 
 type Catalog = { en: Record<string, unknown>; fr: Record<string, unknown> };
 
@@ -147,6 +147,17 @@ describe('locale', () => {
 		expect(pickLocale(['de-DE', 'fr-CA', 'en'])).toBe('fr');
 		expect(pickLocale(['de-DE'])).toBe('en');
 		expect(pickLocale([])).toBe('en');
+	});
+
+	it('formats in the system’s first tag of the words’ language, else its first, else the language’s region', () => {
+		expect(formatTag(['en-US', 'fr-CA', 'fr-FR'], 'fr')).toBe('fr-CA');
+		expect(formatTag(['fr', 'en-US'], 'fr')).toBe('fr');
+		expect(formatTag(['en_GB'], 'en')).toBe('en-GB');
+		expect(formatTag(['de-DE', 'en-GB'], 'en')).toBe('en-GB');
+		expect(formatTag(['de-DE'], 'en')).toBe('de-DE');
+		expect(formatTag(['not a tag'], 'fr')).toBe('fr-FR');
+		expect(formatTag(['en-US'], 'fr')).toBe('fr-FR');
+		expect(formatTag([], 'en')).toBe('en-US');
 	});
 
 	it('reads Accept-Language by weight', () => {

@@ -1,5 +1,5 @@
 import type { LocaleFormats } from '#lib/client/format.ts';
-import { browserFormats, formatValue } from '#lib/client/format.ts';
+import { currentFormats, formatValue } from '#lib/client/format.ts';
 import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
@@ -310,7 +310,7 @@ export function copyText(
 	ws: Workspace,
 	field: FieldDef,
 	value: Value | undefined,
-	formats: LocaleFormats = browserFormats
+	formats: LocaleFormats = currentFormats()
 ): string {
 	if (isBlank(value)) {
 		return '';
@@ -371,7 +371,7 @@ export function linkOptions(ws: Workspace, tableId: string | null): LinkOption[]
 /** Reads typed or pasted text into a field's value; undefined when it is not one. */
 export function cellReader(
 	ws: Workspace,
-	formats: LocaleFormats = browserFormats
+	formats: LocaleFormats = currentFormats()
 ): (field: FieldDef, raw: string) => Value | undefined {
 	const links = new Map<string, Map<string, string>>();
 
@@ -457,7 +457,7 @@ export function pasteChanges(
 				kept += 1;
 				return;
 			}
-			if (field?.type === 'currency' && browserFormats.otherCurrency(raw, currencyOf(field))) {
+			if (field?.type === 'currency' && currentFormats().otherCurrency(raw, currencyOf(field))) {
 				foreign ??= currencyOf(field);
 				skipped += 1;
 				return;

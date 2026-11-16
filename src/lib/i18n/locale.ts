@@ -17,6 +17,27 @@ export function pickLocale(tags: readonly string[]): Locale {
 	return BASE_LOCALE;
 }
 
+function canonical(tag: string): string | undefined {
+	try {
+		return Intl.getCanonicalLocales(tag.trim().replaceAll('_', '-'))[0];
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * The formats' locale: the system's first tag in the words' language (`fr-CA` keeps Canada), else
+ * its first tag when the words fell back to English, else the language's own region.
+ */
+export function formatTag(tags: readonly string[], language: Locale): string {
+	const valid = tags.flatMap((tag) => canonical(tag) ?? []);
+	const own = valid.find((tag) => tag.split('-')[0].toLowerCase() === language);
+	if (own !== undefined) return own;
+	if (language === BASE_LOCALE && valid.length > 0) return valid[0];
+	const region = new Intl.Locale(language).maximize().region;
+	return region === undefined ? language : `${language}-${region}`;
+}
+
 /** An `Accept-Language` header's tags, most wanted first, without `q=0`. */
 export function acceptedLanguages(header: string | null): string[] {
 	return (header ?? '')

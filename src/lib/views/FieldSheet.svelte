@@ -28,6 +28,7 @@
 	import { CURRENCIES, currencyOf, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { fields as words } from '#lib/i18n/fields.ts';
+	import { formatLocale } from '#lib/i18n/runtime.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { DATA_COLORS, nextChoice, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
@@ -61,7 +62,7 @@
 		{ value: AUTO, label: words.auto },
 		...['0', '1', '2', '3', '4'].map((value) => ({ value, label: value }))
 	];
-	const names = new Intl.DisplayNames(undefined, { type: 'currency' });
+	const names = new Intl.DisplayNames(formatLocale(), { type: 'currency' });
 	const MONEY = CURRENCIES.map((code) => ({ value: code, label: `${names.of(code)} (${code})` }));
 	const LOWEST = ['0', '1'].map((value) => ({ value, label: value }));
 	const HIGHEST = ['3', '4', '5', '6', '7', '8', '9', '10'].map((value) => ({

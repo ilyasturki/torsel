@@ -2,6 +2,7 @@
 	import { tick, untrack } from 'svelte';
 
 	import { pad, todayIso } from '#lib/core/values.ts';
+	import { formatLocale } from '#lib/i18n/runtime.ts';
 	import { ui as words } from '#lib/i18n/ui.ts';
 
 	import Icon from './Icon.svelte';
@@ -34,7 +35,7 @@
 		value !== null && /^\d{4}-\d{2}-\d{2}/u.test(value) ? value.slice(0, 10) : null
 	);
 
-	const locale = new Intl.DateTimeFormat().resolvedOptions().locale;
+	const locale = formatLocale();
 	const weekStart = (() => {
 		const info = new Intl.Locale(locale) as Intl.Locale & {
 			getWeekInfo?: () => { firstDay: number };

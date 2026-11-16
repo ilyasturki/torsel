@@ -3,6 +3,7 @@ import { isDated } from '../core/model.ts';
 import { imagesText } from '../core/images.ts';
 import type { Workspace } from '../core/workspace.ts';
 import { fields as words } from '../i18n/fields.ts';
+import { formatLocale } from '../i18n/runtime.ts';
 import {
 	CHOICES_JOIN,
 	coerce,
@@ -69,8 +70,8 @@ const TIME_UNITS: [number, Intl.RelativeTimeFormatUnit][] = [
 	[Number.POSITIVE_INFINITY, 'year']
 ];
 
-/** "12 min ago" or "in 48 min", in the browser's locale. */
-export function timeFrom(at: number, now: number = Date.now(), locale?: string): string {
+/** "12 min ago" or "in 48 min". */
+export function timeFrom(at: number, now: number = Date.now(), locale = formatLocale()): string {
 	const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' });
 	let value = (at - now) / 1000;
 	for (const [size, unit] of TIME_UNITS) {
@@ -80,8 +81,8 @@ export function timeFrom(at: number, now: number = Date.now(), locale?: string):
 	return format.format(Math.round(value), 'year');
 }
 
-/** Formats and readers for one locale; `undefined` is the browser's. */
-export function localeFormats(locale?: string) {
+/** Formats and readers for one locale. */
+export function localeFormats(locale: string) {
 	const shown = new Intl.NumberFormat(locale, { maximumFractionDigits: 2, useGrouping: 'min2' });
 	const precise = new Intl.NumberFormat(locale, {
 		maximumFractionDigits: 100,
@@ -652,7 +653,7 @@ const REGION_CURRENCY: Record<string, string> = {
 	AE: 'AED'
 };
 
-export function currencyFor(ws: Workspace, tableId: string, locale?: string): string {
+export function currencyFor(ws: Workspace, tableId: string, locale = formatLocale()): string {
 	const most = (tables: string[]): string | undefined => {
 		const counts = new Map<string, number>();
 		for (const field of tables.flatMap((id) => ws.fields(id))) {
@@ -668,26 +669,39 @@ export function currencyFor(ws: Workspace, tableId: string, locale?: string): st
 }
 
 /** The currency of the locale's region, the euro where none is known. */
-export function localCurrency(locale?: string): string {
-	const tag = locale ?? new Intl.NumberFormat().resolvedOptions().locale;
-	return REGION_CURRENCY[new Intl.Locale(tag).maximize().region ?? ''] ?? 'EUR';
+export function localCurrency(locale = formatLocale()): string {
+	return REGION_CURRENCY[new Intl.Locale(locale).maximize().region ?? ''] ?? 'EUR';
 }
 
-export const browserFormats = localeFormats();
+const formatsByLocale = new Map<string, LocaleFormats>();
 
-export const {
-	formatNumber,
-	readNumber,
-	plainNumber,
-	formatDate,
-	formatMonth,
-	readDate,
-	formatValue,
-	editText,
-	readValue,
-	copyValue,
-	affixes,
-	bareText,
-	otherCurrency,
-	currencyName
-} = browserFormats;
+/** The formats of `formatLocale()`, looked up at each call. */
+export function currentFormats(): LocaleFormats {
+	const locale = formatLocale();
+	let formats = formatsByLocale.get(locale);
+	if (formats === undefined) {
+		formats = localeFormats(locale);
+		formatsByLocale.set(locale, formats);
+	}
+	return formats;
+}
+
+function current<K extends keyof LocaleFormats>(key: K): LocaleFormats[K] {
+	return ((...args: unknown[]) =>
+		(currentFormats()[key] as (...args: unknown[]) => unknown)(...args)) as LocaleFormats[K];
+}
+
+export const formatNumber = current('formatNumber');
+export const readNumber = current('readNumber');
+export const plainNumber = current('plainNumber');
+export const formatDate = current('formatDate');
+export const formatMonth = current('formatMonth');
+export const readDate = current('readDate');
+export const formatValue = current('formatValue');
+export const editText = current('editText');
+export const readValue = current('readValue');
+export const copyValue = current('copyValue');
+export const affixes = current('affixes');
+export const bareText = current('bareText');
+export const otherCurrency = current('otherCurrency');
+export const currencyName = current('currencyName');

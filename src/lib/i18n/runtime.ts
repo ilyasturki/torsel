@@ -1,4 +1,4 @@
-import { BASE_LOCALE, isLocale, pickLocale, type Locale } from './locale.ts';
+import { BASE_LOCALE, formatTag, isLocale, pickLocale, type Locale } from './locale.ts';
 
 const browser = typeof document !== 'undefined';
 
@@ -9,12 +9,14 @@ const pageLocale: Locale | undefined =
 const systemLocale: Locale = browser ? pickLocale(navigator.languages) : BASE_LOCALE;
 
 let serverLocale: (() => Locale | undefined) | null = null;
+let serverTags: (() => readonly string[] | undefined) | null = null;
+const browserTags = new Map<Locale, string>();
 
 function inApp(): boolean {
 	return location.pathname === '/app' || location.pathname.startsWith('/app/');
 }
 
-/** The language of the words: never pass it to `Intl`, whose formats follow the full browser locale. */
+/** The language of the words: `Intl` takes `formatLocale()`, which also names the region. */
 export function locale(): Locale {
 	const server = serverLocale?.();
 	if (server !== undefined) return server;
@@ -22,9 +24,28 @@ export function locale(): Locale {
 	return inApp() ? systemLocale : (pageLocale ?? systemLocale);
 }
 
+/** The locale numbers, dates and currencies follow: the system's first one in the words' language. */
+export function formatLocale(): string {
+	const language = locale();
+	const server = serverTags?.();
+	if (server !== undefined) return formatTag(server, language);
+	if (!browser) return formatTag([], language);
+	let tag = browserTags.get(language);
+	if (tag === undefined) {
+		tag = formatTag(navigator.languages, language);
+		browserTags.set(language, tag);
+	}
+	return tag;
+}
+
 /** The server's per-request locale; `src/lib/server/http/locale.ts` registers it. */
 export function readServerLocale(read: () => Locale | undefined): void {
 	serverLocale = read;
+}
+
+/** The request's `Accept-Language` tags, for `formatLocale()` on the server. */
+export function readServerTags(read: () => readonly string[] | undefined): void {
+	serverTags = read;
 }
 
 /** `<html lang>` for pages no server named the language of: `/app`, its cached shell, the Android build. */

@@ -55,6 +55,7 @@
 	import { assistant as words } from '#lib/i18n/assistant.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { viewName } from '#lib/i18n/names.ts';
+	import { formatLocale } from '#lib/i18n/runtime.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -285,7 +286,7 @@
 			fields: table !== null && selection.table === table.id ? selection.fields : [],
 			today: todayIso(),
 			shows: {
-				locale: new Intl.NumberFormat().resolvedOptions().locale,
+				locale: formatLocale(),
 				today: formatDate(todayIso()),
 				past: formatDate(`${new Date().getFullYear() - 1}-05-07`),
 				number: formatNumber(12345.5)
@@ -465,8 +466,8 @@
 		const date = new Date(at);
 		const today = new Date().toDateString() === date.toDateString();
 		return today
-			? date.toLocaleTimeString(undefined, { timeStyle: 'short' })
-			: date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+			? date.toLocaleTimeString(formatLocale(), { timeStyle: 'short' })
+			: date.toLocaleDateString(formatLocale(), { dateStyle: 'medium' });
 	}
 
 	async function saveTitle(id: string): Promise<void> {
@@ -479,7 +480,7 @@
 		return bytes < 1024 * 1024
 			? words.kilobytes(String(Math.max(1, Math.round(bytes / 1024))))
 			: words.megabytes(
-					(bytes / 1024 / 1024).toLocaleString(undefined, {
+					(bytes / 1024 / 1024).toLocaleString(formatLocale(), {
 						minimumFractionDigits: 1,
 						maximumFractionDigits: 1
 					})
