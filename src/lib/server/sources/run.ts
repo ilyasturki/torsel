@@ -199,6 +199,10 @@ function backoff(failures: number): number {
 	return Math.min(DAY_MS, HOUR_MS * 2 ** Math.max(0, failures - 1));
 }
 
+function sameLink(current: Source | undefined, pulled: Source): current is Source {
+	return current?.url === pulled.url && current.secret === pulled.secret;
+}
+
 async function failed(
 	db: Database,
 	source: Source,
@@ -223,7 +227,7 @@ async function failed(
 	const shown = limited || (transient && failures < QUIET_FAILURES) ? null : problem;
 
 	await serially(source.userId, async () => {
-		if (readSource(db, source.userId, source.tableId) === undefined) return;
+		if (!sameLink(readSource(db, source.userId, source.tableId), source)) return;
 		const ws = loadWorkspace(db, source.userId, source.baseId);
 		const changes = markChanges(ws, source.tableId, shown, null);
 		if (changes.length > 0) writeChanges(db, CONNECTOR(source.userId), ws, changes);
@@ -277,13 +281,14 @@ export async function runSource(
 		);
 	}
 
-	return serially(userId, async () => {
+	const outcome = await serially(userId, async (): Promise<RunOutcome | undefined> => {
 		const now = clock();
 		const current = readSource(db, userId, tableId);
 		const ws = loadWorkspace(db, userId, source.baseId);
 		if (current === undefined || ws.table(tableId) === undefined) {
-			return { ok: false, problem: 'gone' } as const;
+			return { ok: false, problem: 'gone' };
 		}
+		if (!sameLink(current, source)) return undefined;
 		const planned = plan(ws, current, pulled, now);
 		const kept = pulled.items.length > 0 || ws.rows(tableId).length === 0;
 		const problem: SourceProblem | null = !kept ? 'empty' : pulled.complete ? null : 'cap';
@@ -306,4 +311,5 @@ export async function runSource(
 			problem
 		};
 	});
+	return outcome ?? runSource(db, userId, tableId, options);
 }
