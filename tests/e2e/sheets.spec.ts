@@ -361,11 +361,12 @@ test.describe('formula guard', () => {
 		await page.goto(lifts.path);
 		await columnMenu(page, 'ƒ Pounds', 'Field settings');
 		const sheet = page.getByRole('dialog', { name: 'Field', exact: true });
-		await sheet.getByRole('textbox', { name: 'Formula' }).fill('SUM("Kg")');
-		await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+		const formula = sheet.getByRole('textbox', { name: 'Formula' });
+		await formula.fill('SUM("Kg")');
+		await formula.press('Control+Enter');
 		await expect(sheet.getByRole('alert')).toHaveText("a column total isn't a row formula");
-		await sheet.getByRole('textbox', { name: 'Formula' }).fill('SUM("Kg") OVER ()');
-		await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+		await formula.fill('SUM("Kg") OVER ()');
+		await formula.press('Control+Enter');
 		await expect(sheet).toHaveCount(0);
 		await expect(cell(page, '340')).toHaveCount(4);
 	});
@@ -395,7 +396,7 @@ const FORMATS = [
 		locale: 'en-US',
 		fields: fields.en,
 		grid: grid.en,
-		saveWord: common.en.save,
+		closeWord: common.en.close,
 		day: 'November 2, 2026',
 		pounds: '154.3'
 	},
@@ -403,13 +404,13 @@ const FORMATS = [
 		locale: 'fr-FR',
 		fields: fields.fr,
 		grid: grid.fr,
-		saveWord: common.fr.save,
+		closeWord: common.fr.close,
 		day: '2 novembre 2026',
 		pounds: '154,3'
 	}
 ];
 
-for (const { locale, fields: words, grid: gridWords, saveWord, day, pounds } of FORMATS) {
+for (const { locale, fields: words, grid: gridWords, closeWord, day, pounds } of FORMATS) {
 	test.describe(`formats in ${locale}`, () => {
 		test.use({ locale });
 
@@ -423,7 +424,7 @@ for (const { locale, fields: words, grid: gridWords, saveWord, day, pounds } of 
 			await page.goto(lifts.path);
 
 			const sheet = page.getByRole('dialog', { name: words.field, exact: true });
-			const save = sheet.getByRole('button', { name: saveWord, exact: true });
+			const close = sheet.getByRole('button', { name: closeWord, exact: true });
 			const long = new Intl.DateTimeFormat(locale, {
 				day: 'numeric',
 				month: 'long',
@@ -433,13 +434,13 @@ for (const { locale, fields: words, grid: gridWords, saveWord, day, pounds } of 
 
 			await columnMenu(page, 'Day', gridWords.fieldSettings);
 			await pick(sheet.getByRole('combobox', { name: words.format }), long);
-			await save.click();
+			await close.click();
 			await expect(cell(page, day)).toBeVisible();
 
 			await columnMenu(page, 'ƒ Pounds', gridWords.fieldSettings);
 			await pick(sheet.getByRole('combobox', { name: words.shownAs }), words.types.number);
 			await pick(sheet.getByRole('combobox', { name: words.decimals }), '1');
-			await save.click();
+			await close.click();
 			await expect(cell(page, pounds)).toBeVisible();
 
 			if (test.info().project.name === 'desktop') {
