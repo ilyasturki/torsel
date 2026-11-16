@@ -13,7 +13,14 @@ const running = new Set<string>();
 export function tick(db: Database, now: Date = new Date()): Promise<void>[] {
 	const room = AT_ONCE - running.size;
 	if (room <= 0) return [];
-	return dueSources(db, now, room + running.size)
+	let due: ReturnType<typeof dueSources>;
+	try {
+		due = dueSources(db, now, room + running.size);
+	} catch (error) {
+		console.error('source schedule failed:', error);
+		return [];
+	}
+	return due
 		.filter((source) => !running.has(`${source.userId}:${source.tableId}`))
 		.slice(0, room)
 		.map(async (source) => {
