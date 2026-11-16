@@ -68,6 +68,15 @@
 	</p>
 </LegalSection>
 
+<LegalSection title="Linked tables">
+	<p>
+		When you link a table to a web address, Torsel’s server fetches it for you, when you ask and on
+		the schedule you choose. The site you link sees Torsel’s server, never your device. A key you
+		give for that address is stored encrypted on the server and used for that address alone. It is
+		never shown again, and it is deleted when you stop syncing the table or delete your account.
+	</p>
+</LegalSection>
+
 <LegalSection title="Cookies and tracking">
 	<p>
 		There is one cookie, <code class="font-mono text-sm">torsel_session</code>, set when you sign in

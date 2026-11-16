@@ -71,6 +71,16 @@
 	</p>
 </LegalSection>
 
+<LegalSection title="Tables liées">
+	<p>
+		Quand tu lies une table à une adresse web, le serveur de Torsel va la chercher pour toi, quand
+		tu le demandes et au rythme que tu choisis. Le site lié voit le serveur de Torsel, jamais ton
+		appareil. Une clé que tu donnes pour cette adresse est chiffrée sur le serveur et ne sert que
+		pour elle. Elle ne s’affiche plus jamais, et elle est supprimée quand tu arrêtes de synchroniser
+		la table ou supprimes ton compte.
+	</p>
+</LegalSection>
+
 <LegalSection title="Cookies et suivi">
 	<p>
 		Il y a un seul cookie, <code class="font-mono text-sm">torsel_session</code>, posé à la

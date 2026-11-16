@@ -94,7 +94,7 @@ Then `/mcp` in Claude Code opens Torsel's consent page in the browser. Claude.ai
 
 Torsel is its own OAuth 2.1 server. A client finds it from the endpoint's 401, which points to the protected resource metadata (RFC 9728) and the server metadata (RFC 8414). It identifies itself by the URL of its metadata document, or by registering (RFC 7591), and signs in with PKCE. The consent shows the app, where it returns and the account, and can narrow the access to read only. The client gets a one-hour token valid only on the resource it named (RFC 8707), `/api/mcp` when it names none, and a refresh token that changes at each use; a refresh token used twice ends the connection. Settings, Connected apps, lists each app with the day it was last used and revokes it. Changing the password ends every connection.
 
-Sign-in needs `ORIGIN` on https, or on localhost; without it, tokens are the only way in. The server fetches a client's metadata document from public addresses only: `TORSEL_FETCH_PRIVATE=1` lets it reach loopback and private ones too, for an instance that lives on a LAN.
+Sign-in needs `ORIGIN` on https, or on localhost; without it, tokens are the only way in. The server fetches a client's metadata document, like the links tables fill from, from public addresses only: `TORSEL_FETCH_PRIVATE=1` lets it reach loopback and private ones too, for an instance that lives on a LAN.
 
 Scripts and clients that don't sign in use a token. Create one in Settings, Agents (MCP), then:
 
