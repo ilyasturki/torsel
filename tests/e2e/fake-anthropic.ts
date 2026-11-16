@@ -46,6 +46,8 @@ type Script = {
 	releaseTitle: (() => void) | null;
 	suggest: FakeSuggestion[];
 	suggests: Record<string, unknown>[];
+	followUp: string | null;
+	followUps: Record<string, unknown>[];
 };
 
 const scripts = new Map<string, Script>();
@@ -222,6 +224,10 @@ function isTitleCall(body: Record<string, unknown>): boolean {
 	return String(body.system).startsWith('Name this conversation');
 }
 
+function isFollowUpCall(body: Record<string, unknown>): boolean {
+	return String(body.system).startsWith('Suggest the one request');
+}
+
 function isSuggestCall(body: Record<string, unknown>): boolean {
 	return String(body.system).startsWith('Suggest what the person');
 }
@@ -275,10 +281,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 	const key = url.searchParams.get('key') ?? '';
 
 	if (url.pathname === '/__script') {
-		const { steps, title, suggest } = JSON.parse(await readBody(request)) as {
+		const { steps, title, suggest, followUp } = JSON.parse(await readBody(request)) as {
 			steps: FakeStep[];
 			title?: FakeTitle;
 			suggest?: FakeSuggestion[];
+			followUp?: string;
 		};
 		scripts.set(key, {
 			steps,
@@ -289,7 +296,9 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 			titles: [],
 			releaseTitle: null,
 			suggest: suggest ?? [],
-			suggests: []
+			suggests: [],
+			followUp: followUp ?? null,
+			followUps: []
 		});
 		response.end('{}');
 		return;
@@ -303,7 +312,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 				requests: script?.requests ?? [],
 				aborted: script?.aborted ?? 0,
 				titles: script?.titles ?? [],
-				suggests: script?.suggests ?? []
+				suggests: script?.suggests ?? [],
+				followUps: script?.followUps ?? []
 			})
 		);
 		return;
@@ -326,6 +336,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 			messages: unknown[];
 		};
 		const found = scriptFor(body.messages);
+		if (found !== undefined && isFollowUpCall(body)) {
+			found[1].followUps.push(body);
+			answerJson(response, { follow_up: found[1].followUp });
+			return;
+		}
 		if (found !== undefined && isSuggestCall(body)) {
 			found[1].suggests.push(body);
 			answerJson(response, { suggestions: found[1].suggest });

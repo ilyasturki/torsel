@@ -18,7 +18,8 @@ const en = {
 	save: 'Save',
 	search: 'Search',
 	undo: 'Undo',
-	keyShift: 'Shift'
+	keyShift: 'Shift',
+	keyTab: 'Tab'
 };
 
 const fr: typeof en = {
@@ -39,7 +40,8 @@ const fr: typeof en = {
 	save: 'Enregistrer',
 	search: 'Rechercher',
 	undo: 'Annuler',
-	keyShift: 'Maj'
+	keyShift: 'Maj',
+	keyTab: 'Tab'
 };
 
 export default { en, fr };

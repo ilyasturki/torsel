@@ -39,6 +39,8 @@ import {
 	silenceTurn,
 	unreportDecisions
 } from './threads.ts';
+import { followUp } from './followup.ts';
+import type { Meter } from './quota.ts';
 import { generateTitle } from './title.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { TOOLS, describeView, runTool, toolNamed } from './toolkit.ts';
@@ -348,6 +350,23 @@ function nameThread(
 		});
 }
 
+function offerNext(
+	client: Anthropic,
+	meter: Meter,
+	screen: string[] | null,
+	asked: string,
+	replied: string,
+	emit: (event: TurnEvent) => void
+): Promise<void> {
+	return followUp(client, meter, screen, asked, replied)
+		.then((text) => {
+			if (text !== null) emit({ type: 'followup', text });
+		})
+		.catch((thrown: unknown) => {
+			console.error('follow-up:', thrown instanceof Error ? thrown.message : thrown);
+		});
+}
+
 export async function runTurn(turn: Turn): Promise<void> {
 	const { db, userId, threadId, ask, signal, emit } = turn;
 
@@ -551,6 +570,13 @@ export async function runTurn(turn: Turn): Promise<void> {
 					}
 				}
 				appendMessages(db, threadId, [...held.splice(0), { role: 'assistant', content }]);
+				const asked = ask.kind === 'retry' ? (previous?.meta?.prompt ?? '') : ask.prompt;
+				const screen =
+					ask.kind !== 'retry' && ask.context.screen === 'table'
+						? tableNote(ws, ask.context)
+						: null;
+				const replied = content.flatMap((block) => (block.type === 'text' ? [block.text] : []));
+				turn.beside?.push(offerNext(client, turn.meter, screen, asked, replied.join(''), emit));
 				return;
 			}
 

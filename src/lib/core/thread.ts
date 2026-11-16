@@ -111,6 +111,7 @@ export type TurnEvent =
 	  }
 	| { type: 'event'; event: EventContent }
 	| { type: 'title'; title: string }
+	| { type: 'followup'; text: string }
 	| { type: 'done' };
 
 export type Item =

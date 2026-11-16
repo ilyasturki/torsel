@@ -57,6 +57,7 @@
 	import Markdown from '#lib/ui/Markdown.svelte';
 	import { fieldFill, fieldFocusWithin, focus, secondary } from '#lib/ui/styles.ts';
 	import Textarea from '#lib/ui/Textarea.svelte';
+	import { roomy } from '#lib/ui/media.svelte.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 
 	import ChangeCard from './ChangeCard.svelte';
@@ -305,6 +306,11 @@
 				prompt = '';
 				return;
 			}
+		}
+		if (event.key === 'Tab' && event.target === field && next !== '' && roomy.current) {
+			event.preventDefault();
+			take({ text: next, complete: false });
+			return;
 		}
 		if (event.key === 'Escape') {
 			if (saving !== null) saving = null;
@@ -630,6 +636,16 @@
 		</div>
 
 		{#if assistant.kind !== 'tool'}
+			{#if !roomy.current && next !== ''}
+				<div class="flex shrink-0 px-4 pb-2">
+					<button
+						type="button"
+						class="min-h-control max-w-full truncate rounded-box px-2.5 text-left {secondary} {focus} transition-colors motion"
+						data-testid="follow-up"
+						onclick={() => take({ text: next, complete: true })}>{next}</button
+					>
+				</div>
+			{/if}
 			<div class="flex shrink-0 items-center gap-2 px-4 pb-1 text-sm text-ink-3">
 				{#if editing}
 					<span class="min-w-0 flex-1 truncate">{words.editingLast}</span>
@@ -722,9 +738,18 @@
 						maxlength={MAX_PROMPT}
 						enterkeyhint="send"
 						class="flex-1 px-1 py-1.5"
-						placeholder={words.prompt}
+						placeholder={roomy.current && next !== '' ? next : words.prompt}
 						{onpaste}
+						oninput={readCaret}
+						onkeyup={readCaret}
+						onclick={readCaret}
 					/>
+					{#if roomy.current && next !== ''}
+						<kbd
+							class="mb-2 shrink-0 rounded-box px-1 font-sans text-xs text-ink-3 ring-1 ring-edge ring-inset"
+							>{keys('tab')}</kbd
+						>
+					{/if}
 					<input
 						bind:this={picker}
 						type="file"

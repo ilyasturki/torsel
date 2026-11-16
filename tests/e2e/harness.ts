@@ -233,11 +233,12 @@ export async function script(
 	request: APIRequestContext,
 	steps: FakeStep[],
 	title?: FakeTitle,
-	suggest?: FakeSuggestion[]
+	suggest?: FakeSuggestion[],
+	followUp?: string
 ): Promise<string> {
 	const key = `script-${randomUUID()}`;
 	const response = await request.post(`${process.env.TORSEL_TEST_FAKE ?? ''}/__script?key=${key}`, {
-		data: { steps, title, suggest }
+		data: { steps, title, suggest, followUp }
 	});
 	expect(response.ok()).toBe(true);
 	return key;

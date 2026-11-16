@@ -7,6 +7,7 @@ export function keys(...parts: string[]): string {
 	const names: Record<string, [string, string]> = {
 		mod: ['⌘', 'Ctrl'],
 		shift: ['⇧', common.keyShift],
+		tab: ['⇥', common.keyTab],
 		alt: ['⌥', 'Alt']
 	};
 	if (mac) {

@@ -48,6 +48,8 @@ export const assistant = $state({
 	busy: false,
 	// The tool the turn is calling, named on the step line while it works.
 	step: null as string | null,
+	// The request offered after the last reply, until the next message or thread.
+	followUp: '',
 	// Bumped each time the assistant shows the person another screen.
 	moved: 0
 });
@@ -446,6 +448,7 @@ type Message = { prompt: string; context: ThreadContext; where: string; files: A
 async function run(mode: Mode, message: Message | null): Promise<void> {
 	assistant.busy = true;
 	assistant.step = null;
+	assistant.followUp = '';
 	assistant.listing = false;
 	const mine = new AbortController();
 	controller = mine;
@@ -500,6 +503,8 @@ async function run(mode: Mode, message: Message | null): Promise<void> {
 					settled();
 				} else if (event.type === 'title') {
 					if (assistant.id === thread) assistant.title = event.title;
+				} else if (event.type === 'followup') {
+					if (assistant.id === thread && controller === null) assistant.followUp = event.text;
 				} else onEvent(event);
 			}
 		);
@@ -614,6 +619,7 @@ export async function openThread(id: string): Promise<void> {
 	if (thread.kind === 'tool') await syncNow().catch(() => undefined);
 	assistant.id = thread.id;
 	assistant.title = thread.title;
+	assistant.followUp = '';
 	assistant.kind = thread.kind;
 	assistant.rows = thread.rows;
 	assistant.actions = thread.actions.map((action) => ({
@@ -630,6 +636,7 @@ export function newThread(): void {
 	void flushDecisions();
 	assistant.id = null;
 	assistant.title = '';
+	assistant.followUp = '';
 	assistant.kind = 'assistant';
 	assistant.rows = [];
 	assistant.actions = [];
