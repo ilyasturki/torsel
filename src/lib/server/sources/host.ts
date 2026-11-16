@@ -59,24 +59,16 @@ export function sourceHost(db: Database, userId: string): SourceHost {
 				within('refresh', userId);
 				return runSource(db, userId, table);
 			}),
-		update(table, patch) {
-			const source = readSource(db, userId, table);
-			if (source === undefined) throw new SourceFailure('gone');
-			let inline = false;
-			try {
+		update: (table, patch) =>
+			coded(async () => {
+				const source = readSource(db, userId, table);
+				if (source === undefined) throw new SourceRefused('gone');
 				// A key only ever comes from the person, typed in the table's source, never from a conversation.
-				inline =
-					patch.url !== undefined && splitKey(patch.url, authOf(source), null).secret !== null;
-			} catch (error) {
-				throw codeOf(error);
-			}
-			if (inline) throw new SourceFailure('inline');
-			try {
-				patchSource(db, userId, table, patch);
-			} catch (error) {
-				throw codeOf(error);
-			}
-		},
+				if (patch.url !== undefined && splitKey(patch.url, authOf(source), null).secret !== null) {
+					throw new SourceFailure('inline');
+				}
+				await patchSource(db, userId, table, patch);
+			}),
 		stop: (table) =>
 			coded(async () => {
 				if (readSource(db, userId, table) === undefined) throw new SourceRefused('gone');

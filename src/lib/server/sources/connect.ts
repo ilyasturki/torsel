@@ -244,12 +244,16 @@ export type SourcePatch = {
 };
 
 /** Changes a source's schedule, its handling of missing rows, or its key; a new key or schedule wakes a paused source. */
-export function patchSource(
+export async function patchSource(
 	db: Database,
 	userId: string,
 	tableId: string,
 	patch: SourcePatch
-): Source {
+): Promise<Source> {
+	return serially(userId, async () => patched(db, userId, tableId, patch));
+}
+
+function patched(db: Database, userId: string, tableId: string, patch: SourcePatch): Source {
 	const source = readSource(db, userId, tableId);
 	if (source === undefined) throw new SourceRefused('gone');
 	const set: Partial<Source> = {};

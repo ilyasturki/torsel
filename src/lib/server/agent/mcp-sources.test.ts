@@ -21,6 +21,8 @@ const MOVIES = 'id,Title\n1,Alien\n2,Heat\n';
 
 let server: Server;
 let link: string;
+// A slow site answers after 5 s, or when the test releases it.
+let slow: { hold: boolean; release: () => void } = { hold: false, release: () => undefined };
 let db: Database;
 let userId: string;
 let caller: McpCaller;
@@ -29,8 +31,21 @@ beforeAll(async () => {
 	process.env.TORSEL_FETCH_PRIVATE = '1';
 	process.env.TORSEL_SECRETS_KEY = 'a'.repeat(64);
 	server = createServer((_request, response) => {
-		response.writeHead(200, { 'content-type': 'text/csv' });
-		response.end(MOVIES);
+		const answer = () => {
+			response.writeHead(200, { 'content-type': 'text/csv' });
+			response.end(MOVIES);
+		};
+		if (!slow.hold) {
+			answer();
+			return;
+		}
+		const timer = setTimeout(answer, 5000);
+		const previous = slow.release;
+		slow.release = () => {
+			previous();
+			clearTimeout(timer);
+			answer();
+		};
 	});
 	await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
 	link = `http://127.0.0.1:${(server.address() as AddressInfo).port}/movies.csv`;
@@ -53,6 +68,7 @@ beforeEach(async () => {
 	);
 	writeChanges(db, { user: userId, path: 'mcp' }, ws, table.changes);
 	caller = { userId, tokenId: 'test', label: 'Test', access: 'write' };
+	slow = { hold: false, release: () => undefined };
 });
 
 function within<T>(promise: Promise<T>, ms = 3000): Promise<T> {
@@ -110,8 +126,8 @@ function movies(): Parameters<SourceHost['connect']>[0] {
 }
 
 // Outside any turn, so the tool under test is the only nesting.
-async function linked(): Promise<void> {
-	expect((await within(sourceHost(db, userId).connect(movies()))).run.ok).toBe(true);
+async function linked(name = 'Movies'): Promise<void> {
+	expect((await within(sourceHost(db, userId).connect({ ...movies(), name }))).run.ok).toBe(true);
 }
 
 async function connected(): Promise<void> {
@@ -151,6 +167,40 @@ describe('mcp source tools inside the account turn', () => {
 		const answer = await within(tool('update_source', { table: 'Movies', url: `${link}?v=2` }));
 		expect(answer.isError, answer.text).toBeFalsy();
 		await laterWriteLands();
+	});
+});
+
+describe('a slow source fetch', () => {
+	it('leaves the account turn free for other writes', async () => {
+		await linked('Movies');
+		await linked('Films');
+		slow.hold = true;
+		const fetching = [
+			tool('connect_source', { url: link, name: 'Series', key: 'id' }),
+			tool('refresh_source', { table: 'Movies' }),
+			tool('update_source', { table: 'Films', url: `${link}?v=2` })
+		];
+		let settled = 0;
+		for (const call of fetching) void call.finally(() => (settled += 1));
+		await within(laterWriteLands(), 1000);
+		expect(settled).toBe(0);
+		slow.hold = false;
+		slow.release();
+		for (const answer of await within(Promise.all(fetching))) {
+			expect(answer.isError, answer.text).toBeFalsy();
+		}
+		const ws = loadWorkspace(db, userId);
+		const notes = ws
+			.bases()
+			.flatMap((base) => ws.tables(base.id))
+			.find((t) => t.name === 'Notes');
+		expect(ws.rows(notes?.id ?? '').length).toBe(1);
+		expect(
+			ws
+				.bases()
+				.flatMap((base) => ws.tables(base.id))
+				.map((t) => t.name)
+		).toContain('Series');
 	});
 });
 

@@ -49,7 +49,7 @@ export type SourceHost = {
 		request: SourceRequest
 	): Promise<{ table: string; base: string; changes: Change[]; run: RunResult }>;
 	refresh(table: string): Promise<RunResult>;
-	update(table: string, patch: { every?: Every; missing?: Missing; url?: string }): void;
+	update(table: string, patch: { every?: Every; missing?: Missing; url?: string }): Promise<void>;
 	stop(table: string): Promise<void>;
 };
 
@@ -432,6 +432,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 			kind: 'write',
 			destructive: true,
 			idempotent: true,
+			openWorld: true,
 			run: async (
 				ctx,
 				input: { table: string; every?: Every; missing?: Missing; url?: string; stop?: boolean }
@@ -442,7 +443,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 					await hosted(() => sources.stop(table.id), fail);
 				} else {
 					await hosted(
-						async () =>
+						() =>
 							sources.update(table.id, {
 								every: input.every,
 								missing: input.missing,

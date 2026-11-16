@@ -121,8 +121,9 @@ export async function execute(
 		return { outcome: await runTool(ctx, tool, input), ws };
 	};
 	// Writes load and commit inside the account's turn, so no call overwrites what another just wrote;
+	// a tool that fetches takes the turn only around its own writes, so a slow site never stalls the account;
 	// a token's queries take turns, so one token never holds every SQL worker.
-	if (tool.kind !== 'read') {
+	if (tool.kind !== 'read' && tool.openWorld !== true) {
 		return serially(caller.userId, work);
 	}
 	return tool.name === 'query' ? serially(sqlTurn(caller.tokenId), work) : work();

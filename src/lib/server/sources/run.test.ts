@@ -292,7 +292,7 @@ describe('a source run', () => {
 		expect(hits).toEqual([]);
 		expect(readSource(db, userId, pending.table)?.nextAt).toBeNull();
 
-		patchSource(db, userId, pending.table, { secret: 'tok-abcdefghij' });
+		await patchSource(db, userId, pending.table, { secret: 'tok-abcdefghij' });
 		expect(await runSource(db, userId, pending.table)).toMatchObject({ ok: true, added: 2 });
 	});
 
@@ -303,10 +303,10 @@ describe('a source run', () => {
 			userId,
 			spec('/private.csv', { auth: { kind: 'bearer', name: null }, secret: 'tok-123456789' })
 		);
-		patchSource(db, userId, made.table, { url: `${base}/other.csv` });
+		await patchSource(db, userId, made.table, { url: `${base}/other.csv` });
 		expect(readSource(db, userId, made.table)?.secret).not.toBeNull();
 
-		patchSource(db, userId, made.table, { url: 'https://attacker.example/collect.csv' });
+		await patchSource(db, userId, made.table, { url: 'https://attacker.example/collect.csv' });
 		expect(readSource(db, userId, made.table)).toMatchObject({ secret: null, hint: null });
 		hits = [];
 		expect(await runSource(db, userId, made.table)).toEqual({ ok: false, problem: 'auth' });
@@ -505,13 +505,13 @@ describe('the assistant’s source host', () => {
 			spec('/movies.csv', { auth: { kind: 'query', name: 'key' }, secret: 'k1' })
 		);
 		const host = sourceHost(db, userId);
-		expect(() => host.update(made.table, { url: `${base}/films.csv?key=leaked` })).toThrow(
+		await expect(host.update(made.table, { url: `${base}/films.csv?key=leaked` })).rejects.toThrow(
 			expect.objectContaining({ code: 'inline' })
 		);
 		expect(readSource(db, userId, made.table)?.url).toBe(`${base}/movies.csv`);
-		host.update(made.table, { url: `${base}/films.csv` });
+		await host.update(made.table, { url: `${base}/films.csv` });
 		expect(readSource(db, userId, made.table)?.url).toBe(`${base}/films.csv`);
-		expect(() => host.update(made.table, { url: 'ftp://x' })).toThrow(
+		await expect(host.update(made.table, { url: 'ftp://x' })).rejects.toThrow(
 			expect.objectContaining({ code: 'url' })
 		);
 	});

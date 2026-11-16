@@ -164,7 +164,7 @@ it('marks each tool for what it does to the data', async () => {
 		read_source: [true, false, true, true],
 		connect_source: [false, false, false, true],
 		refresh_source: [false, true, true, true],
-		update_source: [false, true, true, false]
+		update_source: [false, true, true, true]
 	});
 	for (const tool of tools) {
 		expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);

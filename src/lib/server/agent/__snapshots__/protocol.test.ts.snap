@@ -3243,7 +3243,7 @@ exports[`lists the same tools in every era 1`] = `
     "annotations": {
       "destructiveHint": true,
       "idempotentHint": true,
-      "openWorldHint": false,
+      "openWorldHint": true,
       "readOnlyHint": false,
     },
     "description": "Changes how often a linked table refreshes (every), what becomes of rows gone from the source (missing), or the link it reads (url, read at once; never with a key in it); stop: true stops syncing, which keeps the rows and makes every field editable, and cannot be undone.",
