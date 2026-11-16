@@ -144,15 +144,17 @@ async function fetchDocument(url: URL, clientId: string): Promise<ClientLookup> 
 		body = answer.body.toString('utf8');
 		cacheControl = answer.headers['cache-control'];
 	} catch (error) {
-		const transient =
-			error instanceof FetchRefused && (error.reason === 'timeout' || error.reason === 'network');
-		return { ok: false, unreachable: transient };
+		const reason = error instanceof FetchRefused ? error.reason : 'network';
+		console.warn(`client metadata from ${url.host}: refused, ${reason}`);
+		return { ok: false, unreachable: reason === 'timeout' || reason === 'network' };
 	}
 	if (status !== 200) {
+		console.warn(`client metadata from ${url.host}: answered ${status}`);
 		return { ok: false, unreachable: status >= 500 };
 	}
 	const client = readDocument(body, clientId);
 	if (client === null) {
+		console.warn(`client metadata from ${url.host}: not a document for this client`);
 		return { ok: false, unreachable: false };
 	}
 
