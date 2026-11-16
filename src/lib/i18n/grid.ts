@@ -159,9 +159,9 @@ const fr: typeof en = {
 	nextMatch: 'Résultat suivant',
 	matchOf: (at, total) => (at === 0 ? String(total) : `${at} sur ${total}`),
 	replaced: (cells) =>
-		plural('fr', cells, { one: 'Remplacé dans # cellule', other: 'Remplacé dans # cellules' }),
+		plural('fr', cells, { one: '# cellule modifiée', other: '# cellules modifiées' }),
 	replacedRefusing: (cells, refused) =>
-		plural('fr', cells, { one: 'Remplacé dans # cellule', other: 'Remplacé dans # cellules' }) +
+		plural('fr', cells, { one: '# cellule modifiée', other: '# cellules modifiées' }) +
 		(refused === 0
 			? ''
 			: plural('fr', refused, {

@@ -294,7 +294,7 @@ test.describe('duplicate and unhide', () => {
 	});
 });
 
-/** The smallest workbook Excel would open: one sheet, stored entries, no styles. */
+/** The smallest workbook Excel would open: one sheet, deflated, no styles. */
 function workbook(sheet: string): Buffer {
 	const entries: Record<string, string> = {
 		'xl/workbook.xml': '<workbook><sheets><sheet name="Sheet1" r:id="rId1"/></sheets></workbook>',
