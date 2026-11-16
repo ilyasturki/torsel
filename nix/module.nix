@@ -158,7 +158,8 @@ in
       description = ''
         systemd EnvironmentFile, read at start and never copied to the Nix store.
         `ANTHROPIC_API_KEY=...` in it turns on the built-in assistant;
-        `TORSEL_AI_MODEL=...` picks another Claude model; `BREVO_API_KEY=...`
+        `TORSEL_AI_MODEL=...` picks another Claude model and
+        `TORSEL_AI_TITLE_MODEL=...` the one that titles conversations; `BREVO_API_KEY=...`
         sends the sign-in mail; `GOOGLE_CLIENT_ID=...` and
         `GOOGLE_CLIENT_SECRET=...` turn on Google sign-in, with
         `<origin>/api/auth/google` as the redirect URI.
