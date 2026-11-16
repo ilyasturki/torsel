@@ -357,7 +357,8 @@ class TorselApp {
 		return group;
 	}
 
-	public undo(id?: number): Group | undefined {
+	/** The step, undefined when there is none, null when the write gate took back all of it: the step goes. */
+	public undo(id?: number): Group | null | undefined {
 		const group =
 			id === undefined ? this.history.at(-1) : this.history.find((item) => item.id === id);
 		if (group === undefined) {
@@ -366,6 +367,10 @@ class TorselApp {
 
 		const inverse = this.stamp(group.inverse);
 		this.history = this.history.filter((item) => item.id !== group.id);
+		if (inverse.length === 0 && group.inverse.length > 0) {
+			this.moved();
+			return null;
+		}
 		this.undone = [...this.undone, { ...group, inverse }];
 		this.moved(decisionOf(group, 'undone'));
 		this.onUndo?.(group);
@@ -373,7 +378,7 @@ class TorselApp {
 		return group;
 	}
 
-	public redo(id?: number): Group | undefined {
+	public redo(id?: number): Group | null | undefined {
 		const group =
 			id === undefined ? this.undone.at(-1) : this.undone.find((item) => item.id === id);
 		if (group === undefined) {
@@ -382,6 +387,10 @@ class TorselApp {
 
 		const inverse = this.stamp(group.inverse);
 		this.undone = this.undone.filter((item) => item.id !== group.id);
+		if (inverse.length === 0 && group.inverse.length > 0) {
+			this.moved();
+			return null;
+		}
 		this.history = [...this.history, { ...group, inverse }];
 		this.moved(decisionOf(group, 'applied'));
 		this.onRedo?.(group);

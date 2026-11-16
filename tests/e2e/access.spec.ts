@@ -17,7 +17,8 @@ import {
 	seed,
 	syncFromSource,
 	tablePath,
-	test
+	test,
+	undo
 } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
@@ -229,6 +230,37 @@ test('an offline edit of a field that became synced comes back after sync, with 
 	await expect(cell(page, 'Alien')).toHaveAttribute('aria-readonly', 'true');
 	const toast = page.getByRole('status').filter({ hasText: 'Couldn’t change synced data' });
 	await expect(toast).toHaveCount(1);
+});
+
+test('an undo of a change to a field that became synced says so and changes nothing', async ({
+	page,
+	context,
+	account,
+	isMobile
+}) => {
+	test.skip(isMobile, 'undo is a keyboard shortcut');
+	const movies = await seedMovies(context.request);
+	await page.goto(tablePath(movies.table));
+	await typeInto(page, cell(page, 'Alien'), 'Aliens', isMobile);
+	await expect(cell(page, 'Aliens')).toBeVisible();
+	await expect
+		.poll(async () => {
+			const pulled = await context.request.post('/api/sync', { data: { watermark: 0, push: [] } });
+			return JSON.stringify(await pulled.json()).includes('"Aliens"');
+		}, 'the edit reached the server')
+		.toBe(true);
+
+	syncFromSource(account, 'Movies', ['Title', 'Rating']);
+	await page.reload();
+	await expect(cell(page, 'Aliens')).toHaveAttribute('aria-readonly', 'true');
+
+	await undo(page);
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Couldn’t change synced data' })
+	).toHaveCount(1);
+	await expect(cell(page, 'Aliens')).toBeVisible();
+	await undo(page);
+	await expect(page.getByRole('status').filter({ hasText: 'Nothing to undo' })).toHaveCount(1);
 });
 
 test.describe('agents', () => {

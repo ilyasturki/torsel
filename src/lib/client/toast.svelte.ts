@@ -46,12 +46,14 @@ export function applyWithUndo(changes: Change[], label: string): Group | null {
 export function undoChange(id?: number): void {
 	const group = app.undo(id);
 	if (group === undefined) show(words.nothingToUndo, null);
+	else if (group === null) show(words.syncedRefused, null);
 	else show(words.undid(group.label), { kind: 'redo' });
 }
 
 export function redoChange(): void {
 	const group = app.redo();
 	if (group === undefined) show(words.nothingToRedo, null);
+	else if (group === null) show(words.syncedRefused, null);
 	else show(words.redid(group.label), { kind: 'undo', group: group.id });
 }
 
