@@ -85,6 +85,16 @@ export type BaseDef = { id: string; name: string; order: number };
 
 export type TableDef = { id: string; base: string; name: string; order: number };
 
+/** How a date reads: `short` is "28 Dec", with its year when not this year. */
+export const DATE_STYLES = ['short', 'numeric', 'weekday', 'long', 'iso'] as const;
+
+export type DateStyleName = (typeof DATE_STYLES)[number];
+
+/** The type whose look a formula's result takes. */
+export const RESULT_TYPES = ['number', 'currency', 'percent', 'date'] as const;
+
+export type ResultType = (typeof RESULT_TYPES)[number];
+
 export type FieldDef = {
 	id: string;
 	base: string;
@@ -105,6 +115,8 @@ export type FieldDef = {
 	min: number | null;
 	max: number | null;
 	seconds: boolean;
+	dateStyle: DateStyleName | null;
+	result: ResultType | null;
 	// Nobody has chosen a type yet: the first values settle it.
 	auto: boolean;
 };
@@ -117,7 +129,9 @@ export const FORMAT_KEYS = [
 	'currency',
 	'min',
 	'max',
-	'seconds'
+	'seconds',
+	'dateStyle',
+	'result'
 ] as const;
 
 export type FormatKey = (typeof FORMAT_KEYS)[number];
@@ -133,8 +147,8 @@ export const FORMAT_OF: Record<FieldType, readonly FormatKey[]> = {
 	percent: ['decimals'],
 	rating: ['min', 'max', 'step'],
 	duration: ['seconds'],
-	date: [],
-	datetime: [],
+	date: ['dateStyle'],
+	datetime: ['dateStyle'],
 	choice: [],
 	choices: [],
 	check: [],
@@ -142,7 +156,7 @@ export const FORMAT_OF: Record<FieldType, readonly FormatKey[]> = {
 	url: [],
 	email: [],
 	phone: [],
-	formula: []
+	formula: ['result', 'decimals', 'currency', 'dateStyle']
 };
 
 /** A type's format keys from `options`, every other key cleared so no stale one comes back. */

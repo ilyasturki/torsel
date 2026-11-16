@@ -2,16 +2,25 @@
 	import { untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatNumber, localCurrency, readNumber } from '#lib/client/format.ts';
+	import { formatNumber, formatValue, localCurrency, readNumber } from '#lib/client/format.ts';
 	import { readFormula } from '#lib/client/formula.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
 	import { nameTaken } from '#lib/core/names.ts';
 	import { toDisplay } from '#lib/core/formula.ts';
-	import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from '#lib/core/model.ts';
-	import { formatSet, hasChoices } from '#lib/core/model.ts';
+	import type {
+		Change,
+		Choice,
+		DateStyleName,
+		FieldDef,
+		FieldType,
+		FormatKey,
+		ResultType,
+		Value
+	} from '#lib/core/model.ts';
+	import { DATE_STYLES, RESULT_TYPES, formatSet, hasChoices, isDated } from '#lib/core/model.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import { CURRENCIES, currencyOf, ratingScale } from '#lib/core/values.ts';
+	import { CURRENCIES, currencyOf, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { fields as words } from '#lib/i18n/fields.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -52,6 +61,14 @@
 		value,
 		label: value
 	}));
+	const LOOKS = DATE_STYLES.map((value) => ({
+		value,
+		label: formatValue({ type: 'date', dateStyle: value }, todayIso())
+	}));
+	const RESULTS: { value: ResultType | typeof AUTO; label: string }[] = [
+		{ value: AUTO, label: words.auto },
+		...RESULT_TYPES.map((value) => ({ value, label: words.types[value] }))
+	];
 	const CLOCKS = [
 		{ value: 'minutes', label: 'h:mm' },
 		{ value: 'seconds', label: 'h:mm:ss' }
@@ -72,6 +89,8 @@
 	let highest = $state('5');
 	let half = $state(false);
 	let clock = $state('minutes');
+	let look = $state<DateStyleName>('short');
+	let result = $state<ResultType | typeof AUTO>(AUTO);
 	let newChoice = $state('');
 	let problem = $state('');
 	let start = $state('');
@@ -105,7 +124,9 @@
 					: stepValue !== null && stepValue > 0
 						? stepValue
 						: null,
-			seconds: clock === 'seconds' ? true : undefined
+			seconds: clock === 'seconds' ? true : undefined,
+			dateStyle: look === 'short' ? null : look,
+			result: result === AUTO ? null : result
 		};
 		return formatSet(type, options) as Partial<Pick<FieldDef, FormatKey>>;
 	}
@@ -176,12 +197,15 @@
 			decimals = field?.decimals == null ? AUTO : String(field.decimals);
 			grouping = field?.grouping ?? true;
 			unit = field?.unit ?? '';
-			currency = field?.type === 'currency' ? currencyOf(field) : localCurrency();
+			currency =
+				field?.type === 'currency' || field?.currency ? currencyOf(field) : localCurrency();
 			const scale = ratingScale(field ?? {});
 			lowest = String(scale.min);
 			highest = String(scale.max);
 			half = field?.type === 'rating' && scale.step === 0.5;
 			clock = field?.seconds ? 'seconds' : 'minutes';
+			look = field?.dateStyle ?? 'short';
+			result = field?.result ?? AUTO;
 			newChoice = '';
 			problem = '';
 			start = untrack(snapshot);
@@ -426,6 +450,37 @@
 				<Field label={words.format}>
 					<Select options={CLOCKS} bind:value={clock} />
 				</Field>
+			</div>
+		{:else if isDated(type)}
+			<div class="grid grid-cols-3 gap-2">
+				<div class="col-span-2">
+					<Field label={words.format}>
+						<Select options={LOOKS} bind:value={look} />
+					</Field>
+				</div>
+			</div>
+		{:else if type === 'formula'}
+			<div class="grid grid-cols-3 gap-2">
+				<Field label={words.shownAs}>
+					<Select options={RESULTS} bind:value={result} />
+				</Field>
+				{#if result === 'number' || result === 'percent'}
+					<Field label={words.decimals}>
+						<Select options={DECIMALS} bind:value={decimals} />
+					</Field>
+				{:else if result === 'currency'}
+					<div class="col-span-2">
+						<Field label={words.currency}>
+							<Select options={MONEY} bind:value={currency} />
+						</Field>
+					</div>
+				{:else if result === 'date'}
+					<div class="col-span-2">
+						<Field label={words.format}>
+							<Select options={LOOKS} bind:value={look} />
+						</Field>
+					</div>
+				{/if}
 			</div>
 		{/if}
 

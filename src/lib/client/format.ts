@@ -1,4 +1,4 @@
-import type { Choice, FieldFormat, Value } from '../core/model.ts';
+import type { Choice, DateStyleName, FieldFormat, Value } from '../core/model.ts';
 import { isDated } from '../core/model.ts';
 import { fields as words } from '../i18n/fields.ts';
 import {
@@ -29,7 +29,7 @@ export type NumberStyle = {
 	grouping?: boolean;
 };
 
-export type DateStyle = { withYear?: boolean };
+export type DateStyle = { withYear?: boolean; look?: DateStyleName | null };
 
 const SPACES = /[\s  ]/gu;
 const ISO_LIKE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/u;
@@ -168,6 +168,20 @@ export function localeFormats(locale?: string) {
 		month: 'numeric',
 		year: 'numeric'
 	});
+	const weekdayDate = (withYear: boolean) =>
+		new Intl.DateTimeFormat(locale, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			year: withYear ? 'numeric' : undefined
+		});
+	const weekdayMonth = weekdayDate(false);
+	const weekdayMonthYear = weekdayDate(true);
+	const longDate = new Intl.DateTimeFormat(locale, {
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric'
+	});
 	const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' });
 	const month = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
 	const order = numericDate.formatToParts(new Date(2024, 0, 5)).map((part) => part.type);
@@ -187,6 +201,16 @@ export function localeFormats(locale?: string) {
 			const format = new Intl.DateTimeFormat(names, { month: width });
 			for (let at = 0; at < 12; at += 1) {
 				monthNames.push([plain(format.format(new Date(2024, at, 1))), at + 1]);
+			}
+		}
+	}
+
+	const weekdayNames = new Set<string>();
+	for (const names of [locale, 'en']) {
+		for (const width of ['short', 'long'] as const) {
+			const format = new Intl.DateTimeFormat(names, { weekday: width });
+			for (let at = 0; at < 7; at += 1) {
+				weekdayNames.add(plain(format.format(new Date(2024, 0, 1 + at))));
 			}
 		}
 	}
@@ -221,7 +245,22 @@ export function localeFormats(locale?: string) {
 			return iso;
 		}
 		const showYear = style.withYear || read.date.getFullYear() !== now.getFullYear();
-		const day = (showYear ? dayMonthYear : dayMonth).format(read.date);
+		if (style.look === 'iso') {
+			return (parseDate(iso) ?? iso).replace('T', ' ');
+		}
+		const format =
+			style.look === 'numeric'
+				? numericDate
+				: style.look === 'long'
+					? longDate
+					: style.look === 'weekday'
+						? showYear
+							? weekdayMonthYear
+							: weekdayMonth
+						: showYear
+							? dayMonthYear
+							: dayMonth;
+		const day = format.format(read.date);
 		return read.timed ? `${day} ${time.format(read.date)}` : day;
 	}
 
@@ -256,7 +295,9 @@ export function localeFormats(locale?: string) {
 		if (!/^[\p{L}\d\s/.,-]+$/u.test(text)) {
 			return null;
 		}
-		const words = (text.match(/\p{L}+\.?/gu) ?? []).filter((word) => plain(word).length > 2);
+		const named = (text.match(/\p{L}+\.?/gu) ?? []).filter((word) => plain(word).length > 2);
+		// "mar." is Tuesday in French and a start of "mars": a weekday drops only beside a month.
+		const words = named.length > 1 ? named.filter((word) => !weekdayNames.has(plain(word))) : named;
 		const numbers = (text.match(/\d+/gu) ?? []).map((digits) => ({
 			value: Number(digits),
 			long: digits.length > 2
@@ -342,7 +383,7 @@ export function localeFormats(locale?: string) {
 			return '';
 		}
 		if (typeof value === 'number') {
-			return formatAmount(field, value);
+			return formatAmount(resultOf(field), value);
 		}
 		if (typeof value === 'boolean') {
 			return value ? words.yes : words.no;
@@ -356,9 +397,16 @@ export function localeFormats(locale?: string) {
 			if (field.type === 'url') {
 				return value.replace(/^https?:\/\/(?:www\.)?/iu, '').replace(/\/$/u, '');
 			}
-			return dated ? formatDate(value.trim(), {}, now) : value;
+			return dated ? formatDate(value.trim(), { look: field.dateStyle }, now) : value;
 		}
 		return JSON.stringify(value);
+	}
+
+	/** A formula's number in the type its result is shown as. */
+	function resultOf(field: FieldFormat): FieldFormat {
+		return field.type === 'formula' && field.result != null && field.result !== 'date'
+			? { ...field, type: field.result }
+			: field;
 	}
 
 	/** What an editor opens on: the shown form with every digit, read back by `readValue`. */
@@ -367,7 +415,10 @@ export function localeFormats(locale?: string) {
 			return formatAmount(field, value, true);
 		}
 		if (typeof value === 'string' && isDated(field.type)) {
-			return formatDate(value);
+			// A weekday reads back only in some languages, and the date says it all.
+			return formatDate(value, {
+				look: field.dateStyle === 'weekday' ? 'short' : field.dateStyle
+			});
 		}
 		if (Array.isArray(value) || typeof value === 'boolean') {
 			return formatValue(field, value);

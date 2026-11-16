@@ -34,7 +34,14 @@ import type {
 	ViewConfig,
 	ViewDef
 } from '../../core/model.ts';
-import { FIELD_TYPES, FORMAT_OF, VIEW_TYPES, hasChoices } from '../../core/model.ts';
+import {
+	DATE_STYLES,
+	FIELD_TYPES,
+	FORMAT_OF,
+	RESULT_TYPES,
+	VIEW_TYPES,
+	hasChoices
+} from '../../core/model.ts';
 import { nameTaken, numberedName, sameName } from '../../core/names.ts';
 import { retypeField } from '../../core/retype.ts';
 import type { SqlValue } from '../../core/sql.ts';
@@ -285,7 +292,9 @@ const FORMAT = {
 		.min(0)
 		.max(6)
 		.optional()
-		.describe('number, currency, percent: the decimals shown; leave out for automatic'),
+		.describe(
+			'number, currency, percent, and a formula shown as one: the decimals shown; leave out for automatic'
+		),
 	grouping: z
 		.boolean()
 		.optional()
@@ -295,7 +304,19 @@ const FORMAT = {
 		.string()
 		.regex(/^[A-Z]{3}$/u)
 		.optional()
-		.describe('currency: the ISO code, such as EUR or USD'),
+		.describe('currency, and a formula shown as currency: the ISO code, such as EUR or USD'),
+	dateStyle: z
+		.enum(DATE_STYLES)
+		.optional()
+		.describe(
+			'date, datetime, and a formula shown as a date: short reads "28 Dec" (with the year when not this one), numeric "12/28/2026" in the reader\'s order, weekday "Mon, Dec 28", long "December 28, 2026", iso "2026-12-28"; short when left out'
+		),
+	result: z
+		.enum(RESULT_TYPES)
+		.optional()
+		.describe(
+			'formula: how its result reads; percent reads the result as points, 25 for 25%; automatic when left out'
+		),
 	min: z.number().int().min(0).max(1).optional().describe('rating: the lowest score, 0 or 1'),
 	max: z
 		.number()

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DATE_STYLES } from '../core/model.ts';
 import { localeFormats } from './format.ts';
 
 const LOCALES = [
@@ -60,10 +61,23 @@ describe.each(LOCALES)('%s', (locale) => {
 		}
 	});
 
-	it('reads back every date it shows', () => {
-		for (const iso of DATES) {
-			const shown = format.formatDate(iso, {}, NOW);
-			expect(format.readDate(shown, NOW), shown).toBe(iso);
+	it('reads back every date an editor opens on, in every look', () => {
+		for (const look of DATE_STYLES) {
+			for (const iso of DATES) {
+				const field = { type: iso.length > 10 ? 'datetime' : 'date', dateStyle: look } as const;
+				const shown = format.editText(field, iso);
+				expect(format.readDate(shown, NOW), `${look}: ${shown}`).toBe(iso);
+			}
+		}
+	});
+
+	it('reads back every date it shows in the looks it can type', () => {
+		const typed = locale.startsWith('en') || locale.startsWith('fr') ? DATE_STYLES : ['short'];
+		for (const look of DATE_STYLES.filter((style) => typed.includes(style))) {
+			for (const iso of DATES) {
+				const shown = format.formatDate(iso, { look }, NOW);
+				expect(format.readDate(shown, NOW), `${look}: ${shown}`).toBe(iso);
+			}
 		}
 	});
 
@@ -130,6 +144,38 @@ describe('the locale', () => {
 		expect(localeFormats('fr-FR').formatDate('2024-01-05T15:05', {}, NOW)).toBe(
 			'5 janv. 2024 15:05'
 		);
+	});
+
+	it('shows a date in the look its field picks', () => {
+		const fr = localeFormats('fr-FR');
+		const look = (dateStyle: (typeof DATE_STYLES)[number]) =>
+			fr.formatValue({ type: 'date', dateStyle }, '2026-12-28', NOW);
+		expect(look('short')).toBe('28 déc.');
+		expect(look('numeric')).toBe('28/12/2026');
+		expect(look('weekday')).toBe('lun. 28 déc.');
+		expect(look('long')).toBe('28 décembre 2026');
+		expect(look('iso')).toBe('2026-12-28');
+		expect(fr.formatValue({ type: 'datetime', dateStyle: 'iso' }, '2026-12-28T07:05', NOW)).toBe(
+			'2026-12-28 07:05'
+		);
+		expect(
+			localeFormats('en-US').formatValue({ type: 'date', dateStyle: 'weekday' }, '2026-12-28', NOW)
+		).toBe('Mon, Dec 28');
+	});
+
+	it('shows a formula result in the type it picks', () => {
+		const fr = localeFormats('fr-FR');
+		expect(fr.formatValue({ type: 'formula' }, 12345.678)).toBe('12 345,68');
+		expect(fr.formatValue({ type: 'formula', result: 'number', decimals: 1 }, 12345.678)).toBe(
+			'12 345,7'
+		);
+		expect(fr.formatValue({ type: 'formula', result: 'currency', currency: 'EUR' }, 12.5)).toBe(
+			'12,50 €'
+		);
+		expect(fr.formatValue({ type: 'formula', result: 'percent', decimals: 0 }, 42.4)).toBe('42 %');
+		expect(
+			fr.formatValue({ type: 'formula', result: 'date', dateStyle: 'long' }, '2026-12-28', NOW)
+		).toBe('28 décembre 2026');
 	});
 
 	it('shows a formula that returns a date as a date', () => {

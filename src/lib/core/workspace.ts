@@ -13,7 +13,15 @@ import type {
 	ViewDef,
 	ViewType
 } from './model.ts';
-import { CREATED, DELETED, FIELD_TYPES, VIEW_TYPES, isDeleted } from './model.ts';
+import {
+	CREATED,
+	DATE_STYLES,
+	DELETED,
+	FIELD_TYPES,
+	RESULT_TYPES,
+	VIEW_TYPES,
+	isDeleted
+} from './model.ts';
 
 function text(value: Value | undefined, fallback: string): string {
 	return typeof value === 'string' ? value : fallback;
@@ -49,6 +57,10 @@ function decimalsOf(value: Value | undefined): number | null {
 	return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6
 		? value
 		: null;
+}
+
+function oneOf<T extends string>(list: readonly T[], value: Value | undefined): T | null {
+	return (list as readonly Value[]).includes(value ?? null) ? (value as T) : null;
 }
 
 function fieldType(value: Value | undefined): FieldType {
@@ -102,6 +114,8 @@ export function fieldDef(rec: Rec): FieldDef {
 		min: typeof rec.data.min === 'number' ? rec.data.min : null,
 		max: typeof rec.data.max === 'number' ? rec.data.max : null,
 		seconds: rec.data.seconds === true,
+		dateStyle: oneOf(DATE_STYLES, rec.data.dateStyle),
+		result: oneOf(RESULT_TYPES, rec.data.result),
 		auto: rec.data.auto === true
 	};
 }

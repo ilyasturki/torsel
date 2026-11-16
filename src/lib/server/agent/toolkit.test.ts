@@ -194,6 +194,53 @@ describe('assistant tools', () => {
 		expect(await call('add_rows', { base: 'x' })).toEqual({ error: expect.any(String) });
 	});
 
+	it('sets a date look and a formula result format, as the field sheet does', async () => {
+		const { call, ctx } = session();
+		const made = (await call('create_table', {
+			name: 'Weigh-ins',
+			fields: [
+				{ name: 'Day', type: 'date' },
+				{ name: 'Kg', type: 'number' }
+			]
+		})) as { id: string; base: string };
+		await call('add_field', {
+			base: made.base,
+			table: made.id,
+			name: 'Pounds',
+			type: 'formula',
+			formula: '"Kg" * 2.2046'
+		});
+
+		await call('update_field', {
+			base: made.base,
+			table: made.id,
+			field: 'Day',
+			dateStyle: 'weekday'
+		});
+		const pounds = await call('update_field', {
+			base: made.base,
+			table: made.id,
+			field: 'Pounds',
+			result: 'number',
+			decimals: 1
+		});
+		expect(pounds).toEqual({ updated: expect.any(String), lost: 0 });
+
+		const [day, , formula] = ctx.ws.fields(made.id);
+		expect(day.dateStyle).toBe('weekday');
+		expect(formula).toMatchObject({ result: 'number', decimals: 1, expr: expect.any(String) });
+		expect(await call('describe_base', { base: made.base })).toMatchObject({
+			tables: [
+				{
+					fields: expect.arrayContaining([
+						expect.objectContaining({ name: 'Day', dateStyle: 'weekday' }),
+						expect.objectContaining({ name: 'Pounds', result: 'number', decimals: 1 })
+					])
+				}
+			]
+		});
+	});
+
 	it('renames, resorts a view and deletes a base, as the person can by hand', async () => {
 		const { call, actions, ctx } = session();
 		const made = (await call('create_table', {
