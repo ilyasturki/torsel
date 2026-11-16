@@ -1,13 +1,13 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "c7e6ff65-83c8-421f-80a4-0168c2cac1c9",
+  "id": "12e05492-6683-4d79-ae0e-6ae3d57c58ba",
   "prevIds": [
-    "7a7d682f-8f33-494f-9468-a6c18658a411"
+    "c77e21b0-483c-4a93-a264-bfcc4cc7ab7c"
   ],
   "ddl": [
     {
-      "name": "ai_prompts",
+      "name": "ai_usage",
       "entityType": "tables"
     },
     {
@@ -47,6 +47,10 @@
       "entityType": "tables"
     },
     {
+      "name": "saved_prompts",
+      "entityType": "tables"
+    },
+    {
       "name": "sources",
       "entityType": "tables"
     },
@@ -82,7 +86,7 @@
       "generated": null,
       "name": "user_id",
       "entityType": "columns",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "type": "integer",
@@ -92,7 +96,17 @@
       "generated": null,
       "name": "at",
       "entityType": "columns",
-      "table": "ai_prompts"
+      "table": "ai_usage"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "cost",
+      "entityType": "columns",
+      "table": "ai_usage"
     },
     {
       "type": "text",
@@ -840,6 +854,56 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "saved_prompts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "saved_prompts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "saved_prompts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "text",
+      "entityType": "columns",
+      "table": "saved_prompts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "saved_prompts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "user_id",
       "entityType": "columns",
       "table": "sources"
@@ -1425,9 +1489,9 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_ai_prompts_user_id_users_id_fk",
+      "name": "fk_ai_usage_user_id_users_id_fk",
       "entityType": "fks",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "columns": [
@@ -1563,6 +1627,21 @@
       "name": "fk_records_user_id_users_id_fk",
       "entityType": "fks",
       "table": "records"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_saved_prompts_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "saved_prompts"
     },
     {
       "columns": [
@@ -1757,6 +1836,15 @@
     },
     {
       "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "saved_prompts_pk",
+      "entityType": "pks",
+      "table": "saved_prompts"
+    },
+    {
+      "columns": [
         "user_id",
         "table_id"
       ],
@@ -1835,9 +1923,9 @@
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "ai_prompts_user_at_idx",
+      "name": "ai_usage_user_at_idx",
       "entityType": "indexes",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "columns": [
@@ -1849,9 +1937,9 @@
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "ai_prompts_at_idx",
+      "name": "ai_usage_at_idx",
       "entityType": "indexes",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "columns": [
@@ -1958,6 +2046,20 @@
       "name": "records_user_base_idx",
       "entityType": "indexes",
       "table": "records"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "saved_prompts_user_idx",
+      "entityType": "indexes",
+      "table": "saved_prompts"
     },
     {
       "columns": [
