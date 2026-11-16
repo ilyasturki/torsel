@@ -76,7 +76,9 @@ function prose(text: string): boolean {
 	}
 	if (/^M[\d.]/u.test(value)) return false;
 	const tokens = value.split(/\s+/u);
-	const classes = tokens.filter((token) => /[-:[/]/u.test(token)).length;
+	const classes = tokens.filter(
+		(token) => /[-:[/]/u.test(token) && !/^\p{Lu}\p{Ll}+-\p{Ll}/u.test(token)
+	).length;
 	if (
 		tokens.every((token) => /^[\w:[\]/.%!()&>*+#,-]+$/u.test(token)) &&
 		classes * 2 >= tokens.length

@@ -95,7 +95,7 @@
 	});
 </script>
 
-<div class="flex justify-between gap-2" role="group" aria-label="Sign-in code">
+<div class="flex justify-between gap-2" role="group" aria-label={words.signInCode}>
 	{#each digits as digit, index (index)}
 		<input
 			bind:this={boxes[index]}
