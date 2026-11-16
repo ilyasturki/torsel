@@ -42,6 +42,17 @@
 
 	let body: HTMLElement | undefined = $state();
 	let confirming = $state(false);
+	let before: HTMLElement | null = null;
+
+	function ask(): void {
+		before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		confirming = true;
+	}
+
+	function keepEditing(): void {
+		confirming = false;
+		before?.focus();
+	}
 
 	$effect(() => {
 		if (open) {
@@ -62,15 +73,22 @@
 	}
 
 	function guard(event: Event): void {
+		if (dirty && !confirming) {
+			event.preventDefault();
+			ask();
+		}
+	}
+
+	function holdOutside(event: Event): void {
 		if (dirty) {
 			event.preventDefault();
-			confirming = true;
+			if (!confirming) ask();
 		}
 	}
 
 	function close(): void {
-		if (dirty) {
-			confirming = true;
+		if (dirty && !confirming) {
+			ask();
 		} else {
 			open = false;
 		}
@@ -114,7 +132,7 @@
 				if (event.target instanceof Element && event.target.closest('[role="status"]')) {
 					event.preventDefault();
 				} else {
-					guard(event);
+					holdOutside(event);
 				}
 			}}
 			{onkeydown}
@@ -126,23 +144,28 @@
 				{@render actions?.()}
 				<IconButton icon="x" label={common.close} tooltip={false} onclick={close} />
 			</div>
+			{#if confirming}
+				<div
+					class="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 pb-2"
+					role="alertdialog"
+					aria-label={words.discardChanges}
+				>
+					<span class="min-w-0 flex-1 font-medium sm:flex-none">{words.discardYours}</span>
+					<Button onclick={() => (open = false)}>{words.discard}</Button>
+					<Button
+						variant="primary"
+						{@attach (node: HTMLButtonElement) => node.focus()}
+						onclick={keepEditing}>{words.keepEditing}</Button
+					>
+				</div>
+			{/if}
 			<div bind:this={body} class="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
 				{#if description}
 					<Dialog.Description class="mb-3 text-ink-2">{description}</Dialog.Description>
 				{/if}
 				{@render children()}
 			</div>
-			{#if confirming}
-				<div
-					class="flex shrink-0 items-center gap-2 p-4 pt-2"
-					role="alertdialog"
-					aria-label={words.discardChanges}
-				>
-					<span class="min-w-0 flex-1 font-medium">{words.discardYours}</span>
-					<Button onclick={() => (confirming = false)}>{words.keepEditing}</Button>
-					<Button variant="primary" onclick={() => (open = false)}>{words.discard}</Button>
-				</div>
-			{:else if footer}
+			{#if footer}
 				<div class="flex shrink-0 gap-2 p-4 pt-2">
 					{@render footer()}
 				</div>
