@@ -135,6 +135,9 @@ async function fieldData(page: Page, name: string): Promise<Record<string, Value
 	return records.find((rec) => rec.kind === 'field' && rec.data.name === name)?.data;
 }
 
+// A phone edits these in a drawer, not in the cell.
+const DRAWN = new Set(['Length', 'Released', 'Seen']);
+
 /** The first row's cell under a field, by the field's place in the table. */
 function cellOf(page: Page, name: string): Locator {
 	const at = [...FIELDS.map((field) => field.name), 'Director', 'Total'].indexOf(name);
@@ -145,6 +148,14 @@ function cellOf(page: Page, name: string): Locator {
 async function typeInto(page: Page, name: string, text: string): Promise<void> {
 	const target = cellOf(page, name);
 	await target.scrollIntoViewIfNeeded();
+	if (onPhone() && DRAWN.has(name)) {
+		await target.tap();
+		const drawer = page.getByRole('dialog', { name });
+		await drawer.getByRole('textbox').fill(text);
+		await drawer.getByRole('textbox').press('Enter');
+		await expect(drawer).toHaveCount(0);
+		return;
+	}
 	if (onPhone()) {
 		await target.tap();
 		await target.locator('input, textarea').fill(text);
@@ -200,9 +211,6 @@ test.describe('every type in the grid', () => {
 
 	test('reads what is typed into each type', async ({ page, context, account }) => {
 		void account;
-		await page.addInitScript(() => {
-			HTMLInputElement.prototype.showPicker = () => undefined;
-		});
 		const movies = await seedMovies(context.request);
 		await page.goto(movies.grid);
 
@@ -253,10 +261,12 @@ test.describe('every type in the grid', () => {
 
 		const refused: [string, string, string][] = [
 			['Price', 'lots', `"lots" isn't an amount.`],
-			['Contact', 'nobody', `"nobody" isn't an email.`],
-			['Length', 'soon', `"soon" isn't a duration.`]
+			['Contact', 'nobody', `"nobody" isn't an email.`]
 		];
-		if (!onPhone()) refused.push(['Score', '12', `"12" isn't a rating from 1 to 10.`]);
+		if (!onPhone()) {
+			refused.push(['Length', 'soon', `"soon" isn't a duration.`]);
+			refused.push(['Score', '12', `"12" isn't a rating from 1 to 10.`]);
+		}
 		for (const [name, typed, toast] of refused) {
 			await typeInto(page, name, typed);
 			await expect(page.getByRole('status')).toContainText(toast);
@@ -354,9 +364,17 @@ test.describe('every type in the row sheet', () => {
 			'aria-valuenow',
 			'8'
 		);
-		await expect(sheet.getByLabel('Length')).toHaveValue('2:35');
-		await expect(sheet.getByLabel('Released')).toHaveValue('2021-10-22');
-		await expect(sheet.getByLabel('Seen')).toHaveValue('2024-03-01T20:30');
+		const length = sheet.getByLabel('Length', { exact: true });
+		const released = sheet.getByLabel('Released', { exact: true });
+		const seen = sheet.getByLabel('Seen', { exact: true });
+		await expect(length).toHaveValue('2:35');
+		if (onPhone()) {
+			await expect(released).toHaveText('Oct 22, 2021');
+			await expect(seen).toHaveText('Mar 1, 2024 8:30 PM');
+		} else {
+			await expect(released).toHaveValue('Oct 22, 2021');
+			await expect(seen).toHaveValue('Mar 1, 2024 8:30 PM');
+		}
 		const tags = sheet.getByRole('group', { name: 'Tags' });
 		await expect(tags.getByRole('button', { name: 'Epic' })).toHaveAttribute(
 			'aria-pressed',
@@ -386,8 +404,16 @@ test.describe('every type in the row sheet', () => {
 			'aria-valuenow',
 			'9'
 		);
-		await sheet.getByLabel('Length').fill('2:40');
-		await sheet.getByLabel('Seen').fill('2024-03-02T07:45');
+		await length.fill('2:40');
+		if (onPhone()) {
+			await seen.click();
+			const drawer = page.getByRole('dialog', { name: 'Seen' });
+			await drawer.getByRole('textbox').fill('2024-03-02 07:45');
+			await drawer.getByRole('textbox').press('Enter');
+			await expect(drawer).toHaveCount(0);
+		} else {
+			await seen.fill('2024-03-02 07:45');
+		}
 		await tags.getByRole('button', { name: 'Desert' }).click();
 		await tags.getByRole('button', { name: 'New' }).click();
 		await tags.getByLabel('New choice').fill('Spice');

@@ -261,7 +261,9 @@ test('a sheet focuses its first field and never drops a half-filled row', async 
 
 	await page.getByRole('button', { name: 'Add row' }).click();
 	const dialog = page.getByRole('dialog');
-	await expect(dialog.getByLabel('Date')).toBeFocused();
+	// A phone's date opens a drawer, so the keyboard goes to the first field typed in.
+	const first = test.info().project.name === 'phone' ? 'Reps' : 'Date';
+	await expect(dialog.getByLabel(first, { exact: true })).toBeFocused();
 
 	await page.keyboard.press('Escape');
 	await expect(dialog).toHaveCount(0);

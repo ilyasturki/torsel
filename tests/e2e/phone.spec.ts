@@ -72,7 +72,7 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 
 	await page.goto(tablePath(table, entry));
 	const addRow = page.getByRole('button', { name: 'Add row' });
-	const day = page.locator('label').filter({ hasText: 'Day' }).locator('input');
+	const day = page.getByLabel('Day', { exact: true });
 	expect(await clearOf(day, addRow), 'Entry: Day above Add row').toBe(true);
 
 	await page.goto(tablePath(table));

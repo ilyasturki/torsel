@@ -435,7 +435,12 @@ test.describe('adding and correcting rows', () => {
 		void account;
 		const { table, grid, list, chart } = await seedGym(context.request);
 		const sheet = page.getByRole('dialog', { name: 'New row' });
-		const today = new Date().toISOString().slice(0, 10);
+		const today = new Date().toLocaleDateString('en-US', {
+			timeZone: 'UTC',
+			month: 'short',
+			day: 'numeric'
+		});
+		const phone = test.info().project.name === 'phone';
 
 		for (const [view, button] of [
 			[grid, 'Add row'],
@@ -445,7 +450,9 @@ test.describe('adding and correcting rows', () => {
 			await page.goto(tablePath(table, view));
 			const taps = await countTaps(page);
 			await page.getByRole('button', { name: button }).click();
-			await expect(sheet.getByLabel('Date')).toHaveValue(today);
+			const date = sheet.getByLabel('Date', { exact: true });
+			if (phone) await expect(date).toHaveText(today);
+			else await expect(date).toHaveValue(today);
 			expect(await taps()).toBe(1);
 			await page.keyboard.press('Escape');
 			await expect(sheet).toHaveCount(0);

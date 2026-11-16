@@ -64,6 +64,8 @@ async function retypeLast(input: Locator, char: string): Promise<void> {
 	await input.pressSequentially(char);
 }
 
+const onPhone = (): boolean => test.info().project.name === 'phone';
+
 const LOCALES = [
 	{
 		locale: 'en-US',
@@ -101,25 +103,25 @@ for (const { locale, budget, edited, seen, words, entry } of LOCALES) {
 			await expect(page.getByRole('gridcell', { name: seen, exact: true })).toBeVisible();
 		});
 
-		test('a tap on a timed date opens a picker with its time', async ({
+		test('a tap on a timed date opens the drawer on its day and time', async ({
 			page,
 			context,
 			account
 		}) => {
-			test.skip(test.info().project.name !== 'phone', 'the native picker opens on a touch');
+			test.skip(test.info().project.name !== 'phone', 'a drawer opens on a touch');
 			void account;
-			await page.addInitScript(() => {
-				HTMLInputElement.prototype.showPicker = () => undefined;
-			});
 			const movies = await seedMovies(context.request);
 			await page.goto(movies.grid);
 
 			const stored = page.getByRole('gridcell', { name: seen, exact: true });
 			await stored.scrollIntoViewIfNeeded();
 			await stored.tap();
-			const picker = page.getByRole('gridcell').locator('input');
-			await expect(picker).toHaveAttribute('type', 'datetime-local');
-			await expect(picker).toHaveValue('2024-03-01T20:30');
+			const drawer = page.getByRole('dialog', { name: 'Seen' });
+			await expect(drawer.getByRole('textbox')).toHaveValue(seen);
+			await expect(drawer.locator('[data-day="2024-03-01"]')).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
 		});
 
 		test('the row sheet opens on what the grid shows and stores what was typed', async ({
@@ -135,17 +137,26 @@ for (const { locale, budget, edited, seen, words, entry } of LOCALES) {
 			const sheet = page.getByRole('dialog');
 			const year = sheet.getByLabel('Year');
 			const money = sheet.getByLabel('Budget');
-			const when = sheet.getByLabel('Seen');
+			const when = sheet.getByLabel('Seen', { exact: true });
 			await expect(year).toHaveValue('2024');
 			await expect(money).toHaveValue(budget);
-			await expect(when).toHaveAttribute('type', 'datetime-local');
-			await expect(when).toHaveValue('2024-03-01T20:30');
 
 			await retypeLast(year, '5');
 			await retypeLast(money, '1');
 			await expect(money).toHaveValue(edited);
-			await when.fill('2024-03-02T07:45');
-			await when.press('Enter');
+			if (onPhone()) {
+				await expect(when).toHaveText(seen);
+				await when.click();
+				const drawer = page.getByRole('dialog', { name: 'Seen' });
+				await drawer.getByRole('textbox').fill('2024-03-02 07:45');
+				await drawer.getByRole('textbox').press('Enter');
+				await expect(drawer).toHaveCount(0);
+				await money.press('Enter');
+			} else {
+				await expect(when).toHaveValue(seen);
+				await when.fill('2024-03-02 07:45');
+				await when.press('Enter');
+			}
 			await expect(sheet).toHaveCount(0);
 
 			await expect
@@ -170,7 +181,9 @@ for (const { locale, budget, edited, seen, words, entry } of LOCALES) {
 			const money = page.getByRole('textbox', { name: 'Budget' });
 			await expect(year).toHaveValue('2024');
 			await expect(money).toHaveValue(budget);
-			await expect(page.getByLabel('Seen')).toHaveAttribute('type', 'datetime-local');
+			const when = page.getByLabel('Seen', { exact: true });
+			if (onPhone()) await expect(when).toContainText(/\d/u);
+			else await expect(when).toHaveValue(/\d/u);
 
 			await retypeLast(year, '3');
 			await retypeLast(money, '1');
