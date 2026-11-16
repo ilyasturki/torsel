@@ -1,4 +1,4 @@
-import { expect, script, seedLifts, test } from './harness.ts';
+import { expect, openAsk, script, seedLifts, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -23,7 +23,7 @@ test('a reply offers one next request: Tab takes it on a desktop, a tap sends it
 	);
 	await page.goto(await seedLifts(context.request));
 	const asker = page.locator('#ask-input');
-	if (!(await asker.isVisible())) await page.getByRole('button', { name: /^Ask/u }).click();
+	if (!(await asker.isVisible())) await openAsk(page);
 	await asker.fill(`${key} heaviest lift?`);
 	await asker.press('Enter');
 	const thread = page.getByTestId('thread');
@@ -53,7 +53,7 @@ test('no follow-up leaves the box as it was', async ({ page, context, account })
 	const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Done.' }] }]);
 	await page.goto(await seedLifts(context.request));
 	const asker = page.locator('#ask-input');
-	if (!(await asker.isVisible())) await page.getByRole('button', { name: /^Ask/u }).click();
+	if (!(await asker.isVisible())) await openAsk(page);
 	await asker.fill(`${key} log a squat`);
 	await asker.press('Enter');
 	await expect(page.getByTestId('thread').getByText('Done.')).toBeVisible();

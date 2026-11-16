@@ -6,10 +6,10 @@ import type { Rec } from '../../src/lib/core/model.ts';
 
 import type { FakeAnswer, FakeHit } from './fake-sources.ts';
 import {
-	askButton,
 	cell,
 	expect,
 	expectListed,
+	openAsk,
 	script,
 	tablePath,
 	test,
@@ -276,7 +276,7 @@ test.describe('tables from a link', () => {
 			{ blocks: [{ type: 'text', text: 'Linked.' }] }
 		]);
 		await page.goto('/app');
-		await askButton(page).click();
+		await openAsk(page);
 		await page.getByPlaceholder('Ask about your tables').fill(`${key} link my private list`);
 		await page.getByRole('button', { name: 'Send' }).click();
 		await expect(page.getByTestId('thread').getByText('Linked.')).toBeVisible();
@@ -315,7 +315,7 @@ test.describe('tables from a link', () => {
 			{ blocks: [{ type: 'text', text: 'Linked.' }] }
 		]);
 		await page.goto('/app');
-		await askButton(page).click();
+		await openAsk(page);
 		await page.getByPlaceholder('Ask about your tables').fill(`${key} link the public list`);
 		await page.getByRole('button', { name: 'Send' }).click();
 		await expect(page.getByTestId('thread').getByText('Linked.')).toBeVisible();

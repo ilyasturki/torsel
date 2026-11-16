@@ -1,4 +1,4 @@
-import { expect, script, seedLifts, test } from './harness.ts';
+import { expect, openAsk, script, seedLifts, test } from './harness.ts';
 
 test('a sent message saves under a name, comes back behind /, and goes with an undo', async ({
 	page,
@@ -11,7 +11,7 @@ test('a sent message saves under a name, comes back behind /, and goes with an u
 	]);
 	await page.goto(await seedLifts(context.request));
 	const asker = page.locator('#ask-input');
-	if (!(await asker.isVisible())) await page.getByRole('button', { name: /^Ask/u }).click();
+	if (!(await asker.isVisible())) await openAsk(page);
 	const text = `${key} sum up my week of lifts`;
 	await asker.fill(text);
 	await asker.press('Enter');
@@ -47,7 +47,7 @@ test('a sent message saves under a name, comes back behind /, and goes with an u
 	await expect(listed.getByRole('option')).toHaveText([/Weekly review/u]);
 
 	await page.reload();
-	if (!(await asker.isVisible())) await page.getByRole('button', { name: /^Ask/u }).click();
+	if (!(await asker.isVisible())) await openAsk(page);
 	await asker.fill('/');
 	await expect(listed.getByRole('option')).toHaveText([/Weekly review/u]);
 });

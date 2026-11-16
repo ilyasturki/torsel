@@ -2,7 +2,7 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, tablePath, test } from './harness.ts';
+import { expect, openAsk, script, seed, tablePath, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -92,7 +92,7 @@ test('a request that needs the web searches it, writes what it found, and names 
 
 	await page.reload();
 	if (!(await page.locator('#ask-input').isVisible())) {
-		await page.getByRole('button', { name: /^Ask/u }).click();
+		await openAsk(page);
 	}
 	await expect(page.getByTestId('thread').getByTestId('sources').getByRole('link')).toHaveText([
 		'imdb.com',
