@@ -81,14 +81,17 @@
 							<Icon name="image-off" label={words.missing} class="size-6" />
 						</div>
 					{:else}
-						<img
-							src={shown.src}
-							alt={shown.alt}
-							width={shown.w}
-							height={shown.h}
-							class="max-h-full max-w-full rounded-box object-contain select-none"
-							draggable="false"
-						/>
+						<!-- A fresh element per image: a reused one keeps the last image's shape until the next decodes. -->
+						{#key shown.src}
+							<img
+								src={shown.src}
+								alt={shown.alt}
+								width={shown.w}
+								height={shown.h}
+								class="max-h-full max-w-full rounded-box object-contain select-none"
+								draggable="false"
+							/>
+						{/key}
 					{/if}
 				{/if}
 				<Dialog.Close class="absolute top-3 right-3 {control}" aria-label={words.close}>

@@ -244,8 +244,7 @@ test('the poster wall shows each row’s cover whole, and the lightbox steps thr
 	await page.keyboard.press('ArrowRight');
 	await expect(lightbox.getByRole('img', { name: 'still.jpg' })).toBeVisible();
 	await expect(lightbox.getByText('2 of 2')).toBeVisible();
-	const shown = await lightbox.getByRole('img', { name: 'still.jpg' }).boundingBox();
-	expect((shown?.width ?? 0) / (shown?.height ?? 1)).toBeCloseTo(600 / 338, 1);
+	await expectPosterShape(lightbox.getByRole('img', { name: 'still.jpg' }), 338 / 600);
 	await page.keyboard.press('ArrowRight');
 	await expect(lightbox.getByText('1 of 2')).toBeVisible();
 	await page.keyboard.press('Escape');
