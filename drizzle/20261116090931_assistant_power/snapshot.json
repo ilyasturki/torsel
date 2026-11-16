@@ -1,18 +1,25 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "b502079d-e947-46da-8b25-35f62052dc70",
+  "id": "c77e21b0-483c-4a93-a264-bfcc4cc7ab7c",
   "prevIds": [
-    "98205dc0-ec7d-44e9-ac02-22726b409121",
-    "afcdbc08-ae37-426f-844e-3a38aa62d6fd"
+    "7a7d682f-8f33-494f-9468-a6c18658a411"
   ],
   "ddl": [
     {
-      "name": "ai_prompts",
+      "name": "ai_usage",
       "entityType": "tables"
     },
     {
       "name": "auth_tokens",
+      "entityType": "tables"
+    },
+    {
+      "name": "blob_uploads",
+      "entityType": "tables"
+    },
+    {
+      "name": "blobs",
       "entityType": "tables"
     },
     {
@@ -41,6 +48,10 @@
     },
     {
       "name": "saved_prompts",
+      "entityType": "tables"
+    },
+    {
+      "name": "sources",
       "entityType": "tables"
     },
     {
@@ -75,7 +86,7 @@
       "generated": null,
       "name": "user_id",
       "entityType": "columns",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "type": "integer",
@@ -85,7 +96,17 @@
       "generated": null,
       "name": "at",
       "entityType": "columns",
-      "table": "ai_prompts"
+      "table": "ai_usage"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "cost",
+      "entityType": "columns",
+      "table": "ai_usage"
     },
     {
       "type": "text",
@@ -206,6 +227,156 @@
       "name": "resource",
       "entityType": "columns",
       "table": "auth_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "blob_uploads"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "base_id",
+      "entityType": "columns",
+      "table": "blob_uploads"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "blob_uploads"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "size",
+      "entityType": "columns",
+      "table": "blob_uploads"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "data",
+      "entityType": "columns",
+      "table": "blob_uploads"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "blob_uploads"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "base_id",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "type",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "size",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "w",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "h",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "data",
+      "entityType": "columns",
+      "table": "blobs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "blobs"
     },
     {
       "type": "text",
@@ -725,6 +896,196 @@
       "generated": null,
       "name": "user_id",
       "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "table_id",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "base_id",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "url",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'none'",
+      "generated": null,
+      "name": "auth",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "auth_name",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "secret",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hint",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "rows",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "filter",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "every",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "missing",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "next_at",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_at",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_ok_at",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "failures",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "problem",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
       "table": "sync_counters"
     },
     {
@@ -1118,9 +1479,9 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_ai_prompts_user_id_users_id_fk",
+      "name": "fk_ai_usage_user_id_users_id_fk",
       "entityType": "fks",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "columns": [
@@ -1151,6 +1512,36 @@
       "name": "fk_auth_tokens_grant_id_oauth_grants_id_fk",
       "entityType": "fks",
       "table": "auth_tokens"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_blob_uploads_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "blob_uploads"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_blobs_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "blobs"
     },
     {
       "columns": [
@@ -1253,6 +1644,21 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
+      "name": "fk_sources_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "sources"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
       "name": "fk_sync_counters_user_id_users_id_fk",
       "entityType": "fks",
       "table": "sync_counters"
@@ -1343,6 +1749,28 @@
     },
     {
       "columns": [
+        "user_id",
+        "base_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "blob_uploads_pk",
+      "entityType": "pks",
+      "table": "blob_uploads"
+    },
+    {
+      "columns": [
+        "user_id",
+        "base_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "blobs_pk",
+      "entityType": "pks",
+      "table": "blobs"
+    },
+    {
+      "columns": [
         "id"
       ],
       "nameExplicit": false,
@@ -1404,6 +1832,16 @@
       "name": "saved_prompts_pk",
       "entityType": "pks",
       "table": "saved_prompts"
+    },
+    {
+      "columns": [
+        "user_id",
+        "table_id"
+      ],
+      "nameExplicit": false,
+      "name": "sources_pk",
+      "entityType": "pks",
+      "table": "sources"
     },
     {
       "columns": [
@@ -1475,9 +1913,9 @@
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "ai_prompts_user_at_idx",
+      "name": "ai_usage_user_at_idx",
       "entityType": "indexes",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "columns": [
@@ -1489,9 +1927,9 @@
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "ai_prompts_at_idx",
+      "name": "ai_usage_at_idx",
       "entityType": "indexes",
-      "table": "ai_prompts"
+      "table": "ai_usage"
     },
     {
       "columns": [
@@ -1612,6 +2050,20 @@
       "name": "saved_prompts_user_idx",
       "entityType": "indexes",
       "table": "saved_prompts"
+    },
+    {
+      "columns": [
+        {
+          "value": "next_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "sources_next_idx",
+      "entityType": "indexes",
+      "table": "sources"
     },
     {
       "columns": [
