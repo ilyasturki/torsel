@@ -226,7 +226,6 @@
 				)
 			)
 			.slice(0, 20)
-			.reverse()
 			.map((row, at, list) => {
 				const day = dayOf(row);
 				const shownDay =
@@ -238,6 +237,8 @@
 				return { row, day: shownDay };
 			})
 	);
+
+	const filters = $derived(keys.filter((field) => !blank(values[field.id])));
 
 	const lead = $derived(
 		keys.find((field) => blank(values[field.id])) ??
@@ -380,16 +381,38 @@
 			</div>
 		{:else}
 			<div
-				class="flex min-h-0 flex-1 flex-col overflow-hidden lg:col-start-1 lg:row-span-2 lg:row-start-1 {adds
-					? 'justify-end'
-					: ''}"
+				class="min-h-0 flex-1 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1"
+				role="group"
+				aria-label={words.lastTime}
 			>
+				{#if filters.length > 0}
+					<p
+						class="flex min-h-row items-center gap-2 border-b border-rule px-4"
+						data-testid="entry-filter"
+					>
+						{#each filters as field (field.id)}
+							<span class="text-sm text-ink-3">{field.name}</span>
+							<CellValue {field} value={values[field.id]} />
+						{/each}
+					</p>
+				{/if}
+				{#if history.length > 0}
+					<div
+						class="sticky top-0 z-10 flex h-row items-center gap-3 border-b border-rule bg-band px-4 text-sm font-medium text-ink-3"
+					>
+						<span class="w-16 shrink-0 truncate">{dateField?.name ?? ''}</span>
+						<span class="min-w-0 flex-1 truncate">{lead?.name ?? ''}</span>
+						{#each columns as field (field.id)}
+							<span class="w-14 shrink-0 truncate text-right">{field.name}</span>
+						{/each}
+					</div>
+				{/if}
 				<ul class="flex flex-col">
 					{#each history as { row, day } (row.id)}
 						<li>
 							<button
 								type="button"
-								class="flex min-h-row w-full items-center gap-3 px-4 text-left transition-colors motion hover:bg-tint {focus}"
+								class="flex min-h-row w-full items-center gap-3 border-b border-rule px-4 text-left transition-colors motion hover:bg-tint {focus}"
 								onclick={() => open(row)}
 							>
 								<span class="w-16 shrink-0 truncate text-ink-2">{day}</span>
@@ -397,7 +420,7 @@
 									{#if lead !== undefined}<CellValue field={lead} value={row.data[lead.id]} />{/if}
 								</span>
 								{#each columns as field (field.id)}
-									<span class="w-14 shrink-0 truncate text-right"
+									<span class="w-14 shrink-0 truncate text-right tabular-nums"
 										><CellValue {field} value={row.data[field.id]} /></span
 									>
 								{/each}
