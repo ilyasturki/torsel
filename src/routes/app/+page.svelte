@@ -78,7 +78,7 @@
 			>
 		</Empty>
 	{:else}
-		<div class="grid grid-cols-cards gap-3 p-4">
+		<div class="grid grid-cols-tables gap-3 p-4">
 			{#each bases as base (base.id)}
 				{#each base.tables as table (table.id)}
 					{@const here = table.id === left}

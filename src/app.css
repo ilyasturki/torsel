@@ -217,6 +217,7 @@
 	--spacing-prose: 640px;
 	--spacing-mark: 8px;
 	--spacing-card: 9.5rem;
+	--spacing-table-card: 18rem;
 	--spacing-sheet-max: 92dvh;
 	--spacing-ask-clear: 416px;
 }
@@ -368,9 +369,9 @@
 	letter-spacing: -0.035em;
 }
 
-/* The home's cards: as many 18rem columns as fit, one on a phone. */
-@utility grid-cols-cards {
-	grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+/* The home's table cards: as many columns as fit, one on a phone. */
+@utility grid-cols-tables {
+	grid-template-columns: repeat(auto-fill, minmax(var(--spacing-table-card), 1fr));
 }
 
 html,
