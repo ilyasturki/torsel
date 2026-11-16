@@ -41,7 +41,7 @@
 	"src/lib/server/agent/assistant.ts\t, hiding {hidden.map(name).join(', ')}",
 	"src/lib/server/agent/assistant.ts\t, in {columns.map((field) => field.name).join(', ')}",
 	"src/lib/server/agent/assistant.ts\t, showing rows whose {name(filter.field)} contains \"{filter.text}\"",
-	"src/lib/server/agent/assistant.ts\t, sorted by {name(sort.field)} {sort.dir === 'asc' ? 'ascending' : 'descending'}",
+	"src/lib/server/agent/assistant.ts\t, sorted by {sort.map((key) => `${name(key.field)} ${key.dir === 'asc' ? 'ascending' : 'descending'}`).join(' then ')}",
 	"src/lib/server/agent/assistant.ts\t, view \"{view.name}\" ({view.id}, {view.type})",
 	"src/lib/server/agent/assistant.ts\t- and {selected.slice(SHOWN_SELECTION).join(', ')}",
 	"src/lib/server/agent/assistant.ts\tAn attached file that is no longer stored.",

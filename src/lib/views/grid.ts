@@ -4,7 +4,7 @@ import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
 import type { Change, Choice, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
-import { hasChoices } from '#lib/core/model.ts';
+import { hasChoices, sortsOf } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
 import { CHOICES_JOIN, currencyOf, formatDuration, ratingScale } from '#lib/core/values.ts';
 import type { Workspace } from '#lib/core/workspace.ts';
@@ -50,29 +50,40 @@ export function gridRows(
 		);
 	}
 
-	const sort = config.sort;
-	const sorted = sort ? ws.field(sort.field) : undefined;
-	if (!sort || !sorted) {
+	const keys = sortsOf(config).flatMap((key) => {
+		const field = ws.field(key.field);
+		return field === undefined ? [] : [{ field, direction: key.dir === 'asc' ? 1 : -1 }];
+	});
+	if (keys.length === 0) {
 		return rows;
 	}
 
-	const direction = sort.dir === 'asc' ? 1 : -1;
-	const keyed = rows.map((row) => {
-		const value = cellValue(row, sorted, computed);
-		const byText = sorted.type === 'link' || Array.isArray(value);
-		return { row, value: byText ? cellText(ws, sorted, value) : value };
-	});
+	const keyed = rows.map((row) => ({
+		row,
+		values: keys.map(({ field }) => {
+			const value = cellValue(row, field, computed);
+			const byText = field.type === 'link' || Array.isArray(value);
+			return byText ? cellText(ws, field, value) : value;
+		})
+	}));
 	keyed.sort((a, b) => {
-		if (isBlank(a.value) || isBlank(b.value)) {
-			return Number(isBlank(a.value)) - Number(isBlank(b.value));
+		for (const [at, { direction }] of keys.entries()) {
+			const order = compareCells(a.values[at], b.values[at], direction);
+			if (order !== 0) return order;
 		}
-		const order =
-			typeof a.value === 'number' && typeof b.value === 'number'
-				? a.value - b.value
-				: collator.compare(String(a.value), String(b.value));
-		return order * direction;
+		return 0;
 	});
 	return keyed.map(({ row }) => row);
+}
+
+/** Blanks last whichever the direction. */
+function compareCells(a: Value | undefined, b: Value | undefined, direction: number): number {
+	if (isBlank(a) || isBlank(b)) {
+		return Number(isBlank(a)) - Number(isBlank(b));
+	}
+	const order =
+		typeof a === 'number' && typeof b === 'number' ? a - b : collator.compare(String(a), String(b));
+	return order * direction;
 }
 
 export function parseTsv(text: string): string[][] {

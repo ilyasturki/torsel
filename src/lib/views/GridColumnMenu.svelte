@@ -25,8 +25,10 @@
 		anchor,
 		field,
 		sorted,
+		addable,
 		filter,
 		onsort,
+		onaddsort,
 		onfilter,
 		onretype,
 		onaction,
@@ -36,8 +38,11 @@
 		anchor: HTMLElement | null;
 		field: FieldDef | undefined;
 		sorted: 'asc' | 'desc' | null;
+		// The view sorts on other fields, which this one can follow.
+		addable: boolean;
 		filter: string;
 		onsort: (dir: 'asc' | 'desc' | null) => void;
+		onaddsort: () => void;
 		onfilter: (text: string) => void;
 		onretype: (type: FieldType) => void;
 		onaction: (action: ColumnAction) => void;
@@ -100,6 +105,9 @@
 		<MenuItem icon="arrow-down" checked={sorted === 'desc'} onSelect={() => onsort('desc')}
 			>{words.sortDescending}</MenuItem
 		>
+		{#if addable}
+			<MenuItem icon="plus" onSelect={onaddsort}>{words.addSort}</MenuItem>
+		{/if}
 		{#if sorted !== null}
 			<MenuItem icon="x" onSelect={() => onsort(null)}>{words.clearSort}</MenuItem>
 		{/if}
@@ -135,6 +143,11 @@
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onsort('desc'))}
 				>{words.sortDescending}</Button
 			>
+			{#if addable}
+				<Button variant="ghost" class="justify-start" onclick={() => run(onaddsort)}
+					>{words.addSort}</Button
+				>
+			{/if}
 			{#if sorted !== null}
 				<Button variant="ghost" class="justify-start" onclick={() => run(() => onsort(null))}
 					>{words.clearSort}</Button

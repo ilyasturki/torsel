@@ -14,8 +14,15 @@
 		listLayout,
 		updateRecord
 	} from '#lib/core/actions.ts';
-	import type { ChartConfig, FieldDef, Value, ViewConfig, ViewType } from '#lib/core/model.ts';
-	import { isDated, isNumeric } from '#lib/core/model.ts';
+	import type {
+		ChartConfig,
+		FieldDef,
+		SortKey,
+		Value,
+		ViewConfig,
+		ViewType
+	} from '#lib/core/model.ts';
+	import { isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -23,6 +30,7 @@
 	import Field from '#lib/ui/Field.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
+	import IconButton from '#lib/ui/IconButton.svelte';
 	import Select, { type Option } from '#lib/ui/Select.svelte';
 	import { checkbox, focus, input, legend } from '#lib/ui/styles.ts';
 
@@ -109,6 +117,16 @@
 		if (agg !== 'count' && !config.y) setChart('y', numeric[0]?.id ?? null);
 	}
 
+	const sortKeys = $derived(sortsOf(config));
+
+	/** Sets, adds (at the end) or removes (with null) the sort key at `at`. */
+	function setSort(at: number, key: SortKey | null): void {
+		const next = [...sortKeys];
+		if (key === null) next.splice(at, 1);
+		else next[at] = key;
+		config.sort = next.length === 0 ? null : next;
+	}
+
 	function setGroup(value: string): void {
 		if (value === 'auto') delete config.group;
 		else config.group = value || null;
@@ -165,30 +183,49 @@
 		</div>
 
 		{#if type === 'grid'}
-			<div class="grid grid-cols-2 gap-3">
-				<Field label={words.sortBy}>
-					<Select
-						options={[{ value: '', label: words.unsorted }, ...fieldOptions(fields)]}
-						value={config.sort?.field ?? ''}
-						onchange={(field) => {
-							config.sort = field ? { field, dir: config.sort?.dir ?? 'asc' } : null;
-						}}
-					/>
-				</Field>
-				<Field label={words.order}>
-					<Select
-						options={[
-							{ value: 'asc', label: words.ascending, icon: 'arrow-up' },
-							{ value: 'desc', label: words.descending, icon: 'arrow-down' }
-						]}
-						disabled={!config.sort}
-						value={config.sort?.dir ?? 'asc'}
-						onchange={(dir) => {
-							if (config.sort) config.sort.dir = dir;
-						}}
-					/>
-				</Field>
-			</div>
+			<fieldset class="flex flex-col gap-2">
+				<legend class={legend}>{words.sortBy}</legend>
+				{#each sortKeys as key, at (key.field)}
+					<div class="flex gap-2">
+						<Select
+							class="flex-1"
+							aria-label={words.sortField(at + 1)}
+							options={fieldOptions(
+								fields.filter(
+									(field) =>
+										field.id === key.field || !sortKeys.some((other) => other.field === field.id)
+								)
+							)}
+							value={key.field}
+							onchange={(field) => setSort(at, { field, dir: key.dir })}
+						/>
+						<Select
+							class="w-40 max-sm:w-32"
+							aria-label={words.order}
+							options={[
+								{ value: 'asc', label: words.ascending, icon: 'arrow-up' },
+								{ value: 'desc', label: words.descending, icon: 'arrow-down' }
+							]}
+							value={key.dir}
+							onchange={(dir) => setSort(at, { field: key.field, dir })}
+						/>
+						<IconButton icon="x" label={words.removeSort} onclick={() => setSort(at, null)} />
+					</div>
+				{/each}
+				{#if sortKeys.length < fields.length}
+					{#key sortKeys.length}
+						<Select
+							aria-label={words.addSort}
+							placeholder={sortKeys.length === 0 ? words.unsorted : words.thenBy}
+							options={fieldOptions(
+								fields.filter((field) => !sortKeys.some((key) => key.field === field.id))
+							)}
+							value=""
+							onchange={(field) => setSort(sortKeys.length, { field, dir: 'asc' })}
+						/>
+					{/key}
+				{/if}
+			</fieldset>
 			{#if config.filter}
 				<div class="flex items-center gap-2">
 					<span class="min-w-0 flex-1 truncate">

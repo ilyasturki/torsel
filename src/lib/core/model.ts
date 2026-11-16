@@ -157,9 +157,12 @@ export function formatSet(
 	return set;
 }
 
+export type SortKey = { field: string; dir: 'asc' | 'desc' };
+
 export type GridConfig = {
 	hidden?: string[];
-	sort?: { field: string; dir: 'asc' | 'desc' } | null;
+	// The first key orders the rows, each next one breaks the ties left.
+	sort?: SortKey[] | null;
 	filter?: { field: string; text: string } | null;
 	widths?: Record<string, number>;
 };
@@ -189,6 +192,10 @@ export type ViewDef = {
 	order: number;
 	config: ViewConfig;
 };
+
+export function sortsOf(config: GridConfig): SortKey[] {
+	return Array.isArray(config.sort) ? config.sort : [];
+}
 
 export function isKind(value: unknown): value is Kind {
 	return typeof value === 'string' && (KINDS as readonly string[]).includes(value);

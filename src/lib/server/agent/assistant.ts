@@ -5,6 +5,7 @@ import { toDisplay } from '../../core/formula.ts';
 import { Hlc } from '../../core/clock.ts';
 import { stampAll } from '../../core/diff.ts';
 import type { FieldDef, Value } from '../../core/model.ts';
+import { sortsOf } from '../../core/model.ts';
 import type {
 	Effect,
 	EventContent,
@@ -113,9 +114,10 @@ function tableNote(ws: Workspace, context: ThreadContext): string[] | null {
 	const view = context.view === null ? undefined : ws.view(context.view);
 	if (view !== undefined && view.table === table.id) {
 		screen += `, view "${view.name}" (${view.id}, ${view.type})`;
-		const { sort, filter, hidden } = view.config;
-		if (sort)
-			screen += `, sorted by ${name(sort.field)} ${sort.dir === 'asc' ? 'ascending' : 'descending'}`;
+		const { filter, hidden } = view.config;
+		const sort = sortsOf(view.config);
+		if (sort.length > 0)
+			screen += `, sorted by ${sort.map((key) => `${name(key.field)} ${key.dir === 'asc' ? 'ascending' : 'descending'}`).join(' then ')}`;
 		if (filter && filter.text !== '')
 			screen += `, showing rows whose ${name(filter.field)} contains "${filter.text}"`;
 		if (view.type === 'grid' && hidden && hidden.length > 0)

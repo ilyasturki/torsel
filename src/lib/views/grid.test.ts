@@ -108,7 +108,7 @@ describe('exporting a view', () => {
 		if (view === undefined) throw new Error('no grid view');
 		const config = {
 			hidden: [ws.fields(tableId).find((field) => field.name === 'Style')?.id ?? ''],
-			sort: { field: kg.id, dir: 'desc' as const },
+			sort: [{ field: kg.id, dir: 'desc' as const }],
 			filter: { field: note.id, text: 'h' }
 		};
 		const computed = new Map([[ws.rows(tableId)[1].id, { [ws.fields(tableId)[6].id]: 2 }]]);
@@ -350,15 +350,39 @@ describe('the rows a grid shows', () => {
 
 	it('sorts numbers and text naturally with blanks last either way', () => {
 		const { notes, kg, note } = numbered();
-		expect(notes({ sort: { field: kg.id, dir: 'asc' } })).toEqual(['b', 'c9', 'c10', 'a']);
-		expect(notes({ sort: { field: kg.id, dir: 'desc' } })).toEqual(['c10', 'c9', 'b', 'a']);
-		expect(notes({ sort: { field: note.id, dir: 'asc' } })).toEqual(['a', 'b', 'c9', 'c10']);
+		expect(notes({ sort: [{ field: kg.id, dir: 'asc' }] })).toEqual(['b', 'c9', 'c10', 'a']);
+		expect(notes({ sort: [{ field: kg.id, dir: 'desc' }] })).toEqual(['c10', 'c9', 'b', 'a']);
+		expect(notes({ sort: [{ field: note.id, dir: 'asc' }] })).toEqual(['a', 'b', 'c9', 'c10']);
 	});
 
-	it('ignores a sort or filter on a field that is gone', () => {
+	it('breaks ties with each next sort key', () => {
+		const { ws, commit, tableId, notes, kg, note } = numbered();
+		commit(insertRows(ws, tableId, [{ [note.id]: 'a2', [kg.id]: 9 }]).changes);
+		expect(
+			notes({
+				sort: [
+					{ field: kg.id, dir: 'desc' },
+					{ field: note.id, dir: 'asc' }
+				]
+			})
+		).toEqual(['c10', 'a2', 'c9', 'b', 'a']);
+		expect(
+			notes({
+				sort: [
+					{ field: kg.id, dir: 'desc' },
+					{ field: note.id, dir: 'desc' }
+				]
+			})
+		).toEqual(['c10', 'c9', 'a2', 'b', 'a']);
+	});
+
+	it('ignores a sort or filter on a field that is gone, or a sort of another shape', () => {
 		const { notes } = numbered();
 		expect(
-			notes({ sort: { field: 'f_gone', dir: 'asc' }, filter: { field: 'f_gone', text: 'x' } })
+			notes({ sort: [{ field: 'f_gone', dir: 'asc' }], filter: { field: 'f_gone', text: 'x' } })
+		).toEqual(['b', 'a', 'c10', 'c9']);
+		expect(
+			notes({ sort: { field: 'f_gone', dir: 'asc' } } as unknown as Parameters<typeof notes>[0])
 		).toEqual(['b', 'a', 'c10', 'c9']);
 	});
 

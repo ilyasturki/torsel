@@ -212,10 +212,18 @@ describe('assistant tools', () => {
 			base: made.base,
 			table: 'Films',
 			view: grid.name,
-			config: { sort: { field: 'Rating', dir: 'desc' } }
+			config: {
+				sort: [
+					{ field: 'Rating', dir: 'desc' },
+					{ field: 'Title', dir: 'asc' }
+				]
+			}
 		});
-		const rating = ctx.ws.fields(made.id)[1].id;
-		expect(ctx.ws.view(grid.id)?.config.sort).toEqual({ field: rating, dir: 'desc' });
+		const [title, rating] = ctx.ws.fields(made.id).map((field) => field.id);
+		expect(ctx.ws.view(grid.id)?.config.sort).toEqual([
+			{ field: rating, dir: 'desc' },
+			{ field: title, dir: 'asc' }
+		]);
 
 		await call('update_view', {
 			base: made.base,

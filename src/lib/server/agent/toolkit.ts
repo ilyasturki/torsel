@@ -377,10 +377,12 @@ const VIEW_CONFIG = z
 	.strictObject({
 		hidden: z.array(z.string()).optional().describe('grid: hidden fields'),
 		sort: z
-			.strictObject({ field: z.string(), dir: z.enum(['asc', 'desc']) })
+			.array(z.strictObject({ field: z.string(), dir: z.enum(['asc', 'desc']) }))
 			.nullable()
 			.optional()
-			.describe('grid'),
+			.describe(
+				'grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]'
+			),
 		filter: z
 			.strictObject({ field: z.string(), text: z.string() })
 			.nullable()
@@ -428,7 +430,7 @@ function viewConfig(
 		config.sort =
 			input.sort === null
 				? null
-				: { field: findField(ws, tableId, input.sort.field).id, dir: input.sort.dir };
+				: input.sort.map((key) => ({ field: findField(ws, tableId, key.field).id, dir: key.dir }));
 	if (input.filter !== undefined)
 		config.filter =
 			input.filter === null

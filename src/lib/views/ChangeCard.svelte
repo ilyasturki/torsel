@@ -82,7 +82,8 @@
 	function shownText(value: Shown): string {
 		if (typeof value === 'string') return value;
 		if ('none' in value) return words.none;
-		if ('sort' in value) return words.sorted(value.sort, value.ascending);
+		if ('sort' in value)
+			return value.sort.map((key) => words.sorted(key.field, key.ascending)).join(', ');
 		return words.contains(value.filter, value.text);
 	}
 

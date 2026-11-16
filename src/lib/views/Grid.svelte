@@ -25,7 +25,7 @@
 		Value,
 		ViewDef
 	} from '#lib/core/model.ts';
-	import { CREATED, hasChoices, isDated, isNumeric } from '#lib/core/model.ts';
+	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { nameTaken } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { freshValue, nativeDateText, ratingScale } from '#lib/core/values.ts';
@@ -1284,12 +1284,36 @@
 		scrollTop = 0;
 	}
 
+	/** On a field the view already sorts by, the key changes in place; on another, it becomes the only key. */
 	function sortBy(field: FieldDef, dir: 'asc' | 'desc' | null): void {
+		const keys = sortsOf(view.config);
+		const has = keys.some((key) => key.field === field.id);
+		const next =
+			dir === null
+				? keys.filter((key) => key.field !== field.id)
+				: has
+					? keys.map((key) => (key.field === field.id ? { ...key, dir } : key))
+					: [{ field: field.id, dir }];
 		backToTop();
 		setConfig(
-			{ sort: dir === null ? null : { field: field.id, dir } },
-			dir === null ? words.sortCleared : words.sortChanged
+			{ sort: next.length === 0 ? null : next },
+			next.length === 0 ? words.sortCleared : words.sortChanged
 		);
+	}
+
+	function addSort(field: FieldDef): void {
+		backToTop();
+		setConfig(
+			{ sort: [...sortsOf(view.config), { field: field.id, dir: 'asc' }] },
+			words.sortChanged
+		);
+	}
+
+	const sortKeys = $derived(sortsOf(view.config));
+
+	function sortOf(field: FieldDef): { dir: 'asc' | 'desc'; level: number } | null {
+		const level = sortKeys.findIndex((key) => key.field === field.id);
+		return level === -1 ? null : { dir: sortKeys[level].dir, level };
 	}
 
 	function settleFilter(): void {
@@ -1498,7 +1522,8 @@
 						{#each fields as field, index (field.id)}
 							{@const numeric =
 								(isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
-							{@const sorted = view.config.sort?.field === field.id ? view.config.sort.dir : null}
+							{@const sortKey = sortOf(field)}
+							{@const sorted = sortKey?.dir ?? null}
 							<th
 								scope="col"
 								aria-colindex={index + 2}
@@ -1558,11 +1583,16 @@
 											>
 												{#if field.type === 'formula'}<span>ƒ</span>{/if}
 												<span class="min-w-0 truncate">{field.name}</span>
-												{#if sorted !== null}
+												{#if sortKey !== null}
 													<Icon
-														name={sorted === 'asc' ? 'arrow-up' : 'arrow-down'}
-														class="size-3"
+														name={sortKey.dir === 'asc' ? 'arrow-up' : 'arrow-down'}
+														class="size-3 shrink-0"
 													/>
+													{#if sortKeys.length > 1}
+														<span aria-hidden="true" class="text-xs text-ink-3 tabular-nums"
+															>{sortKey.level + 1}</span
+														>
+													{/if}
 												{/if}
 											</button>
 										{/snippet}
@@ -1698,7 +1728,11 @@
 	bind:open={menuOpen}
 	anchor={menuAnchor}
 	field={menuFieldDef}
-	sorted={view.config.sort?.field === menuField ? (view.config.sort?.dir ?? null) : null}
+	sorted={menuFieldDef === undefined ? null : (sortOf(menuFieldDef)?.dir ?? null)}
+	addable={menuFieldDef !== undefined && sortKeys.length > 0 && sortOf(menuFieldDef) === null}
+	onaddsort={() => {
+		if (menuFieldDef) addSort(menuFieldDef);
+	}}
 	filter={config.filter?.field === menuField ? (config.filter?.text ?? '') : ''}
 	onsort={(dir) => {
 		if (menuFieldDef) sortBy(menuFieldDef, dir);

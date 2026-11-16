@@ -599,7 +599,7 @@ test.describe('fields and views', () => {
 		};
 
 		let sheet = await openSettings();
-		await pick(sheet.getByRole('combobox', { name: 'Sort by' }), 'Kg');
+		await pick(sheet.getByRole('combobox', { name: 'Add a sort' }), 'Kg');
 		await pick(sheet.getByRole('combobox', { name: 'Order' }), 'Descending');
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(firstRow).toContainText('100');
@@ -611,10 +611,22 @@ test.describe('fields and views', () => {
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
 
 		sheet = await openSettings();
-		await expect(sheet.getByRole('combobox', { name: 'Sort by' })).toHaveValue('Kg');
-		await pick(sheet.getByRole('combobox', { name: 'Sort by' }), 'None, oldest first');
+		await expect(sheet.getByRole('combobox', { name: 'Sort field 1' })).toHaveValue('Kg');
+		await pick(sheet.getByRole('combobox', { name: 'Add a sort' }), 'Exercise');
+		await sheet.getByRole('button', { name: 'Remove sort' }).first().click();
+		await expect(sheet.getByRole('combobox', { name: 'Sort field 1' })).toHaveValue('Exercise');
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(header(page, 'Kg').locator('svg')).toHaveCount(0);
+		await expect(firstRow).toContainText('Bench');
+
+		sheet = await openSettings();
+		await sheet.getByRole('button', { name: 'Remove sort' }).click();
+		await expect(sheet.getByRole('combobox', { name: 'Add a sort' })).toHaveAttribute(
+			'placeholder',
+			'None, oldest first'
+		);
+		await sheet.getByRole('button', { name: 'Save' }).click();
+		await expect(header(page, 'Exercise').locator('svg')).toHaveCount(0);
 	});
 
 	test('a view changes type and keeps its place', async ({ page, context, account }) => {

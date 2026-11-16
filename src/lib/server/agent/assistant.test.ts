@@ -42,7 +42,7 @@ function movies() {
 	const grid = ws.views(table.id)[0];
 	commit(
 		updateRecord(ws, grid.id, {
-			config: { sort: { field: table.fieldIds[2], dir: 'desc' } }
+			config: { sort: [{ field: table.fieldIds[2], dir: 'desc' }] }
 		})
 	);
 	return { ws, base, table, rows, grid };

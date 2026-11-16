@@ -1,8 +1,8 @@
 import type { Hlc } from './clock.ts';
 import { toDisplay } from './formula.ts';
 import { latestClock } from './merge.ts';
-import type { Change, Choice, FieldDef, Kind, Rec, Value, ViewConfig } from './model.ts';
-import { CREATED, DELETED } from './model.ts';
+import type { Change, Choice, FieldDef, Kind, Rec, SortKey, Value, ViewConfig } from './model.ts';
+import { CREATED, DELETED, sortsOf } from './model.ts';
 import type { ThreadAction } from './thread.ts';
 import type { Workspace } from './workspace.ts';
 import { fieldDef } from './workspace.ts';
@@ -23,7 +23,10 @@ type Structure = Exclude<Kind, 'row'>;
 
 /** A config value as the card words it: plain text, or a shape whose words are the reader's. */
 export type Shown =
-	string | { none: true } | { sort: string; ascending: boolean } | { filter: string; text: string };
+	| string
+	| { none: true }
+	| { sort: { field: string; ascending: boolean }[] }
+	| { filter: string; text: string };
 
 /** `label` is the changed key (`name`, `sort`, `newChoices`…), worded by the card. */
 export type Line = { label: string; before: Shown; after: Shown };
@@ -78,9 +81,16 @@ function configText(
 	fieldName: (id: string) => string
 ): Shown {
 	if (value === undefined || value === null) return { none: true };
-	if (key === 'sort' && typeof value === 'object' && !Array.isArray(value)) {
-		const sort = value as { field: string; dir: string };
-		return { sort: fieldName(sort.field), ascending: sort.dir === 'asc' };
+	if (key === 'sort') {
+		const sort = sortsOf({ sort: value as SortKey[] });
+		return sort.length === 0
+			? { none: true }
+			: {
+					sort: sort.map((item) => ({
+						field: fieldName(item.field),
+						ascending: item.dir === 'asc'
+					}))
+				};
 	}
 	if (key === 'filter' && typeof value === 'object' && !Array.isArray(value)) {
 		const filter = value as { field: string; text: string };
