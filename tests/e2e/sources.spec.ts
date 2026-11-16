@@ -510,3 +510,29 @@ test.describe('a synced table’s glyph', () => {
 		expect((await links.hits()).at(-1)?.authorization).toBe('Bearer rotated');
 	});
 });
+
+test.describe('in fr-FR', () => {
+	test.use({ locale: 'fr-FR' });
+
+	test('imports a link and shows its source in French', async ({ page, context, account }) => {
+		void account;
+		const links = await serve(context.request, { '/movies.csv': { body: MOVIES } });
+		await page.goto('/app');
+		await page.getByRole('button', { name: 'Importer', exact: true }).click();
+		const sheet = page.getByRole('dialog');
+		await sheet.getByLabel('Fichier ou lien').fill(links.url('/movies.csv'));
+		await sheet.getByRole('button', { name: 'Continuer' }).click();
+
+		await expect(sheet.getByText('CSV · 2 lignes')).toBeVisible();
+		await expect(sheet.getByRole('checkbox', { name: 'Synchroniser' })).toBeChecked();
+		await sheet.getByLabel('Nom de la table').fill('Vus');
+		await sheet.getByRole('button', { name: 'Créer' }).click();
+		await expect(page.getByRole('status')).toContainText(/2 lignes importées dans «\sVus\s»/u);
+
+		await page.getByRole('button', { name: 'Source', exact: true }).click();
+		const panel = page.getByTestId('source');
+		await expect(panel.getByRole('button', { name: 'Actualiser' })).toBeVisible();
+		await expect(panel.getByText('Absent de la source')).toBeVisible();
+		await expect(panel.getByRole('button', { name: 'Chaque heure' })).toBeVisible();
+	});
+});
