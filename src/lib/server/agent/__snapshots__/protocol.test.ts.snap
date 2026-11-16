@@ -2226,10 +2226,8 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "key": {
-          "type": [
-            "string",
-            "null",
-          ],
+          "description": "absent when no path tells rows apart: each row is then known by all its values",
+          "type": "string",
         },
         "more_pages": {
           "type": "boolean",

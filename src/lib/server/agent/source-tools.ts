@@ -191,7 +191,12 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 				more_pages: z.boolean().optional(),
 				row_paths: z.array(z.string()).optional(),
 				rows: z.string().optional(),
-				key: z.string().nullable().optional(),
+				key: z
+					.string()
+					.optional()
+					.describe(
+						'absent when no path tells rows apart: each row is then known by all its values'
+					),
 				needs_key: z.boolean().optional()
 			}),
 			kind: 'read',
@@ -211,6 +216,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 						rows: input.rows ?? null
 					});
 					const columns = link.preset?.columns ?? preview.columns;
+					const key = link.preset?.key ?? preview.key;
 					return {
 						format: preview.format,
 						url: preview.url,
@@ -228,7 +234,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 						more_pages: preview.more,
 						row_paths: preview.rowPaths,
 						rows: preview.rows,
-						key: link.preset?.key ?? preview.key
+						...(key === null ? {} : { key })
 					};
 				} catch (error) {
 					if (error instanceof SourceFailure && error.code === 'auth') return { needs_key: true };
