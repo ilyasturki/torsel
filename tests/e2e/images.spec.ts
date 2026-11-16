@@ -15,8 +15,10 @@ import {
 	RETRY_RESET,
 	columnMenu,
 	expect,
+	mint,
 	newAccount,
 	pick,
+	rpc,
 	seed,
 	signIn,
 	tableMenu,
@@ -717,17 +719,61 @@ test.describe('image links', () => {
 		expect(await height(header)).toBeCloseTo(head, 0);
 		await expectPosterShape(thumb, 1.5);
 		expect(await height(thumb)).toBeCloseTo(row * 3 - 8, 0);
+
+		const tall = await height(posterCell(page, 'Dune'));
+		await posterCell(page, 'Dune').click({ position: { x: 8, y: tall - 4 } });
+		await expect(posterCell(page, 'Dune')).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('the fetch route refuses a link it must never follow', async ({ context, account }) => {
+	test('the fetch route refuses a link it must never follow, and a token that only reads', async ({
+		context,
+		account,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'the server answers every viewport alike');
 		void account;
+		const url = await servePosters(context.request);
 		const films = await seedMovies(context.request);
-		for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'ftp://example.com/x.jpg']) {
+		for (const link of ['file:///etc/passwd', 'javascript:alert(1)', 'ftp://example.com/x.jpg']) {
 			const response = await context.request.post(`/api/blobs/${films.base}/fetch`, {
 				...RETRY_RESET,
-				data: { url }
+				data: { url: link }
 			});
-			expect(response.status(), url).toBe(400);
+			expect(response.status(), link).toBe(400);
 		}
+
+		const minted = await context.request.post('/api/auth/tokens', {
+			data: { label: 'reader', access: 'read' }
+		});
+		const reader = ((await minted.json()) as { token: string }).token;
+		const refused = await context.request.post(`/api/blobs/${films.base}/fetch`, {
+			...RETRY_RESET,
+			headers: { authorization: `Bearer ${reader}` },
+			data: { url: url('/dune.jpg') }
+		});
+		expect(refused.status()).toBe(403);
+	});
+
+	test('a connected tool adds a poster to a row by its link', async ({
+		context,
+		account,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'the server answers every viewport alike');
+		void account;
+		const url = await servePosters(context.request);
+		await seedMovies(context.request);
+		const token = await mint(context.request);
+
+		const answer = await rpc(context.request, token, 'add_rows', {
+			base: 'Films',
+			table: 'Movies',
+			rows: [{ Title: 'Heat', Poster: url('/dune.jpg') }]
+		});
+		expect(answer.isError, answer.content[0].text).toBeFalsy();
+		const { added } = JSON.parse(answer.content[0].text) as { added: string[] };
+		await expect
+			.poll(() => serverValue(context.request, added[0]))
+			.toMatchObject([{ src: url('/dune.jpg'), w: 342, h: 513 }]);
 	});
 });
