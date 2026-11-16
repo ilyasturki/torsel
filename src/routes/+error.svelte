@@ -2,6 +2,8 @@
 	import { page } from '$app/state';
 
 	import { home as words } from '#lib/i18n/home.ts';
+	import { locale } from '#lib/i18n/runtime.ts';
+	import { localePath } from '#lib/site/site.ts';
 	import Logo from '#lib/ui/Logo.svelte';
 
 	const missing = $derived(page.status === 404);
@@ -14,7 +16,11 @@
 </svelte:head>
 
 <div class="flex min-h-dvh flex-col px-gutter py-5 pt-safe">
-	<a href="/" class="self-start py-3 text-ink hover:text-ink-2" aria-label={words.torselHome}>
+	<a
+		href={localePath(locale(), '/')}
+		class="self-start py-3 text-ink hover:text-ink-2"
+		aria-label={words.torselHome}
+	>
 		<Logo wordmark class="h-4" />
 	</a>
 	<main class="flex flex-1 flex-col justify-center gap-4 pb-16">
@@ -30,7 +36,7 @@
 				>{words.openTorsel}</a
 			>
 			<a
-				href="/"
+				href={localePath(locale(), '/')}
 				class="inline-flex h-cta items-center rounded-box px-4 text-lg font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink"
 				>{words.backHome}</a
 			>

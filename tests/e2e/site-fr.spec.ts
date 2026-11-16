@@ -46,6 +46,24 @@ test('the sitemap lists both languages with their alternates', async ({ request 
 test.describe('in french', () => {
 	test.use({ locale: 'fr-FR' });
 
+	test('the app sends a french reader to the french legal pages and home', async ({ page }) => {
+		await page.goto('/app/login');
+		await expect(page.getByRole('link', { name: 'conditions' })).toHaveAttribute(
+			'href',
+			'/fr/terms'
+		);
+		await expect(page.getByRole('link', { name: 'politique de confidentialité' })).toHaveAttribute(
+			'href',
+			'/fr/privacy'
+		);
+		const response = await page.goto('/no-such-page');
+		expect(response?.status()).toBe(404);
+		await expect(page.getByRole('link', { name: 'Retour à l’accueil' })).toHaveAttribute(
+			'href',
+			'/fr'
+		);
+	});
+
 	test('the footer switches language on the same page', async ({ page }) => {
 		await page.goto('/fr/terms');
 		await expect(page.getByRole('heading', { name: 'Conditions', level: 1 })).toBeVisible();

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { locale } from '#lib/i18n/runtime.ts';
+	import { localePath } from '#lib/site/site.ts';
 	import { onMount } from 'svelte';
 
 	import { goto, replaceState } from '$app/navigation';
@@ -159,7 +161,8 @@
 	}
 
 	function legalHref(path: string): string {
-		return inApp ? `${base}${path}` : path;
+		const page = localePath(locale(), path);
+		return inApp ? `${base}${page}` : page;
 	}
 </script>
 
