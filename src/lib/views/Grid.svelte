@@ -650,7 +650,10 @@
 		const row = rows[headRow] as Rec | undefined;
 		const key = row?.id ?? BLANK;
 		if (field.type === 'image') {
-			if (row !== undefined) imageCell = { row: row.id, field, edit: true };
+			const edit = writable(row, field);
+			if (row !== undefined && (edit || imagesOf(row.data[field.id]).length > 0)) {
+				imageCell = { row: row.id, field, edit };
+			}
 			return;
 		}
 		if (field.type === 'formula') {
@@ -1133,7 +1136,12 @@
 		if (head === null || fields.length === 0) return;
 		const files = [...(event.clipboardData?.files ?? [])];
 		const target = rows[headRow] as Rec | undefined;
-		if (files.length > 0 && fields[headCol]?.type === 'image' && target !== undefined) {
+		if (
+			files.length > 0 &&
+			fields[headCol]?.type === 'image' &&
+			target !== undefined &&
+			writable(target, fields[headCol])
+		) {
 			event.preventDefault();
 			void pasteImages(target, fields[headCol], files);
 			return;
