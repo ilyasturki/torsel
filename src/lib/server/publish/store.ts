@@ -25,7 +25,6 @@ export function storedRecord(db: Database, userId: string, id: string): Rec | un
 		.get()?.record;
 }
 
-/** The view as the server holds it, when a link may show it. */
 export function publishableView(db: Database, userId: string, viewId: string): Rec | undefined {
 	const rec = storedRecord(db, userId, viewId);
 	return rec?.kind === 'view' && !isDeleted(rec) && isPublishable(String(rec.data.type ?? 'grid'))

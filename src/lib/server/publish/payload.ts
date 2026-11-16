@@ -221,7 +221,7 @@ function chartFor(
 		})),
 		xName: data.xName,
 		agg: data.agg,
-		yName: data.yName,
+		yName: setup.agg === 'count' ? '' : data.yName,
 		series: [...new Set(data.series.map(series))]
 	};
 }
@@ -238,7 +238,8 @@ export async function buildPublished(
 	if (view === undefined || table === undefined || base === undefined) return null;
 	if (!isPublishable(view.type)) return null;
 
-	const formulas = ws.fields(table.id).some((field) => field.type === 'formula');
+	const formulas =
+		view.type !== 'chart' && ws.fields(table.id).some((field) => field.type === 'formula');
 	const computed = formulas ? await compute.computed(table.id) : new Map<string, SqlRow>();
 	const picked = shown(ws, view, computed);
 

@@ -1,5 +1,6 @@
 import type { Workspace } from '../../core/workspace.ts';
 import type { Database } from '../db/client.ts';
+import type { Publication } from '../db/schema.ts';
 import { loadWorkspace } from '../db/records.ts';
 import { sqlPool } from '../sql/pool.ts';
 import type { Built, Compute } from './payload.ts';
@@ -23,9 +24,7 @@ function poolFor(ws: Workspace, baseId: string): Compute {
 	};
 }
 
-async function build(db: Database, token: string): Promise<Served | null> {
-	const publication = findPublication(db, token);
-	if (publication === undefined) return null;
+async function build(db: Database, publication: Publication): Promise<Served | null> {
 	const view = publishableView(db, publication.userId, publication.viewId);
 	if (view === undefined) return null;
 	const ws = loadWorkspace(db, publication.userId, view.base);
@@ -33,13 +32,14 @@ async function build(db: Database, token: string): Promise<Served | null> {
 	return built === null ? null : { ...built, userId: publication.userId, baseId: view.base };
 }
 
-/** What a link shows, or null for a token that opens nothing. */
 export function served(db: Database, token: string): Promise<Served | null> {
 	const now = Date.now();
 	const hit = held.get(token);
 	if (hit !== undefined && now - hit.at < FRESH_MS) return hit.served;
 
-	const served = build(db, token);
+	const publication = findPublication(db, token);
+	if (publication === undefined) return Promise.resolve(null);
+	const served = build(db, publication);
 	held.delete(token);
 	while (held.size >= HELD) {
 		const oldest = held.keys().next().value;
