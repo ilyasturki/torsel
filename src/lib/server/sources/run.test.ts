@@ -295,6 +295,23 @@ describe('a source run', () => {
 		expect(await runSource(db, userId, pending.table)).toMatchObject({ ok: true, added: 2 });
 	});
 
+	it('keeps a key for its own site: a link moved elsewhere asks for it again', async () => {
+		answers['/private.csv'] = { body: MOVIES };
+		const made = await createSource(
+			db,
+			userId,
+			spec('/private.csv', { auth: { kind: 'bearer', name: null }, secret: 'tok-123456789' })
+		);
+		patchSource(db, userId, made.table, { url: `${base}/other.csv` });
+		expect(readSource(db, userId, made.table)?.secret).not.toBeNull();
+
+		patchSource(db, userId, made.table, { url: 'https://attacker.example/collect.csv' });
+		expect(readSource(db, userId, made.table)).toMatchObject({ secret: null, hint: null });
+		hits = [];
+		expect(await runSource(db, userId, made.table)).toEqual({ ok: false, problem: 'auth' });
+		expect(hits).toEqual([]);
+	});
+
 	it('moves a key pasted in the link into the sealed secret', async () => {
 		answers['/q.csv'] = { body: MOVIES };
 		const made = await createSource(

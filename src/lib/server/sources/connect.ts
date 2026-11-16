@@ -268,10 +268,13 @@ export function patchSource(
 		const moved = splitKey(patch.url, authOf(source), null);
 		set.url = moved.url;
 		set.failures = 0;
-		// A query key typed inside the new link replaces the one kept.
 		if (moved.secret !== null && source.auth === 'query') {
 			set.secret = seal(moved.secret, bound(source));
 			set.hint = hintOf(moved.secret);
+		} else if (new URL(moved.url).origin !== new URL(source.url).origin) {
+			// A key is given to one site: pointed elsewhere, it is asked for again rather than sent there.
+			set.secret = null;
+			set.hint = null;
 		}
 	}
 	if (patch.secret !== undefined) {
