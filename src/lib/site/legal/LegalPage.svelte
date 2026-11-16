@@ -20,7 +20,7 @@
 
 <article class="flex flex-col gap-8 rounded-panel bg-raised p-5 shadow-raised lg:px-16 lg:py-14">
 	<header class="flex max-w-prose flex-col gap-2">
-		<h1 class="text-2xl leading-none font-semibold tighter lg:text-hero">{title}</h1>
+		<h1 class="text-h2 leading-none font-semibold tighter lg:text-hero">{title}</h1>
 		<p class="text-ink-3">{updated} {date}</p>
 	</header>
 	{@render children()}

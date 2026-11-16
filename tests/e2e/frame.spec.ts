@@ -106,3 +106,18 @@ test('on a phone, Ask sits in the table sheet', async ({ page, context, account 
 	await page.getByRole('dialog').getByRole('button', { name: 'Ask' }).click();
 	await expect(page.locator('aside[aria-label="Ask"]')).toBeVisible();
 });
+
+test('the legal title stays below the landing title on a phone', async ({ page }) => {
+	test.skip(!onPhone(), 'the legal title grows back on a desk');
+	const size = async (): Promise<number> =>
+		Number.parseFloat(
+			await page
+				.getByRole('heading', { level: 1 })
+				.first()
+				.evaluate((element) => getComputedStyle(element).fontSize)
+		);
+	await page.goto('/');
+	const landing = await size();
+	await page.goto('/privacy');
+	expect(await size()).toBeLessThan(landing);
+});
