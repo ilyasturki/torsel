@@ -46,7 +46,7 @@
 		</header>
 
 		{#each operations as { method, path, operation } (operation.operationId)}
-			{@const writes = operation.security.some((scheme) => scheme.oauth?.includes('write'))}
+			{@const writes = '403' in operation.responses}
 			{@const success = Object.entries(operation.responses).find(([status]) =>
 				status.startsWith('2')
 			)}
