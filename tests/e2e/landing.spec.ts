@@ -64,7 +64,7 @@ test('three tables of other kinds show what a person ends up with', async ({ pag
 	await expect(captions.nth(0)).toContainText('Weigh-ins');
 	await expect(captions.nth(0)).toContainText(/\d+ weigh-ins/u);
 	await expect(captions.nth(1)).toContainText('180 sets');
-	await expect(captions.nth(2)).toContainText('9 movies');
+	await expect(captions.nth(2)).toContainText('8 movies');
 	await expect(section.getByText('7-day rolling average')).toBeVisible();
 	for (const muscle of ['Back', 'Chest', 'Legs', 'Shoulders']) {
 		await expect(section.getByText(muscle, { exact: true })).toBeVisible();

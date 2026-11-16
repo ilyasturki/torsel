@@ -61,7 +61,7 @@
 				class="m-0 grid grid-rows-[1fr_auto] overflow-clip rounded-panel bg-glass shadow-raised backdrop-blur-glass"
 				data-testid="poster"
 			>
-				<div class="h-poster overflow-clip bg-glass-strong text-base">
+				<div class="h-poster overflow-clip bg-glass-strong text-base" inert>
 					{#if near && samples.View !== null && placed !== undefined}
 						<samples.View tableId={placed.table} viewId={placed.view} />
 					{/if}

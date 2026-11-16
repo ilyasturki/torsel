@@ -232,12 +232,11 @@ export const POSTER_WORDS_FR: PosterWords = {
 	films: [
 		['La Zone d’intérêt', 0, null, null],
 		['Aftersun', 0, null, null],
-		['Parasite', 0, null, null],
-		['Dune : Deuxième partie', 1, 3, 5],
-		['Perfect Days', 1, 12, 5],
-		['Past Lives', 1, 26, 4],
-		['Anatomie d’une chute', 1, 41, 4],
+		['Oppenheimer', 2, 50, 2],
 		['Le Voyage de Chihiro', 1, 64, 5],
-		['Oppenheimer', 2, 50, 2]
+		['Anatomie d’une chute', 1, 41, 4],
+		['Past Lives', 1, 26, 4],
+		['Perfect Days', 1, 12, 5],
+		['Dune : Deuxième partie', 1, 3, 5]
 	]
 };

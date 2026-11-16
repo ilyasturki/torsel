@@ -252,12 +252,11 @@ export const POSTER_WORDS: PosterWords = {
 	films: [
 		['The Zone of Interest', 0, null, null],
 		['Aftersun', 0, null, null],
-		['Parasite', 0, null, null],
-		['Dune: Part Two', 1, 3, 5],
-		['Perfect Days', 1, 12, 5],
-		['Past Lives', 1, 26, 4],
-		['Anatomy of a Fall', 1, 41, 4],
+		['Oppenheimer', 2, 50, 2],
 		['Spirited Away', 1, 64, 5],
-		['Oppenheimer', 2, 50, 2]
+		['Anatomy of a Fall', 1, 41, 4],
+		['Past Lives', 1, 26, 4],
+		['Perfect Days', 1, 12, 5],
+		['Dune: Part Two', 1, 3, 5]
 	]
 };
