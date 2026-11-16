@@ -322,7 +322,12 @@ describe('formula completion', () => {
 	});
 
 	it('offers functions for a bare word and writes the call open', () => {
-		expect(functionsFor({ from: 0, query: 'le', quoted: false })).toEqual(['LEFT', 'LEN']);
+		expect(functionsFor({ from: 0, query: 'le', quoted: false })).toEqual(['LEN', 'LEFT']);
+		expect(functionsFor({ from: 0, query: 'su', quoted: false })).toEqual([
+			'SUM',
+			'SUMIF',
+			'SUBSTITUTE'
+		]);
 		expect(functionsFor({ from: 0, query: 'le', quoted: true })).toEqual([]);
 		const at = { from: 4, query: 'le', quoted: false };
 		expect(completeFunction('1 + le', 6, at, 'LEFT')).toEqual({ text: '1 + LEFT(', caret: 9 });

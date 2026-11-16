@@ -30,9 +30,10 @@
 	import Icon from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import Select from '#lib/ui/Select.svelte';
-	import { checkbox, input, textarea } from '#lib/ui/styles.ts';
+	import { checkbox, input } from '#lib/ui/styles.ts';
 
 	import { typeLabel, typeOptions } from './field-types.ts';
+	import FormulaInput from './FormulaInput.svelte';
 
 	let {
 		open = $bindable(false),
@@ -463,12 +464,16 @@
 
 		{#if type === 'formula'}
 			<Field label={words.formula}>
-				<textarea
-					class="{textarea} h-24"
+				<FormulaInput
 					bind:value={formula}
-					spellcheck="false"
+					{tableId}
+					{fieldId}
+					label={words.formula}
 					placeholder={words.formulaExample}
-					onblur={apply}></textarea>
+					rows={3}
+					maxRows={8}
+					onblur={apply}
+				/>
 			</Field>
 		{/if}
 

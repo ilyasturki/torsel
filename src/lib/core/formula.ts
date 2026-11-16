@@ -398,7 +398,9 @@ export function namesFor(at: NameAt, names: string[]): string[] {
 export function functionsFor(at: NameAt): string[] {
 	if (at.quoted || at.owner !== undefined || at.query === '') return [];
 	const needle = at.query.toUpperCase();
-	return FUNCTIONS.map((fn) => fn.name).filter((name) => name.startsWith(needle));
+	return FUNCTIONS.map((fn) => fn.name)
+		.filter((name) => name.startsWith(needle))
+		.sort((left, right) => left.length - right.length || left.localeCompare(right));
 }
 
 export function completeName(
