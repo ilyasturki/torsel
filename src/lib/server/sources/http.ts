@@ -6,25 +6,16 @@ import type { PresetSource } from '../../core/presets.ts';
 import { EVERY, MISSING } from '../../core/source.ts';
 import { DATE_STYLES, FIELD_TYPES, RESULT_TYPES } from '../../core/model.ts';
 import { sources as words } from '../../i18n/sources.ts';
-import { slidingWindow } from '../auth/rate-limit.ts';
-import type { Window } from '../auth/rate-limit.ts';
 import { errors } from '../../i18n/errors.ts';
 import { sourceLimits } from '../config.ts';
 import { AUTH_KINDS, PullFailed } from './fetch.ts';
 import { SourceRefused } from './connect.ts';
+import type { Limited } from './limits.ts';
+import { overLimit } from './limits.ts';
 import type { SourceProblem } from './run.ts';
 
-const MINUTE_MS = 60_000;
-
-const windows = {
-	preview: slidingWindow(30, MINUTE_MS),
-	create: slidingWindow(10, MINUTE_MS),
-	refresh: slidingWindow(20, MINUTE_MS)
-} satisfies Record<string, Window>;
-
-/** Each fetch a person starts costs the server, and reaches someone else's: a few a minute. */
-export function limit(kind: keyof typeof windows, userId: string): void {
-	if (windows[kind].hit(userId)) error(429, errors.tooMany);
+export function limit(kind: Limited, userId: string): void {
+	if (overLimit(kind, userId)) error(429, errors.tooMany);
 }
 
 export function problemText(problem: SourceProblem | SourceRefused['reason']): string {
@@ -40,6 +31,7 @@ const STATUS: Record<SourceRefused['reason'], number> = {
 	auth: 400,
 	base: 404,
 	gone: 404,
+	key: 400,
 	count: 409
 };
 

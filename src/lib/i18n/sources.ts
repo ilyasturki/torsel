@@ -23,7 +23,9 @@ const en = {
 			plural('en', sources, { one: '# linked table at most', other: '# linked tables at most' }),
 		columns: 'Keep at least one column',
 		base: 'No such base',
-		gone: 'No such source'
+		gone: 'No such source',
+		key: 'Keeping rows needs a column that tells them apart',
+		busy: 'Too many links read, wait a minute'
 	},
 	brands: { letterboxd: 'Letterboxd', sheet: 'Google Sheets', github: 'GitHub' },
 	key: 'Key',
@@ -90,7 +92,9 @@ const fr: typeof en = {
 			plural('fr', sources, { one: '# table liée au plus', other: '# tables liées au plus' }),
 		columns: 'Garde au moins une colonne',
 		base: 'Base introuvable',
-		gone: 'Source introuvable'
+		gone: 'Source introuvable',
+		key: 'Garder les lignes demande une colonne qui les distingue',
+		busy: 'Trop de liens lus, attends une minute'
 	},
 	brands: { letterboxd: 'Letterboxd', sheet: 'Google Sheets', github: 'GitHub' },
 	key: 'Clé',

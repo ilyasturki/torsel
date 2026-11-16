@@ -67,7 +67,7 @@ const overLimit = perMinute(mcpCallsPerMinute);
 type Outcome = Awaited<ReturnType<typeof runTool>>;
 
 async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown): Promise<Outcome> {
-	if (tool.kind !== 'read' && caller.access !== 'write') {
+	if ((tool.kind !== 'read' || tool.openWorld === true) && caller.access !== 'write') {
 		return { ok: false, error: READ_ONLY };
 	}
 	if (overLimit(caller.tokenId) !== null) {
@@ -148,7 +148,7 @@ export function buildMcpServer(db: Database, caller: McpCaller, version: string)
 	);
 
 	for (const tool of SERVED.filter(
-		(served) => served.kind === 'read' || caller.access === 'write'
+		(served) => (served.kind === 'read' && served.openWorld !== true) || caller.access === 'write'
 	)) {
 		server.registerTool(
 			tool.name,

@@ -139,6 +139,8 @@ describe('readBody', () => {
 			{ 'rates.EUR': '1', 'rates.USD': '1.08' }
 		]);
 		expect(failure(() => readBody(text('{"a":1}'), '', 'missing'))).toBe('rows');
+		// A path set to a list that now holds one object is a changed answer, not one row.
+		expect(failure(() => readBody(text('{"data":{"id":1}}'), '', 'data'))).toBe('rows');
 		expect(failure(() => readBody(text('{"a":'), ''))).toBe('format');
 	});
 

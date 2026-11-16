@@ -21,6 +21,7 @@ import { runMigrations } from '../db/migrate.ts';
 import { loadWorkspace, syncExchange, writeChanges } from '../db/records.ts';
 import type { SourceSpec } from './connect.ts';
 import { createSource, patchSource, previewSource, stopSource } from './connect.ts';
+import { guardedFetch } from '../net/guard.ts';
 import { CONNECTOR, rowIdOf, runSource } from './run.ts';
 import { tick } from './schedule.ts';
 import { keyFile, open, seal } from './secrets.ts';
@@ -233,6 +234,29 @@ describe('a source run', () => {
 		} finally {
 			delete process.env.TORSEL_SOURCE_ROWS;
 		}
+	});
+
+	it('writes nothing when syncing stops while it reads', async () => {
+		answers['/movies.csv'] = { body: MOVIES };
+		const made = await createSource(db, userId, spec('/movies.csv'));
+		await runSource(db, userId, made.table);
+		answers['/movies.csv'] = { body: 'id,Title,Rating,Genre\n3,Ran,5,Drama\n' };
+		const stopFirst: typeof guardedFetch = async (target, options) => {
+			await stopSource(db, userId, made.table);
+			return guardedFetch(target, options);
+		};
+
+		expect(await runSource(db, userId, made.table, { get: stopFirst })).toEqual({
+			ok: false,
+			problem: 'gone'
+		});
+		expect(tableOf(made.table).rows.map((row) => row.Title)).toEqual(['Alien', 'Heat']);
+	});
+
+	it('refuses to keep rows gone from a source with no key', async () => {
+		await expect(
+			createSource(db, userId, spec('/movies.csv', { key: null, missing: 'keep' }))
+		).rejects.toMatchObject({ reason: 'key' });
 	});
 
 	it('pauses on a deleted table and comes back with it', async () => {

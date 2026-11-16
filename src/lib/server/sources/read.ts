@@ -201,7 +201,7 @@ function readJson(text: string, rows: string | null): Feed {
 	let entries: Json[];
 	if (Array.isArray(at)) {
 		entries = at;
-	} else if (isObject(at)) {
+	} else if (isObject(at) && chosen === '') {
 		entries = [at];
 	} else {
 		throw new ReadFailed('rows');

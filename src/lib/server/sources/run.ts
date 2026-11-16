@@ -223,6 +223,7 @@ async function failed(
 	const shown = limited || (transient && failures < QUIET_FAILURES) ? null : problem;
 
 	await serially(source.userId, async () => {
+		if (readSource(db, source.userId, source.tableId) === undefined) return;
 		const ws = loadWorkspace(db, source.userId, source.baseId);
 		const changes = markChanges(ws, source.tableId, shown, null);
 		if (changes.length > 0) writeChanges(db, CONNECTOR(source.userId), ws, changes);
@@ -279,9 +280,12 @@ export async function runSource(
 
 	return serially(userId, async () => {
 		const now = clock();
+		const current = readSource(db, userId, tableId);
 		const ws = loadWorkspace(db, userId, source.baseId);
-		if (ws.table(tableId) === undefined) return { ok: false, problem: 'gone' } as const;
-		const planned = plan(ws, source, pulled, now);
+		if (current === undefined || ws.table(tableId) === undefined) {
+			return { ok: false, problem: 'gone' } as const;
+		}
+		const planned = plan(ws, current, pulled, now);
 		const kept = pulled.items.length > 0 || ws.rows(tableId).length === 0;
 		const problem: SourceProblem | null = !kept ? 'empty' : pulled.complete ? null : 'cap';
 		await writeInChunks(db, CONNECTOR(userId), ws, [
@@ -293,7 +297,7 @@ export async function runSource(
 			lastOkAt: new Date(now),
 			failures: 0,
 			problem,
-			nextAt: nextRun(source.every, now)
+			nextAt: nextRun(current.every, now)
 		});
 		return {
 			ok: true,

@@ -5,6 +5,8 @@ import type { Database } from '../db/client.ts';
 import { SourceRefused, createSource, patchSource, previewSource, stopSource } from './connect.ts';
 import { PullFailed } from './fetch.ts';
 import { runSource } from './run.ts';
+import type { Limited } from './limits.ts';
+import { overLimit } from './limits.ts';
 import { readSource } from './store.ts';
 
 async function coded<T>(work: () => Promise<T>): Promise<T> {
@@ -17,12 +19,21 @@ async function coded<T>(work: () => Promise<T>): Promise<T> {
 	}
 }
 
+function within(kind: Limited, userId: string): void {
+	if (overLimit(kind, userId)) throw new SourceFailure('busy');
+}
+
 /** The assistant's and MCP's way to link tables, as the account. */
 export function sourceHost(db: Database, userId: string): SourceHost {
 	return {
-		preview: (input) => coded(() => previewSource({ ...input, secret: null })),
+		preview: (input) =>
+			coded(() => {
+				within('preview', userId);
+				return previewSource({ ...input, secret: null });
+			}),
 		connect: (request) =>
 			coded(async () => {
+				within('create', userId);
 				const made = await createSource(db, userId, { ...request, secret: null });
 				const run: RunResult = await runSource(db, userId, made.table);
 				// Undone, the table is deleted; redone, these bring it back.
@@ -34,6 +45,7 @@ export function sourceHost(db: Database, userId: string): SourceHost {
 		refresh: (table) =>
 			coded(async () => {
 				if (readSource(db, userId, table) === undefined) throw new SourceRefused('gone');
+				within('refresh', userId);
 				return runSource(db, userId, table);
 			}),
 		update(table, patch) {

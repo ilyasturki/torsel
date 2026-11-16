@@ -79,6 +79,8 @@ const PROBLEMS: Record<string, string> = {
 	cap: 'the link holds more rows or pages than a table takes: the first ones came in',
 	empty: 'the link answered with no rows; the table keeps the ones it had',
 	columns: 'fields needs at least one column',
+	busy: 'too many links read in the last minute: wait a minute and call again',
+	key: 'missing: keep needs a key: rows told apart by all their values would come back twice when one changes',
 	count: 'the account has as many linked tables as it may keep',
 	base: 'no such base',
 	gone: 'that table has no source'
@@ -318,6 +320,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 					link.preset?.columns ??
 					undefined;
 				let key = input.key ?? link.preset?.key ?? null;
+				let rows = input.rows ?? null;
 				let feed = false;
 				if (columns === undefined || (input.key === undefined && link.preset === null)) {
 					if (auth.kind !== 'none') {
@@ -333,6 +336,8 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 						);
 						columns ??= preview.columns;
 						key = input.key ?? preview.key;
+						// Pinned, so a later answer whose lists change lengths can't swap the rows.
+						rows ??= preview.rows === '' ? null : preview.rows;
 						feed = preview.format === 'rss' || preview.format === 'atom';
 					}
 				}
@@ -346,11 +351,12 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 							label,
 							url: link.url,
 							auth,
-							rows: input.rows ?? null,
+							rows,
 							key,
 							filter: link.preset?.filter ?? null,
 							every: input.every ?? link.preset?.every ?? 'hour',
-							missing: input.missing ?? link.preset?.missing ?? (feed ? 'keep' : 'remove'),
+							missing:
+								input.missing ?? link.preset?.missing ?? (feed && key !== null ? 'keep' : 'remove'),
 							columns
 						}),
 					fail

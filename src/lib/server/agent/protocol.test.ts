@@ -106,12 +106,7 @@ describe.each(MODES)('the official client, as %s', (_, mode, version) => {
 
 		const { tools } = await client.listTools();
 
-		expect(tools.map((tool) => tool.name)).toEqual([
-			'list_bases',
-			'describe_base',
-			'query',
-			'read_source'
-		]);
+		expect(tools.map((tool) => tool.name)).toEqual(['list_bases', 'describe_base', 'query']);
 		expect(client.getInstructions()).toMatch(/This token reads only/u);
 		await expect(
 			client.callTool({ name: 'create_base', arguments: { name: 'Nope' } })

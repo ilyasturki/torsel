@@ -236,12 +236,7 @@ describe('mcp', () => {
 
 		const listed = await serveMcp(db, reader, rpc('tools/list', {}), 'test');
 		const { tools } = (await message(listed)).result as { tools: { name: string }[] };
-		expect(tools.map((tool) => tool.name)).toEqual([
-			'list_bases',
-			'describe_base',
-			'query',
-			'read_source'
-		]);
+		expect(tools.map((tool) => tool.name)).toEqual(['list_bases', 'describe_base', 'query']);
 
 		const refused = await serveMcp(
 			db,

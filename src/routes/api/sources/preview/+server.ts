@@ -28,7 +28,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				filter: preset?.filter ?? null,
 				every: preset?.every ?? 'hour',
 				// A feed shows only its latest items: what drops off is history, not a deletion.
-				missing: preset?.missing ?? (FEEDS.has(preview.format) ? 'keep' : 'remove'),
+				missing:
+					preset?.missing ??
+					(FEEDS.has(preview.format) && preview.key !== null ? 'keep' : 'remove'),
 				auth: body.auth
 			}
 		});

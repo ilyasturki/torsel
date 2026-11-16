@@ -41,7 +41,7 @@ export type SourceSpec = {
 	columns: Column[];
 };
 
-export type Refusal = 'url' | 'columns' | 'base' | 'count' | 'auth' | 'gone';
+export type Refusal = 'url' | 'columns' | 'base' | 'count' | 'auth' | 'gone' | 'key';
 
 export class SourceRefused extends Error {
 	constructor(readonly reason: Refusal) {
@@ -120,6 +120,8 @@ export async function createSource(
 	if (!EVERY.includes(spec.every) || !MISSING.includes(spec.missing)) {
 		throw new SourceRefused('columns');
 	}
+	// Rows known by all their values come back as new ones when one changes: kept, the old one stays too.
+	if (spec.missing === 'keep' && spec.key === null) throw new SourceRefused('key');
 
 	return serially(userId, async () => {
 		const ws = loadWorkspace(db, userId);
