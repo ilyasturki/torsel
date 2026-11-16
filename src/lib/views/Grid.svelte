@@ -1727,10 +1727,14 @@
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
 					<CellValue {field} {value} />
 				</span>
+			{:else if row === null && isDated(field.type)}
+				<span class="truncate text-ink-3">{formatValue(field, freshValue(field))}</span>
 			{:else if field.type === 'rating' && value == null}
 				<span class="flex opacity-0 group-hover:opacity-100 {isActive ? 'opacity-100' : ''}">
 					<Rating {...ratingScale(field)} value={null} size="sm" />
 				</span>
+			{:else if row === null && field.type !== 'formula'}
+				<span class="truncate text-ink-3">{field.name}</span>
 			{:else}
 				<CellValue {field} {value} />
 			{/if}

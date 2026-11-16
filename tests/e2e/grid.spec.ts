@@ -683,7 +683,7 @@ test.describe('columns', () => {
 		await press(newRowLine(page));
 		await expect(newRowLine(page)).toHaveCount(0);
 		await expect(at(page, 3, 0)).toHaveAttribute('aria-selected', 'true');
-		await expect(at(page, 3, 0)).toHaveText('');
+		await expect(at(page, 3, 0)).toHaveText('Name');
 	});
 
 	test('start fitted to their content', async ({ page, context, account }) => {
@@ -1389,13 +1389,14 @@ test.describe('columns, by hand', () => {
 	}) => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);
+		await press(newRowLine(page));
 		await expect(at(page, 3, 0)).toHaveText('Exercise');
 		await expect(at(page, 3, 1)).toHaveText('Kg');
 		await expect(at(page, 3, 2)).toHaveText('Style');
 		await expect(at(page, 3, 4)).toHaveText('');
 
-		await press(at(page, 3, 0));
-		if (!isPhone()) await page.keyboard.press('Enter');
+		if (isPhone()) await press(at(page, 3, 0));
+		else await page.keyboard.press('Enter');
 		await expect(editor(page)).toHaveAttribute('placeholder', 'Exercise');
 		await editor(page).press('Escape');
 
