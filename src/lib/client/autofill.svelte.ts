@@ -21,7 +21,6 @@ import { applyWithUndo, showToast } from './toast.svelte.ts';
 
 type Filled = { row: string; value: string | null };
 
-/** Fields a fill is running on, so a second one waits for it. */
 export const filling = new SvelteSet<string>();
 
 async function ask(field: FieldDef, spec: FillSpec, rows: Rec[]): Promise<Filled[]> {
@@ -48,7 +47,6 @@ function writable(field: FieldDef, values: Filled[]): Change[] {
 	return fillChanges(app.ws, field, values).filter((change) => app.canWrite(change, [field.id]));
 }
 
-/** The column menu's Fill empty cells: one change with its Undo, never over a filled cell. */
 export async function fillColumn(fieldId: string): Promise<void> {
 	const field = app.ws.field(fieldId);
 	const spec = field?.fill ?? null;
@@ -100,7 +98,6 @@ async function fillNewRows(): Promise<void> {
 				// Background work stays quiet: the change is undoable with Ctrl+Z, and no toast says it.
 				if (changes.length > 0) app.apply(changes, words.filled(changes.length));
 			} catch {
-				// Asked once a session; the next one tries again.
 			} finally {
 				filling.delete(field.id);
 			}
@@ -108,7 +105,6 @@ async function fillNewRows(): Promise<void> {
 	}
 }
 
-/** Watches the device's data and fills new rows of fields set to, once typing has settled. */
 export function watchNewRows(): () => void {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	return $effect.root(() => {

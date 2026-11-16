@@ -332,7 +332,6 @@ export const sources = sqliteTable(
 );
 
 export type Source = typeof sources.$inferSelect;
-/** Requests the person saved under a name, offered behind / in the assistant's box. */
 export const savedPrompts = sqliteTable(
 	'saved_prompts',
 	{

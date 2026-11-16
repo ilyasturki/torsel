@@ -69,7 +69,7 @@ function empty(value: Value | undefined): boolean {
 	);
 }
 
-/** What the model reads of a row: the fields its prompt names, by name, a link as its row's title. */
+/** The fields its prompt names, by name; a link reads as its row's title. */
 export function fillInputs(
 	ws: Workspace,
 	field: FieldDef,
@@ -95,7 +95,6 @@ export function waitingRows(ws: Workspace, field: FieldDef, spec: FillSpec, rows
 	);
 }
 
-/** How the model must write a value of this field, in its words. */
 export function typeText(field: FieldDef): string {
 	switch (field.type) {
 		case 'number':

@@ -5,7 +5,6 @@ import { envText } from '../env.ts';
 import { DEFAULT_MODEL } from './assistant.ts';
 import { quickModel } from './title.ts';
 
-/** What the client sends of a fill: the field, its prompt with names, and each row's inputs. */
 export type FillAsk = {
 	field: string;
 	type: string;

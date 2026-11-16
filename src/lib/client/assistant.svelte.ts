@@ -52,7 +52,6 @@ export const assistant = $state({
 	moved: 0
 });
 
-/** What an empty thread offers on the open table, once its answer is in. */
 export const offer = $state({ key: '', list: [] as Suggestion[] });
 
 const offered = new Map<string, Suggestion[]>();
@@ -83,7 +82,7 @@ export async function loadSuggestions(
 	}
 }
 
-/** What the person saved to insert again with /; `null` until the server has answered once. */
+// null until the server has answered once.
 export const saved = $state({ list: null as SavedPrompt[] | null });
 
 export async function loadSaved(): Promise<void> {

@@ -120,7 +120,6 @@ export type Item =
 	| { kind: 'event'; key: string; event: EventKind; message: string }
 	| { kind: 'sources'; key: string; sources: Source[] };
 
-/** A page the assistant read on the web, shown under the reply it served. */
 export type Source = { url: string; title: string };
 
 // Hosts the sources line shows; past them it is a list nobody reads.
@@ -280,7 +279,6 @@ export const MAX_SUGGESTIONS = 3;
 // Past it a suggestion no longer fits its line in the panel.
 export const MAX_SUGGESTION = 80;
 
-/** The model's suggestions kept to what the panel shows: on one line, distinct, at most three. */
 export function fitSuggestions(value: unknown): Suggestion[] {
 	if (!Array.isArray(value)) return [];
 	const seen = new Set<string>();
@@ -303,7 +301,6 @@ export function fitSuggestions(value: unknown): Suggestion[] {
 	return out;
 }
 
-/** A request the person saved under a name, to insert again with /. */
 export type SavedPrompt = { id: string; name: string; text: string };
 
 export const MAX_SAVED_NAME = 60;
