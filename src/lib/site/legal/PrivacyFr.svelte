@@ -62,9 +62,12 @@
 
 <LegalSection title="Clients MCP">
 	<p>
-		Avec un jeton créé dans les Réglages, le client MCP à qui tu le donnes peut lire et écrire tes
-		données. Ce que ce client en fait se règle entre toi et son éditeur. Tu peux révoquer un jeton
-		dans les Réglages à tout moment.
+		Avec un jeton créé dans les Réglages, le client MCP à qui tu le donnes peut lire tes données, ou
+		les lire et les modifier, selon ton choix. Une app que tu relies en te connectant à Torsel,
+		comme Claude ou ChatGPT, n’y accède qu’une fois que tu l’as autorisée sur l’écran d’autorisation
+		de Torsel, qui peut limiter cet accès à la lecture. Ce qu’un client fait de tes données se règle
+		entre toi et son éditeur. Tu peux révoquer un jeton ou une app connectée dans les Réglages à
+		tout moment.
 	</p>
 </LegalSection>
 

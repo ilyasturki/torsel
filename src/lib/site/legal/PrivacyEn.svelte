@@ -60,9 +60,11 @@
 
 <LegalSection title="MCP clients">
 	<p>
-		A token you create in Settings lets the MCP client you give it to read and write your data. What
-		that client does with the data is between you and whoever makes it. You can revoke a token in
-		Settings at any time.
+		A token you create in Settings lets the MCP client you give it to read your data, or read and
+		change it, as you chose. An app you connect by signing in to Torsel, such as Claude or ChatGPT,
+		gets access only once you allow it on Torsel’s consent screen, which can limit it to reading.
+		What a client does with the data is between you and whoever makes it. You can revoke a token or
+		a connected app in Settings at any time.
 	</p>
 </LegalSection>
 
