@@ -121,23 +121,26 @@ in
       description = "Display name of the sign-in mail's sender.";
     };
 
-    aiDailyLimit = lib.mkOption {
-      type = lib.types.ints.unsigned;
-      default = 30;
+    aiDailyBudget = lib.mkOption {
+      type = lib.types.numbers.nonnegative;
+      default = 3.3;
+      example = 5;
       description = ''
-        Messages one account can send the assistant in any 24 hours; zero
-        lifts the cap. A refused message never reaches Anthropic, and the
-        thread says when the account can ask again.
+        US dollars of Anthropic usage one account can spend in any 24 hours:
+        assistant turns, suggestions, follow-ups and AI fills, each charged by
+        its tokens at its model's price, plus $0.01 per web search. The
+        default is about 30 typical assistant messages; zero lifts the cap.
+        Once spent, a request never reaches Anthropic, and the app says when
+        the account can ask again.
       '';
     };
 
-    aiInstanceDailyLimit = lib.mkOption {
-      type = lib.types.ints.unsigned;
-      default = 300;
+    aiInstanceDailyBudget = lib.mkOption {
+      type = lib.types.numbers.nonnegative;
+      default = 33;
       description = ''
-        Messages all accounts together can send the assistant in any 24 hours,
-        so a wave of new accounts can't spend the API key either; zero lifts
-        the cap.
+        US dollars all accounts together can spend in any 24 hours, so a wave
+        of new accounts can't spend the API key either; zero lifts the cap.
       '';
     };
 
@@ -146,8 +149,8 @@ in
       default = [ ];
       example = [ "you@example.com" ];
       description = ''
-        Accounts, by e-mail, that skip both assistant caps. Their messages
-        don't count toward `aiInstanceDailyLimit`.
+        Accounts, by e-mail, that skip both assistant budgets. Their usage
+        doesn't count toward `aiInstanceDailyBudget`.
       '';
     };
 
@@ -217,8 +220,8 @@ in
         PORT = toString cfg.port;
         NODE_ENV = "production";
         DATABASE_PATH = cfg.databasePath;
-        TORSEL_AI_DAILY_LIMIT = toString cfg.aiDailyLimit;
-        TORSEL_AI_INSTANCE_DAILY_LIMIT = toString cfg.aiInstanceDailyLimit;
+        TORSEL_AI_DAILY_BUDGET = toString cfg.aiDailyBudget;
+        TORSEL_AI_INSTANCE_DAILY_BUDGET = toString cfg.aiInstanceDailyBudget;
         TORSEL_STORAGE_MB = toString cfg.storageMB;
         TORSEL_SOURCE_ROWS = toString cfg.sourceRowLimit;
         TORSEL_SOURCES = toString cfg.sourceLimit;

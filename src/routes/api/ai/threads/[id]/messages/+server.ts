@@ -112,7 +112,8 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	// Carried here rather than flushed ahead, so the send doesn't wait on a round trip.
 	recordDecisions(db, thread.id, decisionsOf(body.decisions));
 
-	const refusal = takePrompt(db, user, aiLimits());
+	const limits = aiLimits();
+	const refusal = usageRefusal(db, user, limits);
 	if (refusal !== null) {
 		return refusedResponse(refusal);
 	}
@@ -155,7 +156,8 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 					ask,
 					signal: abort.signal,
 					emit,
-					beside
+					beside,
+					meter: meterFor(db, user, limits)
 				})
 			)
 				.catch((thrown: unknown) => {

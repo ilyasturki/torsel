@@ -1,29 +1,30 @@
 import type { Page } from '@playwright/test';
 
-import { DAILY_LIMIT } from './fake-anthropic.ts';
+import { DAILY_BUDGET } from './fake-anthropic.ts';
 import { askButton, askPanel, expect, script, seedLifts, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
 const REFUSED =
-	/^You’ve reached today’s assistant limit\. Ask again tomorrow at \d{1,2}:\d{2}\s[AP]M\.$/u;
+	/^You’ve used today’s assistant budget\. Ask again tomorrow at \d{1,2}:\d{2}\s[AP]M\.$/u;
 
 async function ask(page: Page, text: string): Promise<void> {
 	await page.getByPlaceholder('Ask about your tables').fill(text);
 	await page.getByRole('button', { name: 'Send' }).click();
 }
 
-test('past the daily limit a prompt never reaches the model, and the thread says when to ask again', async ({
+test('once the day’s budget is spent a prompt never reaches the model, and the thread says when to ask again', async ({
 	page,
 	context,
 	account
 }) => {
 	void account;
 	const path = await seedLifts(context.request);
-	const answers = Array.from({ length: DAILY_LIMIT }, (_, at) => `Answer ${at + 1}.`);
+	// Each turn reports a dollar, so the budget's worth of turns runs and the next is refused.
+	const answers = Array.from({ length: DAILY_BUDGET }, (_, at) => `Answer ${at + 1}.`);
 	const key = await script(
 		context.request,
-		answers.map((text) => ({ blocks: [{ type: 'text', text }] }))
+		answers.map((text) => ({ blocks: [{ type: 'text', text }], spend: 1 }))
 	);
 	await page.goto(path);
 	await askButton(page).click();
@@ -38,7 +39,7 @@ test('past the daily limit a prompt never reaches the model, and the thread says
 	await expect(rows.getByRole('alert')).toHaveText(REFUSED);
 	await expect(rows.getByText(`${key} one too many`)).toBeVisible();
 	const seen = await (await context.request.get(`${FAKE}/__seen?key=${key}`)).json();
-	expect(seen.requests).toHaveLength(DAILY_LIMIT);
+	expect(seen.requests).toHaveLength(DAILY_BUDGET);
 
 	const field = page.getByPlaceholder('Ask about your tables');
 	await expect(field).toBeEditable();

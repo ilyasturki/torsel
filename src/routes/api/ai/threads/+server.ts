@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 
 import { assistant as words } from '#lib/i18n/assistant.ts';
 import { MAX_PROMPT } from '#lib/core/thread.ts';
-import { promptRefusal, refusedResponse } from '#lib/server/agent/quota.ts';
+import { refusedResponse, usageRefusal } from '#lib/server/agent/quota.ts';
 import { createThread, listThreads } from '#lib/server/agent/threads.ts';
 import { aiLimits } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 	const db = getDatabase();
 	// Its first message would be refused, and the thread would stay listed with nothing in it.
-	const refusal = promptRefusal(db, user, aiLimits());
+	const refusal = usageRefusal(db, user, aiLimits());
 	if (refusal !== null) {
 		return refusedResponse(refusal);
 	}

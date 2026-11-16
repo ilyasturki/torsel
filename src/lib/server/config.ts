@@ -1,6 +1,6 @@
 import type { GoogleClient } from './auth/google.ts';
 import { GOOGLE_PATH } from './auth/google.ts';
-import { envCount, envFlag, envText } from './env.ts';
+import { envAmount, envCount, envFlag, envText } from './env.ts';
 
 const CAPACITOR_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost'];
 
@@ -44,21 +44,28 @@ export function anthropicKey(): string | undefined {
 	return key === '' ? undefined : key;
 }
 
-/** Prompts per rolling 24 hours, 0 for no cap; `unlimited` holds lowercased e-mails. */
+/** Dollars of model use per rolling 24 hours, 0 for no cap; `unlimited` holds lowercased e-mails. */
 export type AiLimits = { account: number; instance: number; unlimited: Set<string> };
+
+// 30 typical first messages on Opus 5.5, about $0.11 each with their title and suggestions (measured Nov 16).
+export const DAILY_BUDGET = 3.3;
 
 let cachedLimits: { raw: string; limits: AiLimits } | undefined;
 
 export function aiLimits(): AiLimits {
-	const names = ['TORSEL_AI_DAILY_LIMIT', 'TORSEL_AI_INSTANCE_DAILY_LIMIT', 'TORSEL_AI_UNLIMITED'];
+	const names = [
+		'TORSEL_AI_DAILY_BUDGET',
+		'TORSEL_AI_INSTANCE_DAILY_BUDGET',
+		'TORSEL_AI_UNLIMITED'
+	];
 	const raw = names.map((name) => envText(name, '')).join('\n');
 
 	if (cachedLimits === undefined || cachedLimits.raw !== raw) {
 		cachedLimits = {
 			raw,
 			limits: {
-				account: envCount('TORSEL_AI_DAILY_LIMIT', 30),
-				instance: envCount('TORSEL_AI_INSTANCE_DAILY_LIMIT', 300),
+				account: envAmount('TORSEL_AI_DAILY_BUDGET', DAILY_BUDGET),
+				instance: envAmount('TORSEL_AI_INSTANCE_DAILY_BUDGET', DAILY_BUDGET * 10),
 				unlimited: new Set(
 					envText('TORSEL_AI_UNLIMITED', '')
 						.toLowerCase()

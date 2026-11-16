@@ -247,17 +247,19 @@ export const threadFiles = sqliteTable(
 	(table) => [primaryKey({ columns: [table.id] }), index('thread_files_user_idx').on(table.userId)]
 );
 
-export const aiPrompts = sqliteTable(
-	'ai_prompts',
+export const aiUsage = sqliteTable(
+	'ai_usage',
 	{
 		userId: text('user_id')
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
-		at: integer('at', { mode: 'timestamp_ms' }).notNull()
+		at: integer('at', { mode: 'timestamp_ms' }).notNull(),
+		// Millionths of a dollar.
+		cost: integer('cost').notNull()
 	},
 	(table) => [
-		index('ai_prompts_user_at_idx').on(table.userId, table.at),
-		index('ai_prompts_at_idx').on(table.at)
+		index('ai_usage_user_at_idx').on(table.userId, table.at),
+		index('ai_usage_at_idx').on(table.at)
 	]
 );
 

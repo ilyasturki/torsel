@@ -1,8 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createServer } from 'node:http';
 
-// The servers in front of the fake take this many prompts per account a day; no spec but the cap's sends more.
-export const DAILY_LIMIT = 4;
+// Dollars the servers in front of the fake let an account spend a day; only the budget's spec spends it.
+export const DAILY_BUDGET = 4;
+
+// Output tokens of a model the price list doesn't know, $25 per million: a dollar's worth.
+const DOLLAR = 40_000;
 
 /** A page a scripted search found, and what a reply cites of it. */
 export type FakeResult = { url: string; title: string };
@@ -17,6 +20,8 @@ export type FakeBlock =
 export type FakeStep = {
 	blocks: FakeBlock[];
 	stop?: 'end_turn' | 'tool_use' | 'refusal' | 'pause_turn';
+	// Dollars the response reports it cost, as output tokens.
+	spend?: number;
 	// Text of the last block streamed before the response waits for `release`, or is cut off.
 	holdAfter?: string;
 	// An SSE `error` event, since the SDK retries a 5xx status on its own.
@@ -202,7 +207,12 @@ async function stream(step: FakeStep, script: Script, response: ServerResponse):
 	send(response, 'message_delta', {
 		type: 'message_delta',
 		delta: { stop_reason: step.stop ?? (hasTool ? 'tool_use' : 'end_turn'), stop_sequence: null },
-		usage: { output_tokens: 1 }
+		usage: {
+			output_tokens: Math.max(1, Math.round((step.spend ?? 0) * DOLLAR)),
+			server_tool_use: {
+				web_search_requests: step.blocks.filter((block) => block.type === 'search').length
+			}
+		}
 	});
 	send(response, 'message_stop', { type: 'message_stop' });
 	response.end();

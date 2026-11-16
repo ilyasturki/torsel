@@ -316,6 +316,7 @@ export type Turn = {
 	emit(event: TurnEvent): void;
 	// Work the turn starts and doesn't wait for; the caller keeps the stream open until it ends.
 	beside?: Promise<unknown>[];
+	meter: Meter;
 };
 
 function lastPrompt(rows: ThreadRow[]): ThreadRow | undefined {
@@ -330,12 +331,13 @@ function isExcluded(rows: ThreadRow[], seq: number): boolean {
 /** Runs beside the turn and never holds it: the reply can end before the title lands. */
 function nameThread(
 	client: Anthropic,
+	meter: Meter,
 	db: Database,
 	threadId: string,
 	meta: { prompt: string; where: string },
 	emit: (event: TurnEvent) => void
 ): Promise<void> {
-	return generateTitle(client, meta.prompt, meta.where)
+	return generateTitle(client, meta.prompt, meta.where, meter)
 		.then((title) => {
 			if (title !== null && giveTitle(db, threadId, title)) {
 				emit({ type: 'title', title });
@@ -374,7 +376,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 	const end = rows.at(-1)?.seq ?? 0;
 
 	if (ask.kind === 'send' && previous === undefined) {
-		turn.beside?.push(nameThread(client, db, threadId, ask.meta, emit));
+		turn.beside?.push(nameThread(client, turn.meter, db, threadId, ask.meta, emit));
 	}
 
 	let userSeq: number;
@@ -506,6 +508,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 			}
 
 			const message = await stream.finalMessage();
+			turn.meter(message);
 
 			// Partial output of a declined reply is discarded; what earlier rounds did stands.
 			if (message.stop_reason === 'refusal') {

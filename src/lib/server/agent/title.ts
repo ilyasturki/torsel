@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { fitTitle } from '../../core/thread.ts';
 import { envText } from '../env.ts';
+import type { Meter } from './quota.ts';
 
 export const TITLE_MODEL = 'claude-haiku-5-5';
 
@@ -35,7 +36,8 @@ export function titlePrompt(prompt: string, where: string): string {
 export async function generateTitle(
 	client: Anthropic,
 	prompt: string,
-	where: string
+	where: string,
+	meter: Meter
 ): Promise<string | null> {
 	const message = await client.beta.messages.create(
 		{
@@ -47,6 +49,7 @@ export async function generateTitle(
 		},
 		{ timeout: TITLE_MS, maxRetries: 1 }
 	);
+	meter(message);
 	const text = message.content.find((block) => block.type === 'text')?.text ?? '';
 	let title: unknown;
 	try {

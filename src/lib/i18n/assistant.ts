@@ -89,8 +89,8 @@ const en = {
 	limit: (scope: 'account' | 'instance', time: string, today: boolean) => {
 		const reached =
 			scope === 'account'
-				? 'You’ve reached today’s assistant limit.'
-				: 'The assistant has reached today’s limit on this server.';
+				? 'You’ve used today’s assistant budget.'
+				: 'The assistant has used today’s budget on this server.';
 		return `${reached} Ask again ${today ? 'at' : 'tomorrow at'} ${time}.`;
 	},
 
@@ -117,7 +117,7 @@ const en = {
 	filesTooBig: 'files go up to 10 MB',
 	unreadable: 'this file type can’t be read',
 	partOutOfOrder: 'this part doesn’t follow the last one',
-	limitReached: 'today’s assistant limit is reached',
+	limitReached: 'today’s assistant budget is used up',
 
 	addRows: (count: number, table: string) =>
 		count === 1 ? `Add 1 row to ${table}` : `Add ${count} rows to ${table}`,
@@ -239,8 +239,8 @@ const fr: typeof en = {
 	limit: (scope, time, today) => {
 		const reached =
 			scope === 'account'
-				? 'Tu as atteint la limite du jour de l’assistant.'
-				: 'L’assistant a atteint la limite du jour sur ce serveur.';
+				? 'Tu as utilisé le budget du jour de l’assistant.'
+				: 'L’assistant a utilisé le budget du jour sur ce serveur.';
 		return `${reached} Redemande ${today ? 'à' : 'demain à'} ${time}.`;
 	},
 
@@ -272,7 +272,7 @@ const fr: typeof en = {
 	filesTooBig: 'fichiers limités à 10 Mo',
 	unreadable: 'ce type de fichier ne peut pas être lu',
 	partOutOfOrder: 'cette partie ne suit pas la précédente',
-	limitReached: 'la limite du jour de l’assistant est atteinte',
+	limitReached: 'le budget du jour de l’assistant est épuisé',
 
 	addRows: (count, table) =>
 		plural('fr', count, {

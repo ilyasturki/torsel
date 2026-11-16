@@ -62,7 +62,7 @@ services.torsel = {
 
 Without a Brevo key the mail goes to the journal, code and link included. Google's redirect URI is `<origin>/api/auth/google`.
 
-The assistant takes 30 messages per account and 300 across the instance in any 24 hours: `aiDailyLimit`, `aiInstanceDailyLimit` (0 lifts either), and `aiUnlimited = [ "you@example.com" ]` for the accounts that skip both.
+The assistant is metered by what it costs, each model call at its tokens and price plus $0.01 per web search: $3.30 per account and $33 across the instance in any 24 hours, about 30 typical messages per account: `aiDailyBudget`, `aiInstanceDailyBudget` (0 lifts either), and `aiUnlimited = [ "you@example.com" ]` for the accounts that skip both.
 
 Each account keeps up to 1 GB of images, in the database: `storageMB` (0 lifts it).
 

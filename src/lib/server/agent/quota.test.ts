@@ -10,7 +10,7 @@ import type { Database } from '../db/client.ts';
 import { createDatabase } from '../db/client.ts';
 import { runMigrations } from '../db/migrate.ts';
 import type { User } from '../db/schema.ts';
-import { WINDOW_MS, promptRefusal, takePrompt } from './quota.ts';
+import { WINDOW_MS, recordUsage, usageRefusal } from './quota.ts';
 
 const T0 = Date.UTC(2026, 10, 1, 9, 0);
 const MINUTE = 60_000;
@@ -40,38 +40,37 @@ function people(db: Database, ...emails: string[]): Promise<User[]> {
 	return Promise.all(emails.map((email) => createUser(db, email, 'correct horse')));
 }
 
-describe('the account cap', () => {
-	it('takes N prompts in a day and refuses the next until the first leaves the window', async () => {
-		const db = database();
-		const [me] = await people(db, 'me@example.com');
-		const caps = limits(3, 0);
+/** A response that cost `dollars`: Opus 5.5 output is $20 per million tokens. */
+function spend(db: Database, user: User, caps: AiLimits, minute: number, dollars: number): void {
+	recordUsage(db, user, caps, 'claude-opus-5-5', { output_tokens: dollars * 50_000 }, at(minute));
+}
 
-		expect(takePrompt(db, me, caps, at(0))).toBeNull();
-		expect(takePrompt(db, me, caps, at(10))).toBeNull();
-		expect(takePrompt(db, me, caps, at(20))).toBeNull();
-		expect(takePrompt(db, me, caps, at(30))).toEqual({
-			scope: 'account',
-			until: T0 + WINDOW_MS
-		});
-
-		expect(takePrompt(db, me, caps, at(24 * 60 - 1))).not.toBeNull();
-		expect(takePrompt(db, me, caps, at(24 * 60))).toBeNull();
-		expect(takePrompt(db, me, caps, at(24 * 60 + 1))).toEqual({
-			scope: 'account',
-			until: at(10).getTime() + WINDOW_MS
-		});
-	});
-
-	it('does not count a refused prompt', async () => {
+describe('the account budget', () => {
+	it('lets calls run until the day’s spending reaches it, then until enough leaves the window', async () => {
 		const db = database();
 		const [me] = await people(db, 'me@example.com');
 		const caps = limits(1, 0);
 
-		takePrompt(db, me, caps, at(0));
-		for (let minute = 1; minute < 60; minute += 1) {
-			takePrompt(db, me, caps, at(minute));
-		}
-		expect(takePrompt(db, me, caps, at(24 * 60))).toBeNull();
+		spend(db, me, caps, 0, 0.4);
+		spend(db, me, caps, 10, 0.4);
+		expect(usageRefusal(db, me, caps, at(11))).toBeNull();
+		spend(db, me, caps, 20, 0.3);
+		expect(usageRefusal(db, me, caps, at(21))).toEqual({
+			scope: 'account',
+			until: T0 + WINDOW_MS
+		});
+		expect(usageRefusal(db, me, caps, at(24 * 60))).toBeNull();
+	});
+
+	it('names when a lowered budget frees again', async () => {
+		const db = database();
+		const [me] = await people(db, 'me@example.com');
+
+		for (let minute = 0; minute < 5; minute += 1) spend(db, me, limits(5, 0), minute, 0.2);
+		expect(usageRefusal(db, me, limits(0.5, 0), at(10))).toEqual({
+			scope: 'account',
+			until: at(2).getTime() + WINDOW_MS
+		});
 	});
 
 	it('is per account', async () => {
@@ -79,116 +78,73 @@ describe('the account cap', () => {
 		const [me, you] = await people(db, 'me@example.com', 'you@example.com');
 		const caps = limits(1, 0);
 
-		expect(takePrompt(db, me, caps, at(0))).toBeNull();
-		expect(takePrompt(db, me, caps, at(1))?.scope).toBe('account');
-		expect(takePrompt(db, you, caps, at(2))).toBeNull();
-	});
-
-	it('names when a lowered cap frees a prompt again', async () => {
-		const db = database();
-		const [me] = await people(db, 'me@example.com');
-
-		for (let minute = 0; minute < 5; minute += 1) {
-			takePrompt(db, me, limits(5, 0), at(minute));
-		}
-		expect(takePrompt(db, me, limits(2, 0), at(10))).toEqual({
-			scope: 'account',
-			until: at(3).getTime() + WINDOW_MS
-		});
+		spend(db, me, caps, 0, 1);
+		expect(usageRefusal(db, me, caps, at(1))?.scope).toBe('account');
+		expect(usageRefusal(db, you, caps, at(1))).toBeNull();
 	});
 
 	it('is lifted by 0', async () => {
 		const db = database();
 		const [me] = await people(db, 'me@example.com');
 
-		for (let minute = 0; minute < 100; minute += 1) {
-			expect(takePrompt(db, me, limits(0, 0), at(minute))).toBeNull();
-		}
+		spend(db, me, limits(0, 0), 0, 100);
+		expect(usageRefusal(db, me, limits(0, 0), at(1))).toBeNull();
 	});
 
 	it('survives a restart', async () => {
 		const dir = mkdtempSync(join(tmpdir(), 'torsel-quota-'));
 		dirs.push(dir);
 		const file = join(dir, 'torsel.db');
-		const caps = limits(2, 0);
+		const caps = limits(1, 0);
 
 		const before = database(file);
 		const [me] = await people(before, 'me@example.com');
-		takePrompt(before, me, caps, at(0));
-		takePrompt(before, me, caps, at(1));
+		spend(before, me, caps, 0, 1.2);
 		before.$client.close();
 		open.splice(open.indexOf(before), 1);
 
 		const after = database(file);
-		expect(takePrompt(after, me, caps, at(2))).toEqual({
+		expect(usageRefusal(after, me, caps, at(2))).toEqual({
 			scope: 'account',
 			until: T0 + WINDOW_MS
 		});
 	});
 });
 
-describe('the instance cap', () => {
-	it('refuses everyone once the accounts together reach M, without blaming any of them', async () => {
+describe('the instance budget', () => {
+	it('refuses everyone once the accounts together reach it, without blaming any of them', async () => {
 		const db = database();
 		const [a, b, c] = await people(db, 'a@example.com', 'b@example.com', 'c@example.com');
-		const caps = limits(5, 3);
+		const caps = limits(5, 1);
 
-		expect(takePrompt(db, a, caps, at(0))).toBeNull();
-		expect(takePrompt(db, b, caps, at(1))).toBeNull();
-		expect(takePrompt(db, a, caps, at(2))).toBeNull();
-		expect(takePrompt(db, c, caps, at(3))).toEqual({
+		spend(db, a, caps, 0, 0.5);
+		spend(db, b, caps, 1, 0.5);
+		expect(usageRefusal(db, c, caps, at(2))).toEqual({
 			scope: 'instance',
 			until: T0 + WINDOW_MS
 		});
-		expect(takePrompt(db, c, caps, at(24 * 60))).toBeNull();
+		expect(usageRefusal(db, c, caps, at(24 * 60))).toBeNull();
 	});
 
-	it('names the account when both caps are reached', async () => {
+	it('names the account when both are reached', async () => {
 		const db = database();
 		const [me] = await people(db, 'me@example.com');
 
-		takePrompt(db, me, limits(1, 1), at(0));
-		expect(takePrompt(db, me, limits(1, 1), at(1))?.scope).toBe('account');
-	});
-
-	it('is lifted by 0', async () => {
-		const db = database();
-		const users = await people(db, 'a@example.com', 'b@example.com', 'c@example.com');
-
-		for (const user of users) {
-			expect(takePrompt(db, user, limits(1, 0), at(0))).toBeNull();
-		}
+		spend(db, me, limits(1, 1), 0, 1);
+		expect(usageRefusal(db, me, limits(1, 1), at(1))?.scope).toBe('account');
 	});
 });
 
 describe('an exempt account', () => {
-	it('skips both caps and does not count toward the instance', async () => {
+	it('skips both budgets and its spending counts toward neither', async () => {
 		const db = database();
 		const [owner, guest] = await people(db, 'owner@example.com', 'guest@example.com');
 		const caps = limits(1, 1, ['owner@example.com']);
 
-		for (let minute = 0; minute < 10; minute += 1) {
-			expect(takePrompt(db, owner, caps, at(minute))).toBeNull();
-		}
-		expect(takePrompt(db, guest, caps, at(10))).toBeNull();
-		expect(takePrompt(db, owner, caps, at(11))).toBeNull();
-		expect(takePrompt(db, guest, caps, at(12))?.scope).toBe('account');
-	});
-});
-
-describe('a look ahead', () => {
-	it('refuses as the next prompt would, and takes nothing', async () => {
-		const db = database();
-		const [me] = await people(db, 'me@example.com');
-		const caps = limits(1, 0);
-
-		expect(promptRefusal(db, me, caps, at(0))).toBeNull();
-		expect(promptRefusal(db, me, caps, at(0))).toBeNull();
-		takePrompt(db, me, caps, at(1));
-		expect(promptRefusal(db, me, caps, at(2))).toEqual({
-			scope: 'account',
-			until: at(1).getTime() + WINDOW_MS
-		});
-		expect(promptRefusal(db, me, limits(1, 0, ['me@example.com']), at(2))).toBeNull();
+		spend(db, owner, caps, 0, 10);
+		expect(usageRefusal(db, owner, caps, at(1))).toBeNull();
+		expect(usageRefusal(db, guest, caps, at(1))).toBeNull();
+		spend(db, guest, caps, 2, 1);
+		expect(usageRefusal(db, guest, caps, at(3))?.scope).toBe('account');
 	});
 });

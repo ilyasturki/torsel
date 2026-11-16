@@ -3,6 +3,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { Value } from '../../core/model.ts';
 import { envText } from '../env.ts';
 import { DEFAULT_MODEL } from './assistant.ts';
+import type { Meter } from './quota.ts';
 import { quickModel } from './title.ts';
 
 export type FillAsk = {
@@ -70,6 +71,7 @@ function valuesOf(input: unknown, rows: Set<string>): Filled[] {
 export async function fillRows(
 	client: Anthropic,
 	ask: FillAsk,
+	meter: Meter,
 	signal?: AbortSignal
 ): Promise<Filled[]> {
 	const rows = new Set(ask.rows.map(({ row }) => row));
@@ -93,6 +95,7 @@ export async function fillRows(
 				{ signal, timeout: FILL_MS }
 			)
 			.finalMessage();
+		meter(message);
 		const set = message.content.find(
 			(block): block is Anthropic.Beta.BetaToolUseBlock =>
 				block.type === 'tool_use' && block.name === 'set_values'

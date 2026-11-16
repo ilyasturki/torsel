@@ -7,15 +7,13 @@ import type { Workspace } from '../../core/workspace.ts';
 import { createdAt } from '../../core/workspace.ts';
 import type { Locale } from '../../i18n/locale.ts';
 import { cellText, tableNote } from './assistant.ts';
+import type { Meter } from './quota.ts';
 import { quickModel } from './title.ts';
 
 const SUGGEST_MS = 15_000;
 
 // Rows the model reads to know what the table holds and what was logged last.
 const LATEST_ROWS = 6;
-
-// Calls per account a day; a cached answer costs none.
-const DAILY_CALLS = 40;
 
 const LANGUAGES: Record<Locale, string> = { en: 'English', fr: 'French' };
 
@@ -71,7 +69,6 @@ export function suggestPrompt(
 }
 
 const cache = new Map<string, Suggestion[]>();
-const spent = new Map<string, { day: string; calls: number }>();
 
 /** What one screen's state is cached under: a new row, field or view asks again. */
 function cacheKey(ws: Workspace, userId: string, context: ThreadContext, locale: Locale): string {
@@ -102,19 +99,14 @@ export async function suggest(
 	ws: Workspace,
 	userId: string,
 	context: ThreadContext,
-	locale: Locale
+	locale: Locale,
+	meter: Meter
 ): Promise<Suggestion[]> {
 	const prompt = suggestPrompt(ws, context, locale);
 	if (prompt === null) return [];
 	const key = cacheKey(ws, userId, context, locale);
 	const cached = cache.get(key);
 	if (cached !== undefined) return cached;
-
-	const day = todayIso();
-	const used = spent.get(userId);
-	const calls = used?.day === day ? used.calls : 0;
-	if (calls >= DAILY_CALLS) return [];
-	spent.set(userId, { day, calls: calls + 1 });
 
 	const message = await client.beta.messages.create(
 		{
@@ -126,6 +118,7 @@ export async function suggest(
 		},
 		{ timeout: SUGGEST_MS, maxRetries: 1 }
 	);
+	meter(message);
 	const text = message.content.find((block) => block.type === 'text')?.text ?? '';
 	let parsed: unknown;
 	try {

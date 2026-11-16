@@ -7,7 +7,7 @@ import type { Value } from '#lib/core/model.ts';
 import { assistant as words } from '#lib/i18n/assistant.ts';
 import type { FillAsk } from '#lib/server/agent/fill.ts';
 import { fillRows } from '#lib/server/agent/fill.ts';
-import { refusedResponse, takePrompt } from '#lib/server/agent/quota.ts';
+import { meterFor, refusedResponse, usageRefusal } from '#lib/server/agent/quota.ts';
 import { aiLimits, anthropicKey } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
 import { readJsonBody, requiredString } from '#lib/server/http/body.ts';
@@ -37,7 +37,7 @@ function rowsOf(value: unknown): FillAsk['rows'] {
 	});
 }
 
-/** One fill counts as one prompt; a failed model call answers with no values, never a 5xx. */
+/** A failed model call answers with no values, never a 5xx. */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user } = requireCredential(locals);
 	const body = await readJsonBody(request);
@@ -55,12 +55,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (apiKey === undefined) {
 		error(503, words.noAssistant);
 	}
-	const refusal = takePrompt(getDatabase(), user, aiLimits());
+	const db = getDatabase();
+	const limits = aiLimits();
+	const refusal = usageRefusal(db, user, limits);
 	if (refusal !== null) {
 		return refusedResponse(refusal);
 	}
 	try {
-		return json({ values: await fillRows(new Anthropic({ apiKey }), ask, request.signal) });
+		return json({
+			values: await fillRows(
+				new Anthropic({ apiKey }),
+				ask,
+				meterFor(db, user, limits),
+				request.signal
+			)
+		});
 	} catch (thrown) {
 		console.error('fill:', thrown instanceof Error ? thrown.message : thrown);
 		return json({ values: [], failed: true });
