@@ -5,6 +5,8 @@ import { app } from './app.svelte.ts';
 import type { Account } from './auth.ts';
 import { logout, session } from './auth.ts';
 import { forgetAccount, me } from './session.svelte.ts';
+import { showToast } from './toast.svelte.ts';
+import { shell as words } from '../i18n/shell.ts';
 
 export type SyncStatus = 'idle' | 'offline' | 'signed-out' | 'other-account' | 'error';
 
@@ -32,7 +34,9 @@ export function scheduleSync(delay = DEBOUNCE_MS): void {
 	timer = setTimeout(() => void syncNow(), delay);
 }
 
-async function exchange(): Promise<void> {
+/** Whether the server took back any write of this device. */
+async function exchange(): Promise<boolean> {
+	let refused = false;
 	for (let round = 0; round < ROUNDS; round += 1) {
 		const push = pushBatch(app.dirtyRecords());
 		const watermark = (await app.meta<number>('watermark')) ?? 0;
@@ -43,11 +47,13 @@ async function exchange(): Promise<void> {
 		});
 
 		await app.settle(push, response.records, response.watermark);
+		refused ||= response.refused.length > 0;
 
 		if (app.pending === 0) {
-			return;
+			break;
 		}
 	}
+	return refused;
 }
 
 export async function syncNow(): Promise<void> {
@@ -64,7 +70,9 @@ export async function syncNow(): Promise<void> {
 		do {
 			again = false;
 			try {
-				await exchange();
+				if (await exchange()) {
+					showToast(words.syncedRefused);
+				}
 				sync.status = 'idle';
 				app.onSynced?.();
 			} catch (error) {
@@ -95,6 +103,7 @@ export async function claimOwner(userId: string): Promise<boolean> {
 
 	if (owner === undefined || owner === userId) {
 		await app.setMeta('owner', userId);
+		app.actor = { user: userId, path: 'device' };
 		blocked = false;
 		return true;
 	}

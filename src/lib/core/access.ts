@@ -75,6 +75,17 @@ export function canAddRows(get: Lookup, actor: Actor, tableId: string): boolean 
 	return canWrite(get, actor, { id: '', kind: 'row', parent: tableId }, [CREATED]);
 }
 
+/** Whether `actor` may write a field's values in the table's existing rows. */
+export function canEditValues(
+	get: Lookup,
+	actor: Actor,
+	tableId: string,
+	fieldId: string
+): boolean {
+	const row: Rec = { id: '', kind: 'row', base: '', parent: tableId, data: {}, clocks: {} };
+	return canWrite((id) => (id === row.id ? row : get(id)), actor, row, [fieldId]);
+}
+
 /** The change with what `actor` may not write taken out; null when nothing is left. */
 export function allowed(get: Lookup, actor: Actor, change: Change): Change | null {
 	const refused = lockedKeys(get, actor, change, Object.keys(change.set));

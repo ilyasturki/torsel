@@ -2,7 +2,15 @@ import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
 import type { Actor } from './access.ts';
-import { PATH, SOURCE, allowed, canAddRows, canWrite, lockedKeys } from './access.ts';
+import {
+	PATH,
+	SOURCE,
+	allowed,
+	canAddRows,
+	canEditValues,
+	canWrite,
+	lockedKeys
+} from './access.ts';
 import { addField, createBase, createTable, defaultViews, insertRows } from './actions.ts';
 import { Hlc } from './clock.ts';
 import type { Change } from './model.ts';
@@ -69,6 +77,8 @@ describe('access', () => {
 			s.rating
 		]);
 		expect(canWrite(s.get, person, row, [s.notes])).toBe(true);
+		expect(canEditValues(s.get, person, s.table, s.title)).toBe(false);
+		expect(canEditValues(s.get, person, s.table, s.notes)).toBe(true);
 	});
 
 	it('refuses adding, deleting and restoring rows of a source table', () => {

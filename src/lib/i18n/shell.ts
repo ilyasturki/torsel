@@ -33,6 +33,7 @@ const en = {
 				? 'Session expired, 1 waiting edit stays here until you <signin>sign in again</signin>'
 				: `Session expired, ${count} waiting edits stay here until you <signin>sign in again</signin>`,
 	syncFailed: 'Sync failed, <retry>retry</retry>',
+	syncedRefused: 'Couldn’t change synced data',
 	otherAccount: 'This device holds another account’s data, <erase>erase it</erase>'
 };
 
@@ -73,6 +74,7 @@ const fr: typeof en = {
 						'Session expirée, # modifications attendent ici jusqu’à ce que tu te <signin>reconnectes</signin>'
 				}),
 	syncFailed: 'Échec de la synchro, <retry>réessayer</retry>',
+	syncedRefused: 'Impossible de modifier des données synchronisées',
 	otherAccount: 'Cet appareil contient les données d’un autre compte, <erase>les effacer</erase>'
 };
 

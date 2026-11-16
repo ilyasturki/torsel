@@ -1,3 +1,5 @@
+import type { Actor, Target } from '../core/access.ts';
+import { allowed, canAddRows, canEditValues, canWrite } from '../core/access.ts';
 import type { ChartData } from '../core/chart.ts';
 import { chartData } from '../core/chart.ts';
 import { Hlc } from '../core/clock.ts';
@@ -78,6 +80,7 @@ class TorselApp {
 	public onUndo: ((group: Group) => void) | null = null;
 	public onRedo: ((group: Group) => void) | null = null;
 	public onDecided: ((decisions: Decision[]) => void) | null = null;
+	public actor: Actor = { user: '', path: 'device' };
 
 	private db: LocalDb | undefined;
 	private hlc = new Hlc('local');
@@ -168,12 +171,31 @@ class TorselApp {
 		}
 	}
 
-	/** Stamps changes in order; what takes them back, in the order to stamp it. */
+	private readonly lookup = (id: string): Rec | undefined => this.ws.get(id);
+
+	/** Whether this device may write `keys` of the record: the screens offer no edit `stamp` would drop. */
+	public canWrite(target: Target, keys: string[]): boolean {
+		return canWrite(this.lookup, this.actor, target, keys);
+	}
+
+	public canAddRows(tableId: string): boolean {
+		return canAddRows(this.lookup, this.actor, tableId);
+	}
+
+	public canEditValues(tableId: string, fieldId: string): boolean {
+		return canEditValues(this.lookup, this.actor, tableId, fieldId);
+	}
+
+	/** Stamps in order what the access check lets through; what takes it back, in the order to stamp it. */
 	private stamp(changes: Change[]): Change[] {
 		const inverse: Change[] = [];
 
 		for (const change of changes) {
-			const stamped = this.ws.stamp(change, this.hlc.tick());
+			const kept = allowed(this.lookup, this.actor, change);
+			if (kept === null) {
+				continue;
+			}
+			const stamped = this.ws.stamp(kept, this.hlc.tick());
 			inverse.unshift(stamped.inverse);
 			this.unsaved.add(stamped.rec.id);
 			this.dirty.add(stamped.rec.id);
@@ -310,11 +332,11 @@ class TorselApp {
 		by: Group['by'] = 'user',
 		action?: { thread: string; id: string }
 	): Group | null {
-		if (changes.length === 0) {
+		const inverse = this.stamp(changes);
+		if (inverse.length === 0) {
 			return null;
 		}
 
-		const inverse = this.stamp(changes);
 		const group: Group = {
 			id: (this.seq += 1),
 			label,
