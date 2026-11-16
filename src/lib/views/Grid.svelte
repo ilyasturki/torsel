@@ -28,7 +28,7 @@
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
-	import { nameTaken } from '#lib/core/names.ts';
+	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { freshValue, nativeDateText, nowIso, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
@@ -1210,7 +1210,10 @@
 		} else if (action === 'find') {
 			afterMenu = () => openFind(true);
 		} else if (action === 'duplicate') {
-			const name = names.copy(field.name);
+			const name = numberedName(
+				app.ws.fields(tableId).map((other) => other.name),
+				names.copy(field.name)
+			);
 			applyWithUndo(duplicateField(app.ws, field.id, name).changes, fieldWords.duplicated(name));
 		} else {
 			const label = fieldWords.deleted(field.name);

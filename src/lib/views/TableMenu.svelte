@@ -8,6 +8,7 @@
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import { duplicateTable } from '#lib/core/duplicate.ts';
+	import { numberedName } from '#lib/core/names.ts';
 	import { toCsv } from '#lib/core/csv.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import { names } from '#lib/i18n/names.ts';
@@ -79,7 +80,10 @@
 	};
 
 	function duplicate(): void {
-		const name = names.copy(table.name);
+		const name = numberedName(
+			app.ws.tables(table.base).map((other) => other.name),
+			names.copy(table.name)
+		);
 		const made = duplicateTable(app.ws, table.id, name);
 		applyWithUndo(made.changes, words.tableDuplicated(name));
 		void goto(tableUrl(made.id));
