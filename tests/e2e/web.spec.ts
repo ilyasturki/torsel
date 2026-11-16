@@ -135,6 +135,41 @@ test('a search the server paused goes on in the next request, and a cited answer
 	expect(requests[1].messages.at(-1)?.role).toBe('assistant');
 });
 
+test('a search stopped while paused leaves nothing half done in the next request', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const key = await script(context.request, [
+		{ blocks: [{ type: 'search', id: 'srvtoolu_1', query: 'Dune' }], stop: 'pause_turn' },
+		{
+			blocks: [
+				{ type: 'found', id: 'srvtoolu_1', results: [IMDB] },
+				{ type: 'text', text: 'Rated' }
+			],
+			holdAfter: 'Rated'
+		},
+		{ blocks: [{ type: 'text', text: 'Fine.' }] }
+	]);
+	const table = await seedFilms(context.request);
+	await page.goto(tablePath(table));
+	await ask(page, `${key} what is Dune rated`);
+	await expect.poll(async () => (await seen()).requests.length).toBe(2);
+	await page.getByRole('button', { name: 'Stop' }).click();
+	await expect(page.getByTestId('thread').getByText('Stopped.')).toBeVisible();
+
+	await ask(page, 'and Alien?');
+	await expect(page.getByTestId('thread').getByText('Fine.')).toBeVisible();
+	const { requests } = await seen();
+	const blocks = JSON.stringify(requests[2].messages);
+	expect(blocks).not.toContain('server_tool_use');
+
+	async function seen(): Promise<Seen> {
+		return (await context.request.get(`${FAKE}/__seen?key=${key}`)).json();
+	}
+});
+
 test.describe('fr-FR', () => {
 	test.use({ locale: 'fr-FR' });
 

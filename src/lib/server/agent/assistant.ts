@@ -454,6 +454,8 @@ export async function runTurn(turn: Turn): Promise<void> {
 		}
 	};
 
+	const held: { role: 'assistant'; content: Anthropic.Beta.BetaContentBlockParam[] }[] = [];
+
 	try {
 		for (let round = 0; round < MAX_ROUNDS; round += 1) {
 			const stream = client.beta.messages.stream(
@@ -518,10 +520,11 @@ export async function runTurn(turn: Turn): Promise<void> {
 				return;
 			}
 
-			// A server tool's long turn: handing the reply back as it is lets it go on.
+			// A server tool's long turn: handing the reply back as it is lets it go on. It is stored only
+			// with what completes it, so a stop or a failure leaves no dangling search or fetch.
 			if (message.stop_reason === 'pause_turn') {
 				const paused = echoable(message.content);
-				appendMessages(db, threadId, [{ role: 'assistant', content: paused }]);
+				held.push({ role: 'assistant', content: paused });
 				messages.push({ role: 'assistant', content: paused });
 				continue;
 			}
@@ -539,7 +542,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 						emit({ type: 'text', index, text: block.text });
 					}
 				}
-				appendMessages(db, threadId, [{ role: 'assistant', content }]);
+				appendMessages(db, threadId, [...held.splice(0), { role: 'assistant', content }]);
 				return;
 			}
 
@@ -547,6 +550,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 			if (message.stop_reason === 'max_tokens') {
 				const cut = JSON.stringify({ error: 'the reply ran out of room before this call' });
 				appendMessages(db, threadId, [
+					...held.splice(0),
 					{ role: 'assistant', content },
 					{
 						role: 'user',
@@ -614,6 +618,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 			}
 
 			appendMessages(db, threadId, [
+				...held.splice(0),
 				{ role: 'assistant', content },
 				{ role: 'user', content: results }
 			]);
