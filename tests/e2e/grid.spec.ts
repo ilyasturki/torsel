@@ -649,6 +649,20 @@ test.describe('new rows', () => {
 });
 
 test.describe('columns', () => {
+	test('the add-field head stands alone, with no empty column under it', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await open(page, (await seedPlain(context.request, 3)).path);
+		await expect(page.getByRole('button', { name: 'Add a field' })).toBeVisible();
+		await expect(page.locator('tbody tr').first().locator('td').last()).toHaveAttribute(
+			'colspan',
+			'2'
+		);
+	});
+
 	test('start fitted to their content', async ({ page, context, account }) => {
 		void account;
 		await open(page, (await seedPlain(context.request, 50)).path);

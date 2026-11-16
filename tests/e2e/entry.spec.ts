@@ -14,7 +14,7 @@ const onPhone = (): boolean => test.info().project.name === 'phone';
 const press = (target: Locator): Promise<void> => (onPhone() ? target.tap() : target.click());
 
 /** Two sessions, push on Oct 30 and legs on Oct 31, logged in an Entry keyed by session then exercise. */
-function seedSessions(request: APIRequestContext) {
+function seedSessions(request: APIRequestContext, oneKey = false) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
@@ -52,7 +52,7 @@ function seedSessions(request: APIRequestContext) {
 		const entry = createView(ws, sets.id, {
 			name: 'Log',
 			type: 'entry',
-			config: { match: [session, exercise] }
+			config: { match: oneKey ? [exercise] : [session, exercise] }
 		});
 		commit(entry.changes);
 		return tablePath(sets.id, entry.id);
@@ -60,6 +60,33 @@ function seedSessions(request: APIRequestContext) {
 }
 
 const plan = (page: Page): Locator => page.getByRole('group', { name: 'Last time' });
+
+test('with one key, the rows on the left sit at the top under heads and a line naming the filter', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	await page.goto(await seedSessions(context.request, true));
+	const history = plan(page);
+	const filter = page.getByTestId('entry-filter');
+
+	await expect(filter).toContainText('Exercise');
+	await expect(filter).toContainText('squat');
+	await press(page.getByRole('button', { name: 'bench', exact: true }));
+	await expect(filter).toContainText('bench');
+
+	const rows = history.getByRole('listitem');
+	await expect(rows).toHaveCount(2);
+	for (const head of ['Date', 'Reps', 'Kg']) {
+		await expect(history.getByText(head, { exact: true })).toBeVisible();
+	}
+	await expect(rows.first()).toContainText('Oct 30');
+
+	const top = (await history.boundingBox())?.y ?? 0;
+	const first = (await rows.first().boundingBox())?.y ?? 0;
+	expect(first - top, 'the first row sits under the filter line and the heads').toBeLessThan(120);
+});
 
 test('Entry repeats the last session, set by set, and moves to the next', async ({
 	page,
