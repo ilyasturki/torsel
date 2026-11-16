@@ -2,6 +2,7 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { formatValue } from '#lib/client/format.ts';
 	import { updateRecord } from '#lib/core/actions.ts';
+	import type { ImageRef } from '#lib/core/images.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { isContact, isNumeric } from '#lib/core/model.ts';
 	import { nativeDateText, parseDate, ratingScale } from '#lib/core/values.ts';
@@ -21,8 +22,15 @@
 		field,
 		value = $bindable(),
 		computed = null,
-		id
-	}: { field: FieldDef; value?: Value; computed?: Value; id?: string } = $props();
+		id,
+		onimages
+	}: {
+		field: FieldDef;
+		value?: Value;
+		computed?: Value;
+		id?: string;
+		onimages?: (added: ImageRef[]) => void;
+	} = $props();
 
 	const targets = $derived.by(() => {
 		void app.version;
@@ -112,7 +120,7 @@
 		onchange={(picked) => (value = picked || null)}
 	/>
 {:else if field.type === 'image'}
-	<ImageInput {id} {field} bind:value />
+	<ImageInput {id} {field} bind:value onadd={onimages} />
 {:else if field.type === 'formula'}
 	<p class="flex h-control items-center px-2 text-ink-2">
 		{formatValue(field, computed ?? null)}

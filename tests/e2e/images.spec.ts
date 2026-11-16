@@ -254,6 +254,15 @@ test('the poster wall shows each row’s cover whole, and the lightbox steps thr
 	await expect(
 		page.getByRole('dialog').getByRole('button', { name: 'dune.jpg', exact: true })
 	).toBeVisible();
+
+	const sheet = page.getByRole('dialog');
+	await sheet.locator('input[type="file"]:not([capture])').setInputFiles({
+		name: 'set.jpg',
+		mimeType: 'image/jpeg',
+		buffer: STILL
+	});
+	await expect(sheet.getByRole('button', { name: 'set.jpg', exact: true })).toBeVisible();
+	await expect.poll(() => serverValue(context.request, movies.rows[0])).toHaveLength(3);
 });
 
 /** `seedMovies` in a base made beforehand, whose images are already on the server. */

@@ -4,6 +4,8 @@
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords, insertRows, updateRow } from '#lib/core/actions.ts';
 	import { namesIn, toDisplay } from '#lib/core/formula.ts';
+	import type { ImageRef } from '#lib/core/images.ts';
+	import { imagesOf, imagesValue } from '#lib/core/images.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { freshValue } from '#lib/core/values.ts';
 	import { common } from '#lib/i18n/common.ts';
@@ -113,6 +115,17 @@
 		}
 	}
 
+	/** Images finish preparing after a tap: they go to the row they were added on, even once the sheet has moved to the next. */
+	function addImagesTo(row: string | null, field: FieldDef, added: ImageRef[]): void {
+		if (row === null) {
+			values[field.id] = imagesValue([...imagesOf(values[field.id]), ...added]);
+			return;
+		}
+		const next = imagesValue([...imagesOf(app.ws.live(row)?.data[field.id]), ...added]);
+		applyWithUndo(updateRow(app.ws, row, { [field.id]: next }), words.rowChanged);
+		if (row === current) values[field.id] = next;
+	}
+
 	function set(field: FieldDef, value: Value): void {
 		values[field.id] = value;
 		if (PICKED.has(field.type)) keep(field);
@@ -203,6 +216,7 @@
 
 	<div class="flex flex-col gap-2">
 		{#each fields as field (`${current}-${field.id}`)}
+			{@const row = current}
 			<div
 				class="grid items-center gap-1 sm:grid-cols-props sm:gap-2"
 				onfocusout={(event) => leave(field, event)}
@@ -240,6 +254,7 @@
 							id="row-{field.id}"
 							{field}
 							bind:value={() => values[field.id], (next) => set(field, next ?? null)}
+							onimages={(added) => addImagesTo(row, field, added)}
 						/>
 					</div>
 				{/if}

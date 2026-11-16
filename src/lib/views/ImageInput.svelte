@@ -2,6 +2,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 
 	import { addImages } from '#lib/client/images.svelte.ts';
+	import type { ImageRef } from '#lib/core/images.ts';
 	import { imagesOf, imagesValue } from '#lib/core/images.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { images as words } from '#lib/i18n/images.ts';
@@ -17,8 +18,15 @@
 	let {
 		field,
 		value = $bindable(),
-		id
-	}: { field: FieldDef; value?: Value; id?: string } = $props();
+		id,
+		onadd
+	}: {
+		field: FieldDef;
+		value?: Value;
+		id?: string;
+		/** Takes images added once they are ready, for a caller whose row may have changed meanwhile. */
+		onadd?: (added: ImageRef[]) => void;
+	} = $props();
 
 	// A phone offers its camera; a desktop's "Add" opens the file picker straight away.
 	const touch = new MediaQuery('pointer: coarse', false);
@@ -35,7 +43,9 @@
 		const shown = files.filter((file) => file.type.startsWith('image/') || file.type === '');
 		if (shown.length === 0) return;
 		const added = await addImages(field.base, shown, images.length);
-		if (added.length > 0) value = imagesValue([...imagesOf(value), ...added]);
+		if (added.length === 0) return;
+		if (onadd === undefined) value = imagesValue([...imagesOf(value), ...added]);
+		else onadd(added);
 	}
 
 	function remove(index: number): void {
