@@ -392,6 +392,11 @@ describe('the tokens', () => {
 		expect(refresh(first.refresh_token, { scope: 'read' }).body.scope).toBe('read');
 	});
 
+	it('keep the grant’s access when a refresh names neither read nor write', async () => {
+		const first = await connected('read');
+		expect(refresh(first.refresh_token, { scope: 'offline_access' }).body.scope).toBe('read');
+	});
+
 	it('answer an unknown grant type or a missing field in the OAuth error shape', () => {
 		expect(exchange(db, params({ grant_type: 'password' })).body.error).toBe(
 			'unsupported_grant_type'

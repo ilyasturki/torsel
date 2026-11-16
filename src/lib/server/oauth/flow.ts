@@ -393,7 +393,9 @@ function rotate(db: Database, form: URLSearchParams, now: Date): TokenAnswer {
 			return failure('invalid_target', `the grant is for ${grant.resource}`);
 		}
 		const scope = form.get('scope');
-		const access = scope === null ? grant.access : requestedAccess(scope);
+		const namesAccess =
+			scope !== null && scope.split(' ').some((part) => part === 'read' || part === 'write');
+		const access = namesAccess ? requestedAccess(scope) : grant.access;
 		if (access === 'write' && grant.access === 'read') {
 			return failure('invalid_scope', 'the grant reads only');
 		}
