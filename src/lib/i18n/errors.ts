@@ -3,6 +3,7 @@ import { area } from './runtime.ts';
 // The client capitalises these and ends them with a period.
 const en = {
 	authRequired: 'authentication required',
+	readOnly: 'this token is read-only',
 	databaseUnavailable: 'database unavailable',
 	required: (field: string) => `${field} is required`,
 	tooMany: 'Too many tries. Wait a moment and try again.',
@@ -23,6 +24,7 @@ const en = {
 
 const fr: typeof en = {
 	authRequired: 'connexion requise',
+	readOnly: 'ce jeton est en lecture seule',
 	databaseUnavailable: 'base de données indisponible',
 	required: (field) => `champ requis : ${field}`,
 	tooMany: 'Trop d’essais. Attends un peu et réessaie.',

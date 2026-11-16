@@ -3,7 +3,7 @@ import { error, json } from '@sveltejs/kit';
 import { isBaseId } from '#lib/core/images.ts';
 import { images as words } from '#lib/i18n/images.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
-import { requireCredential } from '#lib/server/http/guards.ts';
+import { requireWriter } from '#lib/server/http/guards.ts';
 import type { IngestProblem } from '#lib/server/images/ingest.ts';
 import { IngestFailed, ingestImage } from '#lib/server/images/ingest.ts';
 
@@ -24,7 +24,7 @@ const REFUSED: Record<IngestProblem, [number, () => string]> = {
 
 /** The image at `{url}`, fetched once by the server and stored in this base like an upload. */
 export const POST: RequestHandler = async ({ locals, params, request }) => {
-	const { user } = requireCredential(locals);
+	const { user } = requireWriter(locals);
 	if (!isBaseId(params.base)) {
 		error(404, 'no such base');
 	}

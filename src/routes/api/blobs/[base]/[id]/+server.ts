@@ -5,7 +5,7 @@ import { UPLOAD_PART } from '#lib/core/thread.ts';
 import { images as words } from '#lib/i18n/images.ts';
 import { storageLimit } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
-import { requireCredential } from '#lib/server/http/guards.ts';
+import { requireCredential, requireWriter } from '#lib/server/http/guards.ts';
 import type { Refusal } from '#lib/server/images/store.ts';
 import { readImage, receiveImagePart } from '#lib/server/images/store.ts';
 
@@ -47,7 +47,7 @@ export const GET: RequestHandler = ({ locals, params }) => {
 
 /** One part of an image at `offset`; the last one stores it, under its sha-256, once its bytes prove to be an image. */
 export const POST: RequestHandler = async ({ locals, params, request, url }) => {
-	const { user } = requireCredential(locals);
+	const { user } = requireWriter(locals);
 	const { baseId, id } = target(params);
 	const size = Number(url.searchParams.get('size'));
 	const offset = Number(url.searchParams.get('offset'));
