@@ -3,6 +3,7 @@
 	import { flushSync, onDestroy, onMount, untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { fillColumn } from '#lib/client/autofill.svelte.ts';
 	import { fresh } from '#lib/client/assistant.svelte.ts';
 	import {
 		affixes,
@@ -1303,6 +1304,8 @@
 				insertAt = { anchor, at: index + (action === 'insert-right' ? 1 : 0) };
 				inserting = true;
 			};
+		} else if (action === 'fill') {
+			void fillColumn(field.id);
 		} else if (action === 'settings') {
 			afterMenu = () => {
 				fieldId = field.id;

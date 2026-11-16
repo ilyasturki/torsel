@@ -7,6 +7,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { assistant, checkAvailability, resumeThread } from '#lib/client/assistant.svelte.ts';
+	import { watchNewRows } from '#lib/client/autofill.svelte.ts';
 	import { tableBySlug, viewBySlug } from '#lib/client/directory.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { AUTHORIZE, HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
@@ -42,6 +43,8 @@
 	markDocumentLocale();
 
 	onMount(followOtherTabs);
+
+	onMount(watchNewRows);
 
 	onMount(() => {
 		if (!dev && !import.meta.env.APP_BUILD && 'serviceWorker' in navigator) {

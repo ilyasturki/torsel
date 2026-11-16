@@ -1,3 +1,4 @@
+import { canFill, promptToStored } from '../../core/autofill.ts';
 import { z } from 'zod';
 
 import { assistant as words } from '../../i18n/assistant.ts';
@@ -414,6 +415,26 @@ const FIELD = z.strictObject({
 });
 
 type FieldInput = z.infer<typeof FIELD>;
+
+function fillSet(
+	ws: Workspace,
+	field: FieldDef,
+	type: FieldDef['type'],
+	fill: { prompt: string; web?: boolean; new_rows?: boolean } | null
+): Value {
+	if (fill === null) return null;
+	if (!canFill(type)) throw new ToolError(`a ${type} field can't be filled by AI`);
+	const fields = ws.fields(field.table);
+	const prompt = promptToStored(fill.prompt.trim(), fields);
+	const unknown = [...prompt.replace(/\{\{[a-z]_[a-z0-9]+\}\}/gu, '').matchAll(/\{([^{}]+)\}/gu)];
+	if (unknown.length > 0) {
+		throw new ToolError(
+			`no field named ${unknown.map((match) => `"${match[1]}"`).join(', ')}; the fields are ${fields.map((other) => `"${other.name}"`).join(', ')}`
+		);
+	}
+	const auto = fill.new_rows === true;
+	return { prompt, web: fill.web === true, auto, since: auto ? Date.now() : 0 };
+}
 
 function fieldSpec(ws: Workspace, baseId: string, input: FieldInput, tableId?: string): FieldSpec {
 	const spec: FieldSpec = {
@@ -1181,7 +1202,23 @@ export const TOOLS: Tool[] = [
 				`every choice, in order: a name, or {name, color} to set its colour (${DATA_COLORS.join(', ')}); a name alone keeps the colour it has; one left out is removed`
 			),
 			formula: z.string().optional(),
-			description: z.string().optional()
+			description: z.string().optional(),
+			fill: z
+				.strictObject({
+					prompt: z
+						.string()
+						.min(1)
+						.describe(
+							'what to write for each row, other fields named in braces: IMDb rating of {Title}'
+						),
+					web: z.boolean().optional().describe('search the web for each value'),
+					new_rows: z.boolean().optional().describe('fill rows added from now on, on their own')
+				})
+				.nullable()
+				.optional()
+				.describe(
+					'have a model fill this field per row from a prompt; the person fills its empty cells from the column menu. null turns it off'
+				)
 		}),
 		output: z.strictObject({ updated: z.string(), lost: z.number() }),
 		run: async (
@@ -1196,6 +1233,7 @@ export const TOOLS: Tool[] = [
 				choices?: ChoiceInput[];
 				formula?: string;
 				description?: string;
+				fill?: { prompt: string; web?: boolean; new_rows?: boolean } | null;
 			}
 		) => {
 			const base = findBase(ctx.ws, input.base);
@@ -1206,6 +1244,7 @@ export const TOOLS: Tool[] = [
 			if (input.name !== undefined)
 				set.name = freeName(ctx.ws.fields(table.id), input.name, 'field', table.name, field.id);
 			if (input.description !== undefined) set.description = input.description;
+			if (input.fill !== undefined) set.fill = fillSet(ctx.ws, field, type, input.fill);
 			let expr: string | null = null;
 			if (input.formula !== undefined) {
 				if (type !== 'formula') throw new ToolError(`"${field.name}" is not a computed field`);

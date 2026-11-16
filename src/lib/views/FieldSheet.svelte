@@ -2,10 +2,13 @@
 	import { untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { assistant } from '#lib/client/assistant.svelte.ts';
+	import { me } from '#lib/client/session.svelte.ts';
 	import { currencyFor, formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import { readFormula } from '#lib/client/formula.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
+	import { canFill } from '#lib/core/autofill.ts';
 	import { nameTaken } from '#lib/core/names.ts';
 	import { namesIn, toDisplay } from '#lib/core/formula.ts';
 	import type {
@@ -33,6 +36,7 @@
 	import { checkbox, input } from '#lib/ui/styles.ts';
 
 	import { typeLabel, typeOptions } from './field-types.ts';
+	import FillSettings from './FillSettings.svelte';
 	import FormulaInput from './FormulaInput.svelte';
 
 	let {
@@ -571,6 +575,10 @@
 		<Field label={words.description}>
 			<input class={input} bind:value={description} onblur={apply} />
 		</Field>
+
+		{#if existing !== undefined && existing.type === type && canFill(type) && assistant.available === true && me.account}
+			<FillSettings field={existing} />
+		{/if}
 
 		{#if problem}
 			<p class="rounded-box bg-tint p-2" role="alert">{problem}</p>

@@ -120,6 +120,17 @@ export type FieldDef = {
 	result: ResultType | null;
 	// Nobody has chosen a type yet: the first values settle it.
 	auto: boolean;
+	// The model fills it per row from a prompt over the row's other fields.
+	fill: FillSpec | null;
+};
+
+/** A field the model fills per row: `prompt` names other fields as {{field id}}. */
+export type FillSpec = {
+	prompt: string;
+	web: boolean;
+	// New rows get their value on their own, once their inputs are in: rows made from `since` (ms) on.
+	auto: boolean;
+	since: number;
 };
 
 export const FORMAT_KEYS = [

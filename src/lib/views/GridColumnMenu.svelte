@@ -9,12 +9,15 @@
 		| 'find'
 		| 'duplicate'
 		| 'settings'
+		| 'fill'
 		| 'delete';
 </script>
 
 <script lang="ts">
+	import { canFill } from '#lib/core/autofill.ts';
 	import type { FieldDef, FieldType } from '#lib/core/model.ts';
 	import { common } from '#lib/i18n/common.ts';
+	import { assistant as assistantWords } from '#lib/i18n/assistant.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -84,6 +87,9 @@
 		{ action: 'hide', label: words.hide, icon: 'eye-off' },
 		{ action: 'fit', label: words.fitAll, icon: 'fit' },
 		{ action: 'find', label: words.findReplace, icon: 'search', shortcut: keys('mod', 'h') },
+		...(field !== undefined && field.fill !== null && canFill(field.type)
+			? [{ action: 'fill', label: assistantWords.fillEmpty, icon: 'spark' } as const]
+			: []),
 		{ action: 'settings', label: words.fieldSettings, icon: 'settings' },
 		'gap',
 		{ action: 'delete', label: common.delete, icon: 'x' }

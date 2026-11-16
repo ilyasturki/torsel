@@ -1279,6 +1279,36 @@ exports[`lists the same tools in every era 1`] = `
           "description": "name or id of the field",
           "type": "string",
         },
+        "fill": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "new_rows": {
+                  "description": "fill rows added from now on, on their own",
+                  "type": "boolean",
+                },
+                "prompt": {
+                  "description": "what to write for each row, other fields named in braces: IMDb rating of {Title}",
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "web": {
+                  "description": "search the web for each value",
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "prompt",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+          "description": "have a model fill this field per row from a prompt; the person fills its empty cells from the column menu. null turns it off",
+        },
         "formula": {
           "type": "string",
         },

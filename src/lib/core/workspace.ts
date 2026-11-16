@@ -1,3 +1,4 @@
+import { fillOf } from './autofill.ts';
 import type { Clock } from './clock.ts';
 import { merge, sameRec } from './merge.ts';
 import type {
@@ -116,7 +117,8 @@ export function fieldDef(rec: Rec): FieldDef {
 		seconds: rec.data.seconds === true,
 		dateStyle: oneOf(DATE_STYLES, rec.data.dateStyle),
 		result: oneOf(RESULT_TYPES, rec.data.result),
-		auto: rec.data.auto === true
+		auto: rec.data.auto === true,
+		fill: fillOf(rec.data.fill)
 	};
 }
 

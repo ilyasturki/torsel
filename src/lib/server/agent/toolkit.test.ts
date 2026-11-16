@@ -198,6 +198,42 @@ describe('assistant tools', () => {
 		expect(await call('add_rows', { base: 'x' })).toEqual({ error: expect.any(String) });
 	});
 
+	it('sets a field to fill by AI from a prompt over named fields, and turns it off', async () => {
+		const { call, ctx } = session();
+		const made = (await call('create_table', {
+			name: 'Films',
+			fields: [
+				{ name: 'Title', type: 'text' },
+				{ name: 'IMDb', type: 'number' }
+			]
+		})) as { id: string; base: string };
+		const [title, imdb] = ctx.ws.fields(made.id);
+		expect(
+			await call('update_field', {
+				base: made.base,
+				table: made.id,
+				field: 'IMDb',
+				fill: { prompt: 'IMDb rating of {Title}', web: true }
+			})
+		).toEqual({ updated: imdb.id, lost: 0 });
+		expect(ctx.ws.field(imdb.id)?.fill).toEqual({
+			prompt: `IMDb rating of {{${title.id}}}`,
+			web: true,
+			auto: false,
+			since: 0
+		});
+		expect(
+			await call('update_field', {
+				base: made.base,
+				table: made.id,
+				field: 'IMDb',
+				fill: { prompt: 'Rating of {Name}' }
+			})
+		).toEqual({ error: 'no field named "Name"; the fields are "Title", "IMDb"' });
+		await call('update_field', { base: made.base, table: made.id, field: 'IMDb', fill: null });
+		expect(ctx.ws.field(imdb.id)?.fill).toBeNull();
+	});
+
 	it('sets a date look and a formula result format, as the field sheet does', async () => {
 		const { call, ctx } = session();
 		const made = (await call('create_table', {

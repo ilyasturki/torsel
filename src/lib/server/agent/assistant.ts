@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
+import { promptToDisplay } from '../../core/autofill.ts';
 import { namesIn, toDisplay } from '../../core/formula.ts';
 import { Hlc } from '../../core/clock.ts';
 import { stampAll } from '../../core/diff.ts';
@@ -117,7 +118,11 @@ function fieldLine(ws: Workspace, field: FieldDef): string {
 							? `: ${toDisplay(field.expr, namesIn(ws, field.base))}`
 							: '';
 	const about = field.description === null ? '' : `, "${field.description}"`;
-	return `${field.name} (${field.id}, ${field.type}${extra}${about})`;
+	const filled =
+		field.fill === null
+			? ''
+			: `, filled by AI from "${promptToDisplay(field.fill.prompt, ws.fields(field.table))}"${field.fill.auto ? ' on new rows' : ''}`;
+	return `${field.name} (${field.id}, ${field.type}${extra}${about}${filled})`;
 }
 
 export function cellText(
