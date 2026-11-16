@@ -67,7 +67,10 @@ export function sourceHost(db: Database, userId: string): SourceHost {
 				if (patch.url !== undefined && splitKey(patch.url, authOf(source), null).secret !== null) {
 					throw new SourceFailure('inline');
 				}
+				// Limited before the write, as the REST PATCH: a link saved but never read leaves a paused source asleep.
+				if (patch.url !== undefined) within('refresh', userId);
 				await patchSource(db, userId, table, patch);
+				return patch.url === undefined ? null : runSource(db, userId, table);
 			}),
 		stop: (table) =>
 			coded(async () => {

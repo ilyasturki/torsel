@@ -13,6 +13,8 @@ import { runMigrations } from '../db/migrate.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
 import { sourceHost } from '../sources/host.ts';
+import { overLimit } from '../sources/limits.ts';
+import { readSource, updateSource } from '../sources/store.ts';
 import type { McpCaller } from './mcp.ts';
 import type { SourceHost } from './source-tools.ts';
 import { serveMcp } from './mcp.ts';
@@ -167,6 +169,43 @@ describe('mcp source tools inside the account turn', () => {
 		const answer = await within(tool('update_source', { table: 'Movies', url: `${link}?v=2` }));
 		expect(answer.isError, answer.text).toBeFalsy();
 		await laterWriteLands();
+	});
+});
+
+describe('update_source with a new link', () => {
+	function movieTable(): string {
+		const ws = loadWorkspace(db, userId);
+		const table = ws
+			.bases()
+			.flatMap((base) => ws.tables(base.id))
+			.find((t) => t.name === 'Movies');
+		return table?.id ?? '';
+	}
+
+	function refreshes(count: number): void {
+		for (let hit = 0; hit < count; hit += 1) overLimit('refresh', userId);
+	}
+
+	it('is refused before the link is saved once the minute’s reads are used, so a paused source keeps its link', async () => {
+		await linked();
+		const table = movieTable();
+		updateSource(db, userId, table, { nextAt: null });
+		refreshes(20);
+		const answer = await within(tool('update_source', { table: 'Movies', url: `${link}?v=2` }));
+		expect(answer.isError).toBe(true);
+		expect(answer.text).toContain('too many links read');
+		const source = readSource(db, userId, table);
+		expect(source?.url).toBe(link);
+		expect(source?.nextAt).toBeNull();
+	});
+
+	it('takes one read from the minute’s budget: the last one left saves and reads the link', async () => {
+		await linked();
+		const table = movieTable();
+		refreshes(19);
+		const answer = await within(tool('update_source', { table: 'Movies', url: `${link}?v=2` }));
+		expect(answer.isError, answer.text).toBeFalsy();
+		expect(readSource(db, userId, table)?.url).toBe(`${link}?v=2`);
 	});
 });
 

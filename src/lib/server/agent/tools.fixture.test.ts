@@ -96,9 +96,13 @@ function fakeSources(ws: Workspace, linked: Set<string>): SourceHost {
 			known(table);
 			return Promise.resolve({ ok: true, added: 0, changed: 1, removed: 0, problem: null });
 		},
-		update: (table) => {
+		update: (table, patch) => {
 			known(table);
-			return Promise.resolve();
+			return Promise.resolve(
+				patch.url === undefined
+					? null
+					: { ok: true, added: 0, changed: 1, removed: 0, problem: null }
+			);
 		},
 		stop: (table) => {
 			known(table);

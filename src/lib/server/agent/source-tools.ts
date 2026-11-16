@@ -49,7 +49,11 @@ export type SourceHost = {
 		request: SourceRequest
 	): Promise<{ table: string; base: string; changes: Change[]; run: RunResult }>;
 	refresh(table: string): Promise<RunResult>;
-	update(table: string, patch: { every?: Every; missing?: Missing; url?: string }): Promise<void>;
+	/** A new url is read at once: the run comes back, else null. */
+	update(
+		table: string,
+		patch: { every?: Every; missing?: Missing; url?: string }
+	): Promise<RunResult | null>;
 	stop(table: string): Promise<void>;
 };
 
@@ -442,7 +446,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 				if (input.stop === true) {
 					await hosted(() => sources.stop(table.id), fail);
 				} else {
-					await hosted(
+					const run = await hosted(
 						() =>
 							sources.update(table.id, {
 								every: input.every,
@@ -451,8 +455,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 							}),
 						fail
 					);
-					if (input.url !== undefined) {
-						const run = await hosted(() => sources.refresh(table.id), fail);
+					if (run !== null) {
 						if (!run.ok) return { updated: table.id, problem: problemText(run.problem) };
 						const { added, changed, removed } = run;
 						return { updated: table.id, added, changed, removed };
