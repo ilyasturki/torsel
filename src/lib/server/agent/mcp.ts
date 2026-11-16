@@ -139,6 +139,9 @@ export async function execute(
 			ws,
 			actor,
 			commit(action) {
+				if (action.applied !== true && !inTurn) {
+					throw new Error(`${tool.name} runs outside the account turn: only its host writes`);
+				}
 				if (images.missed()) {
 					throw new Error(`${tool.name} wrote before its image links were fetched`);
 				}

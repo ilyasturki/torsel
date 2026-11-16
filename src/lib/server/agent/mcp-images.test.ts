@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../core/actions.ts';
 import type { Workspace } from '../../core/workspace.ts';
@@ -13,7 +14,8 @@ import { createDatabase } from '../db/client.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
 import type { McpCaller } from './mcp.ts';
-import { serveMcp } from './mcp.ts';
+import { execute, serveMcp } from './mcp.ts';
+import type { Tool } from './toolkit.ts';
 
 function png(w: number, h: number): Buffer {
 	const head = Buffer.alloc(64);
@@ -215,5 +217,29 @@ describe('mcp writes with image links', () => {
 		expect(titled(ws, 'Alien')?.[field(ws, 'Poster')]).toMatchObject([{ type: 'image/png' }]);
 		expect(titled(ws, 'Alien')?.[field(ws, 'Still')]).toMatchObject([{ type: 'image/png' }]);
 		expect([...hits].sort()).toEqual(['/alien-poster.png', '/alien.png', '/dune.png']);
+	});
+});
+
+describe('a tool that runs outside the account turn', () => {
+	it('cannot write from the workspace it loaded', async () => {
+		const stale: Tool = {
+			name: 'stale_write',
+			title: 'Stale write',
+			description: 'Writes a row without its host.',
+			input: z.strictObject({}),
+			output: z.strictObject({}),
+			kind: 'write',
+			destructive: false,
+			idempotent: false,
+			openWorld: true,
+			run: (ctx) => {
+				const made = insertRows(ctx.ws, table, [{ [field(ctx.ws, 'Title')]: 'Stale' }]);
+				ctx.commit({ summary: 'Stale', changes: made.changes });
+				return {};
+			}
+		};
+		const { outcome } = await execute(db, caller, stale, {}, 'mcp');
+		expect(outcome.ok).toBe(false);
+		expect(loadWorkspace(db, userId).rows(table)).toEqual([]);
 	});
 });
