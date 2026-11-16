@@ -186,7 +186,7 @@ const fr: typeof en = {
 			other: 'moyenne glissante sur # jours'
 		}),
 	chartLine: (measured, dated, field) =>
-		`<agg>.</agg>${measured ? ` ${/^[aeiouyhàâéèêëîïôûù]/iu.test(field) ? 'd’' : 'de '}<y>.</y>` : ''} par <x>.</x>${dated ? ' par <bucketToken>.</bucketToken>' : ''}`,
+		`<agg>.</agg>${measured ? ` ${/^[aeiouyhàâéèêëîïôûù]/iu.test(field) ? 'd’' : 'de '}<y>.</y>` : ''}${dated ? ' par <bucketToken>.</bucketToken> selon <x>.</x>' : ' par <x>.</x>'}`,
 	chartColour: (field) => (field === null ? 'Une couleur' : `Couleur selon ${field}`),
 	noValue: 'Sans valeur',
 	total: 'Total',

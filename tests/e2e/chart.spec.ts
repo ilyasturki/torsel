@@ -104,7 +104,7 @@ test.describe('in French', () => {
 		void account;
 		await page.goto(await seedWeighIns(context.request));
 		await expect(page.getByTestId('chart-line')).toHaveText(
-			/^Moyenne\s*de\s*Kg\s*par\s*Day\s*par\s*jour\s*$/u
+			/^Moyenne\s*de\s*Kg\s*par\s*jour\s*selon\s*Day\s*$/u
 		);
 	});
 });
