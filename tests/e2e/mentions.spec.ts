@@ -56,19 +56,19 @@ test('@ lists tables, then the open table’s fields; a picked table’s schema 
 
 	await asker.pressSequentially('compare with @');
 	await expect(picker.getByRole('option')).toHaveText([
-		/^Lifts/u,
-		/^Weigh-ins/u,
-		/^Exercise/u,
-		/^Kg/u
+		/Lifts Gym/u,
+		/Weigh-ins Gym/u,
+		/Exercise Lifts/u,
+		/Kg Lifts/u
 	]);
 	await asker.pressSequentially('we');
-	await expect(picker.getByRole('option')).toHaveText([/^Weigh-ins/u]);
+	await expect(picker.getByRole('option')).toHaveText([/Weigh-ins Gym/u]);
 	await asker.press('Enter');
 	await expect(asker).toHaveValue('compare with @Weigh-ins ');
 	await expect(picker).toHaveCount(0);
 
 	await asker.pressSequentially('@k');
-	await expect(picker.getByRole('option')).toHaveText([/^Kg/u]);
+	await expect(picker.getByRole('option')).toHaveText([/Kg Lifts/u]);
 	await asker.press('Escape');
 	await expect(picker).toHaveCount(0);
 	await expect(asker).toBeVisible();
