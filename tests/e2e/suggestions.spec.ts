@@ -2,7 +2,7 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, script, seed, tablePath, test } from './harness.ts';
+import { expect, openAsk as tapAsk, script, seed, tablePath, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -32,7 +32,7 @@ function seedSets(request: APIRequestContext, key: string): Promise<string> {
 async function openAsk(page: Page, label = 'Ask'): Promise<void> {
 	const asker = page.locator('#ask-input');
 	if (!(await asker.isVisible())) {
-		await page.getByRole('button', { name: new RegExp(`^${label}`, 'u') }).click();
+		await tapAsk(page, label);
 	}
 }
 

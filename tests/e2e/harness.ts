@@ -92,6 +92,7 @@ export async function tableMenu(page: Page, item: string): Promise<void> {
 
 /** Picks from the home's "…": a menu from `sm` up, with a submenu per base; a sheet on a phone, a group per base. */
 export async function homeMenu(page: Page, item: string, baseName?: string): Promise<void> {
+	await expect(page).toHaveURL(/\/app$/u);
 	await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
 	if (base.info().project.name === 'phone') {
 		const sheet = page.getByRole('dialog');
@@ -385,7 +386,11 @@ export async function expectAsk(page: Page, offered: boolean): Promise<void> {
 }
 
 /** Opens Ask: its button in the header, or the table's sheet on a phone, where the header has no room for it. */
-export async function openAsk(page: Page, label = 'Ask', more = 'More'): Promise<void> {
+export async function openAsk(
+	page: Page,
+	label = 'Ask',
+	more = label === 'Demander' ? 'Plus' : 'More'
+): Promise<void> {
 	if (base.info().project.name === 'phone' && new URL(page.url()).pathname.startsWith('/app/t/')) {
 		await page.getByRole('banner').getByRole('button', { name: more }).click();
 		await page.getByRole('dialog').getByRole('button', { name: label }).click();

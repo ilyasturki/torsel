@@ -36,7 +36,7 @@ function seedFilms(request: APIRequestContext): Promise<string> {
 async function ask(page: Page, text: string, label = 'Ask'): Promise<void> {
 	const asker = page.locator('#ask-input');
 	if (!(await asker.isVisible())) {
-		await page.getByRole('button', { name: new RegExp(`^${label}`, 'u') }).click();
+		await openAsk(page, label);
 	}
 	await asker.fill(text);
 	await asker.press('Enter');

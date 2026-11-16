@@ -60,7 +60,7 @@ test.describe('fr-FR', () => {
 		const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Fait.' }] }]);
 		await page.goto(await seedLifts(context.request));
 		const asker = page.locator('#ask-input');
-		if (!(await asker.isVisible())) await page.getByRole('button', { name: /^Demander/u }).click();
+		if (!(await asker.isVisible())) await openAsk(page, 'Demander');
 		await asker.fill(`${key} bilan`);
 		await asker.press('Enter');
 		await expect(page.getByTestId('thread').getByText('Fait.')).toBeVisible();
