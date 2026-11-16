@@ -7,6 +7,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import names from '../../src/lib/i18n/names.ts';
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import type { ImageRef } from '../../src/lib/core/images.ts';
+import { Hlc } from '../../src/lib/core/clock.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
 
@@ -374,4 +375,170 @@ test.describe('uploads', () => {
 		expect(read.status()).toBe(404);
 		await other.close();
 	});
+});
+
+/** The "Add" button's own file chooser: straight away on a desktop, through Choose an image on a phone. */
+async function chooseImage(
+	page: Page,
+	scope: Locator,
+	name: string,
+	buffer: Buffer
+): Promise<void> {
+	const chooser = page.waitForEvent('filechooser');
+	await scope.getByRole('button', { name: 'Add', exact: true }).click();
+	if (test.info().project.name === 'phone') {
+		await expect(page.getByRole('menuitem', { name: 'Take a photo' })).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Choose an image' }).click();
+	}
+	await (await chooser).setFiles({ name, mimeType: 'image/jpeg', buffer });
+}
+
+test('Entry logs a row with its image, and the next row starts without it', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const made = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Films');
+		commit(base.changes);
+		const table = createTable(
+			ws,
+			base.id,
+			'Watched',
+			[
+				{ name: 'Title', type: 'text' },
+				{ name: 'Poster', type: 'image' }
+			],
+			() => [{ name: names.en.views.entry, type: 'entry', config: { match: [] } }]
+		);
+		commit(table.changes);
+		return { path: tablePath(table.id), table: table.id };
+	});
+	await page.goto(made.path);
+
+	await page.getByLabel('Title').fill('Heat');
+	await chooseImage(page, page.getByRole('group', { name: 'Poster' }), 'heat.jpg', POSTER);
+	await expect(page.getByRole('button', { name: 'heat.jpg', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Add row' }).click();
+
+	await expect(page.getByRole('button', { name: 'heat.jpg', exact: true })).toBeHidden();
+	await expect
+		.poll(async () => {
+			const response = await context.request.post('/api/sync', {
+				...RETRY_RESET,
+				data: { watermark: 0, push: [] }
+			});
+			const { records } = (await response.json()) as { records: Rec[] };
+			const row = records.find((record) => record.kind === 'row' && record.parent === made.table);
+			return Object.values(row?.data ?? {}).find(Array.isArray)?.length ?? 0;
+		})
+		.toBe(1);
+});
+
+test('a dropped image lands in the cell, and the file chooser adds another', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const movies = await seedMovies(context.request);
+	await page.goto(movies.grid);
+	await posterCell(page, 'Dune').click();
+	await page.keyboard.press('Enter');
+	const sheet = page.getByRole('dialog', { name: 'Poster' });
+	const group = sheet.getByRole('group', { name: 'Poster' });
+
+	await group.evaluate(
+		(element, bytes) => {
+			const data = new DataTransfer();
+			data.items.add(new File([new Uint8Array(bytes)], 'dropped.jpg', { type: 'image/jpeg' }));
+			for (const type of ['dragover', 'drop']) {
+				element.dispatchEvent(
+					new DragEvent(type, { dataTransfer: data, bubbles: true, cancelable: true })
+				);
+			}
+		},
+		[...STILL]
+	);
+	await expect(sheet.getByRole('button', { name: 'dropped.jpg', exact: true })).toBeVisible();
+
+	await chooseImage(page, sheet, 'chosen.jpg', POSTER);
+	await expect(sheet.getByRole('button', { name: 'chosen.jpg', exact: true })).toBeVisible();
+	await expect.poll(() => serverValue(context.request, movies.rows[0])).toHaveLength(2);
+});
+
+test('a device on the first local store keeps its unsent rows and takes images', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const ws = new Workspace();
+	const hlc = new Hlc('before-images');
+	const records: Rec[] = [];
+	const commit = (changes: Change[]): void => {
+		for (const change of changes) records.push(ws.stamp(change, hlc.tick()).rec);
+	};
+	const base = createBase(ws, 'Films');
+	commit(base.changes);
+	const table = createTable(
+		ws,
+		base.id,
+		'Movies',
+		[
+			{ name: 'Title', type: 'text' },
+			{ name: 'Poster', type: 'image' }
+		],
+		() => [{ name: names.en.views.grid, type: 'grid', config: {} }]
+	);
+	commit(table.changes);
+	const rows = insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Dune' }]);
+	commit(rows.changes);
+	const latest = new Map(records.map((rec) => [rec.id, rec]));
+
+	await page.goto('/api/health');
+	await page.evaluate(
+		async (json) => {
+			const stored = JSON.parse(json) as { id: string }[];
+			await new Promise((resolve, reject) => {
+				const open = indexedDB.open('torsel', 1);
+				open.onupgradeneeded = () => {
+					open.result.createObjectStore('records', { keyPath: 'id' });
+					open.result.createObjectStore('meta');
+				};
+				open.onerror = () => reject(open.error);
+				open.onsuccess = () => {
+					const tx = open.result.transaction('records', 'readwrite');
+					for (const rec of stored) tx.objectStore('records').put({ id: rec.id, rec, dirty: true });
+					tx.oncomplete = () => {
+						open.result.close();
+						resolve(null);
+					};
+					tx.onerror = () => reject(tx.error);
+				};
+			});
+		},
+		JSON.stringify([...latest.values()])
+	);
+
+	await page.goto(tablePath(table.id));
+	await expect(posterCell(page, 'Dune')).toBeVisible();
+	await expect.poll(() => serverValue(context.request, rows.ids[0])).toBeNull();
+	const pushed = await context.request.post('/api/sync', {
+		...RETRY_RESET,
+		data: { watermark: 0, push: [] }
+	});
+	expect(JSON.stringify(await pushed.json())).toContain('Dune');
+
+	await posterCell(page, 'Dune').click();
+	await page.keyboard.press('Enter');
+	const sheet = page.getByRole('dialog', { name: 'Poster' });
+	await sheet.locator('input[type="file"]:not([capture])').setInputFiles({
+		name: 'dune.jpg',
+		mimeType: 'image/jpeg',
+		buffer: POSTER
+	});
+	await expect(sheet.getByRole('button', { name: 'dune.jpg', exact: true })).toBeVisible();
+	await expect.poll(() => serverValue(context.request, rows.ids[0])).toHaveLength(1);
 });

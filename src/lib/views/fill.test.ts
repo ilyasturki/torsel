@@ -7,6 +7,7 @@ import type { Change, Value } from '#lib/core/model.ts';
 import { Workspace } from '#lib/core/workspace.ts';
 
 import { fillChanges, fillTarget, nextValues } from './fill.ts';
+import { cellReader } from './grid.ts';
 
 describe('series', () => {
 	it('copies one number and continues two', () => {
@@ -241,5 +242,21 @@ describe('the fill handle', () => {
 			right: 1
 		});
 		expect(fillTarget({ ...from, bottom: 9 }, { r: 10, c: 1 }, last)).toBeNull();
+	});
+});
+
+describe('image cells', () => {
+	const poster = { id: 'a'.repeat(64), type: 'image/jpeg', w: 342, h: 513, size: 9000 };
+
+	it('fill copies the images themselves', () => {
+		expect(nextValues('image', [[poster]], 2)).toEqual([[poster], [poster]]);
+	});
+
+	it('take no text but a blank, which clears them', () => {
+		const read = cellReader(new Workspace());
+		const field = { type: 'image' as const, choices: [], target: null, unit: null };
+
+		expect(read(field as never, 'dune.jpg')).toBeUndefined();
+		expect(read(field as never, '')).toBeNull();
 	});
 });

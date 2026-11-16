@@ -1,4 +1,13 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import type { BrowserContext, Page } from '@playwright/test';
+
+import { createBase, createTable, insertRows } from '../../src/lib/core/actions.ts';
+import { Hlc } from '../../src/lib/core/clock.ts';
+import type { Change, Rec } from '../../src/lib/core/model.ts';
+import { Workspace } from '../../src/lib/core/workspace.ts';
 
 import home from '../../src/lib/i18n/home.ts';
 import names from '../../src/lib/i18n/names.ts';
@@ -10,6 +19,7 @@ import {
 	freshEmail,
 	mailTo,
 	newAccount,
+	openTable,
 	passwordField,
 	passwordSignIn,
 	RETRY_RESET,
@@ -228,6 +238,68 @@ test('a sign-up on the phone keeps its password: the claim comes back with the c
 		data: { ...account, client: 'device', label: 'check' }
 	});
 	expect(login.status()).toBe(201);
+});
+
+test('an image reaches the phone with its device token, from a server on another origin', async ({
+	page,
+	context
+}) => {
+	const poster = readFileSync(join(import.meta.dirname, 'images/poster.jpg'));
+	const id = createHash('sha256').update(poster).digest('hex');
+	await connectAndSignIn(page, newAccount());
+	const headers = await deviceHeaders(page);
+
+	const ws = new Workspace();
+	const hlc = new Hlc('app-images');
+	const records = new Map<string, Rec>();
+	const commit = (changes: Change[]): void => {
+		for (const change of changes) {
+			const { rec } = ws.stamp(change, hlc.tick());
+			records.set(rec.id, rec);
+		}
+	};
+	const base = createBase(ws, 'Films');
+	commit(base.changes);
+	const table = createTable(
+		ws,
+		base.id,
+		'Movies',
+		[
+			{ name: 'Title', type: 'text' },
+			{ name: 'Poster', type: 'image' }
+		],
+		() => [{ name: names.en.views.grid, type: 'grid', config: {} }]
+	);
+	commit(table.changes);
+	const ref = { id, type: 'image/jpeg', w: 342, h: 513, size: poster.length, name: 'dune.jpg' };
+	commit(
+		insertRows(ws, table.id, [{ [table.fieldIds[0]]: 'Dune', [table.fieldIds[1]]: [ref] }]).changes
+	);
+
+	const stored = await context.request.post(
+		`${SERVER}/api/blobs/${base.id}/${id}?size=${poster.length}&offset=0`,
+		{
+			...RETRY_RESET,
+			headers: { ...headers, 'content-type': 'application/octet-stream' },
+			data: poster
+		}
+	);
+	expect(stored.ok()).toBe(true);
+	const synced = await context.request.post(`${SERVER}/api/sync`, {
+		...RETRY_RESET,
+		headers,
+		data: { watermark: 0, push: [...records.values()] }
+	});
+	expect(synced.ok()).toBe(true);
+
+	await page.goto('/app');
+	await openTable(page, 'Movies');
+	const image = page
+		.getByRole('row')
+		.filter({ hasText: 'Dune' })
+		.getByRole('img', { name: 'dune.jpg' });
+	await expect(image).toBeVisible();
+	await expect(image).toHaveAttribute('src', /^blob:/u);
 });
 
 test.describe('on a phone in French', () => {
