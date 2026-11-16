@@ -842,9 +842,15 @@
 			return;
 		}
 		const matrix = fillSelection([[draft]], box.bottom - box.top + 1, right - left + 1);
-		const paste = pasteChanges(app.ws, tableId, fields, rows, { row: box.top, col: left }, matrix);
+		const paste = pasteChanges(app.ws, tableId, fields, rows, { row: box.top, col: left }, matrix, {
+			locked,
+			adds
+		});
 		editing = null;
-		applyWithUndo(paste.changes, words.filled(paste.rows * paste.cols - paste.skipped));
+		applyWithUndo(
+			paste.changes,
+			words.filled(paste.rows * paste.cols - paste.skipped - paste.kept)
+		);
 		table?.focus({ preventScroll: true });
 	}
 
@@ -1575,7 +1581,8 @@
 			const row = rows[r];
 			const field = fields[c];
 			const before = row.data[field.id];
-			if (!TEXT_LIKE.has(field.type) || typeof before !== 'string') continue;
+			if (!TEXT_LIKE.has(field.type) || locked.has(field.id) || typeof before !== 'string')
+				continue;
 			const after = before.replace(pattern, replacement);
 			if (after === before) continue;
 			const value = read(field, after);
