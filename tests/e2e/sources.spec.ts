@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { APIRequestContext, Page } from '@playwright/test';
 
+import type { Rec } from '../../src/lib/core/model.ts';
+
 import type { FakeAnswer, FakeHit } from './fake-sources.ts';
 import { askButton, cell, expect, script, tablePath, test, workbook } from './harness.ts';
 
@@ -280,5 +282,59 @@ test.describe('tables from a link', () => {
 		await card.getByRole('link', { name: 'Show' }).click();
 		await expect(cell(page, 'Alien')).toBeVisible();
 		await expect(cell(page, 'Alien')).toHaveAttribute('aria-readonly', 'true');
+	});
+
+	test('the card undoes a linked table, which stops its runs, and redoes it', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const links = await serve(context.request, { '/movies.csv': { body: MOVIES } });
+		const key = await script(context.request, [
+			{
+				blocks: [
+					{
+						type: 'tool',
+						id: 'toolu_public',
+						name: 'connect_source',
+						input: { url: links.url('/movies.csv'), name: 'Watched' }
+					}
+				]
+			},
+			{ blocks: [{ type: 'text', text: 'Linked.' }] }
+		]);
+		await page.goto('/app');
+		await askButton(page).click();
+		await page.getByPlaceholder('Ask about your tables').fill(`${key} link the public list`);
+		await page.getByRole('button', { name: 'Send' }).click();
+		await expect(page.getByTestId('thread').getByText('Linked.')).toBeVisible();
+		const card = page.getByTestId('change');
+		await expect(card.getByRole('link', { name: 'Show' })).toBeVisible();
+		const stored = async (): Promise<Rec | undefined> => {
+			const pulled = await context.request.post('/api/sync', { data: { watermark: 0, push: [] } });
+			const { records } = (await pulled.json()) as { records: Rec[] };
+			return records.find((rec) => rec.kind === 'table' && rec.data.name === 'Watched');
+		};
+		const table = (await stored())?.id ?? '';
+
+		const refresh = async (): Promise<unknown> =>
+			(await (await context.request.post(`/api/sources/${table}/refresh`, { data: {} })).json())
+				.outcome;
+		// Whether the server holds the table deleted, once the device has pushed its step.
+		const deleted = async (): Promise<boolean> => (await stored())?.data._del === true;
+
+		await card.getByRole('button', { name: 'Undo' }).click();
+		await expect(card).toHaveAttribute('data-status', 'undone');
+		await expect.poll(deleted).toBe(true);
+		expect(await refresh()).toEqual({ ok: false, problem: 'gone' });
+
+		await card.getByRole('button', { name: 'Redo' }).click();
+		await expect(card).toHaveAttribute('data-status', 'applied');
+		await expect.poll(deleted).toBe(false);
+		expect(await refresh()).toMatchObject({ ok: true });
+		await card.getByRole('link', { name: 'Show' }).click();
+		await expect(cell(page, 'Alien')).toHaveAttribute('aria-readonly', 'true');
+		await expect(page.getByRole('columnheader', { name: 'Title', exact: true })).toBeVisible();
 	});
 });
