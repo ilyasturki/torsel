@@ -19,11 +19,14 @@ import { z } from 'zod';
 import type { Actor, Path } from '../../core/access.ts';
 import { Hlc } from '../../core/clock.ts';
 import { stampAll } from '../../core/diff.ts';
+import type { ImageRef } from '../../core/images.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeUndoable } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
+import type { ImageHost } from '../images/host.ts';
 import { imageHost } from '../images/host.ts';
+import { IngestFailed, ingestAll } from '../images/ingest.ts';
 import { sourceHost } from '../sources/host.ts';
 import { perMinute } from '../auth/rate-limit.ts';
 import type { Credential } from '../auth/session.ts';
@@ -82,6 +85,43 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 	return (await execute(db, caller, tool, input, 'mcp')).outcome;
 }
 
+/** Image links answered from what was fetched before the turn: a link not fetched yet is noted and refused as busy. */
+function fetchedFirst(host: ImageHost): {
+	host: ImageHost;
+	missed(): boolean;
+	fetchMissed(): Promise<void>;
+} {
+	const got = new Map<string, ImageRef | IngestFailed>();
+	const missed = new Map<string, { baseId: string; url: string }>();
+	return {
+		host: {
+			...host,
+			fromUrl(baseId, url) {
+				const key = JSON.stringify([baseId, url]);
+				const known = got.get(key);
+				if (known === undefined) {
+					missed.set(key, { baseId, url });
+					return Promise.reject(new IngestFailed('busy'));
+				}
+				return known instanceof IngestFailed ? Promise.reject(known) : Promise.resolve(known);
+			}
+		},
+		missed: () => missed.size > 0,
+		async fetchMissed() {
+			const wanted = new Map(missed);
+			missed.clear();
+			const fetched = await ingestAll([...wanted.keys()], (key) => {
+				const { baseId, url } = wanted.get(key) as { baseId: string; url: string };
+				return host.fromUrl(baseId, url);
+			});
+			for (const [key, result] of fetched) got.set(key, result);
+		}
+	};
+}
+
+// A workspace changed between passes can name new links; past this many passes the call answers busy.
+const FETCH_PASSES = 3;
+
 /** Runs a tool for a credential outside the app; the workspace it ran on, writes included. */
 export async function execute(
 	db: Database,
@@ -90,6 +130,8 @@ export async function execute(
 	input: unknown,
 	path: Path
 ): Promise<{ outcome: Outcome; ws: Workspace }> {
+	const inTurn = tool.kind !== 'read' && tool.openWorld !== true;
+	const images = fetchedFirst(imageHost(db, caller.userId));
 	const work = async () => {
 		const ws = loadWorkspace(db, caller.userId);
 		const actor: Actor = { user: caller.userId, path };
@@ -97,6 +139,9 @@ export async function execute(
 			ws,
 			actor,
 			commit(action) {
+				if (images.missed()) {
+					throw new Error(`${tool.name} wrote before its image links were fetched`);
+				}
 				// A linked table is already written by the server: only its card is recorded.
 				const before =
 					action.applied === true
@@ -116,15 +161,20 @@ export async function execute(
 				}
 			},
 			sources: sourceHost(db, caller.userId),
-			images: imageHost(db, caller.userId)
+			images: images.host
 		};
 		return { outcome: await runTool(ctx, tool, input), ws };
 	};
 	// Writes load and commit inside the account's turn, so no call overwrites what another just wrote;
-	// a tool that fetches takes the turn only around its own writes, so a slow site never stalls the account;
+	// the image links a write names are fetched between turns, then it runs again, so a slow site never stalls the account;
+	// an open-world tool takes the turn only around its own writes;
 	// a token's queries take turns, so one token never holds every SQL worker.
-	if (tool.kind !== 'read' && tool.openWorld !== true) {
-		return serially(caller.userId, work);
+	if (inTurn) {
+		for (let pass = 1; ; pass += 1) {
+			const done = await serially(caller.userId, work);
+			if (!images.missed() || pass === FETCH_PASSES) return done;
+			await images.fetchMissed();
+		}
 	}
 	return tool.name === 'query' ? serially(sqlTurn(caller.tokenId), work) : work();
 }
