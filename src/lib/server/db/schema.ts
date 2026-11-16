@@ -332,3 +332,17 @@ export const sources = sqliteTable(
 );
 
 export type Source = typeof sources.$inferSelect;
+/** Requests the person saved under a name, offered behind / in the assistant's box. */
+export const savedPrompts = sqliteTable(
+	'saved_prompts',
+	{
+		id: text('id').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		text: text('text').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.id] }), index('saved_prompts_user_idx').on(table.userId)]
+);

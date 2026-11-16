@@ -13,6 +13,7 @@ import type {
 	ThreadKind,
 	ThreadRow,
 	ThreadSummary,
+	SavedPrompt,
 	Suggestion,
 	TurnEvent
 } from '../core/thread.ts';
@@ -79,6 +80,46 @@ export async function loadSuggestions(
 		if (offer.key === key) offer.list = suggestions;
 	} catch {
 		// A hint the app can do without: offline or refused, the thread starts blank.
+	}
+}
+
+/** What the person saved to insert again with /; `null` until the server has answered once. */
+export const saved = $state({ list: null as SavedPrompt[] | null });
+
+export async function loadSaved(): Promise<void> {
+	if (saved.list !== null) return;
+	try {
+		saved.list = await request<SavedPrompt[]>('/api/ai/prompts');
+	} catch {
+		// Offline the assistant can't run either: / lists nothing until the next try.
+	}
+}
+
+function sortSaved(list: SavedPrompt[]): SavedPrompt[] {
+	return list.toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function savePrompt(name: string, text: string): Promise<void> {
+	try {
+		const made = await request<SavedPrompt>('/api/ai/prompts', {
+			method: 'POST',
+			body: { name, text }
+		});
+		saved.list = sortSaved([...(saved.list ?? []), made]);
+		showToast(words.promptSaved);
+	} catch (error) {
+		showToast(problemOf(error));
+	}
+}
+
+export async function deleteSaved(prompt: SavedPrompt): Promise<void> {
+	saved.list = (saved.list ?? []).filter((other) => other.id !== prompt.id);
+	try {
+		await request(`/api/ai/prompts/${prompt.id}`, { method: 'DELETE' });
+		showToast(words.savedDeleted, () => void savePrompt(prompt.name, prompt.text));
+	} catch (error) {
+		saved.list = sortSaved([...(saved.list ?? []), prompt]);
+		showToast(problemOf(error));
 	}
 }
 

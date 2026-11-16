@@ -6,9 +6,11 @@
 	import { shrinkImage } from '#lib/client/attach.ts';
 	import {
 		assistant,
+		deleteSaved,
 		deleteThread,
 		edit,
 		lastPrompt,
+		loadSaved,
 		loadSuggestions,
 		newThread,
 		offer,
@@ -16,6 +18,8 @@
 		redoTurn,
 		renameThread,
 		retry,
+		savePrompt,
+		saved,
 		send,
 		showThreads,
 		stop,
@@ -28,12 +32,19 @@
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { me } from '#lib/client/session.svelte.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
-	import type { Attachment, Item, Suggestion, ThreadContext } from '#lib/core/thread.ts';
+	import type {
+		Attachment,
+		Item,
+		SavedPrompt,
+		Suggestion,
+		ThreadContext
+	} from '#lib/core/thread.ts';
 	import {
 		ATTACHABLE,
 		MAX_CONTEXT_ROWS,
 		MAX_FILES,
 		MAX_PROMPT,
+		MAX_SAVED_NAME,
 		toItems
 	} from '#lib/core/thread.ts';
 	import { todayIso } from '#lib/core/values.ts';
@@ -109,6 +120,54 @@
 			void loadSuggestions(table.id, view?.id ?? null, todayIso());
 		}
 	});
+
+	// The sent message being saved under a name, by its item key.
+	let saving = $state<string | null>(null);
+	let savingName = $state('');
+	let nameField: HTMLInputElement | undefined = $state();
+
+	// `/` at the start of the box lists the saved prompts whose name or text holds what follows.
+	const slash = $derived(
+		prompt.startsWith('/') && !prompt.includes('\n') ? prompt.slice(1).trim().toLowerCase() : null
+	);
+	const matches = $derived(
+		slash === null || editing
+			? []
+			: (saved.list ?? []).filter(
+					(item) =>
+						item.name.toLowerCase().includes(slash) || item.text.toLowerCase().includes(slash)
+				)
+	);
+	let picked = $state(0);
+	$effect(() => {
+		void slash;
+		picked = 0;
+	});
+
+	$effect(() => {
+		if (open && me.account && assistant.kind !== 'tool') void loadSaved();
+	});
+
+	function pick(item: SavedPrompt): void {
+		prompt = item.text;
+		void tick().then(() => {
+			field?.focus();
+			field?.setSelectionRange(prompt.length, prompt.length);
+		});
+	}
+
+	function startSaving(key: string, text: string): void {
+		const start = text.replace(/\s+/gu, ' ').trim().split(' ').slice(0, 5).join(' ');
+		savingName = start.slice(0, MAX_SAVED_NAME);
+		saving = key;
+		void tick().then(() => nameField?.select());
+	}
+
+	function finishSaving(text: string): void {
+		const name = savingName.trim();
+		saving = null;
+		if (name !== '') void savePrompt(name, text);
+	}
 
 	const uploading = $derived(
 		pending.some((item) => item.file === undefined && item.error === undefined)
@@ -230,8 +289,26 @@
 
 	function onkeydown(event: KeyboardEvent): void {
 		if (!open) return;
+		if (matches.length > 0 && event.target === field) {
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				const step = event.key === 'ArrowDown' ? 1 : -1;
+				picked = (picked + step + matches.length) % matches.length;
+				return;
+			}
+			if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
+				event.preventDefault();
+				pick(matches[picked]);
+				return;
+			}
+			if (event.key === 'Escape') {
+				prompt = '';
+				return;
+			}
+		}
 		if (event.key === 'Escape') {
-			if (editing) cancelEdit();
+			if (saving !== null) saving = null;
+			else if (editing) cancelEdit();
 			else open = false;
 		} else if (
 			event.key === 'Enter' &&
@@ -429,6 +506,14 @@
 					<div class="group mt-2 flex flex-col items-end gap-1 first:mt-0">
 						{#if whereChanged(at)}<p class="self-start text-sm text-ink-3">{item.where}</p>{/if}
 						<div class="flex max-w-full items-start gap-1">
+							{#if item.seq !== 0 && assistant.kind !== 'tool'}
+								<IconButton
+									icon="bookmark"
+									label={words.savePrompt}
+									class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
+									onclick={() => startSaving(item.key, item.text)}
+								/>
+							{/if}
 							{#if !assistant.busy && asked?.seq === item.seq && item.seq !== 0}
 								<IconButton
 									icon="pencil"
@@ -450,6 +535,27 @@
 								<p class="font-medium break-words whitespace-pre-wrap">{item.text}</p>
 							</div>
 						</div>
+						{#if saving === item.key}
+							<form
+								class="flex w-full items-center gap-1"
+								onsubmit={(event) => {
+									event.preventDefault();
+									finishSaving(item.text);
+								}}
+							>
+								<input
+									class="h-control min-w-0 flex-1 rounded-box px-2 outline-none {fieldFill} {fieldFocusWithin}"
+									aria-label={words.savedName}
+									maxlength={MAX_SAVED_NAME}
+									bind:value={savingName}
+									bind:this={nameField}
+								/>
+								<Button variant="ghost" onclick={() => (saving = null)}>{common.cancel}</Button>
+								<Button variant="primary" type="submit" disabled={savingName.trim() === ''}
+									>{common.save}</Button
+								>
+							</form>
+						{/if}
 					</div>
 				{:else if item.kind === 'text'}
 					<Markdown text={item.text} />
@@ -541,12 +647,47 @@
 			</div>
 
 			<form
-				class="m-2 mt-0 flex shrink-0 flex-col gap-1 rounded-box p-2 {fieldFill} {fieldFocusWithin}"
+				class="relative m-2 mt-0 flex shrink-0 flex-col gap-1 rounded-box p-2 {fieldFill} {fieldFocusWithin}"
 				onsubmit={(event) => {
 					event.preventDefault();
 					submit();
 				}}
 			>
+				{#if matches.length > 0}
+					<ul
+						class="absolute inset-x-0 bottom-full z-10 mb-1.5 flex max-h-72 flex-col overflow-y-auto rounded-panel bg-float p-1 shadow-float"
+						role="listbox"
+						aria-label={words.saved}
+					>
+						{#each matches as item, index (item.id)}
+							<li
+								class="group flex min-h-control cursor-default items-center gap-2 rounded-box pl-2 {index ===
+								picked
+									? 'bg-tint-2'
+									: ''}"
+								role="option"
+								aria-selected={index === picked}
+								onmousedown={(event) => event.preventDefault()}
+								onclick={() => pick(item)}
+								onkeydown={() => undefined}
+								onpointerenter={() => (picked = index)}
+							>
+								<Icon name="bookmark" class="size-4 shrink-0 text-ink-3" />
+								<span class="shrink-0 font-medium">{item.name}</span>
+								<span class="min-w-0 flex-1 truncate text-sm text-ink-3">{item.text}</span>
+								<IconButton
+									icon="x"
+									label={words.deleteSaved(item.name)}
+									class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
+									onclick={(event) => {
+										event.stopPropagation();
+										void deleteSaved(item);
+									}}
+								/>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 				{#if pending.length > 0}
 					<ul class="flex flex-wrap gap-1" aria-label={words.attachedFiles}>
 						{#each pending as item (item.key)}

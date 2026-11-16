@@ -302,3 +302,11 @@ export function fitSuggestions(value: unknown): Suggestion[] {
 	}
 	return out;
 }
+
+/** A request the person saved under a name, to insert again with /. */
+export type SavedPrompt = { id: string; name: string; text: string };
+
+export const MAX_SAVED_NAME = 60;
+
+// Past it the / list is no longer a list to pick from.
+export const MAX_SAVED = 100;
