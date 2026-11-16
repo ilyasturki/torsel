@@ -1,8 +1,9 @@
 import { and, asc, eq, isNotNull, lte, ne } from 'drizzle-orm';
 
+import { isDeleted } from '../../core/model.ts';
 import type { Database } from '../db/client.ts';
 import type { Source } from '../db/schema.ts';
-import { sources } from '../db/schema.ts';
+import { records, sources } from '../db/schema.ts';
 
 export type SourceRow = Source;
 
@@ -21,6 +22,16 @@ export function sourceTables(db: Database, userId: string): string[] {
 		.where(eq(sources.userId, userId))
 		.all()
 		.map((row) => row.table);
+}
+
+/** Whether the table is there and not deleted, read from its own record alone. */
+export function tableLives(db: Database, userId: string, tableId: string): boolean {
+	const rec = db
+		.select({ record: records.record })
+		.from(records)
+		.where(and(eq(records.userId, userId), eq(records.id, tableId)))
+		.get()?.record;
+	return rec?.kind === 'table' && !isDeleted(rec);
 }
 
 export function insertSource(db: Database, row: Source): void {

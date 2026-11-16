@@ -20,7 +20,7 @@ import { PullFailed, RUN_CAPS, pull } from './fetch.ts';
 import type { Item } from './read.ts';
 import { itemKey } from './read.ts';
 import { open } from './secrets.ts';
-import { readSource, updateSource } from './store.ts';
+import { readSource, tableLives, updateSource } from './store.ts';
 
 /** What a run can leave a source with: a failed pull, or a run that read but couldn't take everything. */
 export type SourceProblem = Problem | 'cap' | 'empty';
@@ -250,8 +250,7 @@ export async function runSource(
 	const source = readSource(db, userId, tableId);
 	if (source === undefined) return { ok: false, problem: 'gone' };
 
-	const live = loadWorkspace(db, userId, source.baseId).table(tableId) !== undefined;
-	if (!live) {
+	if (!tableLives(db, userId, tableId)) {
 		// A deleted table pauses its source; an undo brings both back.
 		updateSource(db, userId, tableId, { nextAt: nextRun(source.every, clock()) });
 		return { ok: false, problem: 'gone' };
