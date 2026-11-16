@@ -55,6 +55,16 @@ describe('slugsOf', () => {
 		expect(slugs.get(twin.id)).toBe('sets-q81z2');
 	});
 
+	it('frees a deleted slug for what comes after, not for a twin made while it lived', () => {
+		const chart = { id: 'v_aaaa0000aa', name: 'Chart', at: 1, gone: 5 };
+		const twin = { id: 'v_bbbb0000bb', name: 'Chart', at: 3 };
+		const next = { id: 'v_cccc0000cc', name: 'Chart', at: 6 };
+		const slugs = slugsOf([chart, twin, next]);
+		expect(slugs.get(twin.id)).toBe('chart-bbbb');
+		expect(slugs.get(next.id)).toBe('chart');
+		expect(slugsOf([{ ...chart, gone: undefined }, next]).get(next.id)).toBe('chart-cccc');
+	});
+
 	it('falls back to the id when a name has nothing to spell', () => {
 		expect(slugsOf([{ id: 't_abc123', name: '💪' }]).get('t_abc123')).toBe('t_abc123');
 	});

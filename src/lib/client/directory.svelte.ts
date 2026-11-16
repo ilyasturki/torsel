@@ -1,4 +1,6 @@
-import type { Named } from '../core/slug.ts';
+import { parseClock } from '../core/clock.ts';
+import { DELETED, isDeleted, type Rec } from '../core/model.ts';
+import type { Dated, Named } from '../core/slug.ts';
 import { resolveSlug, slugsOf } from '../core/slug.ts';
 import { createdAt, tableDef, viewDef } from '../core/workspace.ts';
 import { app } from './app.svelte.ts';
@@ -10,13 +12,24 @@ type Level = { items: Named[]; slugs: Map<string, string>; first: string | undef
 const handed = new Map<string, string>();
 const former = new Map<string, string>();
 
-// `ever` holds deleted ones too: a twin keeps its suffix when the older one goes.
-function level(scope: string, live: Named[], ever: Named[]): Level {
-	const at = (item: Named): number => {
-		const rec = app.ws.get(item.id);
-		return rec === undefined ? 0 : createdAt(rec);
+function goneAt(rec: Rec): number | undefined {
+	return isDeleted(rec) ? parseClock(rec.clocks[DELETED] ?? '').wall : undefined;
+}
+
+function dated(rec: Rec, def: Named, parent?: Rec): Dated {
+	const gone = [goneAt(rec), parent && goneAt(parent)].filter((at) => at !== undefined);
+	return {
+		...def,
+		at: createdAt(rec),
+		gone: gone.length === 0 ? undefined : Math.min(...gone)
 	};
-	const slugs = slugsOf(ever.toSorted((a, b) => at(a) - at(b) || a.id.localeCompare(b.id)));
+}
+
+// `ever` holds deleted ones too: a twin keeps its suffix when the older one goes.
+function level(scope: string, live: Named[], ever: Dated[]): Level {
+	const slugs = slugsOf(
+		ever.toSorted((a, b) => (a.at ?? 0) - (b.at ?? 0) || a.id.localeCompare(b.id))
+	);
 
 	for (const [id, slug] of slugs) {
 		const old = handed.get(`${scope}/${id}`);
@@ -34,7 +47,9 @@ const tables = $derived.by(() => {
 		app.ws.bases().flatMap((base) => app.ws.tables(base.id)),
 		app.ws
 			.everChildren('', 'base')
-			.flatMap((base) => app.ws.everChildren(base.id, 'table').map(tableDef))
+			.flatMap((base) =>
+				app.ws.everChildren(base.id, 'table').map((rec) => dated(rec, tableDef(rec), base))
+			)
 	);
 });
 
@@ -43,7 +58,11 @@ const views = $derived.by(() => {
 	return new Map(
 		tables.items.map((table) => [
 			table.id,
-			level(table.id, app.ws.views(table.id), app.ws.everChildren(table.id, 'view').map(viewDef))
+			level(
+				table.id,
+				app.ws.views(table.id),
+				app.ws.everChildren(table.id, 'view').map((rec) => dated(rec, viewDef(rec)))
+			)
 		])
 	);
 });

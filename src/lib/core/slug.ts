@@ -1,5 +1,8 @@
 export type Named = { id: string; name: string };
 
+/** `at` is when it was made, `gone` when it was deleted. */
+export type Dated = Named & { at?: number; gone?: number };
+
 const LONGEST = 60;
 const SUFFIX = 4;
 
@@ -17,19 +20,24 @@ function body(id: string): string {
 	return id.slice(id.indexOf('_') + 1);
 }
 
-/** Items oldest first: the oldest keeps the plain slug, each later twin takes a piece of its own id. */
-export function slugsOf(items: Named[]): Map<string, string> {
-	const taken = new Set<string>();
+/**
+ * Items oldest first: the oldest keeps the plain slug, each later twin takes a piece of its own id.
+ * A deleted item holds its slug only against the items made before it went.
+ */
+export function slugsOf(items: Dated[]): Map<string, string> {
+	const heldUntil = new Map<string, number>();
 	const out = new Map<string, string>();
 
 	for (const item of items) {
+		const at = item.at ?? 0;
+		const taken = (slug: string): boolean => (heldUntil.get(slug) ?? at) > at;
 		const plain = slugify(item.name);
 		let slug = plain === '' ? item.id : plain;
-		for (let length = SUFFIX; taken.has(slug) && length <= body(item.id).length; length += 1) {
+		for (let length = SUFFIX; taken(slug) && length <= body(item.id).length; length += 1) {
 			slug = `${plain}-${body(item.id).slice(0, length)}`;
 		}
-		if (taken.has(slug)) slug = item.id;
-		taken.add(slug);
+		if (taken(slug)) slug = item.id;
+		heldUntil.set(slug, item.gone ?? Number.POSITIVE_INFINITY);
 		out.set(item.id, slug);
 	}
 
