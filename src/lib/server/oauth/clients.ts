@@ -45,7 +45,8 @@ function displayName(value: unknown): string | null {
 	if (typeof value !== 'string') {
 		return null;
 	}
-	const name = value.replace(CONTROL, '').replace(/\s+/gu, ' ').trim().slice(0, MAX_NAME);
+	const collapsed = value.replace(CONTROL, '').replace(/\s+/gu, ' ').trim();
+	const name = [...collapsed].slice(0, MAX_NAME).join('').trim();
 	return name === '' ? null : name;
 }
 
