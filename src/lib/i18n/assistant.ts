@@ -209,7 +209,7 @@ const fr: typeof en = {
 
 	noThread: 'conversation introuvable',
 	toolThread:
-		'Cette conversation est celle d’un outil connecté. Ouvre-en une nouvelle pour demander.',
+		'Cette conversation appartient à un outil connecté. Ouvre-en une nouvelle pour poser ta question.',
 	promptTooLong: 'message trop long',
 	noAssistant: 'ce serveur n’a pas d’assistant configuré',
 	alreadyAnswering: 'cette conversation répond déjà',

@@ -8,7 +8,7 @@ export const TITLE_MODEL = 'claude-haiku-5-5';
 // Past it the reply is long done, and the first message stands in.
 const TITLE_MS = 20_000;
 
-const SYSTEM = `Name this conversation for a history list. Reply with the name only: 2 to 4 words, at most 32 characters, a noun phrase for its subject. Write it in the language of the person's message, never the language of their data. Keep their own names for tables and things. Sentence case. No quotes, no final punctuation, no emoji, no verb such as "help with" or "question about".`;
+const SYSTEM = `Name this conversation for a history list. Reply with the name only: 2 to 4 words, at most 32 characters, a noun phrase for its subject. Write it in the language of the person's message, never the language of their data or of the screen line. Copy their own names for tables and things exactly as written, never a near word. Sentence case. No quotes, no final punctuation, no emoji, no verb such as "help with" or "question about".`;
 
 const FORMAT = {
 	type: 'json_schema' as const,
