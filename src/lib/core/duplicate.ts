@@ -1,11 +1,15 @@
+import { PATH, SOURCE } from './access.ts';
 import { newId } from './ids.ts';
 import type { Change, Kind, Rec, Value } from './model.ts';
 import { CREATED, DELETED } from './model.ts';
 import type { Workspace } from './workspace.ts';
 
+// A copy is the person's own: no source fills it.
 function dataOf(rec: Rec): Record<string, Value> {
 	const data = { ...rec.data };
 	delete data[DELETED];
+	delete data[SOURCE];
+	delete data[PATH];
 	return data;
 }
 

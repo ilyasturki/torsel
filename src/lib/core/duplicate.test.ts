@@ -1,7 +1,15 @@
 import names from '#lib/i18n/names.ts';
 import { describe, expect, it } from 'vitest';
 
-import { addField, createBase, createTable, defaultViews, insertRows } from './actions.ts';
+import { PATH, SOURCE, canAddRows, canEditValues } from './access.ts';
+import {
+	addField,
+	createBase,
+	createTable,
+	defaultViews,
+	insertRows,
+	updateRecord
+} from './actions.ts';
 import { Hlc } from './clock.ts';
 import { duplicateField, duplicateRows, duplicateTable, duplicateView } from './duplicate.ts';
 import { toDisplay, toStored } from './formula.ts';
@@ -91,6 +99,26 @@ describe('duplicating', () => {
 		});
 		expect(ws.table(copy.id)?.name).toBe('Sets copy');
 		expect(ws.rows(table.id)).toHaveLength(3);
+	});
+
+	it("makes a synced table's copy, and a synced field's, the person's own", () => {
+		const { ws, commit, table, exercise } = fixture();
+		commit([
+			...updateRecord(ws, table.id, { [SOURCE]: { kind: 'rss' } }),
+			...updateRecord(ws, exercise, { [PATH]: 'title' })
+		]);
+		const get = (id: string) => ws.get(id);
+		const person = { user: 'u_me', path: 'device' } as const;
+
+		const copy = duplicateTable(ws, table.id, 'Sets copy');
+		commit(copy.changes);
+		expect(canAddRows(get, person, copy.id)).toBe(true);
+		const copied = ws.fields(copy.id)[0].id;
+		expect(canEditValues(get, person, copy.id, copied)).toBe(true);
+
+		const field = duplicateField(ws, exercise, 'Exercise copy');
+		commit(field.changes);
+		expect(canEditValues(get, person, table.id, field.id)).toBe(true);
 	});
 
 	it('copies a field and its values right after it', () => {
