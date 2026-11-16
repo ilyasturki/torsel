@@ -1,5 +1,3 @@
-import { deflateRawSync } from 'node:zlib';
-
 import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
@@ -24,7 +22,8 @@ import {
 	tableMenu,
 	tablePath,
 	test,
-	undo
+	undo,
+	workbook
 } from './harness.ts';
 
 type Lifts = { path: string; table: string; fields: string[] };
@@ -315,44 +314,6 @@ test.describe('duplicate and unhide', () => {
 		await expect(cell(page, 'belt')).toBeVisible();
 	});
 });
-
-/** The smallest workbook Excel would open: one sheet, deflated, no styles. */
-function workbook(sheet: string): Buffer {
-	const entries: Record<string, string> = {
-		'xl/workbook.xml': '<workbook><sheets><sheet name="Sheet1" r:id="rId1"/></sheets></workbook>',
-		'xl/_rels/workbook.xml.rels':
-			'<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
-		'xl/worksheets/sheet1.xml': `<worksheet><sheetData>${sheet}</sheetData></worksheet>`
-	};
-	const parts: Buffer[] = [];
-	const centrals: Buffer[] = [];
-	let offset = 0;
-	for (const [name, text] of Object.entries(entries)) {
-		const data = deflateRawSync(Buffer.from(text));
-		const file = Buffer.from(name);
-		const local = Buffer.alloc(30);
-		local.writeUInt32LE(0x04034b50, 0);
-		local.writeUInt16LE(8, 8);
-		local.writeUInt32LE(data.length, 18);
-		local.writeUInt16LE(file.length, 26);
-		const central = Buffer.alloc(46);
-		central.writeUInt32LE(0x02014b50, 0);
-		central.writeUInt16LE(8, 10);
-		central.writeUInt32LE(data.length, 20);
-		central.writeUInt16LE(file.length, 28);
-		central.writeUInt32LE(offset, 42);
-		parts.push(local, file, data);
-		centrals.push(central, file);
-		offset += local.length + file.length + data.length;
-	}
-	const directory = Buffer.concat(centrals);
-	const end = Buffer.alloc(22);
-	end.writeUInt32LE(0x06054b50, 0);
-	end.writeUInt16LE(Object.keys(entries).length, 10);
-	end.writeUInt32LE(directory.length, 12);
-	end.writeUInt32LE(offset, 16);
-	return Buffer.concat([...parts, directory, end]);
-}
 
 test.describe('formula guard', () => {
 	test('refuses a column total as a row formula', async ({ page, context, account }) => {

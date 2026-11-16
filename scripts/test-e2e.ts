@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { DAILY_LIMIT, startFake } from '../tests/e2e/fake-anthropic.ts';
+import { startSources } from '../tests/e2e/fake-sources.ts';
 
 const args = process.argv.slice(2);
 const dev = args.includes('--dev');
@@ -107,6 +108,8 @@ async function startGoogleStub(): Promise<{ url: string; close: () => void }> {
 }
 
 const google = await startGoogleStub();
+
+const links = await startSources();
 
 function boot(
 	name: string,
@@ -313,6 +316,7 @@ try {
 				TORSEL_TEST_GOOGLE: google.url,
 				TORSEL_TEST_DEV: dev ? '1' : '',
 				TORSEL_TEST_FAKE: fake.url,
+				TORSEL_TEST_SOURCES: links.url,
 				TORSEL_TEST_OUTPUT: join(runDir, 'results')
 			},
 			stdio: 'inherit'
@@ -325,6 +329,7 @@ try {
 } finally {
 	shutdown();
 	google.close();
+	links.close();
 }
 if (exitCode === 0) {
 	rmSync(runDir, { recursive: true, force: true });
