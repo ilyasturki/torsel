@@ -1016,11 +1016,11 @@
 	}
 
 	function onbodymousedown(event: MouseEvent): void {
-		if (
-			cellFrom(event.target) !== null &&
-			(event.target as Element).closest('input, textarea') === null
-		) {
+		const cell = cellFrom(event.target);
+		if (cell !== null && (event.target as Element).closest('input, textarea') === null) {
 			event.preventDefault();
+			// Focus with nothing selected selects the first cell and scrolls up to it; a right press reaches here first.
+			if (head === null) select(cell.r, cell.c);
 			if (pointerKind !== 'touch') table?.focus({ preventScroll: true });
 		}
 	}

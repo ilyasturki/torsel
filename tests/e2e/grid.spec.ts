@@ -836,6 +836,24 @@ test.describe('scale', () => {
 		expect(await page.locator('tbody tr').count()).toBeLessThan(120);
 	});
 
+	test('a right click far down keeps the place and opens the row menu there', async ({
+		page,
+		context,
+		account
+	}) => {
+		desktopOnly();
+		void account;
+		await open(page, (await seedPlain(context.request, 200)).path);
+		await scroller(page).evaluate((element) => (element.scrollTop = element.scrollHeight));
+		const target = at(page, 198, 1);
+		await expect(target).toHaveText('199');
+
+		await target.click({ button: 'right' });
+		await expect(page.getByRole('menuitem', { name: 'Insert row below' })).toBeVisible();
+		await expect(target).toHaveAttribute('aria-selected', 'true');
+		expect(await scroller(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(1000);
+	});
+
 	test('10,000 rows stay usable from the first row to the last', async ({
 		page,
 		context,
