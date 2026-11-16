@@ -21,9 +21,9 @@ import {
 	rpc,
 	seed,
 	signIn,
-	tableMenu,
 	tablePath,
-	test
+	test,
+	viewSettings
 } from './harness.ts';
 
 const POSTER = readFileSync(join(import.meta.dirname, 'images/poster.jpg'));
@@ -709,7 +709,7 @@ test.describe('image links', () => {
 		const row = await height(posterCell(page, 'Dune'));
 		const head = await height(header);
 
-		await tableMenu(page, 'View settings');
+		await viewSettings(page);
 		const settings = page.getByRole('dialog', { name: 'View settings' });
 		await pick(settings.getByRole('combobox', { name: 'Row height' }), 'Tall');
 		await page.keyboard.press('Escape');
