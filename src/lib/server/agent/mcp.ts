@@ -131,7 +131,8 @@ export async function execute(
 	path: Path
 ): Promise<{ outcome: Outcome; ws: Workspace }> {
 	const inTurn = tool.kind !== 'read' && tool.openWorld !== true;
-	const images = fetchedFirst(imageHost(db, caller.userId));
+	const host = imageHost(db, caller.userId);
+	const images = fetchedFirst(host);
 	const work = async () => {
 		const ws = loadWorkspace(db, caller.userId);
 		const actor: Actor = { user: caller.userId, path };
@@ -164,14 +165,11 @@ export async function execute(
 				}
 			},
 			sources: sourceHost(db, caller.userId),
-			images: images.host
+			images: inTurn ? images.host : host
 		};
 		return { outcome: await runTool(ctx, tool, input), ws };
 	};
-	// Writes load and commit inside the account's turn, so no call overwrites what another just wrote;
-	// the image links a write names are fetched between turns, then it runs again, so a slow site never stalls the account;
-	// an open-world tool takes the turn only around its own writes;
-	// a token's queries take turns, so one token never holds every SQL worker.
+	// Writes run in the account's turn so none overwrites another; their image links are fetched between turns.
 	if (inTurn) {
 		for (let pass = 1; ; pass += 1) {
 			const done = await serially(caller.userId, work);
@@ -179,6 +177,7 @@ export async function execute(
 			await images.fetchMissed();
 		}
 	}
+	// An open-world tool takes the turn only around its own writes; a token's queries take turns, so it never holds every SQL worker.
 	return tool.name === 'query' ? serially(sqlTurn(caller.tokenId), work) : work();
 }
 
