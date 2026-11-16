@@ -158,7 +158,7 @@ test('a deleted row, with no question asked', async ({ page }) => {
 test('a field renamed, then deleted', async ({ page }) => {
 	const sheet = await openField(page, 'Kg');
 	await sheet.getByLabel('Name').fill('Load');
-	await sheet.getByRole('button', { name: 'Save' }).click();
+	await sheet.getByRole('button', { name: 'Close' }).click();
 	await undoAndRedoInToast(
 		page,
 		page.getByRole('columnheader', { name: 'Kg' }),

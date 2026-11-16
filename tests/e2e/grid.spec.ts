@@ -1436,7 +1436,10 @@ test.describe('rows, by hand', () => {
 
 		await page.keyboard.press('Alt+ArrowDown');
 		await page.getByRole('menuitem', { name: 'Field settings' }).click();
-		await page.getByRole('dialog', { name: 'Field' }).getByRole('button', { name: 'Save' }).click();
+		await page
+			.getByRole('dialog', { name: 'Field' })
+			.getByRole('button', { name: 'Close' })
+			.click();
 		await expect(grid(page)).toBeFocused();
 
 		await header(page, 'Kg').hover();

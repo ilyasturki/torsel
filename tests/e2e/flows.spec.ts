@@ -541,8 +541,8 @@ test.describe('fields and views', () => {
 
 		const sheet = page.getByRole('dialog');
 		await pick(sheet.getByRole('combobox', { name: 'Type' }), 'Number');
-		await expect(sheet.getByText("1 value can't become Number and will be cleared.")).toBeVisible();
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByRole('status')).toContainText('Value retyped, 1 value cleared');
+		await sheet.getByRole('button', { name: 'Close' }).click();
 
 		await expect(cell(page, '12')).toBeVisible();
 		await expect(cell(page, 'plenty')).toHaveCount(0);

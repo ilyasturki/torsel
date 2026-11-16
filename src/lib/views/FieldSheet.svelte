@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { formatNumber, formatValue, localCurrency, readNumber } from '#lib/client/format.ts';
+	import { currencyFor, formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import { readFormula } from '#lib/client/formula.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
@@ -103,7 +103,6 @@
 			target,
 			formula,
 			description,
-			newChoice,
 			format: format()
 		});
 
@@ -135,12 +134,13 @@
 		}
 		return formatSet(type, options) as Partial<Pick<FieldDef, FormatKey>>;
 	}
-	const dirty = $derived(open && snapshot() !== start);
-
 	const existing = $derived.by(() => {
 		void app.version;
 		return fieldId === null ? undefined : app.ws.field(fieldId);
 	});
+	const dirty = $derived(
+		open && existing === undefined && (snapshot() !== start || newChoice.trim() !== '')
+	);
 
 	const tables = $derived.by(() => {
 		void app.version;
@@ -203,7 +203,9 @@
 			grouping = field?.grouping ?? true;
 			unit = field?.unit ?? '';
 			currency =
-				field?.type === 'currency' || field?.currency ? currencyOf(field) : localCurrency();
+				field?.type === 'currency' || field?.currency
+					? currencyOf(field)
+					: currencyFor(app.ws, tableId);
 			const scale = ratingScale(field ?? {});
 			lowest = String(scale.min);
 			highest = String(scale.max);
@@ -240,20 +242,23 @@
 		choices[index].color = DATA_COLORS[(current + 1) % DATA_COLORS.length];
 	}
 
-	function save(): void {
+	function settled(): {
+		set: Record<string, Value>;
+		retyped: ReturnType<typeof conversion>;
+	} | null {
 		problem = '';
 		if (name.trim() === '') {
 			problem = words.nameNeeded;
-			return;
+			return null;
 		}
 		const holder = nameTaken(app.ws.fields(tableId), name, existing?.id);
 		if (holder !== undefined) {
 			problem = words.nameTaken(holder.name);
-			return;
+			return null;
 		}
 		if (type === 'link' && target === '') {
-			problem = words.pickLinkTable;
-			return;
+			if (existing === undefined) problem = words.pickLinkTable;
+			return null;
 		}
 
 		let expr: string | null = null;
@@ -261,7 +266,7 @@
 			const read = readFormula(tableId, fieldId, formula);
 			if ('problem' in read) {
 				problem = read.problem;
-				return;
+				return null;
 			}
 			expr = read.expr;
 		}
@@ -278,25 +283,76 @@
 			if (type === 'link') set.target = target || null;
 			if (type === 'formula') set.expr = expr;
 		}
+		return { set, retyped };
+	}
 
-		if (existing === undefined) {
-			const [made, ...moves] = addField(
-				app.ws,
-				tableId,
-				{ name: name.trim(), type },
-				preset?.at
-			).changes;
-			applyWithUndo(
-				[{ ...made, set: { ...made.set, ...set } }, ...moves],
-				words.added(name.trim())
-			);
-		} else {
-			applyWithUndo(
-				[...(retyped?.changes ?? []), ...updateRecord(app.ws, existing.id, set)],
-				words.changed(name.trim())
-			);
-		}
+	function save(): void {
+		const ready = settled();
+		if (ready === null) return;
+		const [made, ...moves] = addField(
+			app.ws,
+			tableId,
+			{ name: name.trim(), type },
+			preset?.at
+		).changes;
+		applyWithUndo(
+			[{ ...made, set: { ...made.set, ...ready.set } }, ...moves],
+			words.added(name.trim())
+		);
 		open = false;
+	}
+
+	function apply(): void {
+		if (existing === undefined || snapshot() === start) return;
+		const ready = settled();
+		if (ready === null) return;
+		const label = name.trim();
+		const lost = ready.retyped?.lost ?? 0;
+		applyWithUndo(
+			[...(ready.retyped?.changes ?? []), ...updateRecord(app.ws, existing.id, ready.set)],
+			lost === 0 ? words.changed(label) : words.retypedLosing(label, lost)
+		);
+		start = snapshot();
+	}
+
+	let shown = false;
+	$effect(() => {
+		if (open) {
+			shown = true;
+		} else if (shown) {
+			shown = false;
+			untrack(apply);
+		}
+	});
+
+	const picked = $derived(
+		JSON.stringify([
+			type,
+			choices,
+			target,
+			decimals,
+			grouping,
+			currency,
+			lowest,
+			highest,
+			half,
+			clock,
+			look,
+			result
+		])
+	);
+	$effect(() => {
+		void picked;
+		if (open) untrack(apply);
+	});
+
+	function submit(): void {
+		if (existing === undefined) {
+			save();
+			return;
+		}
+		apply();
+		if (problem === '') open = false;
 	}
 
 	function remove(): void {
@@ -323,12 +379,12 @@
 	bind:open
 	title={existing === undefined ? words.newField : words.field}
 	{dirty}
-	onsubmit={save}
+	onsubmit={submit}
 	{onCloseAutoFocus}
 >
 	<div class="flex flex-col gap-3">
 		<Field label={words.name}>
-			<input class={input} bind:value={name} placeholder={words.namePlaceholder} />
+			<input class={input} bind:value={name} placeholder={words.namePlaceholder} onblur={apply} />
 		</Field>
 
 		<Field label={words.type} hint={retypeHint}>
@@ -400,7 +456,8 @@
 					class="{textarea} h-24"
 					bind:value={formula}
 					spellcheck="false"
-					placeholder={words.formulaExample}></textarea>
+					placeholder={words.formulaExample}
+					onblur={apply}></textarea>
 			</Field>
 		{/if}
 
@@ -410,10 +467,16 @@
 					<Select options={DECIMALS} bind:value={decimals} />
 				</Field>
 				<Field label={words.unit}>
-					<input class={input} bind:value={unit} placeholder="kg" />
+					<input class={input} bind:value={unit} placeholder="kg" onblur={apply} />
 				</Field>
 				<Field label={words.step}>
-					<input class={input} inputmode="decimal" bind:value={step} placeholder="1" />
+					<input
+						class={input}
+						inputmode="decimal"
+						bind:value={step}
+						placeholder="1"
+						onblur={apply}
+					/>
 				</Field>
 			</div>
 			<label class="flex items-center gap-2">
@@ -490,7 +553,7 @@
 		{/if}
 
 		<Field label={words.description}>
-			<input class={input} bind:value={description} />
+			<input class={input} bind:value={description} onblur={apply} />
 		</Field>
 
 		{#if problem}
@@ -514,7 +577,9 @@
 				onclick={() => move(1)}
 			/>
 		{/if}
-		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>{common.save}</Button>
+		{#if existing === undefined}
+			<div class="flex-1"></div>
+			<Button variant="primary" onclick={save}>{common.save}</Button>
+		{/if}
 	{/snippet}
 </Dialog>

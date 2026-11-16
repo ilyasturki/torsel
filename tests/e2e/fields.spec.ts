@@ -561,8 +561,7 @@ test.describe('the type picker', () => {
 
 		await sheet.getByRole('combobox', { name: 'Highest' }).click();
 		await page.getByRole('option', { name: '5', exact: true }).click();
-		await expect(sheet).toContainText("1 value can't become Rating and will be cleared.");
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByRole('status')).toContainText('Score retyped, 1 value cleared');
 		await expect.poll(() => stored(page, movies)).toMatchObject({ Score: null });
 	});
 });
