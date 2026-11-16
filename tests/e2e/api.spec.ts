@@ -60,16 +60,22 @@ test('a token from Settings reads and writes rows over the REST API', async ({ p
 test('the API docs list every operation from the OpenAPI document', async ({ page }) => {
 	const spec = await page.request.get('/api/v1/openapi.json');
 	expect(spec.headers()['access-control-allow-origin']).toBe('*');
-	const doc = (await spec.json()) as { openapi: string; paths: Record<string, object> };
+	const doc = (await spec.json()) as {
+		openapi: string;
+		paths: Record<string, object>;
+		components: { schemas: Record<string, object> };
+	};
 	expect(doc.openapi).toMatch(/^3\.1\./u);
 	const count = Object.values(doc.paths).flatMap((methods) => Object.keys(methods)).length;
+	const schemas = Object.keys(doc.components.schemas).length;
 
 	await page.goto('/docs/api');
 	await expect(page.getByRole('heading', { name: 'API', level: 1 })).toBeVisible();
 	await expect(page.locator('section[id]').filter({ has: page.locator('h2') })).toHaveCount(
-		count + 2
+		count + schemas
 	);
 	await expect(page.getByRole('heading', { name: 'Add rows' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Image', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'OpenAPI document' })).toHaveAttribute(
 		'href',
 		'/api/v1/openapi.json'
