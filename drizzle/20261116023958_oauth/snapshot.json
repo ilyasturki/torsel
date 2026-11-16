@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "ae794c05-bba9-45f9-85dc-1a918590b9d5",
+  "id": "afcdbc08-ae37-426f-844e-3a38aa62d6fd",
   "prevIds": [
     "ce2bf238-6202-404c-a0cb-2309fce6abab"
   ],
@@ -319,6 +319,16 @@
       "default": null,
       "generated": null,
       "name": "created_at",
+      "entityType": "columns",
+      "table": "oauth_clients"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "used_at",
       "entityType": "columns",
       "table": "oauth_clients"
     },

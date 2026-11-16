@@ -5,7 +5,13 @@ import { and, eq, gt, isNull, lt, notExists } from 'drizzle-orm';
 import { hashToken, mintToken } from '../auth/tokens.ts';
 import type { Database } from '../db/client.ts';
 import type { OAuthGrant } from '../db/schema.ts';
-import { authTokens, oauthGrants, oauthRefreshTokens, oauthRequests } from '../db/schema.ts';
+import {
+	authTokens,
+	oauthClients,
+	oauthGrants,
+	oauthRefreshTokens,
+	oauthRequests
+} from '../db/schema.ts';
 import { resolveClient } from './clients.ts';
 import { mcpResource } from './metadata.ts';
 import { CHALLENGE, verifierMatches } from './pkce.ts';
@@ -352,6 +358,10 @@ function exchangeCode(db: Database, form: URLSearchParams, now: Date): TokenAnsw
 			.returning()
 			.get();
 		tx.update(oauthRequests).set({ grantId: grant.id }).where(eq(oauthRequests.id, row.id)).run();
+		tx.update(oauthClients)
+			.set({ usedAt: now })
+			.where(and(eq(oauthClients.id, row.clientId), isNull(oauthClients.usedAt)))
+			.run();
 		return issue(tx, grant, grant.access, now);
 	});
 }

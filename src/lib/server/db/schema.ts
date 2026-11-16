@@ -57,7 +57,9 @@ export const oauthClients = sqliteTable(
 		id: text('id').notNull(),
 		name: text('name').notNull(),
 		redirectUris: text('redirect_uris', { mode: 'json' }).notNull().$type<string[]>(),
-		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+		// Set by its first grant: a client keeps its id after a revoke, so a used registration stays.
+		usedAt: integer('used_at', { mode: 'timestamp_ms' })
 	},
 	(table) => [primaryKey({ columns: [table.id] })]
 );

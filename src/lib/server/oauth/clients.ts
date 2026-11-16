@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
 
-import { and, eq, lt, notExists } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 
 import { fetchesPrivate } from '../config.ts';
 import type { Database } from '../db/client.ts';
-import { oauthClients, oauthGrants } from '../db/schema.ts';
+import { oauthClients } from '../db/schema.ts';
 import { isRecord } from '../json.ts';
 import { FetchRefused, guardedFetch } from '../net/guard.ts';
 import { isLoopback, validRedirect } from './redirects.ts';
@@ -213,18 +213,10 @@ export function registerClient(
 		};
 	}
 
-	// A registration no consent ever used is dropped after a day: anyone may register.
+	// Anyone may register: a registration no consent ever used is dropped after a day.
 	db.delete(oauthClients)
 		.where(
-			and(
-				lt(oauthClients.createdAt, new Date(now.getTime() - DAY_MS)),
-				notExists(
-					db
-						.select({ id: oauthGrants.id })
-						.from(oauthGrants)
-						.where(eq(oauthGrants.clientId, oauthClients.id))
-				)
-			)
+			and(lt(oauthClients.createdAt, new Date(now.getTime() - DAY_MS)), isNull(oauthClients.usedAt))
 		)
 		.run();
 

@@ -453,28 +453,23 @@ describe('purging', () => {
 		purgeExpired(db, later);
 		expect(listGrants(db, userId)).toEqual([]);
 		expect(db.select().from(authTokens).where(eq(authTokens.kind, 'oauth')).all()).toEqual([]);
-
-		registerClient(db, { redirect_uris: [WEB] }, later);
-		expect(
-			db
-				.select()
-				.from(oauthClients)
-				.all()
-				.map(({ id }) => id)
-		).not.toContain(clientId);
 	});
 
-	it('keeps a registration a grant still uses', async () => {
+	it('drops a registration no consent used, and keeps one that was, revoked since', async () => {
 		await connected();
-		const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-		registerClient(db, { redirect_uris: [WEB] }, later);
-		expect(
-			db
-				.select()
-				.from(oauthClients)
-				.all()
-				.map(({ id }) => id)
-		).toContain(clientId);
-		expect(db.select().from(oauthGrants).all()).toHaveLength(1);
+		const [grant] = listGrants(db, userId);
+		revokeGrant(db, userId, grant.id);
+		const idle = registerClient(db, { redirect_uris: [WEB] });
+		const idleId = idle.ok ? String(idle.metadata.client_id) : '';
+
+		registerClient(db, { redirect_uris: [WEB] }, new Date(Date.now() + 2 * 24 * 60 * 60 * 1000));
+		const kept = db
+			.select()
+			.from(oauthClients)
+			.all()
+			.map(({ id }) => id);
+		expect(kept).toContain(clientId);
+		expect(kept).not.toContain(idleId);
+		expect(db.select().from(oauthGrants).all()).toEqual([]);
 	});
 });
