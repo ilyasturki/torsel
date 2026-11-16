@@ -112,7 +112,7 @@ test.describe('in french', () => {
 		const posters = page.getByTestId('posters');
 		await posters.scrollIntoViewIfNeeded();
 		await expect(
-			posters.getByRole('heading', { name: 'Une table pour chaque chose que tu suis.' })
+			posters.getByRole('heading', { name: 'Une table pour chaque chose que tu notes.' })
 		).toBeVisible();
 		await expect(posters.getByText('Moyenne de kg')).toBeVisible();
 		await expect(posters.getByText('180 séries')).toBeVisible();

@@ -67,7 +67,7 @@ const fr: typeof en = {
 	tryTitle: 'Vas-y, il est à toi.',
 	tryLead:
 		'Voici Torsel, sur des tables d’exemple. Modifie une cellule, demande un graphique. Rien ne sort de ton navigateur.',
-	keepTitle: 'Une table pour chaque chose que tu suis.',
+	keepTitle: 'Une table pour chaque chose que tu notes.',
 	weighIns: (count) => plural('fr', count, { one: '# pesée', other: '# pesées' }),
 	sets: (count) => plural('fr', count, { one: '# série', other: '# séries' }),
 	movies: (count) => plural('fr', count, { one: '# film', other: '# films' }),
