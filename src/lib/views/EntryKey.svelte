@@ -66,7 +66,12 @@
 
 	function reveal(node: HTMLElement, on: boolean): { update(on: boolean): void } {
 		const show = (now: boolean): void => {
-			if (now) node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+			const strip = node.parentElement;
+			if (!now || strip === null) return;
+			const chip = node.getBoundingClientRect();
+			const frame = strip.getBoundingClientRect();
+			if (chip.left < frame.left) strip.scrollLeft -= frame.left - chip.left;
+			else if (chip.right > frame.right) strip.scrollLeft += chip.right - frame.right;
 		};
 		show(on);
 		return { update: show };

@@ -17,7 +17,7 @@
 	const boxes: HTMLInputElement[] = $state([]);
 
 	function focusAt(index: number): void {
-		boxes[index]?.focus();
+		boxes[index]?.focus({ preventScroll: true });
 		boxes[index]?.select();
 	}
 
