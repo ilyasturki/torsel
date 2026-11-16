@@ -4,14 +4,19 @@ import { createServer } from 'node:http';
 // The servers in front of the fake take this many prompts per account a day; no spec but the cap's sends more.
 export const DAILY_LIMIT = 4;
 
+/** A page a scripted search found, and what a reply cites of it. */
+export type FakeResult = { url: string; title: string };
+
 export type FakeBlock =
 	| { type: 'note'; text: string }
-	| { type: 'text'; text: string }
-	| { type: 'tool'; id: string; name: string; input: unknown };
+	| { type: 'text'; text: string; cites?: (FakeResult & { cited: string })[] }
+	| { type: 'tool'; id: string; name: string; input: unknown }
+	| { type: 'search'; id: string; query: string }
+	| { type: 'found'; id: string; results: FakeResult[] };
 
 export type FakeStep = {
 	blocks: FakeBlock[];
-	stop?: 'end_turn' | 'tool_use' | 'refusal';
+	stop?: 'end_turn' | 'tool_use' | 'refusal' | 'pause_turn';
 	// Text of the last block streamed before the response waits for `release`, or is cut off.
 	holdAfter?: string;
 	// An SSE `error` event, since the SDK retries a 5xx status on its own.
@@ -99,6 +104,38 @@ async function stream(step: FakeStep, script: Script, response: ServerResponse):
 					response.once('close', resolve);
 				});
 			}
+		} else if (block.type === 'search') {
+			send(response, 'content_block_start', {
+				type: 'content_block_start',
+				index,
+				content_block: { type: 'server_tool_use', id: block.id, name: 'web_search', input: {} }
+			});
+			send(response, 'content_block_delta', {
+				type: 'content_block_delta',
+				index,
+				delta: { type: 'input_json_delta', partial_json: JSON.stringify({ query: block.query }) }
+			});
+			if (step.holdAt === block.id) {
+				await new Promise<void>((resolve) => {
+					script.release = resolve;
+					response.once('close', resolve);
+				});
+			}
+		} else if (block.type === 'found') {
+			send(response, 'content_block_start', {
+				type: 'content_block_start',
+				index,
+				content_block: {
+					type: 'web_search_tool_result',
+					tool_use_id: block.id,
+					content: block.results.map((result) => ({
+						type: 'web_search_result',
+						...result,
+						encrypted_content: 'fake',
+						page_age: null
+					}))
+				}
+			});
 		} else if (block.type === 'note') {
 			send(response, 'content_block_start', {
 				type: 'content_block_start',
@@ -126,6 +163,22 @@ async function stream(step: FakeStep, script: Script, response: ServerResponse):
 					type: 'content_block_delta',
 					index,
 					delta: { type: 'text_delta', text }
+				});
+			}
+			for (const cite of block.cites ?? []) {
+				send(response, 'content_block_delta', {
+					type: 'content_block_delta',
+					index,
+					delta: {
+						type: 'citations_delta',
+						citation: {
+							type: 'web_search_result_location',
+							url: cite.url,
+							title: cite.title,
+							cited_text: cite.cited,
+							encrypted_index: 'fake'
+						}
+					}
 				});
 			}
 			if (step.holdAfter === block.text) {

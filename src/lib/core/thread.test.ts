@@ -73,6 +73,111 @@ describe('toItems', () => {
 		);
 	});
 
+	it('shows a searched reply as one text, then the sites it read, one per host', () => {
+		const result = (url: string, title: string) => ({
+			type: 'web_search_result' as const,
+			url,
+			title,
+			encrypted_content: 'x'
+		});
+		const rows: ThreadRow[] = [
+			prompt,
+			{
+				seq: 2,
+				role: 'assistant',
+				content: [
+					{ type: 'text', text: 'Searching.' },
+					{ type: 'server_tool_use', id: 's1', name: 'web_search', input: { query: 'dune' } },
+					{
+						type: 'web_search_tool_result',
+						tool_use_id: 's1',
+						content: [
+							result('https://www.imdb.com/title/tt15239678/', 'Dune: Part Two'),
+							result('https://www.imdb.com/title/tt1160419/', 'Dune'),
+							result('https://en.wikipedia.org/wiki/Dune:_Part_Two', 'Dune: Part Two')
+						]
+					},
+					{ type: 'text', text: 'It is rated ' },
+					{
+						type: 'text',
+						text: '8.5',
+						citations: [
+							{
+								type: 'web_search_result_location',
+								url: 'https://www.imdb.com/title/tt15239678/',
+								title: 'Dune: Part Two',
+								cited_text: '8.5/10',
+								encrypted_index: 'x'
+							}
+						]
+					},
+					{ type: 'text', text: ' on IMDb.' }
+				],
+				meta: null
+			}
+		];
+		const items = toItems(rows, []);
+		expect(items.slice(1)).toEqual([
+			{ kind: 'text', key: '1.3', text: 'It is rated 8.5 on IMDb.' },
+			{
+				kind: 'sources',
+				key: '1.sources',
+				sources: [{ url: 'https://www.imdb.com/title/tt15239678/', title: 'imdb.com' }]
+			}
+		]);
+	});
+
+	it('lists what a search found under a reply that only wrote, and nothing while it is paused', () => {
+		const search: ThreadRow = {
+			seq: 2,
+			role: 'assistant',
+			content: [
+				{ type: 'server_tool_use', id: 's1', name: 'web_search', input: { query: 'ratings' } },
+				{
+					type: 'web_search_tool_result',
+					tool_use_id: 's1',
+					content: [
+						{
+							type: 'web_search_result',
+							url: 'https://www.imdb.com/x',
+							title: 'X',
+							encrypted_content: 'x'
+						},
+						{
+							type: 'web_search_result',
+							url: 'javascript:alert(1)',
+							title: 'Y',
+							encrypted_content: 'x'
+						}
+					]
+				},
+				{ type: 'tool_use', id: 'b', name: 'update_rows', input: {} }
+			],
+			meta: null
+		};
+		const paused: ThreadRow = {
+			seq: 2,
+			role: 'assistant',
+			content: [
+				{ type: 'text', text: 'Looking.' },
+				{ type: 'server_tool_use', id: 's0', name: 'web_search', input: { query: 'x' } }
+			],
+			meta: null
+		};
+		const done: ThreadRow = {
+			seq: 4,
+			role: 'assistant',
+			content: [{ type: 'text', text: 'Done.' }],
+			meta: null
+		};
+		expect(toItems([prompt, paused], []).map((item) => item.kind)).toEqual(['user']);
+		const items = toItems([prompt, search, done], [action('b')]);
+		expect(items.map((item) => item.kind)).toEqual(['user', 'change', 'text', 'sources']);
+		expect(items[3]).toMatchObject({
+			sources: [{ url: 'https://www.imdb.com/x', title: 'imdb.com' }]
+		});
+	});
+
 	it('renders an event from what the server stored', () => {
 		const rows: ThreadRow[] = [
 			{ seq: 1, role: 'event', content: { kind: 'stopped', message: 'Stopped.' }, meta: null }

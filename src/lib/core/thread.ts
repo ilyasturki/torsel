@@ -117,7 +117,14 @@ export type Item =
 	| { kind: 'user'; key: string; seq: number; text: string; where: string; files: Attachment[] }
 	| { kind: 'text'; key: string; text: string }
 	| { kind: 'change'; key: string; action: ThreadAction }
-	| { kind: 'event'; key: string; event: EventKind; message: string };
+	| { kind: 'event'; key: string; event: EventKind; message: string }
+	| { kind: 'sources'; key: string; sources: Source[] };
+
+/** A page the assistant read on the web, shown under the reply it served. */
+export type Source = { url: string; title: string };
+
+// Hosts the sources line shows; past them it is a list nobody reads.
+export const MAX_SOURCES = 4;
 
 type Block = Anthropic.Beta.BetaContentBlockParam;
 
@@ -142,6 +149,8 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 	const items: Item[] = [];
 	const dropped = droppedSeqs(rows);
 	const byId = new Map(actions.map((action) => [action.id, action]));
+	// What the turn's searches turned up, shown once its reply is in.
+	let found: Source[] = [];
 
 	rows.forEach((row, at) => {
 		// A row still streaming has seq 0, and nothing drops it.
@@ -153,6 +162,7 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 			}
 		} else if (row.role === 'user') {
 			if (row.meta !== null) {
+				found = [];
 				items.push({
 					kind: 'user',
 					key: `${at}`,
@@ -165,15 +175,28 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 		} else {
 			const content = blocks(row.content);
 			// What a reply says on its way to a tool call is progress, not the answer; past a read the
-			// server ran itself (a docs page), what follows in the same reply is the answer.
-			const acting = content.some((block) => block?.type === 'tool_use');
+			// server ran itself (a search, a docs page), what follows in the same reply is the answer.
+			const acting =
+				content.some((block) => block?.type === 'tool_use') ||
+				content.at(-1)?.type === 'server_tool_use';
 			const read = content.findLastIndex(
 				(block) => block?.type === 'server_tool_use' || (block?.type ?? '').endsWith('_tool_result')
 			);
+			const reply: string[] = [];
+			let replyAt = -1;
+			const cited: Source[] = [];
 			content.forEach((block, index) => {
 				if (block === undefined) return;
-				if (block.type === 'text' && block.text !== '' && !acting && index > read) {
-					items.push({ kind: 'text', key: `${at}.${index}`, text: block.text });
+				if (block.type === 'web_search_tool_result' && Array.isArray(block.content)) {
+					found.push(...block.content.map(({ url, title }) => ({ url, title })));
+				} else if (block.type === 'text' && !acting && index > read) {
+					if (replyAt === -1) replyAt = index;
+					reply.push(block.text);
+					for (const citation of block.citations ?? []) {
+						if (citation.type === 'web_search_result_location') {
+							cited.push({ url: citation.url, title: citation.title ?? citation.url });
+						}
+					}
 				} else if (block.type === 'tool_use') {
 					const action = byId.get(block.id);
 					if (action !== undefined) {
@@ -181,10 +204,36 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 					}
 				}
 			});
+			// A cited reply comes split around each citation, and reads as one.
+			const text = reply.join('');
+			if (text !== '') items.push({ kind: 'text', key: `${at}.${replyAt}`, text });
+			if (!acting && content.length > 0) {
+				const sources = shownSources(cited.length > 0 ? cited : found);
+				if (sources.length > 0) items.push({ kind: 'sources', key: `${at}.sources`, sources });
+				found = [];
+			}
 		}
 	});
 
 	return items;
+}
+
+/** One page per host, the first cited: the sources line names sites, not every page. */
+export function shownSources(sources: Source[]): Source[] {
+	const hosts = new Map<string, Source>();
+	for (const source of sources) {
+		let host: string;
+		try {
+			const url = new URL(source.url);
+			if (url.protocol !== 'https:' && url.protocol !== 'http:') continue;
+			host = url.hostname.replace(/^www\./u, '');
+		} catch {
+			continue;
+		}
+		if (!hosts.has(host)) hosts.set(host, { url: source.url, title: host });
+		if (hosts.size === MAX_SOURCES) break;
+	}
+	return [...hosts.values()];
 }
 
 /** Past the last fallback block is what ran: what comes before it was declined with its model. */

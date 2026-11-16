@@ -334,7 +334,10 @@ function onEvent(event: TurnEvent): void {
 			rows.push({ seq: 0, role: 'assistant', content: [], meta: null });
 			break;
 		case 'block':
-			if (event.block.type === 'tool_use' && event.block.name !== undefined) {
+			if (
+				(event.block.type === 'tool_use' || event.block.type === 'server_tool_use') &&
+				event.block.name !== undefined
+			) {
 				assistant.step = event.block.name;
 			}
 			blocksOf(live)[event.index] =

@@ -453,6 +453,20 @@
 					</div>
 				{:else if item.kind === 'text'}
 					<Markdown text={item.text} />
+				{:else if item.kind === 'sources'}
+					<p class="flex flex-wrap items-center gap-x-3 text-sm text-ink-3" data-testid="sources">
+						<Icon name="search" class="size-3 shrink-0" /><span class="sr-only"
+							>{words.sources}</span
+						>
+						{#each item.sources as source (source.url)}
+							<a
+								class="underline hover:text-ink"
+								href={source.url}
+								target="_blank"
+								rel="noopener noreferrer">{source.title}</a
+							>
+						{/each}
+					</p>
 				{:else if item.kind === 'change'}
 					<ChangeCard action={item.action} onopen={closeOnPhone} />
 					{@const turn = turnEnd(at)}
