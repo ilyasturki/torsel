@@ -282,7 +282,7 @@ export function pasteChanges(
 				field !== undefined &&
 				(access.locked.has(field.id) || (row === undefined && !access.adds))
 			) {
-				kept += raw.trim() === '' ? 0 : 1;
+				kept += 1;
 				return;
 			}
 			let value = field === undefined ? undefined : read(field, raw);
