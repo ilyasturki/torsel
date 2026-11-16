@@ -161,7 +161,7 @@ test.describe('formulas through links', () => {
 		await formula.fill('');
 		await choose(formula, page, '"Exercise".mu', 'Muscle');
 		await expect(formula).toHaveValue('"Exercise"."Muscle"');
-		await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+		await sheet.getByRole('button', { name: 'Close', exact: true }).click();
 		await expect(sheet).toHaveCount(0);
 		await expect(at(page, 0, 2)).toHaveText('chest');
 	});
