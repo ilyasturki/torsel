@@ -76,6 +76,8 @@ const PROBLEMS: Record<string, string> = {
 	html: 'the link is a web page, not data: read it with web_fetch to find the URL that returns data',
 	format: 'the answer is not CSV, TSV, JSON, Excel, RSS or Atom',
 	rows: 'no rows at that path; read_source lists the paths that hold rows',
+	cap: 'the link holds more rows or pages than a table takes: the first ones came in',
+	empty: 'the link answered with no rows; the table keeps the ones it had',
 	columns: 'fields needs at least one column',
 	count: 'the account has as many linked tables as it may keep',
 	base: 'no such base',
