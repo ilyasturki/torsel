@@ -132,6 +132,26 @@ describe('filling', () => {
 		expect(fill.cells).toBe(9);
 	});
 
+	it('leaves locked cells as they are', () => {
+		const { ws, commit, tableId, fields, column } = fixture();
+		const fill = fillChanges(
+			ws,
+			tableId,
+			fields,
+			ws.rows(tableId),
+			new Map(),
+			{ top: 0, bottom: 1, left: 1, right: 2 },
+			{ top: 2, bottom: 4, left: 1, right: 2 },
+			true,
+			new Set([fields[1].id])
+		);
+		commit(fill.changes);
+
+		expect(column(1)).toEqual([20, 40, null, null, null]);
+		expect(column(2)).toEqual(['2026-11-03', null, '2026-11-03', null, '2026-11-03']);
+		expect(fill.cells).toBe(3);
+	});
+
 	it('copies instead when asked, and upward from the top of the box', () => {
 		const { ws, commit, tableId, fields, column } = fixture();
 		commit(

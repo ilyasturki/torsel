@@ -2,7 +2,13 @@ import names from '../../src/lib/i18n/names.ts';
 
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
-import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
+import {
+	createBase,
+	createTable,
+	createView,
+	defaultViews,
+	insertRows
+} from '../../src/lib/core/actions.ts';
 import {
 	askButton,
 	cell,
@@ -97,6 +103,67 @@ test('a synced field takes no edit in the grid, and the table no new or deleted 
 
 	await typeInto(page, notesCell(page), 'seen twice', isMobile);
 	await expect(cell(page, 'seen twice')).toBeVisible();
+});
+
+test('a synced field keeps its type, in the column menu and the field sheet', async ({
+	page,
+	context,
+	account,
+	isMobile
+}) => {
+	test.skip(isMobile, 'the anchored menu is the desktop one');
+	const movies = await seedMovies(context.request);
+	syncFromSource(account, 'Movies', ['Title', 'Rating']);
+	await page.goto(tablePath(movies.table));
+
+	const header = (name: string) =>
+		page.getByRole('columnheader', { name, exact: true }).getByRole('button');
+	await header('Notes').click();
+	await expect(page.getByRole('menuitem', { name: 'Type' })).toBeVisible();
+	await page.keyboard.press('Escape');
+
+	await header('Title').click();
+	await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+	await expect(page.getByRole('menuitem', { name: 'Type' })).toHaveCount(0);
+	await page.getByRole('menuitem', { name: 'Field settings' }).click();
+	const sheet = page.getByRole('dialog');
+	await expect(sheet.getByRole('textbox').first()).toHaveValue('Title');
+	await expect(sheet.getByText('Type', { exact: true })).toHaveCount(0);
+});
+
+test('List shows synced values without a control to change them', async ({
+	page,
+	context,
+	account
+}) => {
+	const watchlist = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Films');
+		commit(base.changes);
+		const made = createTable(
+			ws,
+			base.id,
+			'Watchlist',
+			[
+				{ name: 'Title', type: 'text' },
+				{ name: 'Seen', type: 'check' },
+				{ name: 'Stars', type: 'rating' }
+			],
+			() => defaultViews(names.en)
+		);
+		commit(made.changes);
+		const [title, seen, stars] = made.fieldIds;
+		commit(insertRows(ws, made.id, [{ [title]: 'Alien', [seen]: true, [stars]: 4 }]).changes);
+		const list = createView(ws, made.id, { name: 'List', type: 'list' });
+		commit(list.changes);
+		return { table: made.id, list: list.id };
+	});
+	syncFromSource(account, 'Watchlist', ['Title', 'Seen', 'Stars']);
+	await page.goto(tablePath(watchlist.table, watchlist.list));
+
+	await expect(page.getByRole('button', { name: 'Alien' })).toBeVisible();
+	await expect(page.getByRole('checkbox', { name: 'Seen' })).toBeDisabled();
+	await expect(page.getByRole('slider', { name: 'Stars' })).toHaveCount(0);
+	await expect(page.getByRole('img', { name: /4/u })).toBeVisible();
 });
 
 test('the row sheet shows synced values with no input, and keeps the rest editable', async ({
