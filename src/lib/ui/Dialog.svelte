@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
+	import { flushSync } from 'svelte';
 	import type { Snippet } from 'svelte';
 
 	import { dismissEarlierToast } from '#lib/client/toast.svelte.ts';
@@ -50,7 +51,7 @@
 	}
 
 	function keepEditing(): void {
-		confirming = false;
+		flushSync(() => (confirming = false));
 		before?.focus();
 	}
 
@@ -137,27 +138,33 @@
 			}}
 			{onkeydown}
 		>
-			<div class="flex shrink-0 items-center gap-3 p-4 pb-2">
+			<div class="relative flex shrink-0 items-center gap-3 p-4 pb-2">
 				<Dialog.Title class="min-w-0 flex-1 truncate text-lg font-semibold tight"
 					>{title}</Dialog.Title
 				>
 				{@render actions?.()}
 				<IconButton icon="x" label={common.close} tooltip={false} onclick={close} />
-			</div>
-			{#if confirming}
-				<div
-					class="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 pb-2"
-					role="alertdialog"
-					aria-label={words.discardChanges}
-				>
-					<span class="min-w-0 flex-1 font-medium sm:flex-none">{words.discardYours}</span>
-					<Button onclick={() => (open = false)}>{words.discard}</Button>
-					<Button {@attach (node: HTMLButtonElement) => node.focus()} onclick={keepEditing}
-						>{words.keepEditing}</Button
+				{#if confirming}
+					<div
+						class="absolute inset-x-0 top-full z-10 flex flex-wrap items-center justify-end gap-2 border-b border-hair bg-float px-4 pb-2"
+						role="alertdialog"
+						aria-label={words.discardChanges}
 					>
-				</div>
-			{/if}
-			<div bind:this={body} class="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
+						<span class="min-w-0 flex-1 font-medium sm:flex-none">{words.discardYours}</span>
+						<Button onclick={() => (open = false)}>{words.discard}</Button>
+						<Button {@attach (node: HTMLButtonElement) => node.focus()} onclick={keepEditing}
+							>{words.keepEditing}</Button
+						>
+					</div>
+				{/if}
+			</div>
+			<div
+				bind:this={body}
+				inert={confirming}
+				class="min-h-0 flex-1 overflow-y-auto p-4 pt-2 transition-opacity motion {confirming
+					? 'opacity-40'
+					: ''}"
+			>
 				{#if description}
 					<Dialog.Description class="mb-3 text-ink-2">{description}</Dialog.Description>
 				{/if}
