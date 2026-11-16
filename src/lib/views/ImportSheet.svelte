@@ -23,6 +23,7 @@
 		parseCsv,
 		withHeader
 	} from '#lib/core/csv.ts';
+	import { readXlsx } from '#lib/core/xlsx.ts';
 	import type { Rec } from '#lib/core/model.ts';
 	import { importing as words } from '#lib/i18n/importing.ts';
 	import { table as tableWords } from '#lib/i18n/table.ts';
@@ -97,20 +98,26 @@
 
 	async function read(start: ImportStart): Promise<void> {
 		problem = '';
-		const text = start.text ?? (await start.file?.text()) ?? '';
+		const file = start.file;
+		const workbook =
+			file !== undefined && (/\.xlsx$/iu.test(file.name) || file.type.includes('spreadsheetml'));
+		const text = workbook ? '' : (start.text ?? (await file?.text()) ?? '');
 
 		if (text.trimStart().startsWith('{')) {
 			records = parseExport(text);
 			if (records === null) problem = words.notExport;
 		} else {
-			const parsed = withHeader(parseCsv(text, start.text === undefined ? undefined : '\t'), names);
+			const cells = workbook
+				? ((await readXlsx(new Uint8Array(await file.arrayBuffer()))) ?? [])
+				: parseCsv(text, start.text === undefined ? undefined : '\t');
+			const parsed = withHeader(cells, names);
 			if (parsed.length < 2) {
 				problem = words.noRows;
 				return;
 			}
 			rows = parsed;
 			columns = guessColumns(parsed, names);
-			const fileName = start.file?.name.replace(/\.(csv|tsv|txt)$/iu, '');
+			const fileName = file?.name.replace(/\.(csv|tsv|txt|xlsx)$/iu, '');
 			tableName =
 				fileName === undefined
 					? nextTableName(app.ws, names)
@@ -191,7 +198,7 @@
 			<input
 				bind:this={picker}
 				type="file"
-				accept=".csv,.tsv,.txt,.json,text/csv,application/json"
+				accept=".csv,.tsv,.txt,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 				aria-label={words.fileToImport}
 				tabindex="-1"
 				class="sr-only"

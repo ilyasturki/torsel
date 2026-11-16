@@ -1,3 +1,5 @@
+import { deflateRawSync } from 'node:zlib';
+
 import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
@@ -289,6 +291,63 @@ test.describe('duplicate and unhide', () => {
 		await tableMenu(page, 'Duplicate table');
 		await expect(page).toHaveTitle(/Lifts copy/u);
 		await expect(cell(page, 'belt')).toBeVisible();
+	});
+});
+
+/** The smallest workbook Excel would open: one sheet, stored entries, no styles. */
+function workbook(sheet: string): Buffer {
+	const entries: Record<string, string> = {
+		'xl/workbook.xml': '<workbook><sheets><sheet name="Sheet1" r:id="rId1"/></sheets></workbook>',
+		'xl/_rels/workbook.xml.rels':
+			'<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+		'xl/worksheets/sheet1.xml': `<worksheet><sheetData>${sheet}</sheetData></worksheet>`
+	};
+	const parts: Buffer[] = [];
+	const centrals: Buffer[] = [];
+	let offset = 0;
+	for (const [name, text] of Object.entries(entries)) {
+		const data = deflateRawSync(Buffer.from(text));
+		const file = Buffer.from(name);
+		const local = Buffer.alloc(30);
+		local.writeUInt32LE(0x04034b50, 0);
+		local.writeUInt16LE(8, 8);
+		local.writeUInt32LE(data.length, 18);
+		local.writeUInt16LE(file.length, 26);
+		const central = Buffer.alloc(46);
+		central.writeUInt32LE(0x02014b50, 0);
+		central.writeUInt16LE(8, 10);
+		central.writeUInt32LE(data.length, 20);
+		central.writeUInt16LE(file.length, 28);
+		central.writeUInt32LE(offset, 42);
+		parts.push(local, file, data);
+		centrals.push(central, file);
+		offset += local.length + file.length + data.length;
+	}
+	const directory = Buffer.concat(centrals);
+	const end = Buffer.alloc(22);
+	end.writeUInt32LE(0x06054b50, 0);
+	end.writeUInt16LE(Object.keys(entries).length, 10);
+	end.writeUInt32LE(directory.length, 12);
+	end.writeUInt32LE(offset, 16);
+	return Buffer.concat([...parts, directory, end]);
+}
+
+test.describe('excel import', () => {
+	test('imports an .xlsx by hand into a new table', async ({ page, account }) => {
+		void account;
+		await page.goto('/app');
+		await page.getByRole('button', { name: 'Import a file' }).click();
+		await page.getByLabel('File to import').setInputFiles({
+			name: 'weigh-ins.xlsx',
+			mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			buffer: workbook(
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>Day</t></is></c><c r="B1" t="inlineStr"><is><t>Kg</t></is></c></row>' +
+					'<row r="2"><c r="A2" t="inlineStr"><is><t>2026-10-30</t></is></c><c r="B2"><v>81.5</v></c></row>'
+			)
+		});
+		await page.getByRole('dialog').getByRole('button', { name: 'Import', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'weigh-ins' })).toBeVisible();
+		await expect(cell(page, '81.5')).toBeVisible();
 	});
 });
 
