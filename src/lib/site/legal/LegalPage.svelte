@@ -11,7 +11,10 @@
 	}: { title: string; updated: string; locale: string; children: Snippet } = $props();
 
 	const date = $derived(
-		new Date(`${LEGAL_UPDATED}T12:00:00Z`).toLocaleDateString(locale, { dateStyle: 'long' })
+		new Date(`${LEGAL_UPDATED}T12:00:00Z`).toLocaleDateString(locale, {
+			dateStyle: 'long',
+			timeZone: 'UTC'
+		})
 	);
 </script>
 
