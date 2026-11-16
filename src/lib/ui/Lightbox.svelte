@@ -1,6 +1,6 @@
 <script lang="ts" module>
-	/** One image: `src` null while its bytes are on their way, `w`/`h` keep its box the right shape meanwhile. */
-	export type Shown = { src: string | null; alt: string; w: number; h: number };
+	/** One image: `src` undefined while its bytes load, null when they are nowhere to be had; `w`/`h` keep its box the right shape meanwhile. */
+	export type Shown = { src: string | null | undefined; alt: string; w: number; h: number };
 </script>
 
 <script lang="ts">
@@ -31,7 +31,7 @@
 		} else if (event.key === 'ArrowLeft') {
 			event.preventDefault();
 			step(-1);
-		} else if (event.key === ' ') {
+		} else if (event.key === ' ' && !(event.target instanceof HTMLButtonElement)) {
 			event.preventDefault();
 			open = false;
 		}
@@ -73,12 +73,14 @@
 				}}
 			>
 				{#if shown !== undefined}
-					{#if shown.src === null}
+					{#if typeof shown.src !== 'string'}
 						<div
 							class="flex max-h-full max-w-full items-center justify-center rounded-box bg-shade-2 text-on-shade"
 							style="aspect-ratio: {shown.w} / {shown.h}; height: min(100%, {shown.h}px)"
 						>
-							<Icon name="image-off" label={words.missing} class="size-6" />
+							{#if shown.src === null}
+								<Icon name="image-off" label={words.missing} class="size-6" />
+							{/if}
 						</div>
 					{:else}
 						<!-- A fresh element per image: a reused one keeps the last image's shape until the next decodes. -->

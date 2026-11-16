@@ -24,7 +24,7 @@
 
 	const items = $derived<Shown[]>(
 		images.map((image) => ({
-			src: urls[image.id] ?? null,
+			src: urls[image.id],
 			alt: image.name ?? label,
 			w: image.w,
 			h: image.h
