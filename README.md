@@ -88,7 +88,7 @@ claude mcp add --transport http torsel https://your-instance/api/mcp
 
 Then `/mcp` in Claude Code opens Torsel's consent page in the browser. Claude.ai, ChatGPT and the other clients that sign in take the same URL.
 
-Torsel is its own OAuth 2.1 server. A client finds it from the endpoint's 401, which points to the protected resource metadata (RFC 9728) and the server metadata (RFC 8414). It identifies itself by the URL of its metadata document, or by registering (RFC 7591), and signs in with PKCE. The consent shows the app, where it returns and the account, and can narrow the access to read only. The client gets a one-hour token valid on `/api/mcp` alone (RFC 8707) and a refresh token that changes at each use; a refresh token used twice ends the connection. Settings, Connected apps, lists each app with the day it was last used and revokes it. Changing the password ends every connection.
+Torsel is its own OAuth 2.1 server. A client finds it from the endpoint's 401, which points to the protected resource metadata (RFC 9728) and the server metadata (RFC 8414). It identifies itself by the URL of its metadata document, or by registering (RFC 7591), and signs in with PKCE. The consent shows the app, where it returns and the account, and can narrow the access to read only. The client gets a one-hour token valid only on the resource it named (RFC 8707), `/api/mcp` when it names none, and a refresh token that changes at each use; a refresh token used twice ends the connection. Settings, Connected apps, lists each app with the day it was last used and revokes it. Changing the password ends every connection.
 
 Sign-in needs `ORIGIN` on https, or on localhost; without it, tokens are the only way in. The server fetches a client's metadata document from public addresses only: `TORSEL_FETCH_PRIVATE=1` lets it reach loopback and private ones too, for an instance that lives on a LAN.
 
@@ -99,13 +99,23 @@ claude mcp add --transport http torsel https://your-instance/api/mcp \
   --header "Authorization: Bearer ts_..."
 ```
 
-A token reads only, or reads and writes, and can expire after 30, 90 or 365 days. It reaches `/api/mcp` and nothing else. Settings lists each token with the day it was last used, and revokes it.
+A token reads only, or reads and writes, and can expire after 30, 90 or 365 days. It reaches `/api/mcp` and the REST API, and nothing else. Settings lists each token with the day it was last used, and revokes it.
 
 The 16 tools are the assistant's own, minus the four that need a screen or an attachment. Each write shows in the app as a card in a conversation named after the token, where it can be undone. A read-only token sees `list_bases`, `describe_base` and `query`. Every tool declares its input and output schemas and its annotations. Unknown keys are refused, and a refused call says what to change and writes nothing. `query` runs one SELECT in a worker thread and stops after 500 ms; a page holds up to 200 rows, and its `next` is the `offset` of the following page.
 
 Each token makes at most 120 calls a minute (`TORSEL_MCP_CALLS_PER_MINUTE`, 0 for no cap). A browser page reaches the endpoint only from the server's own origin or one listed in `CORS_ORIGINS`.
 
 `bun run test:e2e mcp.spec.ts` runs the MCP conformance suite against both revisions, with each scenario Torsel does not serve listed and explained in `tests/e2e/mcp-baseline-*.yml`, then Inspector's `--strict` schema check.
+
+## REST API
+
+`/api/v1` reads and changes the same data over plain HTTP, through the same tools: bases, a base's schema, rows (list, add, change, delete, one or many), a read-only SQL `query`, and `/api/v1/changes?base=&since=`, a feed of what changed in a base since a cursor, for polling triggers in n8n, Zapier or Make. The OpenAPI 3.1 document at `/api/v1/openapi.json` is generated from the tools' schemas and imports into Postman, Insomnia or any OpenAPI client; `/docs/api` shows it.
+
+```sh
+curl -H "Authorization: Bearer ts_..." https://your-instance/api/v1/bases/Gym/tables/Sets/rows
+```
+
+It takes a token from Settings or an OAuth access token whose resource is `https://your-instance/api/v1`, in the `Authorization` header only: the session cookie is no credential there, so any origin may call it. Each token makes at most 300 requests a minute (`TORSEL_API_CALLS_PER_MINUTE`, 0 for no cap), then gets 429 with `Retry-After`.
 
 ## Development
 
