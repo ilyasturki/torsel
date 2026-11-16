@@ -9,13 +9,17 @@ import type { Limited } from './limits.ts';
 import { overLimit } from './limits.ts';
 import { readSource } from './store.ts';
 
+function codeOf(error: unknown): unknown {
+	if (error instanceof PullFailed) return new SourceFailure(error.problem);
+	if (error instanceof SourceRefused) return new SourceFailure(error.reason);
+	return error;
+}
+
 async function coded<T>(work: () => Promise<T>): Promise<T> {
 	try {
 		return await work();
 	} catch (error) {
-		if (error instanceof PullFailed) throw new SourceFailure(error.problem);
-		if (error instanceof SourceRefused) throw new SourceFailure(error.reason);
-		throw error;
+		throw codeOf(error);
 	}
 }
 
@@ -50,7 +54,11 @@ export function sourceHost(db: Database, userId: string): SourceHost {
 			}),
 		update(table, patch) {
 			if (readSource(db, userId, table) === undefined) throw new SourceFailure('gone');
-			patchSource(db, userId, table, patch);
+			try {
+				patchSource(db, userId, table, patch);
+			} catch (error) {
+				throw codeOf(error);
+			}
 		},
 		stop: (table) =>
 			coded(async () => {

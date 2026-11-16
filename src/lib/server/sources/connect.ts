@@ -17,7 +17,7 @@ import type { Auth } from './fetch.ts';
 import { AUTH_KINDS, RUN_CAPS, pull, redact } from './fetch.ts';
 import type { Format, Item } from './read.ts';
 import { cellsOf, guessKey, pathName } from './read.ts';
-import { CONNECTOR, bound, nextRun } from './run.ts';
+import { CONNECTOR, authOf, bound, nextRun } from './run.ts';
 import { hintOf, seal } from './secrets.ts';
 import { deleteSource, insertSource, readSource, sourceTables, updateSource } from './store.ts';
 
@@ -261,11 +261,11 @@ export function patchSource(
 	}
 	if (patch.missing !== undefined) {
 		if (!MISSING.includes(patch.missing)) throw new SourceRefused('columns');
+		if (patch.missing === 'keep' && source.key === null) throw new SourceRefused('key');
 		set.missing = patch.missing;
 	}
 	if (patch.url !== undefined) {
-		const auth = { kind: source.auth, name: source.authName };
-		const moved = splitKey(patch.url, auth, null);
+		const moved = splitKey(patch.url, authOf(source), null);
 		set.url = moved.url;
 		set.failures = 0;
 		// A query key typed inside the new link replaces the one kept.
