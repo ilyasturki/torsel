@@ -26,6 +26,8 @@ import {
 	parseTsv,
 	pasteChanges,
 	sampleRows,
+	summarize,
+	toHtml,
 	toTsv,
 	viewCells
 } from './grid.ts';
@@ -78,6 +80,40 @@ describe('tsv', () => {
 			['two\nlines', 'say "hi"']
 		];
 		expect(parseTsv(toTsv(cells))).toEqual(cells);
+	});
+});
+
+describe('html', () => {
+	it('writes a table a document pastes, its text escaped', () => {
+		expect(
+			toHtml([
+				['a<b', 'say "hi"'],
+				['two\nlines', '&']
+			])
+		).toBe(
+			'<table><tr><td>a&#60;b</td><td>say &#34;hi&#34;</td></tr><tr><td>two<br>lines</td><td>&#38;</td></tr></table>'
+		);
+	});
+});
+
+describe('the sum of a selection', () => {
+	it('sums, averages and counts the numbers only, with their field when it is one', () => {
+		const { ws, commit, tableId, note, kg, done } = fixture();
+		commit(
+			insertRows(ws, tableId, [
+				{ [note.id]: 'a', [kg.id]: 10, [done.id]: true },
+				{ [note.id]: 'b', [kg.id]: 25 },
+				{ [note.id]: 'c' }
+			]).changes
+		);
+		const rows = ws.rows(tableId);
+		expect(summarize(rows, [note, kg, done], new Map())).toEqual({
+			sum: 35,
+			average: 17.5,
+			count: 2,
+			field: kg
+		});
+		expect(summarize(rows, [note, done], new Map())).toBeNull();
 	});
 });
 

@@ -94,6 +94,49 @@ export function toTsv(cells: string[][]): string {
 	return writeCells(cells, '\t');
 }
 
+function escapeHtml(text: string): string {
+	return text.replace(/[&<>"]/gu, (char) => `&#${char.charCodeAt(0)};`);
+}
+
+/** The flavour a paste into a document or an email reads as a table. */
+export function toHtml(cells: string[][]): string {
+	const tag = (name: string, inner: string): string => `<${name}>${inner}</${name}>`;
+	const lineBreak = `<${'br'}>`;
+	return tag(
+		'table',
+		cells
+			.map((line) =>
+				tag(
+					'tr',
+					line.map((text) => tag('td', escapeHtml(text).replaceAll('\n', lineBreak))).join('')
+				)
+			)
+			.join('')
+	);
+}
+
+export type Summary = { sum: number; average: number; count: number; field: FieldDef | null };
+
+/** The numbers of a selection, summed; `field` is the one field they all come from, for its format. */
+export function summarize(rows: Rec[], fields: FieldDef[], computed: Computed): Summary | null {
+	let sum = 0;
+	let count = 0;
+	const from = new Set<FieldDef>();
+	for (const row of rows) {
+		for (const field of fields) {
+			const value = cellValue(row, field, computed);
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				sum += value;
+				count += 1;
+				from.add(field);
+			}
+		}
+	}
+	return count === 0
+		? null
+		: { sum, average: sum / count, count, field: from.size === 1 ? [...from][0] : null };
+}
+
 /** A cell as a spreadsheet reads it: every digit, an ISO date, TRUE or FALSE, a link's title. */
 export function copyText(
 	ws: Workspace,

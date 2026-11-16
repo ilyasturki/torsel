@@ -4,7 +4,7 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh } from '#lib/client/assistant.svelte.ts';
-	import { editText, formatValue, localCurrency } from '#lib/client/format.ts';
+	import { editText, formatNumber, formatValue, localCurrency } from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -28,7 +28,7 @@
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { nameTaken } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import { freshValue, nativeDateText, ratingScale } from '#lib/core/values.ts';
+	import { freshValue, nativeDateText, nowIso, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import Button from '#lib/ui/Button.svelte';
@@ -58,6 +58,8 @@
 		parseTsv,
 		pasteChanges,
 		sampleRows,
+		summarize,
+		toHtml,
 		toTsv
 	} from './grid.ts';
 	import type { ColumnAction } from './GridColumnMenu.svelte';
@@ -228,6 +230,20 @@
 	const left = $derived(Math.min(anchorCol, headCol));
 	const right = $derived(Math.max(anchorCol, headCol));
 	const isRange = $derived(top !== bottom || left !== right);
+
+	const summary = $derived(
+		isRange && editing === null
+			? summarize(
+					rows.slice(Math.max(0, top), Math.min(rows.length, bottom + 1)),
+					fields.slice(Math.max(0, left), right + 1),
+					computed
+				)
+			: null
+	);
+
+	function summed(value: number): string {
+		return summary?.field ? formatValue(summary.field, value) : formatNumber(value);
+	}
 
 	const cellId = (r: number, c: number): string => `grid-cell-${r}-${c}`;
 
@@ -586,7 +602,8 @@
 		const native = touch && isDated(field.type);
 		const initial = initialDraft(field, row, native);
 		flushSync(() => {
-			anchor = head;
+			// Typed over a range, the range stays for Ctrl+Enter to fill.
+			if (typed === undefined || !isRange) anchor = head;
 			nativeDate = native ? (field.type === 'datetime' ? 'datetime-local' : 'date') : null;
 			seed = typed ?? '';
 			draft = typed ?? initial;
@@ -712,6 +729,21 @@
 			event.preventDefault();
 			anchor = posAt(0, 0);
 			head = posAt(lastRow, lastCol);
+		} else if (event.key === ' ' && command && !event.shiftKey) {
+			event.preventDefault();
+			if (rows.length === 0) return;
+			anchor = posAt(lastRow, headCol === left ? right : left);
+			head = posAt(0, headCol);
+		} else if (event.key === ' ' && event.shiftKey && !command) {
+			event.preventDefault();
+			if (headRow >= rows.length) return;
+			anchor = posAt(headRow === top ? Math.min(bottom, lastRow) : top, lastCol);
+			head = posAt(headRow, 0);
+		} else if (stampOf(event) !== null) {
+			const text = stampText(fields[headCol], stampOf(event) === 'time');
+			if (text === null) return;
+			event.preventDefault();
+			beginEdit(text);
 		} else if (event.key === ' ' && fields[headCol]?.type === 'check') {
 			event.preventDefault();
 			beginEdit();
@@ -721,6 +753,41 @@
 			event.preventDefault();
 			if (fields[headCol]?.type !== 'check') beginEdit(event.key);
 		}
+	}
+
+	/** Ctrl+; puts in today, Ctrl+Shift+; the time as well, as in a spreadsheet. */
+	function stampOf(event: KeyboardEvent): 'date' | 'time' | null {
+		if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+		if (event.key === ';') return event.shiftKey ? 'time' : 'date';
+		return event.key === ':' ? 'time' : null;
+	}
+
+	function stampText(field: FieldDef | undefined, time: boolean): string | null {
+		if (field === undefined) return null;
+		if (field.type === 'date') return editText(field, todayIso());
+		if (field.type === 'datetime') return editText(field, nowIso());
+		if (field.type === 'text' || field.type === 'longtext') {
+			return time
+				? formatValue({ type: 'datetime' }, nowIso())
+				: formatValue({ type: 'date' }, todayIso());
+		}
+		return null;
+	}
+
+	/** Ctrl+Enter: what is typed goes into every cell of the range, as one paste. */
+	function fillDraft(): void {
+		const target = editing;
+		const box = { top: Math.max(0, top), bottom: Math.min(rows.length - 1, bottom) };
+		if (target === null) return;
+		if (!isRange || box.top > box.bottom) {
+			commitDraft();
+			return;
+		}
+		const matrix = fillSelection([[draft]], box.bottom - box.top + 1, right - left + 1);
+		const paste = pasteChanges(app.ws, tableId, fields, rows, { row: box.top, col: left }, matrix);
+		editing = null;
+		applyWithUndo(paste.changes, words.filled(paste.rows * paste.cols - paste.skipped));
+		table?.focus({ preventScroll: true });
 	}
 
 	function ondraftkeydown(event: KeyboardEvent): void {
@@ -736,6 +803,25 @@
 					'end'
 				);
 				draft = event.currentTarget.value;
+			}
+		} else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			fillDraft();
+		} else if (stampOf(event) !== null && editing !== null) {
+			const field = app.ws.field(editing.field);
+			const text = field === undefined ? null : stampText(field, stampOf(event) === 'time');
+			const input = event.currentTarget;
+			if (
+				text === null ||
+				!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)
+			)
+				return;
+			event.preventDefault();
+			if (field !== undefined && isDated(field.type)) {
+				draft = text;
+			} else {
+				input.setRangeText(text, input.selectionStart ?? 0, input.selectionEnd ?? 0, 'end');
+				draft = input.value;
 			}
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
@@ -906,12 +992,14 @@
 		return Math.min(max, Math.max(min === 0 ? step : min, picked));
 	}
 
-	function rangeTsv(): string {
-		return toTsv(
-			rangeRows().map((row) =>
-				rangeFields().map((field) => copyText(app.ws, field, cellValue(row, field, computed)))
-			)
+	function rangeCells(): string[][] {
+		return rangeRows().map((row) =>
+			rangeFields().map((field) => copyText(app.ws, field, cellValue(row, field, computed)))
 		);
+	}
+
+	function rangeTsv(): string {
+		return toTsv(rangeCells());
 	}
 
 	function backToGrid(): void {
@@ -933,6 +1021,7 @@
 	function oncatchercopy(event: ClipboardEvent, cut = false): void {
 		if (event.clipboardData === null) return;
 		event.clipboardData.setData('text/plain', catcher?.value ?? '');
+		event.clipboardData.setData('text/html', toHtml(rangeCells()));
 		event.preventDefault();
 		const count = (bottom - top + 1) * rangeFields().length;
 		backToGrid();
@@ -1454,7 +1543,7 @@
 	</td>
 {/snippet}
 
-<div class="flex h-full flex-col">
+<div class="relative flex h-full flex-col">
 	<textarea
 		bind:this={catcher}
 		class="pointer-events-none fixed top-0 left-0 size-px opacity-0"
@@ -1463,6 +1552,15 @@
 		oncopy={(event) => oncatchercopy(event)}
 		oncut={(event) => oncatchercopy(event, true)}
 		onpaste={oncatcherpaste}></textarea>
+	{#if summary !== null}
+		<p
+			class="pointer-events-none absolute right-3 bottom-3 z-40 flex gap-3 rounded-box bg-raised px-2 py-1 text-sm text-ink tabular-nums ring-1 ring-edge"
+		>
+			<span><span class="text-ink-3">{words.sum}</span> {summed(summary.sum)}</span>
+			<span><span class="text-ink-3">{words.average}</span> {summed(summary.average)}</span>
+			<span><span class="text-ink-3">{words.count}</span> {formatNumber(summary.count)}</span>
+		</p>
+	{/if}
 	{#if filterField}
 		<div class="flex shrink-0 items-center gap-2 px-3 py-1 text-sm text-ink-2">
 			<span class="min-w-0 truncate">

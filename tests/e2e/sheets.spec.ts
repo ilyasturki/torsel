@@ -92,6 +92,81 @@ test.describe('sheets essentials', () => {
 	});
 });
 
+test.describe('grid keys', () => {
+	test('selects a column and a row, sums them, fills a range and stamps today', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const lifts = await seedLifts(context.request);
+		await page.goto(lifts.path);
+		await expect(cell(page, 'belt')).toBeVisible();
+		const keys = page.keyboard;
+		const summary = page.locator('p').filter({ hasText: 'Average' });
+		const sums = async (sum: string, average: string, count: string): Promise<void> => {
+			await expect(summary).toContainText(`Sum ${sum}`);
+			await expect(summary).toContainText(`Average ${average}`);
+			await expect(summary).toContainText(`Count ${count}`);
+		};
+
+		await page.getByRole('grid').focus();
+		await keys.press('ArrowRight');
+		await keys.press('Control+Space');
+		await sums('340', '85', '4');
+
+		await keys.press('Escape');
+		await expect(summary).toHaveCount(0);
+		for (let step = 0; step < 3; step += 1) await keys.press('ArrowDown');
+		await keys.press('Shift+Space');
+		await sums('320.46', '160.23', '2');
+
+		await keys.press('Escape');
+		for (let step = 0; step < 3; step += 1) await keys.press('ArrowUp');
+		await keys.press('Shift+ArrowDown');
+		await keys.type('50');
+		await keys.press('Control+Enter');
+		const kgs = column(page, 1);
+		await expect(kgs).toHaveText(['50', '50', '80', '100']);
+		await expect(page.getByRole('status')).toContainText('Filled 2 cells');
+		await undo(page);
+		await expect(kgs).toHaveText(['70', '90', '80', '100']);
+
+		await page.getByRole('grid').focus();
+		await keys.press('ArrowRight');
+		await keys.press('ArrowRight');
+		await keys.press('Control+;');
+		await keys.press('Enter');
+		const today = new Intl.DateTimeFormat('en-US', {
+			month: 'short',
+			day: 'numeric',
+			timeZone: 'UTC'
+		}).format(new Date());
+		await expect(column(page, 3).nth(1)).toHaveText(today);
+	});
+
+	test('copies a range as a table for documents too', async ({ page, context, account }) => {
+		test.skip(test.info().project.name === 'phone', 'copying a range takes a keyboard and a mouse');
+		void account;
+		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		const lifts = await seedLifts(context.request);
+		await page.goto(lifts.path);
+
+		await cell(page, 'easy bar').click();
+		await cell(page, 'deep').click({ modifiers: ['Shift'] });
+		await page.keyboard.press('Control+C');
+
+		await expect
+			.poll(() =>
+				page.evaluate(async () => {
+					const [item] = await navigator.clipboard.read();
+					return (await item.getType('text/html')).text();
+				})
+			)
+			.toContain('<td>easy bar</td></tr><tr><td>deep</td>');
+	});
+});
+
 const FORMATS = [
 	{
 		locale: 'en-US',
