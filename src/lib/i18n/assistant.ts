@@ -36,7 +36,11 @@ const en = {
 		export: 'Preparing the backup…',
 		export_table: 'Exporting the table…',
 		move: 'Moving…',
-		duplicate: 'Duplicating…'
+		duplicate: 'Duplicating…',
+		read_source: 'Reading the link…',
+		connect_source: 'Linking the table…',
+		refresh_source: 'Refreshing the table…',
+		update_source: 'Changing the source…'
 	} as Record<string, string>,
 	editingLast: 'Editing your last message',
 	attachedFiles: 'Attached files',
@@ -155,7 +159,11 @@ const fr: typeof en = {
 		export: 'Préparation de la sauvegarde…',
 		export_table: 'Export de la table…',
 		move: 'Déplacement…',
-		duplicate: 'Duplication…'
+		duplicate: 'Duplication…',
+		read_source: 'Lecture du lien…',
+		connect_source: 'Liaison de la table…',
+		refresh_source: 'Actualisation de la table…',
+		update_source: 'Modification de la source…'
 	},
 	editingLast: 'Tu modifies ton dernier message',
 	attachedFiles: 'Fichiers joints',

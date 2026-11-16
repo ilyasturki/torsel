@@ -165,7 +165,9 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 		} else {
 			const content = blocks(row.content);
 			// What a reply says on its way to a tool call is progress, not the answer.
-			const acting = content.some((block) => block?.type === 'tool_use');
+			const acting = content.some(
+				(block) => block?.type === 'tool_use' || block?.type === 'server_tool_use'
+			);
 			content.forEach((block, index) => {
 				if (block === undefined) return;
 				if (block.type === 'text' && block.text !== '' && !acting) {

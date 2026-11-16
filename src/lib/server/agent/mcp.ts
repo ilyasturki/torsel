@@ -17,10 +17,13 @@ import {
 import { z } from 'zod';
 
 import type { Actor, Path } from '../../core/access.ts';
+import { Hlc } from '../../core/clock.ts';
+import { stampAll } from '../../core/diff.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeUndoable } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
+import { sourceHost } from '../sources/host.ts';
 import { perMinute } from '../auth/rate-limit.ts';
 import type { Credential } from '../auth/session.ts';
 import { allowedOrigins, mcpCallsPerMinute, siteOrigin } from '../config.ts';
@@ -93,20 +96,25 @@ export async function execute(
 			ws,
 			actor,
 			commit(action) {
-				const before = writeUndoable(db, actor, ws, action.changes);
+				// A linked table is already written by the server: only its card is recorded.
+				const before =
+					action.applied === true
+						? stampAll(ws, new Hlc('mcp'), action.changes)
+						: writeUndoable(db, actor, ws, action.changes);
 				try {
 					recordToolChange(
 						db,
 						caller.userId,
 						{ id: caller.tokenId, label: caller.label },
 						{ name: tool.name, input },
-						{ ...action, before }
+						{ summary: action.summary, changes: action.changes, before }
 					);
 				} catch (thrown) {
 					// The write stands; only its card in the app is missing.
 					console.error('mcp change record:', thrown instanceof Error ? thrown.message : thrown);
 				}
-			}
+			},
+			sources: sourceHost(db, caller.userId)
 		};
 		return { outcome: await runTool(ctx, tool, input), ws };
 	};
@@ -153,7 +161,7 @@ export function buildMcpServer(db: Database, caller: McpCaller, version: string)
 					readOnlyHint: tool.kind === 'read',
 					destructiveHint: tool.destructive,
 					idempotentHint: tool.idempotent,
-					openWorldHint: false
+					openWorldHint: tool.openWorld === true
 				}
 			},
 			async (input: unknown): Promise<CallToolResult> => {

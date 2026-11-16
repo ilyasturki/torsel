@@ -1,23 +1,116 @@
+import { PATH, SOURCE } from '../../core/access.ts';
+import { createTable } from '../../core/actions.ts';
 import { Hlc } from '../../core/clock.ts';
+import type { Change } from '../../core/model.ts';
+import { markValue } from '../../core/source.ts';
 import type { Effect } from '../../core/thread.ts';
 import { Workspace } from '../../core/workspace.ts';
 import type { Sheet } from './files.ts';
+import type { SourceHost, SourcePreview } from './source-tools.ts';
+import { SourceFailure } from './source-tools.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { runTool, toolNamed } from './toolkit.ts';
 
 export type Session = {
 	ctx: ToolContext;
+	/** Tables the stand-in server fills from a link. */
+	linked: Set<string>;
+	link(name: string): string;
 	actions: Action[];
 	shown: Effect[];
 	call(name: string, input: unknown): Promise<unknown>;
 	outcome(name: string, input: unknown): ReturnType<typeof runTool>;
 };
 
+export const MOVIES: SourcePreview = {
+	format: 'csv',
+	url: 'https://example.com/movies.csv',
+	columns: [
+		{ path: 'Title', name: 'Title', type: 'text' },
+		{ path: 'Year', name: 'Year', type: 'number' }
+	],
+	items: [
+		{ Title: 'Alien', Year: '1979' },
+		{ Title: 'Heat', Year: '1995' }
+	],
+	count: 2,
+	more: false,
+	rowPaths: [],
+	rows: '',
+	key: null
+};
+
+/** A table a source fills, as the server writes it: its mark and each field's path. */
+function linkedTable(
+	ws: Workspace,
+	base: string,
+	name: string,
+	columns: SourcePreview['columns']
+): { id: string; changes: Change[] } {
+	const made = createTable(
+		ws,
+		base,
+		name,
+		columns.map((column) => ({ name: column.name, type: column.type })),
+		() => [{ name: 'Grid', type: 'grid', config: {} }]
+	);
+	const changes = made.changes.map((change) => {
+		if (change.id === made.id) {
+			return {
+				...change,
+				set: {
+					...change.set,
+					[SOURCE]: markValue({ name: 'example.com', problem: null, at: null })
+				}
+			};
+		}
+		const at = made.fieldIds.indexOf(change.id);
+		return at < 0 ? change : { ...change, set: { ...change.set, [PATH]: columns[at].path } };
+	});
+	return { id: made.id, changes };
+}
+
+/** Stands in for the server: links answer from fixed data, a 401 link wants a key, a docs link is a page. */
+function fakeSources(ws: Workspace, linked: Set<string>): SourceHost {
+	const known = (table: string): void => {
+		if (!linked.has(table)) throw new SourceFailure('gone');
+	};
+	return {
+		preview: ({ url }) => {
+			if (url.includes('401')) return Promise.reject(new SourceFailure('auth'));
+			if (url.includes('docs')) return Promise.reject(new SourceFailure('html'));
+			return Promise.resolve({ ...MOVIES, url });
+		},
+		connect: (request) => {
+			const base = request.base ?? ws.bases()[0].id;
+			const made = linkedTable(ws, base, request.name, request.columns);
+			linked.add(made.id);
+			return Promise.resolve({
+				table: made.id,
+				base,
+				changes: made.changes,
+				run: { ok: true, added: 2, changed: 0, removed: 0, problem: null }
+			});
+		},
+		refresh: (table) => {
+			known(table);
+			return Promise.resolve({ ok: true, added: 0, changed: 1, removed: 0, problem: null });
+		},
+		update: known,
+		stop: (table) => {
+			known(table);
+			linked.delete(table);
+			return Promise.resolve();
+		}
+	};
+}
+
 export function session(sheets: Record<string, Sheet> = {}): Session {
 	const ws = new Workspace();
 	const hlc = new Hlc('ai');
 	const actions: Action[] = [];
 	const shown: Effect[] = [];
+	const linked = new Set<string>();
 	const ctx: ToolContext = {
 		ws,
 		actor: { user: 'u_test', path: 'assistant' },
@@ -28,7 +121,16 @@ export function session(sheets: Record<string, Sheet> = {}): Session {
 			actions.push(action);
 		},
 		show: (effect) => shown.push(effect),
-		sheet: (file) => sheets[file] ?? null
+		sheet: (file) => sheets[file] ?? null,
+		sources: fakeSources(ws, linked)
+	};
+
+	// Straight into the workspace, as a sync would bring it: no action of the session's.
+	const link = (name: string): string => {
+		const made = linkedTable(ws, ws.bases()[0].id, name, MOVIES.columns);
+		for (const change of made.changes) ws.stamp(change, hlc.tick());
+		linked.add(made.id);
+		return made.id;
 	};
 
 	const outcome = (name: string, input: unknown): ReturnType<typeof runTool> => {
@@ -41,7 +143,7 @@ export function session(sheets: Record<string, Sheet> = {}): Session {
 		return result.ok ? result.result : { error: result.error };
 	};
 
-	return { ctx, actions, shown, call, outcome };
+	return { ctx, linked, link, actions, shown, call, outcome };
 }
 
 export type Gym = Session & {

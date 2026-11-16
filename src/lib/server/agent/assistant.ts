@@ -22,6 +22,7 @@ import { assistant as words } from '../../i18n/assistant.ts';
 import { anthropicKey } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
+import { sourceHost } from '../sources/host.ts';
 import { envText } from '../env.ts';
 import { blocksOf, sheetOf } from './files.ts';
 import {
@@ -60,7 +61,7 @@ Read each request against the screen. "This", "here" and "these" mean the open t
 
 The open table's schema is in the note: write to it without reading it first. Reuse its names and choices ("bench press", not "Bench Press", if that is what the table holds). Read values with query, a read-only SQLite SELECT over views named like the tables and fields, and other bases with describe_base. "3x8 at 80 on bench" means three rows of 8 reps at 80 kg on the matching exercise, dated today; "same as last time" is read from the history with query.
 
-You can do what the person can do by hand from the app: change data, fields, views, tables and bases, show them a table, view or page (open), import an attached file (import_file), download a table as CSV (export_table) and download a backup (export). Their account stays theirs: password, sign-in, tokens and erasing the device are not yours to touch.
+You can do what the person can do by hand from the app: change data, fields, views, tables and bases, show them a table, view or page (open), import an attached file (import_file), download a table as CSV (export_table), download a backup (export), and make a table that fills itself from a link or an API (read_source, then connect_source; web_fetch reads an API's docs). A key a link needs is never asked for or typed in the conversation: the change card has a field for it. Their account stays theirs: password, sign-in, tokens and erasing the device are not yours to touch.
 
 Files they attach come with their message: images and PDFs as themselves, tables and text as text. Follow what they say to do with them; import_file brings a table in whole.
 
@@ -73,11 +74,22 @@ function inputSchema(schema: z.ZodObject): Anthropic.Beta.BetaTool.InputSchema {
 	return json as Anthropic.Beta.BetaTool.InputSchema;
 }
 
-const TOOL_DEFS: Anthropic.Beta.BetaTool[] = TOOLS.map((tool) => ({
-	name: tool.name,
-	description: tool.description,
-	input_schema: inputSchema(tool.input)
-}));
+// Fetches on Anthropic's side, never with a key, and only links already in the conversation.
+const WEB_FETCH: Anthropic.Beta.BetaWebFetchTool20260209 = {
+	type: 'web_fetch_20260209',
+	name: 'web_fetch',
+	max_uses: 5,
+	max_content_tokens: 30_000
+};
+
+const TOOL_DEFS: Anthropic.Beta.BetaToolUnion[] = [
+	...TOOLS.map((tool) => ({
+		name: tool.name,
+		description: tool.description,
+		input_schema: inputSchema(tool.input)
+	})),
+	WEB_FETCH
+];
 
 export class AssistantUnavailable extends Error {}
 
@@ -406,6 +418,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 	const ctx: ToolContext = {
 		ws,
 		actor: { user: userId, path: 'assistant' },
+		sources: sourceHost(db, userId),
 		commit(action: Action) {
 			committed = {
 				id: current,
@@ -413,7 +426,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 				summary: action.summary,
 				changes: action.changes,
 				before: stampAll(ws, hlc, action.changes),
-				status: 'pending'
+				status: action.applied === true ? 'applied' : 'pending'
 			};
 		},
 		show(effect) {
@@ -488,6 +501,14 @@ export async function runTurn(turn: Turn): Promise<void> {
 					...(first ? { excludes: userSeq } : {})
 				});
 				return;
+			}
+
+			// A server tool's long turn: handing the reply back as it is lets it go on.
+			if (message.stop_reason === 'pause_turn') {
+				const paused = echoable(message.content);
+				appendMessages(db, threadId, [{ role: 'assistant', content: paused }]);
+				messages.push({ role: 'assistant', content: paused });
+				continue;
 			}
 
 			const uses = afterFallback(message.content).filter(

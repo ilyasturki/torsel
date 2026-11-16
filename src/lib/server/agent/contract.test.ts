@@ -23,6 +23,8 @@ type Contract = {
 	check?(g: Gym, result: Record<string, unknown>): void;
 	/** Calls refused, each with what the refusal says. */
 	refused: [(g: Gym) => Record<string, unknown>, RegExp][];
+	/** Actions a valid call records; a write tool records one unless the server writes alone. */
+	actions?: number;
 };
 
 const CONTRACTS: Record<string, Contract> = {
@@ -364,6 +366,57 @@ const CONTRACTS: Record<string, Contract> = {
 			],
 			[() => ({ base: 'Gym', table: 'Sets', view: 'Grid', position: 0 }), /^position: /u]
 		]
+	},
+	read_source: {
+		valid: () => ({ url: 'https://example.com/movies.csv' }),
+		check: (_, result) =>
+			expect(result).toMatchObject({
+				format: 'csv',
+				columns: [{ path: 'Title', values: ['Alien', 'Heat'] }, { path: 'Year' }],
+				rows_on_page: 2
+			}),
+		refused: [
+			[() => ({}), /^give url, or preset and value$/u],
+			[() => ({ url: 'https://example.com/docs' }), /web page, not data/u],
+			[() => ({ preset: 'letterboxd', value: 'two words' }), /^letterboxd can’t read "two words"$/u]
+		]
+	},
+	connect_source: {
+		valid: () => ({ url: 'https://example.com/movies.csv', name: 'Movies' }),
+		check: (g, result) => {
+			expect(result).toMatchObject({ rows: 2, needs_key: false });
+			expect(g.actions.at(-1)).toMatchObject({ applied: true });
+			expect(g.linked.has(result.id as string)).toBe(true);
+			expect(g.ctx.ws.table(result.id as string)?.name).toBe('Movies');
+		},
+		refused: [
+			[
+				() => ({ url: 'https://example.com/401.json', auth: { kind: 'bearer' } }),
+				/needs a key, so its columns can’t be read here/u
+			],
+			[() => ({ url: 'https://example.com/movies.csv', base: 'Nope' }), /^no base "Nope"$/u],
+			[
+				() => ({ url: 'https://example.com/movies.csv', fields: [] }),
+				/^fields needs at least one column$/u
+			]
+		]
+	},
+	refresh_source: {
+		valid: (g) => ({ table: g.link('Movies') }),
+		check: (_, result) => expect(result).toEqual({ added: 0, changed: 1, removed: 0 }),
+		refused: [[() => ({ table: 'Sets' }), /^"Sets" is not linked to a source$/u]],
+		actions: 0
+	},
+	update_source: {
+		valid: (g) => ({ table: g.link('Movies'), every: 'day' }),
+		check: (g, result) => expect(g.linked.has(result.updated as string)).toBe(true),
+		refused: [
+			[
+				() => ({ table: 'Nope', stop: true }),
+				/^no linked table "Nope"; the linked tables are none$/u
+			]
+		],
+		actions: 0
 	}
 };
 
@@ -389,7 +442,7 @@ describe('tool contracts', () => {
 			const result = outcome.ok ? outcome.result : {};
 			expect(tool.output.safeParse(result).error).toBeUndefined();
 			await contract.check?.(g, result);
-			expect(g.actions.length - before).toBe(tool.kind === 'write' ? 1 : 0);
+			expect(g.actions.length - before).toBe(contract.actions ?? (tool.kind === 'write' ? 1 : 0));
 		});
 
 		it('refuses a key it does not take, naming the ones it does', async () => {

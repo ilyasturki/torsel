@@ -44,7 +44,8 @@ const en = {
 		closed: 'Closed',
 		link: 'Link'
 	},
-	issues: (repo: string) => `${repo} issues`
+	issues: (repo: string) => `${repo} issues`,
+	connected: (table: string, from: string) => `"${table}" linked to ${from}`
 };
 
 const fr: typeof en = {
@@ -90,7 +91,8 @@ const fr: typeof en = {
 		closed: 'Fermé le',
 		link: 'Lien'
 	},
-	issues: (repo) => `Tickets ${repo}`
+	issues: (repo) => `Tickets ${repo}`,
+	connected: (table, from) => `« ${table} » liée à ${from}`
 };
 
 export default { en, fr };

@@ -171,6 +171,10 @@ exports[`lists the same tools in every era 1`] = `
                     "formula": {
                       "type": "string",
                     },
+                    "from": {
+                      "description": "the path its source fills it from: read-only",
+                      "type": "string",
+                    },
                     "grouping": {
                       "type": "boolean",
                     },
@@ -248,6 +252,10 @@ exports[`lists the same tools in every era 1`] = `
               },
               "rows": {
                 "type": "number",
+              },
+              "source": {
+                "description": "what fills the table: its rows come from there, never added or deleted here",
+                "type": "string",
               },
               "views": {
                 "items": {
@@ -2099,6 +2107,414 @@ exports[`lists the same tools in every era 1`] = `
       "type": "object",
     },
     "title": "Move a field or view",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+    },
+    "description": "Reads a link as a linked table would: CSV, TSV, JSON, Excel, RSS or Atom over http(s), its first page. Returns the format, each column (path, a field name, a guessed type, its first values), the rows on the page, whether more pages follow, the paths that hold rows in a JSON answer, and the key path that tells rows apart. needs_key is true when the link refused without a key. For an API, read its docs with web_fetch first to find the URL that returns data.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "auth": {
+          "additionalProperties": false,
+          "description": "how the link signs in; the key itself is never given here",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none",
+                "header",
+                "query",
+                "bearer",
+                "basic",
+              ],
+              "type": "string",
+            },
+            "name": {
+              "description": "the header (kind header) or query parameter (kind query) that carries the key",
+              "type": "string",
+            },
+          },
+          "required": [
+            "kind",
+          ],
+          "type": "object",
+        },
+        "preset": {
+          "description": "instead of url: letterboxd (value: the member name), sheet (value: a Google Sheets link), github (value: owner/repo, its issues)",
+          "enum": [
+            "letterboxd",
+            "sheet",
+            "github",
+          ],
+          "type": "string",
+        },
+        "rows": {
+          "description": "in a JSON answer, the dotted path to the rows; the longest list is the default",
+          "type": "string",
+        },
+        "url": {
+          "description": "the http(s) link that returns the data",
+          "type": "string",
+        },
+        "value": {
+          "description": "what the preset asks for",
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "name": "read_source",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+              },
+              "path": {
+                "type": "string",
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "longtext",
+                  "number",
+                  "currency",
+                  "percent",
+                  "rating",
+                  "duration",
+                  "date",
+                  "datetime",
+                  "choice",
+                  "choices",
+                  "check",
+                  "link",
+                  "url",
+                  "email",
+                  "phone",
+                  "formula",
+                ],
+                "type": "string",
+              },
+              "values": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+            },
+            "required": [
+              "path",
+              "name",
+              "type",
+              "values",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "format": {
+          "type": "string",
+        },
+        "key": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "more_pages": {
+          "type": "boolean",
+        },
+        "needs_key": {
+          "type": "boolean",
+        },
+        "row_paths": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "rows": {
+          "type": "string",
+        },
+        "rows_on_page": {
+          "type": "number",
+        },
+        "url": {
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "title": "Read a link",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+    },
+    "description": "Makes a new table that fills itself from a link, refreshed by the server: its linked fields are read-only, and the person can add fields of their own beside them. Read the link with read_source first. fields picks, names and types the columns, from being a path read_source gave; left out, every column comes. For a link that needs a key, give auth with its kind and, for a header or query key, its name: the key itself never goes through the conversation, the person types it in the change card. every: hour (default), day or manual. missing, for rows gone from the link: remove (the default) or keep (the default for feeds, which show their latest items only).",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "auth": {
+          "additionalProperties": false,
+          "description": "how the link signs in; the key itself is never given here",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none",
+                "header",
+                "query",
+                "bearer",
+                "basic",
+              ],
+              "type": "string",
+            },
+            "name": {
+              "description": "the header (kind header) or query parameter (kind query) that carries the key",
+              "type": "string",
+            },
+          },
+          "required": [
+            "kind",
+          ],
+          "type": "object",
+        },
+        "base": {
+          "description": "name or id of the base; the default base when left out",
+          "type": "string",
+        },
+        "every": {
+          "enum": [
+            "manual",
+            "hour",
+            "day",
+          ],
+          "type": "string",
+        },
+        "fields": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "description": "the path the values come from",
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "longtext",
+                  "number",
+                  "currency",
+                  "percent",
+                  "rating",
+                  "duration",
+                  "date",
+                  "datetime",
+                  "choice",
+                  "choices",
+                  "check",
+                  "url",
+                  "email",
+                  "phone",
+                ],
+                "type": "string",
+              },
+            },
+            "required": [
+              "from",
+              "name",
+              "type",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "key": {
+          "description": "the path whose values tell rows apart; read_source suggests one",
+          "type": "string",
+        },
+        "missing": {
+          "enum": [
+            "remove",
+            "keep",
+          ],
+          "type": "string",
+        },
+        "name": {
+          "description": "the new table; the source’s name by default",
+          "type": "string",
+        },
+        "preset": {
+          "description": "instead of url: letterboxd (value: the member name), sheet (value: a Google Sheets link), github (value: owner/repo, its issues)",
+          "enum": [
+            "letterboxd",
+            "sheet",
+            "github",
+          ],
+          "type": "string",
+        },
+        "rows": {
+          "description": "in a JSON answer, the dotted path to the rows",
+          "type": "string",
+        },
+        "url": {
+          "description": "the http(s) link that returns the data",
+          "type": "string",
+        },
+        "value": {
+          "description": "what the preset asks for",
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "name": "connect_source",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "type": "string",
+        },
+        "id": {
+          "type": "string",
+        },
+        "needs_key": {
+          "type": "boolean",
+        },
+        "problem": {
+          "type": "string",
+        },
+        "rows": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "id",
+        "base",
+        "rows",
+        "needs_key",
+      ],
+      "type": "object",
+    },
+    "title": "Link a table to a source",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+    },
+    "description": "Reads a linked table’s source now, as the server does on its schedule.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "description": "name or id of the linked table",
+          "type": "string",
+        },
+      },
+      "required": [
+        "table",
+      ],
+      "type": "object",
+    },
+    "name": "refresh_source",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "added": {
+          "type": "number",
+        },
+        "changed": {
+          "type": "number",
+        },
+        "problem": {
+          "type": "string",
+        },
+        "removed": {
+          "type": "number",
+        },
+      },
+      "type": "object",
+    },
+    "title": "Refresh a linked table",
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Changes how often a linked table refreshes (every) and what becomes of rows gone from the source (missing); stop: true stops syncing, which keeps the rows and makes every field editable, and cannot be undone.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "every": {
+          "enum": [
+            "manual",
+            "hour",
+            "day",
+          ],
+          "type": "string",
+        },
+        "missing": {
+          "enum": [
+            "remove",
+            "keep",
+          ],
+          "type": "string",
+        },
+        "stop": {
+          "type": "boolean",
+        },
+        "table": {
+          "description": "name or id of the linked table",
+          "type": "string",
+        },
+      },
+      "required": [
+        "table",
+      ],
+      "type": "object",
+    },
+    "name": "update_source",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "updated": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "updated",
+      ],
+      "type": "object",
+    },
+    "title": "Change a linked table’s source",
   },
 ]
 `;

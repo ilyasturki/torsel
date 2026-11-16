@@ -107,7 +107,7 @@ export async function createSource(
 	db: Database,
 	userId: string,
 	spec: SourceSpec
-): Promise<{ table: string; base: string }> {
+): Promise<{ table: string; base: string; changes: Change[] }> {
 	const auth = checkAuth(spec.auth);
 	const { url, secret } = splitKey(spec.url, auth, spec.secret);
 	if (
@@ -177,7 +177,7 @@ export async function createSource(
 			row.hint = hintOf(secret);
 		}
 		insertSource(db, row);
-		return { table: made.id, base: home.id };
+		return { table: made.id, base: home.id, changes };
 	});
 }
 

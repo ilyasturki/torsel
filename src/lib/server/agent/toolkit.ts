@@ -8,7 +8,7 @@ import fieldCatalog, {
 import { names } from '../../i18n/names.ts';
 
 import type { Actor } from '../../core/access.ts';
-import { hasPath, lockedKeys } from '../../core/access.ts';
+import { PATH, hasPath, lockedKeys } from '../../core/access.ts';
 import type { FieldSpec } from '../../core/actions.ts';
 import {
 	addField,
@@ -65,6 +65,7 @@ import {
 } from '../../core/model.ts';
 import { nameTaken, numberedName, sameName } from '../../core/names.ts';
 import { retypeField } from '../../core/retype.ts';
+import { sourceMark } from '../../core/source.ts';
 import type { SqlValue } from '../../core/sql.ts';
 import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
@@ -73,8 +74,11 @@ import { DATA_COLORS, isDataColor, nextChoice } from '../../ui/colors.ts';
 import type { SqlResult, SqlTask } from '../sql/jobs.ts';
 import { SQL_LIMITS, SqlRefusal, sqlPool } from '../sql/pool.ts';
 import type { Sheet } from './files.ts';
+import type { SourceHost } from './source-tools.ts';
+import { sourceTools } from './source-tools.ts';
 
-export type Action = { summary: string; changes: Change[] };
+// `applied`: the server already wrote these changes (a linked table); the action only shows and undoes them.
+export type Action = { summary: string; changes: Change[]; applied?: boolean };
 
 export type ToolContext = {
 	ws: Workspace;
@@ -83,6 +87,7 @@ export type ToolContext = {
 	// What the app shows for the person; absent where there is no screen, as over MCP.
 	show?(effect: Effect): void;
 	sheet?(file: string): Sheet | null;
+	sources?: SourceHost;
 };
 
 // `screen` tools act on what the person sees, `write` tools change records.
@@ -101,6 +106,8 @@ export type Tool = {
 	destructive: boolean;
 	/** A second call with the same input changes nothing more. */
 	idempotent: boolean;
+	/** It reaches beyond the person's data, to a link on the web. */
+	openWorld?: boolean;
 	run(ctx: ToolContext, input: never): Promise<ToolResult> | ToolResult;
 };
 
@@ -732,7 +739,8 @@ const FIELD_OUT = z.strictObject({
 		.optional(),
 	target: z.string().optional(),
 	formula: z.string().optional(),
-	description: z.string().optional()
+	description: z.string().optional(),
+	from: z.string().optional().describe('the path its source fills it from: read-only')
 });
 
 function describeField(ws: Workspace, field: FieldDef): z.infer<typeof FIELD_OUT> {
@@ -752,6 +760,8 @@ function describeField(ws: Workspace, field: FieldDef): z.infer<typeof FIELD_OUT
 	if (field.type === 'formula' && field.expr !== null)
 		out.formula = toDisplay(field.expr, namesIn(ws, field.base));
 	if (field.description !== null) out.description = field.description;
+	const from = ws.get(field.id)?.data[PATH];
+	if (typeof from === 'string' && from !== '') out.from = from;
 
 	return out as z.infer<typeof FIELD_OUT>;
 }
@@ -813,6 +823,11 @@ export function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_
 	return { id: view.id, name: view.name, type: view.type, config: out };
 }
 
+function sourceOf(ws: Workspace, tableId: string): { source?: string } {
+	const mark = sourceMark(ws.get(tableId));
+	return mark === null ? {} : { source: mark.name };
+}
+
 const ID = z.strictObject({ id: z.string() });
 
 export const TOOLS: Tool[] = [
@@ -857,6 +872,12 @@ export const TOOLS: Tool[] = [
 					id: z.string(),
 					name: z.string(),
 					rows: z.number(),
+					source: z
+						.string()
+						.optional()
+						.describe(
+							'what fills the table: its rows come from there, never added or deleted here'
+						),
 					fields: z.array(FIELD_OUT),
 					views: z.array(VIEW_OUT)
 				})
@@ -874,6 +895,7 @@ export const TOOLS: Tool[] = [
 					id: table.id,
 					name: table.name,
 					rows: ws.rows(table.id).length,
+					...sourceOf(ws, table.id),
 					fields: ws.fields(table.id).map((field) => describeField(ws, field)),
 					views: ws.views(table.id).map((view) => describeView(ws, view))
 				}))
@@ -1665,7 +1687,10 @@ export const TOOLS: Tool[] = [
 			}
 			return { moved: moved.id, position: to + 1 };
 		}
-	}
+	},
+	...sourceTools((message) => {
+		throw new ToolError(message);
+	})
 ];
 
 export function toolNamed(name: string): Tool | undefined {
@@ -1768,7 +1793,7 @@ export async function runTool(
 	const guarded: ToolContext = {
 		...ctx,
 		commit(action) {
-			refuseLocked(ctx.ws, ctx.actor, action.changes);
+			if (action.applied !== true) refuseLocked(ctx.ws, ctx.actor, action.changes);
 			ctx.commit(action);
 		}
 	};

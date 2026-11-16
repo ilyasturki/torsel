@@ -106,7 +106,12 @@ describe.each(MODES)('the official client, as %s', (_, mode, version) => {
 
 		const { tools } = await client.listTools();
 
-		expect(tools.map((tool) => tool.name)).toEqual(['list_bases', 'describe_base', 'query']);
+		expect(tools.map((tool) => tool.name)).toEqual([
+			'list_bases',
+			'describe_base',
+			'query',
+			'read_source'
+		]);
 		expect(client.getInstructions()).toMatch(/This token reads only/u);
 		await expect(
 			client.callTool({ name: 'create_base', arguments: { name: 'Nope' } })
@@ -160,7 +165,11 @@ it('marks each tool for what it does to the data', async () => {
 		rename: [false, true, true, false],
 		duplicate: [false, false, false, false],
 		update_view: [false, true, true, false],
-		move: [false, false, true, false]
+		move: [false, false, true, false],
+		read_source: [true, false, true, true],
+		connect_source: [false, false, false, true],
+		refresh_source: [false, true, true, true],
+		update_source: [false, true, true, false]
 	});
 	for (const tool of tools) {
 		expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);
