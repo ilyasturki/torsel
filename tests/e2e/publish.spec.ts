@@ -1,9 +1,76 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newAddress, seed, tableMenu, tablePath, test, watchErrors } from './harness.ts';
+import { newId } from '../../src/lib/core/ids.ts';
+import type { ImageRef } from '../../src/lib/core/images.ts';
+import {
+	RETRY_RESET,
+	expect,
+	newAddress,
+	seed,
+	tableMenu,
+	tablePath,
+	test,
+	watchErrors
+} from './harness.ts';
 
 const SECRET = 'SENTINEL the hidden note';
+const POSTER = readFileSync(join(import.meta.dirname, 'images/poster.jpg'));
+const STILL = readFileSync(join(import.meta.dirname, 'images/still.jpg'));
+
+async function upload(request: APIRequestContext, base: string, bytes: Buffer): Promise<ImageRef> {
+	const id = createHash('sha256').update(bytes).digest('hex');
+	const response = await request.post(`/api/blobs/${base}/${id}?size=${bytes.length}&offset=0`, {
+		...RETRY_RESET,
+		headers: { 'content-type': 'application/octet-stream' },
+		data: bytes
+	});
+	expect(response.ok(), 'uploading an image').toBe(true);
+	return ((await response.json()) as { ref: ImageRef }).ref;
+}
+
+/** Two books on a cover wall; Dune's back cover sits in a field the list doesn't show. */
+async function seedShelf(request: APIRequestContext): Promise<{ wall: string; hidden: string }> {
+	const baseId = newId('b');
+	const cover = await upload(request, baseId, POSTER);
+	const back = await upload(request, baseId, STILL);
+	const wall = await seed(request, (ws, commit) => {
+		commit([
+			{ id: baseId, kind: 'base', base: baseId, parent: '', set: { name: 'Shelf', order: 0 } }
+		]);
+		const books = createTable(
+			ws,
+			baseId,
+			'Books',
+			[
+				{ name: 'Title', type: 'text' },
+				{ name: 'Cover', type: 'image' },
+				{ name: 'Back', type: 'image' }
+			],
+			() => []
+		);
+		commit(books.changes);
+		const [title, front, rear] = books.fieldIds;
+		commit(
+			insertRows(ws, books.id, [
+				{ [title]: 'Dune', [front]: [cover], [rear]: [back] },
+				{ [title]: 'Alien' }
+			]).changes
+		);
+		const view = createView(ws, books.id, {
+			name: 'Wall',
+			type: 'list',
+			config: { title, cover: front, show: [], group: null }
+		});
+		commit(view.changes);
+		return tablePath(books.id, view.id);
+	});
+	return { wall, hidden: back.id };
+}
 
 function seedGarden(request: APIRequestContext) {
 	return seed(request, (ws, commit) => {
@@ -137,6 +204,34 @@ test('a published chart sends its figures, never its rows', async ({ page, brows
 	const bodies = await guest.bodies();
 	expect(bodies).not.toContain('Basil');
 	expect(bodies).not.toContain('SENTINEL');
+	await guest.context.close();
+	expect(errors).toEqual([]);
+});
+
+test('a published list shows its covers, and no image it doesn’t show', async ({
+	page,
+	browser,
+	account
+}) => {
+	void account;
+	const shelf = await seedShelf(page.request);
+	await page.goto(shelf.wall);
+	const link = await publish(page);
+
+	const errors: string[] = [];
+	const guest = await visitor(browser, errors);
+	await guest.page.goto(link);
+	await expect(guest.page.getByText('Dune', { exact: true })).toBeVisible();
+	await expect(guest.page.getByText('Alien', { exact: true })).toBeVisible();
+	await expect(guest.page.getByRole('button', { name: 'Dune' })).toHaveCount(0);
+	const cover = guest.page.locator('main img').first();
+	await expect
+		.poll(() => cover.evaluate((image: HTMLImageElement) => image.naturalWidth))
+		.toBeGreaterThan(0);
+
+	expect(await guest.bodies()).not.toContain(shelf.hidden);
+	const refused = await guest.context.request.get(`${link}/files/${shelf.hidden}`, RETRY_RESET);
+	expect(refused.status()).toBe(404);
 	await guest.context.close();
 	expect(errors).toEqual([]);
 });
