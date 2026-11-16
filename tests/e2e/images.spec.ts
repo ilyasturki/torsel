@@ -543,12 +543,19 @@ test('a device on the first local store keeps its unsent rows and takes images',
 
 	await page.goto(tablePath(table.id));
 	await expect(posterCell(page, 'Dune')).toBeVisible();
-	await expect.poll(() => serverValue(context.request, rows.ids[0])).toBeNull();
-	const pushed = await context.request.post('/api/sync', {
-		...RETRY_RESET,
-		data: { watermark: 0, push: [] }
-	});
-	expect(JSON.stringify(await pushed.json())).toContain('Dune');
+	await expect
+		.poll(
+			async () => {
+				const pulled = await context.request.post('/api/sync', {
+					...RETRY_RESET,
+					data: { watermark: 0, push: [] }
+				});
+				return JSON.stringify(await pulled.json());
+			},
+			{ timeout: 15_000 }
+		)
+		.toContain('Dune');
+	expect(await serverValue(context.request, rows.ids[0])).toBeNull();
 
 	await posterCell(page, 'Dune').click();
 	await page.keyboard.press('Enter');
