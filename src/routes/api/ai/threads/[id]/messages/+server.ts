@@ -118,12 +118,15 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 
 	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
+			let open = true;
 			const emit = (event: TurnEvent): void => {
-				if (!abort.signal.aborted) {
+				if (open && !abort.signal.aborted) {
 					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 				}
 			};
 			const ping = setInterval(() => emit({ type: 'ping' }), PING_MS);
+			// What runs beside the turn, the title: the stream stays open for it past `done`.
+			const beside: Promise<unknown>[] = [];
 
 			// The turn outlives the request's own context: its words stay in the request's language.
 			const done = inLocale(language, () =>
@@ -133,7 +136,8 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 					threadId: thread.id,
 					ask,
 					signal: abort.signal,
-					emit
+					emit,
+					beside
 				})
 			)
 				.catch((thrown: unknown) => {
@@ -143,15 +147,18 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 						event: { kind: 'error', message: words.serverWrong }
 					});
 				})
+				.finally(() => emit({ type: 'done' }));
+
+			trackTurn(thread.id, abort, done);
+			void done
+				.then(() => Promise.allSettled(beside))
 				.finally(() => {
 					clearInterval(ping);
-					emit({ type: 'done' });
+					open = false;
 					if (!abort.signal.aborted) {
 						controller.close();
 					}
 				});
-
-			trackTurn(thread.id, abort, done);
 		},
 		cancel() {
 			abort.abort();

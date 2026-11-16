@@ -11,7 +11,7 @@ import type {
 	ThreadRow,
 	ThreadSummary
 } from '../../core/thread.ts';
-import { titleOf } from '../../core/thread.ts';
+import { fitTitle, titleOf } from '../../core/thread.ts';
 import type { Database } from '../db/client.ts';
 import { WRITER } from '../db/client.ts';
 import { threadActions, threadFiles, threadMessages, threads } from '../db/schema.ts';
@@ -25,6 +25,7 @@ const UNSENT_MS = 24 * 60 * 60 * 1000;
 const SUMMARY = {
 	id: threads.id,
 	title: threads.title,
+	source: threads.source,
 	createdAt: threads.createdAt,
 	updatedAt: threads.updatedAt
 };
@@ -32,23 +33,44 @@ const SUMMARY = {
 function summary(thread: {
 	id: string;
 	title: string;
+	source: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }): ThreadSummary {
 	return {
-		...thread,
+		id: thread.id,
+		title: thread.title,
+		kind: thread.source === null ? 'assistant' : 'tool',
 		createdAt: thread.createdAt.getTime(),
 		updatedAt: thread.updatedAt.getTime()
 	};
 }
 
+/** Titled by its first message until the generated title lands. */
 export function createThread(db: Database, userId: string, prompt: string): ThreadSummary {
 	const now = new Date();
-	const thread = { id: randomUUID(), title: titleOf(prompt), createdAt: now, updatedAt: now };
+	const thread = {
+		id: randomUUID(),
+		title: fitTitle(prompt),
+		source: null,
+		createdAt: now,
+		updatedAt: now
+	};
 	db.insert(threads)
 		.values({ ...thread, userId })
 		.run();
 	return summary(thread);
+}
+
+/** A generated title, unless the person named the thread meanwhile; whether it was taken. */
+export function giveTitle(db: Database, threadId: string, title: string): boolean {
+	return (
+		db
+			.update(threads)
+			.set({ title })
+			.where(and(eq(threads.id, threadId), eq(threads.named, false)))
+			.run().changes > 0
+	);
 }
 
 export function listThreads(db: Database, userId: string): ThreadSummary[] {
@@ -73,7 +95,7 @@ export function findThread(db: Database, userId: string, id: string): ThreadSumm
 
 export function renameThread(db: Database, threadId: string, title: string): void {
 	db.update(threads)
-		.set({ title: titleOf(title) })
+		.set({ title: titleOf(title), named: true })
 		.where(eq(threads.id, threadId))
 		.run();
 }

@@ -32,10 +32,12 @@ import {
 	readFiles,
 	readRows,
 	readUnreported,
+	giveTitle,
 	recordAction,
 	silenceTurn,
 	unreportDecisions
 } from './threads.ts';
+import { generateTitle } from './title.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import { TOOLS, runTool, toolNamed } from './toolkit.ts';
 
@@ -269,6 +271,8 @@ export type Turn = {
 	ask: Ask;
 	signal: AbortSignal;
 	emit(event: TurnEvent): void;
+	// Work the turn starts and doesn't wait for; the caller keeps the stream open until it ends.
+	beside?: Promise<unknown>[];
 };
 
 function lastPrompt(rows: ThreadRow[]): ThreadRow | undefined {
@@ -278,6 +282,25 @@ function lastPrompt(rows: ThreadRow[]): ThreadRow | undefined {
 
 function isExcluded(rows: ThreadRow[], seq: number): boolean {
 	return rows.some((row) => row.role === 'event' && (row.content as EventContent).excludes === seq);
+}
+
+/** Runs beside the turn and never holds it: the reply can end before the title lands. */
+function nameThread(
+	client: Anthropic,
+	db: Database,
+	threadId: string,
+	meta: { prompt: string; where: string },
+	emit: (event: TurnEvent) => void
+): Promise<void> {
+	return generateTitle(client, meta.prompt, meta.where)
+		.then((title) => {
+			if (title !== null && giveTitle(db, threadId, title)) {
+				emit({ type: 'title', title });
+			}
+		})
+		.catch((thrown: unknown) => {
+			console.error('thread title:', thrown instanceof Error ? thrown.message : thrown);
+		});
 }
 
 export async function runTurn(turn: Turn): Promise<void> {
@@ -306,6 +329,10 @@ export async function runTurn(turn: Turn): Promise<void> {
 	let rows = readRows(db, threadId);
 	const previous = lastPrompt(rows);
 	const end = rows.at(-1)?.seq ?? 0;
+
+	if (ask.kind === 'send' && previous === undefined) {
+		turn.beside?.push(nameThread(client, db, threadId, ask.meta, emit));
+	}
 
 	let userSeq: number;
 	let decided: ThreadAction[] = [];

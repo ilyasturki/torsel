@@ -297,7 +297,9 @@
 	}}
 >
 	<div class="flex h-11 shrink-0 items-center gap-1 pr-1.5 pl-4">
-		<span class="min-w-0 flex-1 truncate font-semibold">{assistant.title || words.ask}</span>
+		<span class="min-w-0 flex-1 truncate font-semibold" data-testid="thread-title"
+			>{assistant.title || words.ask}</span
+		>
 		{#if me.account}
 			<Button
 				variant="ghost"

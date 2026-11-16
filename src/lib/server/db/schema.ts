@@ -181,12 +181,17 @@ export const threads = sqliteTable(
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 		title: text('title').notNull(),
+		// The person renamed it: no generated title replaces theirs.
+		named: integer('named', { mode: 'boolean' }).notNull().default(false),
+		// The credential of the connected tool whose changes it holds, null for the assistant's own.
+		source: text('source'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
 	},
 	(table) => [
 		primaryKey({ columns: [table.id] }),
-		index('threads_user_updated_idx').on(table.userId, table.updatedAt)
+		index('threads_user_updated_idx').on(table.userId, table.updatedAt),
+		index('threads_user_source_idx').on(table.userId, table.source)
 	]
 );
 

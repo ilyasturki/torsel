@@ -8,6 +8,9 @@ export const MAX_CONTEXT_ROWS = 200;
 
 export const MAX_TITLE = 60;
 
+// What the History row and the panel header show whole, on a phone too.
+export const MAX_GIVEN_TITLE = 32;
+
 export const MAX_FILES = 5;
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -68,7 +71,16 @@ export type ThreadRow = {
 	meta: RowMeta;
 };
 
-export type ThreadSummary = { id: string; title: string; createdAt: number; updatedAt: number };
+/** `tool` holds what a connected tool (an MCP client) changed: it reads only, nothing is asked there. */
+export type ThreadKind = 'assistant' | 'tool';
+
+export type ThreadSummary = {
+	id: string;
+	title: string;
+	kind: ThreadKind;
+	createdAt: number;
+	updatedAt: number;
+};
 
 /** What the app does on the screen for the assistant: no record changes. */
 export type Effect =
@@ -93,6 +105,7 @@ export type TurnEvent =
 			effect: Effect | null;
 	  }
 	| { type: 'event'; event: EventContent }
+	| { type: 'title'; title: string }
 	| { type: 'done' };
 
 export type Item =
@@ -186,4 +199,17 @@ export function echoable<T extends { type: string }>(content: T[]): T[] {
 export function titleOf(text: string): string {
 	const line = text.trim().replace(/\s+/gu, ' ');
 	return line.length > MAX_TITLE ? `${line.slice(0, MAX_TITLE).trimEnd()}…` : line;
+}
+
+const QUOTES = /^["'«»“”‘’`]+|["'«»“”‘’`]+$/gu;
+
+const TRAILING = /[\s.,;:!?…\-–—]+$/u;
+
+/** A generated title, or the first message standing in for it: on one line, cut whole words at the cap. */
+export function fitTitle(text: string): string {
+	const line = text.replace(/\s+/gu, ' ').trim().replace(QUOTES, '').trim().replace(TRAILING, '');
+	if (line.length <= MAX_GIVEN_TITLE) return line;
+	const cut = line.slice(0, MAX_GIVEN_TITLE + 1);
+	const space = cut.lastIndexOf(' ');
+	return (space > 0 ? cut.slice(0, space) : line.slice(0, MAX_GIVEN_TITLE)).replace(TRAILING, '');
 }

@@ -9,6 +9,7 @@ const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 type Seen = {
 	requests: { messages: { role: string; content: unknown }[]; body: Record<string, unknown> }[];
 	aborted: number;
+	titles: Record<string, unknown>[];
 };
 
 async function seen(request: APIRequestContext, key: string): Promise<Seen> {
@@ -255,6 +256,91 @@ test('past conversations list by title and date, rename, delete, and reopen wher
 	await list.getByRole('button', { name: /^Squat plan/u }).click();
 	await expect(thread(page).getByText('First answer.')).toBeVisible();
 	await expect(panel(page).getByText('Squat plan')).toBeVisible();
+});
+
+test('a new conversation gets a short title beside its first reply, never holding it', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(
+		context.request,
+		[{ blocks: [{ type: 'text', text: 'Done.' }] }, { blocks: [{ type: 'text', text: 'Again.' }] }],
+		{ title: 'Bench press sets', hold: true }
+	);
+	await page.goto(tablePath(table));
+	await ask(page, `${key} log 3x10 at 72 on bench press`);
+
+	await expect(thread(page).getByText('Done.')).toBeVisible();
+	await expect(panel(page).getByRole('button', { name: 'Send' })).toBeVisible();
+	const header = panel(page).getByTestId('thread-title');
+	await expect(header).not.toHaveText('Bench press sets');
+
+	await context.request.post(`${FAKE}/__release-title?key=${key}`);
+	await expect(header).toHaveText('Bench press sets');
+	const { titles, requests } = await seen(context.request, key);
+	expect(requests).toHaveLength(1);
+	expect(titles).toHaveLength(1);
+	expect(titles[0].model).toBe('claude-haiku-5-5');
+	expect(JSON.stringify(titles[0].messages)).toContain('<screen>On Lifts');
+
+	await ask(page, `${key} again`);
+	await expect(thread(page).getByText('Again.')).toBeVisible();
+	expect((await seen(context.request, key)).titles).toHaveLength(1);
+	await panel(page).getByRole('button', { name: 'History' }).click();
+	await expect(
+		panel(page).getByRole('list', { name: 'Threads' }).getByText('Bench press sets')
+	).toBeVisible();
+});
+
+test('a conversation the person renamed keeps their name when the title lands after', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Done.' }] }], {
+		title: 'Generated name',
+		hold: true
+	});
+	await page.goto(tablePath(table));
+	await ask(page, `${key} plan my squats`);
+	await expect(thread(page).getByText('Done.')).toBeVisible();
+
+	await panel(page).getByRole('button', { name: 'History' }).click();
+	const list = panel(page).getByRole('list', { name: 'Threads' });
+	await list.getByRole('button', { name: /^Rename/u }).click();
+	await panel(page).getByLabel('Thread name').fill('Squat plan');
+	await panel(page).getByLabel('Thread name').press('Enter');
+	await expect(list.getByText('Squat plan')).toBeVisible();
+
+	await context.request.post(`${FAKE}/__release-title?key=${key}`);
+	await expect.poll(async () => (await seen(context.request, key)).titles.length).toBe(1);
+	await expect
+		.poll(async () => (await (await context.request.get('/api/ai/threads')).json())[0].title)
+		.toBe('Squat plan');
+	await expect(panel(page).getByTestId('thread-title')).toHaveText('Squat plan');
+});
+
+test('a title call that fails leaves the first message, cut to fit', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Done.' }] }], {
+		fail: true
+	});
+	await page.goto(tablePath(table));
+	await ask(page, `${key} every morning pull my weight`);
+	await expect(thread(page).getByText('Done.')).toBeVisible();
+	const [listed] = await (await context.request.get('/api/ai/threads')).json();
+	expect(listed.title.length).toBeLessThanOrEqual(32);
+	expect(listed.title).not.toContain('…');
 });
 
 test('a reply that failed or was stopped runs again from where it was', async ({

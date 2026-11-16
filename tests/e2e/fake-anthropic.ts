@@ -16,20 +16,28 @@ export type FakeStep = {
 	holdAfter?: string;
 	// An SSE `error` event, since the SDK retries a 5xx status on its own.
 	failAfter?: string;
+	// Id of the tool block streamed before the response waits for `release`.
+	holdAt?: string;
 };
+
+/** The thread's title call, answered apart from the steps: by default the message without its key. */
+export type FakeTitle = { title?: string; hold?: boolean; fail?: boolean };
 
 type Script = {
 	steps: FakeStep[];
 	requests: { messages: unknown[]; body: Record<string, unknown> }[];
 	aborted: number;
 	release: (() => void) | null;
+	title: FakeTitle;
+	titles: Record<string, unknown>[];
+	releaseTitle: (() => void) | null;
 };
 
 const scripts = new Map<string, Script>();
 
-function scriptFor(messages: unknown[]): Script | undefined {
+function scriptFor(messages: unknown[]): [string, Script] | undefined {
 	const text = JSON.stringify(messages);
-	return [...scripts].find(([key]) => text.includes(key))?.[1];
+	return [...scripts].find(([key]) => text.includes(key));
 }
 
 function readBody(request: IncomingMessage): Promise<string> {
@@ -136,13 +144,69 @@ async function stream(step: FakeStep, script: Script, response: ServerResponse):
 	response.end();
 }
 
+function isTitleCall(body: Record<string, unknown>): boolean {
+	const config = body.output_config as { format?: unknown } | undefined;
+	return config?.format != null;
+}
+
+async function answerTitle(
+	key: string,
+	script: Script,
+	body: Record<string, unknown>,
+	response: ServerResponse
+): Promise<void> {
+	script.titles.push(body);
+	if (script.title.hold) {
+		await new Promise<void>((resolve) => {
+			script.releaseTitle = resolve;
+			response.once('close', resolve);
+		});
+	}
+	if (script.title.fail) {
+		response.writeHead(400, { 'content-type': 'application/json' });
+		response.end(
+			JSON.stringify({
+				type: 'error',
+				error: { type: 'invalid_request_error', message: 'scripted title failure' }
+			})
+		);
+		return;
+	}
+	const asked = /<message>([\s\S]*)<\/message>/u.exec(JSON.stringify(body.messages))?.[1] ?? '';
+	const title = script.title.title ?? asked.replace(key, '').trim();
+	response.setHeader('content-type', 'application/json');
+	response.end(
+		JSON.stringify({
+			id: 'msg_title',
+			type: 'message',
+			role: 'assistant',
+			model: 'fake',
+			content: [{ type: 'text', text: JSON.stringify({ title }) }],
+			stop_reason: 'end_turn',
+			stop_sequence: null,
+			usage: { input_tokens: 1, output_tokens: 1 }
+		})
+	);
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
 	const url = new URL(request.url ?? '/', 'http://fake');
 	const key = url.searchParams.get('key') ?? '';
 
 	if (url.pathname === '/__script') {
-		const { steps } = JSON.parse(await readBody(request)) as { steps: FakeStep[] };
-		scripts.set(key, { steps, requests: [], aborted: 0, release: null });
+		const { steps, title } = JSON.parse(await readBody(request)) as {
+			steps: FakeStep[];
+			title?: FakeTitle;
+		};
+		scripts.set(key, {
+			steps,
+			requests: [],
+			aborted: 0,
+			release: null,
+			title: title ?? {},
+			titles: [],
+			releaseTitle: null
+		});
 		response.end('{}');
 		return;
 	}
@@ -151,7 +215,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 		const script = scripts.get(key);
 		response.setHeader('content-type', 'application/json');
 		response.end(
-			JSON.stringify({ requests: script?.requests ?? [], aborted: script?.aborted ?? 0 })
+			JSON.stringify({
+				requests: script?.requests ?? [],
+				aborted: script?.aborted ?? 0,
+				titles: script?.titles ?? []
+			})
 		);
 		return;
 	}
@@ -162,11 +230,22 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 		return;
 	}
 
+	if (url.pathname === '/__release-title') {
+		scripts.get(key)?.releaseTitle?.();
+		response.end('{}');
+		return;
+	}
+
 	if (url.pathname === '/v1/messages') {
 		const body = JSON.parse(await readBody(request)) as Record<string, unknown> & {
 			messages: unknown[];
 		};
-		const script = scriptFor(body.messages);
+		const found = scriptFor(body.messages);
+		if (found !== undefined && isTitleCall(body)) {
+			await answerTitle(found[0], found[1], body, response);
+			return;
+		}
+		const script = found?.[1];
 		const step = script?.steps[script.requests.length];
 		if (script === undefined || step === undefined) {
 			response.writeHead(400, { 'content-type': 'application/json' });

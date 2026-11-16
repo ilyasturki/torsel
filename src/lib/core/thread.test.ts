@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ThreadAction, ThreadRow } from './thread.ts';
-import { afterFallback, droppedSeqs, echoable, titleOf, toItems } from './thread.ts';
+import { afterFallback, droppedSeqs, echoable, fitTitle, titleOf, toItems } from './thread.ts';
 
 function action(id: string, turn = 1): ThreadAction {
 	return { id, turn, summary: id, changes: [], before: [], status: 'applied' };
@@ -109,5 +109,22 @@ describe('titleOf', () => {
 	it('keeps one line, cut at the limit', () => {
 		expect(titleOf('  add\n3 sets  ')).toBe('add 3 sets');
 		expect(titleOf('x'.repeat(100))).toBe(`${'x'.repeat(60)}…`);
+	});
+});
+
+describe('fitTitle', () => {
+	it('drops quotes and final punctuation', () => {
+		expect(fitTitle('  "Bench press sets."  ')).toBe('Bench press sets');
+		expect(fitTitle('« Liste de courses »')).toBe('Liste de courses');
+	});
+
+	it('cuts whole words at 32 characters, with no ellipsis', () => {
+		const title = fitTitle('log 3x10 at 72 on bench press declined');
+		expect(title).toBe('log 3x10 at 72 on bench press');
+		expect(title.length).toBeLessThanOrEqual(32);
+		expect(fitTitle('x'.repeat(40))).toBe('x'.repeat(32));
+		expect(fitTitle('every morning, pull my weight from Withings')).toBe(
+			'every morning, pull my weight'
+		);
 	});
 });
