@@ -13,7 +13,6 @@ import { gridRows } from '../../views/grid.ts';
 const FIELD_KEYS = [
 	'name',
 	'type',
-	'choices',
 	'step',
 	'decimals',
 	'grouping',
@@ -168,11 +167,40 @@ class Targets {
 	}
 }
 
-function fieldData(field: FieldDef, order: number, targets: Targets): Record<string, Value> {
+/** The choice names the view shows: an option nothing shown holds stays on the server. */
+function usedChoices(
+	field: FieldDef,
+	rows: Rec[],
+	setup: ChartConfig | null,
+	chart: ChartData | null
+): Set<string> {
+	const used = new Set<string>();
+	for (const row of rows) {
+		const value = row.data[field.id];
+		for (const name of Array.isArray(value) ? value : [value]) {
+			if (typeof name === 'string') used.add(name);
+		}
+	}
+	for (const point of chart?.points ?? []) {
+		if (setup?.x === field.id) used.add(point.x);
+		if (setup?.color === field.id) used.add(point.series);
+	}
+	return used;
+}
+
+function fieldData(
+	field: FieldDef,
+	order: number,
+	targets: Targets,
+	used: Set<string>
+): Record<string, Value> {
 	const data: Record<string, Value> = { order };
 	for (const key of FIELD_KEYS) {
 		data[key] = field[key] as Value;
 	}
+	data.choices = field.choices
+		.filter((choice) => used.has(choice.name))
+		.map((choice) => ({ name: choice.name, color: choice.color }));
 	if (field.type === 'link' && field.target !== null) data.target = targets.table(field.target);
 	return data;
 }
@@ -247,9 +275,15 @@ export async function buildPublished(
 	const targets = new Targets(ws);
 	const images = new Set<string>();
 
+	let chart: ChartData | null = null;
+	if (picked.chart !== null) {
+		const data = await compute.chart(table.id, picked.chart);
+		chart = data === null ? null : chartFor(data, picked.fields, picked.chart, ws);
+	}
+
 	const fields = picked.fields.map((field, order) => ({
 		id: ids.of('f', field.id),
-		data: fieldData(field, order, targets)
+		data: fieldData(field, order, targets, usedChoices(field, picked.rows, picked.chart, chart))
 	}));
 
 	const rows = picked.rows.map((row) => {
@@ -260,12 +294,6 @@ export async function buildPublished(
 		}
 		return { id: ids.of('r', row.id), values };
 	});
-
-	let chart: ChartData | null = null;
-	if (picked.chart !== null) {
-		const data = await compute.chart(table.id, picked.chart);
-		chart = data === null ? null : chartFor(data, picked.fields, picked.chart, ws);
-	}
 
 	const published: Published = {
 		base: { id: newId('b'), name: base.name },

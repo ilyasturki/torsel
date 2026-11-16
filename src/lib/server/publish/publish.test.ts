@@ -2,7 +2,14 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { isHttpError } from '@sveltejs/kit';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { addField, createBase, createTable, createView, insertRows } from '../../core/actions.ts';
+import {
+	addField,
+	createBase,
+	createTable,
+	createView,
+	insertRows,
+	updateRecord
+} from '../../core/actions.ts';
 import type { Actor } from '../../core/access.ts';
 import { Hlc } from '../../core/clock.ts';
 import type { Change } from '../../core/model.ts';
@@ -98,7 +105,14 @@ function plant(): Garden {
 			{ name: 'SENTINEL secret field', type: 'text' },
 			{ name: 'Hidden number', type: 'number' },
 			{ name: 'Kg', type: 'number' },
-			{ name: 'Kind', type: 'choice', choices: [{ name: 'Herb', color: null }] },
+			{
+				name: 'Kind',
+				type: 'choice',
+				choices: [
+					{ name: 'Herb', color: null },
+					{ name: 'SENTINEL unused choice', color: null }
+				]
+			},
 			{ name: 'Pot', type: 'link', target: pots.id },
 			{ name: 'Photo', type: 'image' },
 			{ name: 'Receipt', type: 'image' }
@@ -260,6 +274,21 @@ describe('a published grid', () => {
 		expect((await file(SHOWN_IMAGE)).status).toBe(200);
 		expect((await file(FILTERED_IMAGE)).status).toBe(404);
 		expect((await file(HIDDEN_IMAGE)).status).toBe(404);
+	});
+
+	it('drops a field the owner hides from the next request on', async () => {
+		const garden = plant();
+		const token = await publishView(garden.grid);
+		expect((await fetchPublished(token)).text).toContain('"Kg"');
+
+		const view = ws.view(garden.grid);
+		const kg = ws.fields(view?.table ?? '').find((field) => field.name === 'Kg')?.id ?? '';
+		commit(
+			updateRecord(ws, garden.grid, {
+				config: { ...view?.config, hidden: [...(view?.config.hidden ?? []), kg] }
+			})
+		);
+		expect((await fetchPublished(token)).text).not.toContain('"Kg"');
 	});
 
 	it('stops at once when unpublished', async () => {

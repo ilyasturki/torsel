@@ -25,7 +25,7 @@ export const GET: RequestHandler = async ({ params, getClientAddress }) => {
 		headers: {
 			'content-type': image.type,
 			'content-length': String(image.data.length),
-			'cache-control': 'public, max-age=60',
+			'cache-control': 'private, max-age=60',
 			'content-security-policy': "default-src 'none'; sandbox",
 			'content-disposition': 'inline',
 			'x-robots-tag': 'noindex'
