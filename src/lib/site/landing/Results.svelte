@@ -34,7 +34,7 @@
 				near = true;
 				seen.disconnect();
 			},
-			{ rootMargin: '50% 0px' }
+			{ rootMargin: '50%' }
 		);
 		seen.observe(section);
 		return () => seen.disconnect();
