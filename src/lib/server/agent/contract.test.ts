@@ -260,13 +260,23 @@ const CONTRACTS: Record<string, Contract> = {
 			base: 'Gym',
 			table: 'Sets',
 			view: 'grid',
-			config: { sort: { field: 'Date', dir: 'desc' } }
+			config: {
+				sort: [
+					{ field: 'Date', dir: 'desc' },
+					{ field: 'Reps', dir: 'asc' }
+				]
+			}
 		}),
 		check: async (g) => {
 			const schema = (await g.call('describe_base', { base: 'Gym' })) as {
 				tables: { views: { name: string; config: unknown }[] }[];
 			};
-			expect(schema.tables[1].views[0].config).toEqual({ sort: { field: 'Date', dir: 'desc' } });
+			expect(schema.tables[1].views[0].config).toEqual({
+				sort: [
+					{ field: 'Date', dir: 'desc' },
+					{ field: 'Reps', dir: 'asc' }
+				]
+			});
 		},
 		refused: [
 			[
@@ -274,9 +284,24 @@ const CONTRACTS: Record<string, Contract> = {
 				/^no view "Nope" on Sets; the views are "Grid", "Entry"$/u
 			],
 			[
-				() => ({ base: 'Gym', table: 'Sets', view: 'Grid', config: { sort: { field: 'Date' } } }),
-				/^config\.sort\.dir: /u
+				() => ({ base: 'Gym', table: 'Sets', view: 'Grid', config: { sort: [{ field: 'Date' }] } }),
+				/^config\.sort\[0\]\.dir: /u
 			]
+		]
+	},
+	duplicate: {
+		valid: () => ({ base: 'Gym', table: 'Sets', field: 'Weight' }),
+		check: (g, result) =>
+			expect(g.ctx.ws.field(String(result.created))).toMatchObject({
+				name: 'Weight copy',
+				unit: 'kg'
+			}),
+		refused: [
+			[
+				() => ({ base: 'Gym', table: 'Sets', rows: ['r_nothere000'] }),
+				/^no row r_nothere000 in Sets$/u
+			],
+			[() => ({ base: 'Gym', table: 'Sets', name: 'exercises' }), /^Gym already has a table named/u]
 		]
 	},
 	rename: {

@@ -122,6 +122,16 @@ exports[`lists the same tools in every era 1`] = `
                     "currency": {
                       "type": "string",
                     },
+                    "dateStyle": {
+                      "enum": [
+                        "short",
+                        "numeric",
+                        "weekday",
+                        "long",
+                        "iso",
+                      ],
+                      "type": "string",
+                    },
                     "decimals": {
                       "type": "number",
                     },
@@ -144,6 +154,15 @@ exports[`lists the same tools in every era 1`] = `
                       "type": "number",
                     },
                     "name": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "enum": [
+                        "number",
+                        "currency",
+                        "percent",
+                        "date",
+                      ],
                       "type": "string",
                     },
                     "seconds": {
@@ -297,24 +316,27 @@ exports[`lists the same tools in every era 1`] = `
                         "sort": {
                           "anyOf": [
                             {
-                              "additionalProperties": false,
-                              "properties": {
-                                "dir": {
-                                  "enum": [
-                                    "asc",
-                                    "desc",
-                                  ],
-                                  "type": "string",
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "dir": {
+                                    "enum": [
+                                      "asc",
+                                      "desc",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                  },
                                 },
-                                "field": {
-                                  "type": "string",
-                                },
+                                "required": [
+                                  "field",
+                                  "dir",
+                                ],
+                                "type": "object",
                               },
-                              "required": [
-                                "field",
-                                "dir",
-                              ],
-                              "type": "object",
+                              "type": "array",
                             },
                             {
                               "type": "null",
@@ -763,12 +785,23 @@ exports[`lists the same tools in every era 1`] = `
                 "type": "array",
               },
               "currency": {
-                "description": "currency: the ISO code, such as EUR or USD",
+                "description": "currency, and a formula shown as currency: the ISO code, such as EUR or USD",
                 "pattern": "^[A-Z]{3}$",
                 "type": "string",
               },
+              "dateStyle": {
+                "description": "date, datetime, and a formula shown as a date: short reads "28 Dec" (with the year when not this one), numeric "12/28/2026" in the reader's order, weekday "Mon, Dec 28", long "December 28, 2026", iso "2026-12-28"; short when left out",
+                "enum": [
+                  "short",
+                  "numeric",
+                  "weekday",
+                  "long",
+                  "iso",
+                ],
+                "type": "string",
+              },
               "decimals": {
-                "description": "number, currency, percent: the decimals shown; leave out for automatic",
+                "description": "number, currency, percent, and a formula shown as one: the decimals shown; leave out for automatic",
                 "maximum": 6,
                 "minimum": 0,
                 "type": "integer",
@@ -795,6 +828,16 @@ exports[`lists the same tools in every era 1`] = `
               },
               "name": {
                 "minLength": 1,
+                "type": "string",
+              },
+              "result": {
+                "description": "formula: how its result reads; percent reads the result as points, 25 for 25%; automatic when left out",
+                "enum": [
+                  "number",
+                  "currency",
+                  "percent",
+                  "date",
+                ],
                 "type": "string",
               },
               "seconds": {
@@ -900,12 +943,23 @@ exports[`lists the same tools in every era 1`] = `
           "type": "array",
         },
         "currency": {
-          "description": "currency: the ISO code, such as EUR or USD",
+          "description": "currency, and a formula shown as currency: the ISO code, such as EUR or USD",
           "pattern": "^[A-Z]{3}$",
           "type": "string",
         },
+        "dateStyle": {
+          "description": "date, datetime, and a formula shown as a date: short reads "28 Dec" (with the year when not this one), numeric "12/28/2026" in the reader's order, weekday "Mon, Dec 28", long "December 28, 2026", iso "2026-12-28"; short when left out",
+          "enum": [
+            "short",
+            "numeric",
+            "weekday",
+            "long",
+            "iso",
+          ],
+          "type": "string",
+        },
         "decimals": {
-          "description": "number, currency, percent: the decimals shown; leave out for automatic",
+          "description": "number, currency, percent, and a formula shown as one: the decimals shown; leave out for automatic",
           "maximum": 6,
           "minimum": 0,
           "type": "integer",
@@ -915,7 +969,7 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "formula": {
-          "description": "for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers.",
+          "description": "for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers. An aggregate needs OVER, such as SUM("Weight") OVER () for the column total on every row.",
           "type": "string",
         },
         "grouping": {
@@ -936,6 +990,16 @@ exports[`lists the same tools in every era 1`] = `
         },
         "name": {
           "minLength": 1,
+          "type": "string",
+        },
+        "result": {
+          "description": "formula: how its result reads; percent reads the result as points, 25 for 25%; automatic when left out",
+          "enum": [
+            "number",
+            "currency",
+            "percent",
+            "date",
+          ],
           "type": "string",
         },
         "seconds": {
@@ -1030,12 +1094,23 @@ exports[`lists the same tools in every era 1`] = `
           "type": "array",
         },
         "currency": {
-          "description": "currency: the ISO code, such as EUR or USD",
+          "description": "currency, and a formula shown as currency: the ISO code, such as EUR or USD",
           "pattern": "^[A-Z]{3}$",
           "type": "string",
         },
+        "dateStyle": {
+          "description": "date, datetime, and a formula shown as a date: short reads "28 Dec" (with the year when not this one), numeric "12/28/2026" in the reader's order, weekday "Mon, Dec 28", long "December 28, 2026", iso "2026-12-28"; short when left out",
+          "enum": [
+            "short",
+            "numeric",
+            "weekday",
+            "long",
+            "iso",
+          ],
+          "type": "string",
+        },
         "decimals": {
-          "description": "number, currency, percent: the decimals shown; leave out for automatic",
+          "description": "number, currency, percent, and a formula shown as one: the decimals shown; leave out for automatic",
           "maximum": 6,
           "minimum": 0,
           "type": "integer",
@@ -1068,6 +1143,16 @@ exports[`lists the same tools in every era 1`] = `
         },
         "name": {
           "minLength": 1,
+          "type": "string",
+        },
+        "result": {
+          "description": "formula: how its result reads; percent reads the result as points, 25 for 25%; automatic when left out",
+          "enum": [
+            "number",
+            "currency",
+            "percent",
+            "date",
+          ],
           "type": "string",
         },
         "seconds": {
@@ -1259,30 +1344,33 @@ exports[`lists the same tools in every era 1`] = `
             "sort": {
               "anyOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "dir": {
-                      "enum": [
-                        "asc",
-                        "desc",
-                      ],
-                      "type": "string",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "dir": {
+                        "enum": [
+                          "asc",
+                          "desc",
+                        ],
+                        "type": "string",
+                      },
+                      "field": {
+                        "type": "string",
+                      },
                     },
-                    "field": {
-                      "type": "string",
-                    },
+                    "required": [
+                      "field",
+                      "dir",
+                    ],
+                    "type": "object",
                   },
-                  "required": [
-                    "field",
-                    "dir",
-                  ],
-                  "type": "object",
+                  "type": "array",
                 },
                 {
                   "type": "null",
                 },
               ],
-              "description": "grid",
+              "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
             "title": {
               "description": "list: the field shown as the title",
@@ -1433,6 +1521,72 @@ exports[`lists the same tools in every era 1`] = `
   },
   {
     "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Copies a table with its fields, views and rows; or, given field, view or rows, that field with its values, that view with its settings, or those rows, each copy placed right after what it copies.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "field": {
+          "description": "name or id of the field to copy",
+          "type": "string",
+        },
+        "name": {
+          "description": "the name of a copied table, field or view; "<name> copy" when left out",
+          "minLength": 1,
+          "type": "string",
+        },
+        "rows": {
+          "description": "ids of the rows to copy, from _id",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "view": {
+          "description": "name or id of the view to copy",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+      ],
+      "type": "object",
+    },
+    "name": "duplicate",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "added": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "created": {
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "title": "Duplicate a table, field, view or rows",
+  },
+  {
+    "annotations": {
       "destructiveHint": true,
       "idempotentHint": true,
       "openWorldHint": false,
@@ -1548,30 +1702,33 @@ exports[`lists the same tools in every era 1`] = `
             "sort": {
               "anyOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "dir": {
-                      "enum": [
-                        "asc",
-                        "desc",
-                      ],
-                      "type": "string",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "dir": {
+                        "enum": [
+                          "asc",
+                          "desc",
+                        ],
+                        "type": "string",
+                      },
+                      "field": {
+                        "type": "string",
+                      },
                     },
-                    "field": {
-                      "type": "string",
-                    },
+                    "required": [
+                      "field",
+                      "dir",
+                    ],
+                    "type": "object",
                   },
-                  "required": [
-                    "field",
-                    "dir",
-                  ],
-                  "type": "object",
+                  "type": "array",
                 },
                 {
                   "type": "null",
                 },
               ],
-              "description": "grid",
+              "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
             "title": {
               "description": "list: the field shown as the title",

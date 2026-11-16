@@ -1248,7 +1248,7 @@ export const TOOLS: Tool[] = [
 		title: TITLES.duplicate,
 		description:
 			'Copies a table with its fields, views and rows; or, given field, view or rows, that field with its values, that view with its settings, or those rows, each copy placed right after what it copies.',
-		input: z.object({
+		input: z.strictObject({
 			base: BASE,
 			table: TABLE,
 			field: z.string().optional().describe('name or id of the field to copy'),
@@ -1260,7 +1260,13 @@ export const TOOLS: Tool[] = [
 				.optional()
 				.describe('the name of a copied table, field or view; "<name> copy" when left out')
 		}),
+		output: z.strictObject({
+			created: z.string().optional(),
+			added: z.array(z.string()).optional()
+		}),
 		kind: 'write',
+		destructive: false,
+		idempotent: false,
 		run: (
 			ctx,
 			input: {
@@ -1281,34 +1287,40 @@ export const TOOLS: Tool[] = [
 				});
 				if (id !== undefined) throw new ToolError(`no row ${id} in ${table.name}`);
 				const made = duplicateRows(ctx.ws, table.id, input.rows);
-				commit(ctx, {
-					summary: words.addRows(made.ids.length, table.name),
-					changes: made.changes
-				});
+				ctx.commit({ summary: words.addRows(made.ids.length, table.name), changes: made.changes });
 				return { added: made.ids };
 			}
 			if (input.field !== undefined) {
 				const field = findField(ctx.ws, table.id, input.field);
-				const name = input.name ?? names.copy(field.name);
+				const fields = ctx.ws.fields(table.id);
+				const name =
+					input.name === undefined
+						? numberedName(
+								fields.map((other) => other.name),
+								names.copy(field.name)
+							)
+						: freeName(fields, input.name, 'field', table.name);
 				const made = duplicateField(ctx.ws, field.id, name);
-				commit(ctx, { summary: words.newField(name, table.name), changes: made.changes });
+				ctx.commit({ summary: words.newField(name, table.name), changes: made.changes });
 				return { created: made.id };
 			}
 			if (input.view !== undefined) {
-				const view = ctx.ws
-					.views(table.id)
-					.find(
-						(candidate) => candidate.id === input.view || same(candidate.name, input.view ?? '')
-					);
-				if (view === undefined) throw new ToolError(`no view "${input.view}" on ${table.name}`);
-				const name = input.name ?? names.copy(view.name);
+				const view = findView(ctx.ws, table, input.view);
+				const name = givenName(input.name ?? names.copy(view.name), 'view');
 				const made = duplicateView(ctx.ws, view.id, name);
-				commit(ctx, { summary: words.newView(name, table.name), changes: made.changes });
+				ctx.commit({ summary: words.newView(name, table.name), changes: made.changes });
 				return { created: made.id };
 			}
-			const name = input.name ?? names.copy(table.name);
+			const tables = ctx.ws.tables(base.id);
+			const name =
+				input.name === undefined
+					? numberedName(
+							tables.map((other) => other.name),
+							names.copy(table.name)
+						)
+					: freeName(tables, input.name, 'table', base.name);
 			const made = duplicateTable(ctx.ws, table.id, name);
-			commit(ctx, { summary: words.newTable(name), changes: made.changes });
+			ctx.commit({ summary: words.newTable(name), changes: made.changes });
 			return { created: made.id };
 		}
 	},

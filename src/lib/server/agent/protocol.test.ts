@@ -153,6 +153,7 @@ it('marks each tool for what it does to the data', async () => {
 		create_view: [false, false, false, false],
 		delete: [false, true, true, false],
 		rename: [false, true, true, false],
+		duplicate: [false, false, false, false],
 		update_view: [false, true, true, false]
 	});
 	for (const tool of tools) {
