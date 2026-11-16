@@ -1537,12 +1537,26 @@
 		showToast(words.replacedRefusing(count, refused), group?.id ?? null);
 	}
 
+	/** Anywhere on the page but a field being typed in elsewhere, an open dialog or an open menu. */
+	function findable(target: Element): boolean {
+		if (panel?.contains(target)) return true;
+		const typing =
+			target instanceof HTMLInputElement ||
+			target instanceof HTMLTextAreaElement ||
+			(target instanceof HTMLElement && target.isContentEditable);
+		if (typing) return false;
+		for (let node: Element | null = target; node !== null; node = node.parentElement) {
+			const role = node.getAttribute('role');
+			if (role === 'dialog' || role === 'menu') return false;
+		}
+		return true;
+	}
+
 	function onwindowkeydown(event: KeyboardEvent): void {
 		const command = event.metaKey || event.ctrlKey;
 		const key = event.key.toLowerCase();
 		if (!command || event.altKey || event.shiftKey || (key !== 'f' && key !== 'h')) return;
-		const target = event.target;
-		if (target !== document.body && !(target instanceof Node && panel?.contains(target))) return;
+		if (!(event.target instanceof Element) || !findable(event.target)) return;
 		event.preventDefault();
 		commitDraft({ leaving: true });
 		openFind(key === 'h');
