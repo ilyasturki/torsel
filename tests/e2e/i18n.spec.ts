@@ -100,11 +100,11 @@ test.describe('in fr-FR', () => {
 		await expect(consent).toHaveText(login.fr.consent.replace(/<\/?\w+>/gu, ''));
 		await expect(consent.getByRole('link', { name: 'conditions' })).toHaveAttribute(
 			'href',
-			'/terms'
+			'/fr/terms'
 		);
 		await expect(
 			consent.getByRole('link', { name: 'politique de confidentialité' })
-		).toHaveAttribute('href', '/privacy');
+		).toHaveAttribute('href', '/fr/privacy');
 	});
 
 	test('the server renders its 404 in French', async ({ page }) => {
