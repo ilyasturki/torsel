@@ -286,7 +286,10 @@ describe('retype', () => {
 			]).changes
 		);
 
-		expect(imageLinksOf(ws, field)).toEqual(['https://img.example/a.jpg', 'https://img.example/b.png']);
+		expect(imageLinksOf(ws, field)).toEqual([
+			'https://img.example/a.jpg',
+			'https://img.example/b.png'
+		]);
 	});
 
 	it('carries numbers between number types, a duration in its smallest unit', () => {

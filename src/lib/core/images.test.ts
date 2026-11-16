@@ -43,7 +43,11 @@ describe('image values', () => {
 	});
 
 	it('keeps where a fetched image came from, and reads as that link', () => {
-		const fetched = { ...poster, id: 'e'.repeat(64), src: 'https://image.tmdb.org/t/p/w342/dune.jpg' };
+		const fetched = {
+			...poster,
+			id: 'e'.repeat(64),
+			src: 'https://image.tmdb.org/t/p/w342/dune.jpg'
+		};
 
 		expect(imagesOf([fetched])).toEqual([fetched]);
 		expect(imagesText([fetched, poster])).toBe(`${fetched.src}, dune.jpg`);

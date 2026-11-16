@@ -894,15 +894,18 @@ describe('image writes', () => {
 			await s.call('add_rows', {
 				base,
 				table: 'Movies',
-				rows: [{ Poster: 'https://img.example/dune.jpg' }, { Poster: 'https://img.example/gone.jpg' }]
+				rows: [
+					{ Poster: 'https://img.example/dune.jpg' },
+					{ Poster: 'https://img.example/gone.jpg' }
+				]
 			})
 		).toEqual({
 			error:
 				'rows[1]."Poster": https://img.example/gone.jpg was not stored: it answered with an error; nothing was written'
 		});
-		expect(await s.call('add_rows', { base, table: 'Movies', rows: [{ Poster: 'a poster' }] })).toEqual(
-			{ error: expect.stringContaining('"a poster" is not an image') }
-		);
+		expect(
+			await s.call('add_rows', { base, table: 'Movies', rows: [{ Poster: 'a poster' }] })
+		).toEqual({ error: expect.stringContaining('"a poster" is not an image') });
 		expect(s.actions.length).toBe(before);
 	});
 
