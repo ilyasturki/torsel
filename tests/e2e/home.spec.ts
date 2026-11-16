@@ -182,10 +182,7 @@ test("a base's actions sit in the home's menu", async ({ page, context, account 
 	await expect(row(page, 'List')).toContainText('Groceries');
 });
 
-test('an empty home is one line, with Import a file as its main action', async ({
-	page,
-	account
-}) => {
+test('an empty home is one line, with Import as its main action', async ({ page, account }) => {
 	void account;
 	await page.goto('/app');
 	await expect(page.getByText('No tables yet. Drop a CSV here or paste cells.')).toBeVisible();
