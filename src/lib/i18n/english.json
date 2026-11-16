@@ -72,6 +72,7 @@
 	"src/lib/server/agent/assistant.ts\tScreen: the home page, listing every table.",
 	"src/lib/server/agent/assistant.ts\tScreen: the settings page (account, API tokens, import a file, export a backup).",
 	"src/lib/server/agent/assistant.ts\tSelected: {selected.length} row{selected.length === 1 ? '' : 's'}{columns.length > 0 ? `, in ${columns.map((field) => field.name).join(', ')}` : ''}.",
+	"src/lib/server/agent/assistant.ts\tThe message names table \"{named.name}\" ({named.id}) in base \"{base.name}\" ({base.id}), {ws.rows(named.id).length} rows. Its fields: {ws .fields(named.id) .map((field) => fieldLine(ws, field)) .join('; ')}.",
 	"src/lib/server/agent/assistant.ts\tThe person stopped your previous reply before it finished.",
 	"src/lib/server/agent/assistant.ts\tThe {view.type} view is set to {JSON.stringify(config)}.",
 	"src/lib/server/agent/assistant.ts\tTheir screen ({shows.locale}) writes today as \"{shows.today}\", a date of another year as \"{shows.past}\" and a number as \"{shows.number}\": write dates and numbers so in your reply. Tool inputs stay YYYY-MM-DD dates and plain numbers.",

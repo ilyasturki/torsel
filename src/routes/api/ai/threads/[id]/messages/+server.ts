@@ -3,10 +3,11 @@ import { error } from '@sveltejs/kit';
 import { assistant as words } from '#lib/i18n/assistant.ts';
 import { locale } from '#lib/i18n/runtime.ts';
 import type { Screen, Shows, ThreadContext, TurnEvent } from '#lib/core/thread.ts';
-import { MAX_CONTEXT_ROWS, MAX_FILES, MAX_PROMPT } from '#lib/core/thread.ts';
+import { isId } from '#lib/core/ids.ts';
+import { MAX_CONTEXT_ROWS, MAX_FILES, MAX_MENTIONS, MAX_PROMPT } from '#lib/core/thread.ts';
 import type { Ask } from '#lib/server/agent/assistant.ts';
 import { runTurn } from '#lib/server/agent/assistant.ts';
-import { refusedResponse, takePrompt } from '#lib/server/agent/quota.ts';
+import { meterFor, refusedResponse, usageRefusal } from '#lib/server/agent/quota.ts';
 import {
 	activeTurn,
 	claimFiles,
@@ -55,8 +56,10 @@ function contextOf(value: unknown): ThreadContext {
 		typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 	const today = optional(context.today);
 	const shows = showsOf(context.shows);
+	const mentions = strings(context.mentions, MAX_MENTIONS).filter(isId);
 	return {
 		...(shows === null ? {} : { shows }),
+		...(mentions.length === 0 ? {} : { mentions }),
 		screen: SCREENS.has(context.screen as Screen) ? (context.screen as Screen) : 'home',
 		base: optional(context.base),
 		table: optional(context.table),

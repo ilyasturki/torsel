@@ -241,6 +241,18 @@ export function contextNote(
 		lines.push(`Tables: ${tablesLine(ws, null)}.`);
 	}
 
+	for (const id of context.mentions ?? []) {
+		const named = id === context.table ? undefined : ws.table(id);
+		const base = named === undefined ? undefined : ws.base(named.base);
+		if (named === undefined || base === undefined) continue;
+		lines.push(
+			`The message names table "${named.name}" (${named.id}) in base "${base.name}" (${base.id}), ${ws.rows(named.id).length} rows. Its fields: ${ws
+				.fields(named.id)
+				.map((field) => fieldLine(ws, field))
+				.join('; ')}.`
+		);
+	}
+
 	if (stopped) {
 		lines.push('The person stopped your previous reply before it finished.');
 	}

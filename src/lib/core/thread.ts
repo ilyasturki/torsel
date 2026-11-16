@@ -49,7 +49,35 @@ export type ThreadContext = {
 	today?: string;
 	// How their screen writes a date and a number, for the reply to write them alike.
 	shows?: Shows;
+	// Tables the message names with @, whose schema the note then carries.
+	mentions?: string[];
 };
+
+// Past it a message isn't naming tables, it is listing them.
+export const MAX_MENTIONS = 5;
+
+/** The `@word` being typed right before the caret, from its `@`. */
+export function mentionAt(text: string, caret: number): { start: number; query: string } | null {
+	const match = /(?:^|\s)@([^\s@]*)$/u.exec(text.slice(0, caret));
+	if (match === null) return null;
+	return { start: caret - match[1].length - 1, query: match[1] };
+}
+
+/** The names a message writes as `@Name`, longest first so "@Liste 2" isn't read as "@Liste". */
+export function mentionsIn(text: string, names: string[]): string[] {
+	const found: string[] = [];
+	let rest = text;
+	for (const name of [...names].sort((a, b) => b.length - a.length)) {
+		const tag = `@${name}`;
+		const at = rest.indexOf(tag);
+		if (at === -1) continue;
+		const after = rest[at + tag.length];
+		if (after !== undefined && /[\p{L}\p{N}_]/u.test(after)) continue;
+		found.push(name);
+		rest = rest.replaceAll(tag, ' ');
+	}
+	return found;
+}
 
 export type Shows = { locale: string; today: string; past: string; number: string };
 

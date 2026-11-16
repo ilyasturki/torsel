@@ -27,6 +27,7 @@
 		undoTurn,
 		upload
 	} from '#lib/client/assistant.svelte.ts';
+	import { app } from '#lib/client/app.svelte.ts';
 	import { formatDate, formatNumber } from '#lib/client/format.ts';
 	import { LOGIN, SETTINGS } from '#lib/client/nav.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
@@ -43,15 +44,20 @@
 		ATTACHABLE,
 		MAX_CONTEXT_ROWS,
 		MAX_FILES,
+		MAX_MENTIONS,
 		MAX_PROMPT,
 		MAX_SAVED_NAME,
+		mentionAt,
+		mentionsIn,
 		toItems
 	} from '#lib/core/thread.ts';
 	import { todayIso } from '#lib/core/values.ts';
 	import { assistant as words } from '#lib/i18n/assistant.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
+	import type { IconName } from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Markdown from '#lib/ui/Markdown.svelte';
@@ -139,6 +145,68 @@
 						item.name.toLowerCase().includes(slash) || item.text.toLowerCase().includes(slash)
 				)
 	);
+	// Where the caret is, for the `@` being typed before it.
+	let caret = $state(0);
+	let dismissed = $state<number | null>(null);
+	const mention = $derived.by(() => {
+		if (editing) return null;
+		const at = mentionAt(prompt, caret);
+		return at === null || at.start === dismissed ? null : at;
+	});
+	type Mentionable = { id: string; name: string; icon: IconName; sub: string };
+	const mentionable = $derived.by((): Mentionable[] => {
+		if (mention === null) return [];
+		void app.version;
+		const query = mention.query.toLowerCase();
+		const tables = app.ws.bases().flatMap((base) =>
+			app.ws.tables(base.id).map((candidate) => ({
+				id: candidate.id,
+				name: candidate.name,
+				icon: 'view-grid' as IconName,
+				sub: base.name
+			}))
+		);
+		const fields =
+			table === null
+				? []
+				: app.ws.fields(table.id).map((candidate) => ({
+						id: candidate.id,
+						name: candidate.name,
+						icon: fieldIcon(candidate.type),
+						sub: table.name
+					}));
+		return [...tables, ...fields]
+			.filter((option) => option.name.toLowerCase().includes(query))
+			.slice(0, 8);
+	});
+	let aimed = $state(0);
+	$effect(() => {
+		void mention?.query;
+		aimed = 0;
+	});
+
+	function readCaret(): void {
+		caret = field?.selectionStart ?? prompt.length;
+	}
+
+	function pickMention(option: Mentionable): void {
+		if (mention === null) return;
+		const before = prompt.slice(0, mention.start);
+		const after = prompt.slice(caret);
+		const tag = `@${option.name} `;
+		prompt = `${before}${tag}${after}`;
+		const at = before.length + tag.length;
+		caret = at;
+		void tick().then(() => {
+			field?.focus();
+			field?.setSelectionRange(at, at);
+		});
+	}
+
+	const next = $derived(
+		!assistant.busy && !editing && prompt === '' && items.length > 0 ? assistant.followUp : ''
+	);
+
 	let picked = $state(0);
 	$effect(() => {
 		void slash;
@@ -227,7 +295,18 @@
 		const text = prompt.trim();
 		if (text === '' || assistant.busy || uploading) return;
 		const files = pending.flatMap((item) => (item.file === undefined ? [] : [item.file]));
-		const message = { prompt: text, context: context(), where, files };
+		const tables = app.ws.bases().flatMap((base) => app.ws.tables(base.id));
+		const named = mentionsIn(
+			text,
+			tables.map((candidate) => candidate.name)
+		).flatMap((name) => tables.filter((candidate) => candidate.name === name).map(({ id }) => id));
+		const mentions = named.slice(0, MAX_MENTIONS);
+		const message = {
+			prompt: text,
+			context: { ...context(), ...(mentions.length > 0 ? { mentions } : {}) },
+			where,
+			files
+		};
 		prompt = '';
 		pending = [];
 		pinned = true;
@@ -290,6 +369,23 @@
 
 	function onkeydown(event: KeyboardEvent): void {
 		if (!open) return;
+		if (mentionable.length > 0 && event.target === field) {
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				const step = event.key === 'ArrowDown' ? 1 : -1;
+				aimed = (aimed + step + mentionable.length) % mentionable.length;
+				return;
+			}
+			if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
+				event.preventDefault();
+				pickMention(mentionable[aimed]);
+				return;
+			}
+			if (event.key === 'Escape') {
+				dismissed = mention?.start ?? null;
+				return;
+			}
+		}
 		if (matches.length > 0 && event.target === field) {
 			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 				event.preventDefault();
@@ -669,7 +765,32 @@
 					submit();
 				}}
 			>
-				{#if matches.length > 0}
+				{#if mentionable.length > 0}
+					<ul
+						class="absolute inset-x-0 bottom-full z-10 mb-1.5 flex max-h-72 flex-col overflow-y-auto rounded-panel bg-float p-1 shadow-float"
+						role="listbox"
+						aria-label={words.mentionable}
+					>
+						{#each mentionable as option, index (option.id)}
+							<li
+								class="flex min-h-control cursor-default items-center gap-2 rounded-box px-2 {index ===
+								aimed
+									? 'bg-tint-2'
+									: ''}"
+								role="option"
+								aria-selected={index === aimed}
+								onmousedown={(event) => event.preventDefault()}
+								onclick={() => pickMention(option)}
+								onkeydown={() => undefined}
+								onpointerenter={() => (aimed = index)}
+							>
+								<Icon name={option.icon} class="size-4 shrink-0 text-ink-3" />
+								<span class="shrink-0 font-medium">{option.name}</span>
+								<span class="min-w-0 flex-1 truncate text-sm text-ink-3">{option.sub}</span>
+							</li>
+						{/each}
+					</ul>
+				{:else if matches.length > 0}
 					<ul
 						class="absolute inset-x-0 bottom-full z-10 mb-1.5 flex max-h-72 flex-col overflow-y-auto rounded-panel bg-float p-1 shadow-float"
 						role="listbox"

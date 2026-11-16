@@ -1,11 +1,30 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ThreadAction, ThreadRow } from './thread.ts';
+
+describe('mentions', () => {
+	it('reads the @word typed before the caret, and nothing mid-word or after a space', () => {
+		expect(mentionAt('compare with @Pe', 16)).toEqual({ start: 13, query: 'Pe' });
+		expect(mentionAt('@', 1)).toEqual({ start: 0, query: '' });
+		expect(mentionAt('mail me@home', 12)).toBeNull();
+		expect(mentionAt('compare @Pesées now', 19)).toBeNull();
+	});
+
+	it('finds each named table once, the longest name first', () => {
+		expect(mentionsIn('@Liste 2 and @Liste, not @Listes', ['Liste', 'Liste 2'])).toEqual([
+			'Liste 2',
+			'Liste'
+		]);
+		expect(mentionsIn('weight in Pesées', ['Pesées'])).toEqual([]);
+	});
+});
 import {
 	afterFallback,
 	droppedSeqs,
 	echoable,
 	fitSuggestions,
+	mentionAt,
+	mentionsIn,
 	fitTitle,
 	titleOf,
 	toItems

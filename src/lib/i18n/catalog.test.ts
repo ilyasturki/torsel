@@ -14,6 +14,8 @@ const areas = import.meta.glob<Catalog>(
 
 // French that is the same word as the English, on purpose.
 const SAME = new Set([
+	'common.keyTab',
+	'assistant.mentionable',
 	'assistant.suggestions',
 	'assistant.sources',
 	'fields.suggestions',
