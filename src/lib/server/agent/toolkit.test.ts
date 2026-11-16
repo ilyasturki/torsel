@@ -317,6 +317,22 @@ describe('assistant tools', () => {
 			{ field: rating, dir: 'desc' },
 			{ field: title, dir: 'asc' }
 		]);
+		expect(await call('describe_base', { base: made.base })).toMatchObject({
+			tables: [
+				{
+					views: expect.arrayContaining([
+						expect.objectContaining({
+							config: {
+								sort: [
+									{ field: 'Rating', dir: 'desc' },
+									{ field: 'Title', dir: 'asc' }
+								]
+							}
+						})
+					])
+				}
+			]
+		});
 
 		await call('update_view', {
 			base: made.base,

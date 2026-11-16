@@ -46,7 +46,8 @@ import {
 	FORMAT_OF,
 	RESULT_TYPES,
 	VIEW_TYPES,
-	hasChoices
+	hasChoices,
+	sortsOf
 } from '../../core/model.ts';
 import { nameTaken, numberedName, sameName } from '../../core/names.ts';
 import { retypeField } from '../../core/retype.ts';
@@ -649,6 +650,8 @@ const FIELD_OUT = z.strictObject({
 	max: z.number().optional(),
 	step: z.number().optional(),
 	seconds: z.boolean().optional(),
+	dateStyle: z.enum(DATE_STYLES).optional(),
+	result: z.enum(RESULT_TYPES).optional(),
 	choices: z.array(z.string()).optional(),
 	target: z.string().optional(),
 	formula: z.string().optional(),
@@ -679,7 +682,7 @@ const VIEW_OUT = z.strictObject({
 	config: z.strictObject({
 		hidden: z.array(z.string()).optional(),
 		sort: z
-			.strictObject({ field: z.string(), dir: z.enum(['asc', 'desc']) })
+			.array(z.strictObject({ field: z.string(), dir: z.enum(['asc', 'desc']) }))
 			.nullable()
 			.optional(),
 		filter: z.strictObject({ field: z.string(), text: z.string() }).nullable().optional(),
@@ -712,7 +715,10 @@ function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_OUT> {
 		if (typeof id === 'string') out[key] = name(id);
 	}
 	if (config.sort !== undefined)
-		out.sort = config.sort === null ? null : { ...config.sort, field: name(config.sort.field) };
+		out.sort =
+			config.sort === null
+				? null
+				: sortsOf(config).map((key) => ({ ...key, field: name(key.field) }));
 	if (config.filter !== undefined)
 		out.filter =
 			config.filter === null ? null : { ...config.filter, field: name(config.filter.field) };
@@ -1269,11 +1275,11 @@ export const TOOLS: Tool[] = [
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			if (input.rows !== undefined) {
-				const unknown = input.rows.find((id) => {
-					const row = ctx.ws.live(id);
-					return row?.kind !== 'row' || row.parent !== table.id;
+				const id = input.rows.find((row) => {
+					const rec = ctx.ws.live(row);
+					return rec?.kind !== 'row' || rec.parent !== table.id;
 				});
-				if (unknown !== undefined) throw new ToolError(`no row ${unknown} in ${table.name}`);
+				if (id !== undefined) throw new ToolError(`no row ${id} in ${table.name}`);
 				const made = duplicateRows(ctx.ws, table.id, input.rows);
 				commit(ctx, {
 					summary: words.addRows(made.ids.length, table.name),
