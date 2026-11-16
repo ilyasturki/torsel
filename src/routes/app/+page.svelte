@@ -1,28 +1,16 @@
 <script lang="ts">
 	import { app } from '#lib/client/app.svelte.ts';
-	import { openingView } from '#lib/client/directory.svelte.ts';
 	import { formatDate, formatMonth, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { lastTable } from '#lib/client/place.ts';
-	import { isTyping, shell, startTable } from '#lib/client/shell.svelte.ts';
-	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
-	import { createBase, deleteRecords, updateRecord } from '#lib/core/actions.ts';
+	import { isTyping, shell } from '#lib/client/shell.svelte.ts';
 	import { lastEntry, tableFigure, type Figure } from '#lib/core/figure.ts';
-	import { views as viewWords } from '#lib/i18n/views.ts';
-	import type { BaseDef } from '#lib/core/model.ts';
-	import { common } from '#lib/i18n/common.ts';
 	import { home as words } from '#lib/i18n/home.ts';
+	import { views as viewWords } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
-	import IconButton from '#lib/ui/IconButton.svelte';
-	import Menu from '#lib/ui/Menu.svelte';
-	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import Spark from '#lib/ui/Spark.svelte';
 	import Tally from '#lib/ui/Tally.svelte';
-	import NameSheet from '#lib/views/NameSheet.svelte';
-
-	let creatingBase = $state(false);
-	let renaming = $state<BaseDef | null>(null);
 
 	const left = lastTable();
 
@@ -42,12 +30,6 @@
 	const empty = $derived(bases.every((base) => base.tables.length === 0));
 	const grouped = $derived(bases.length > 1);
 
-	const leftView = $derived.by(() => {
-		void app.version;
-		const view = left === null ? undefined : openingView(left);
-		return view === undefined ? undefined : app.ws.view(view)?.name;
-	});
-
 	function caption(figure: Figure): string {
 		if (figure.kind === 'check') return figure.label;
 		const { at, config } = figure;
@@ -62,33 +44,25 @@
 	/** The headline as its field shows it: an amount, a percent, a clock. */
 	function amount(figure: Figure & { kind: 'chart' }): string {
 		const { agg, y } = figure.config;
-		if (agg === 'count') return count(figure.value);
+		if (agg === 'count') return words.rows(figure.value, formatNumber(figure.value));
 		const field = !y ? undefined : app.ws.field(y);
 		return field === undefined ? formatNumber(figure.value) : formatValue(field, figure.value);
 	}
 
-	function count(rows: number): string {
-		return rows === 0 ? words.empty : words.rows(rows, formatNumber(rows));
-	}
-
-	function removeBase(base: BaseDef): void {
-		const label = words.baseDeleted(base.name);
-		const group = app.apply(deleteRecords(app.ws, [base.id]), label);
-		showToast(label, group?.id ?? null);
-	}
-
 	function focusAtDesk(node: HTMLElement, when = true): void {
-		// On touch, focus would raise the keyboard, or ring a row nobody pointed at.
+		// On touch, focus would raise the keyboard, or ring a card nobody pointed at.
 		if (when && !isTyping(document.activeElement) && matchMedia('(pointer: fine)').matches) {
 			node.focus();
 		}
 	}
 
+	const STEPS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
 	function step(event: KeyboardEvent): void {
-		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-		const rows = [...document.querySelectorAll<HTMLElement>('[data-home-row]')];
-		const next =
-			rows[rows.indexOf(event.currentTarget as HTMLElement) + (event.key === 'ArrowDown' ? 1 : -1)];
+		const by = STEPS[event.key];
+		if (by === undefined) return;
+		const cards = [...document.querySelectorAll<HTMLElement>('[data-home-row]')];
+		const next = cards[cards.indexOf(event.currentTarget as HTMLElement) + by];
 		if (next !== undefined) {
 			event.preventDefault();
 			next.focus();
@@ -96,116 +70,82 @@
 	}
 </script>
 
-<div class="flex min-h-full flex-col pb-4">
+<div class="flex min-h-full flex-col">
 	{#if empty}
 		<Empty text={words.noTables}>
 			<Button variant="primary" onclick={() => (shell.importing = { into: null })}
 				>{words.importFile}</Button
 			>
-			<Button onclick={() => startTable()}>{words.newTable}</Button>
 		</Empty>
 	{:else}
-		<div
-			class="sticky top-0 z-10 grid h-row grid-cols-home items-center gap-x-4 border-b border-rule-strong bg-raised px-4 text-sm font-medium text-ink-3 max-sm:hidden"
-			aria-hidden="true"
-		>
-			<span>{words.table}</span>
-			<span>{words.figure}</span>
-			<span></span>
-			<span>{words.trend}</span>
-			<span class="max-lg:hidden">{words.lastEntry}</span>
-			<span class="text-right">{words.rowsHeading}</span>
-		</div>
-		{#each bases as base (base.id)}
-			{#if grouped}
-				<div class="flex h-row items-center gap-2 border-b border-rule bg-band pr-1 pl-4">
-					<h2 class="min-w-0 flex-1 truncate text-sm font-medium text-ink-2">{base.name}</h2>
-					<Menu label={base.name} align="end">
-						{#snippet trigger(props)}
-							<IconButton {...props} icon="more" label={common.more} tooltip={false} />
-						{/snippet}
-						<MenuItem icon="plus" onSelect={() => startTable(base.id)}>{words.newTable}</MenuItem>
-						<MenuItem icon="pencil" onSelect={() => (renaming = base)}>{common.rename}</MenuItem>
-						<MenuItem icon="x" onSelect={() => removeBase(base)}>{common.delete}</MenuItem>
-					</Menu>
-				</div>
-			{/if}
-			{#each base.tables as table (table.id)}
-				{@const here = table.id === left}
-				{@const figure = table.figure}
-				<a
-					href={tableUrl(table.id)}
-					use:focusAtDesk={here}
-					onkeydown={step}
-					onclick={(event) => {
-						// A new table's row pushes the rows below down: the second click of a double-click on New table lands here.
-						if (event.detail > 1) event.preventDefault();
-					}}
-					data-home-row
-					aria-current={here ? 'true' : undefined}
-					class="grid h-13 grid-cols-home items-center gap-x-4 border-b border-rule px-4 transition-colors motion focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus max-sm:h-auto max-sm:min-h-row max-sm:gap-y-0.5 max-sm:py-2.5 {here
-						? 'bg-selected mark-selected'
-						: 'hover:bg-tint'}"
-				>
-					<span class="flex min-w-0 items-baseline gap-2">
-						<span class="truncate font-medium">{table.name}</span>
-						{#if here && leftView !== undefined}
-							<span class="truncate text-ink-3">{leftView}</span>
-						{/if}
-					</span>
-					<span class="whitespace-nowrap max-sm:justify-self-end">
-						{#if figure?.kind === 'chart'}
-							<span class="text-lg font-semibold tight">{amount(figure)}</span>
-						{:else if figure?.kind === 'check'}
-							<span class="text-lg font-semibold tight">{figure.done}</span>
-							<span class="text-ink-2">{words.ofTotal(figure.total)}</span>
-						{:else}
-							<span class="text-ink-3 sm:hidden">{count(table.rows)}</span>
-						{/if}
-					</span>
-					<span class="truncate text-ink-3 max-sm:text-sm {figure === null ? 'max-sm:hidden' : ''}"
-						>{figure === null ? '' : caption(figure)}</span
+		<div class="grid grid-cols-cards gap-3 p-4">
+			{#each bases as base (base.id)}
+				{#each base.tables as table (table.id)}
+					{@const here = table.id === left}
+					{@const figure = table.figure}
+					<a
+						href={tableUrl(table.id)}
+						use:focusAtDesk={here}
+						onkeydown={step}
+						onclick={(event) => {
+							// A new table's card pushes the others along: the second click of a double-click on New table lands here.
+							if (event.detail > 1) event.preventDefault();
+						}}
+						data-home-row
+						aria-current={here ? 'true' : undefined}
+						class="flex min-w-0 flex-col gap-3 rounded-box border p-4 transition-colors motion focus-visible:outline-2 focus-visible:outline-focus {here
+							? 'border-rule bg-selected mark-selected'
+							: 'border-rule hover:bg-tint'}"
 					>
-					<span class="max-sm:justify-self-end {figure === null ? 'max-sm:hidden' : ''}">
+						<span class="flex items-baseline justify-between gap-3">
+							<span class="flex min-w-0 items-baseline gap-2">
+								<span class="truncate font-medium">{table.name}</span>
+								{#if grouped}<span class="truncate text-sm text-ink-3">{base.name}</span>{/if}
+							</span>
+							<span class="shrink-0 text-sm text-ink-3"
+								>{table.last === null ? '' : formatDate(table.last)}</span
+							>
+						</span>
+						<span class="flex min-w-0 flex-col gap-0.5">
+							<span class="text-xl font-semibold tight whitespace-nowrap">
+								{#if figure?.kind === 'chart'}
+									{amount(figure)}
+								{:else if figure?.kind === 'check'}
+									{figure.done}
+									<span class="text-base font-normal text-ink-2">{words.ofTotal(figure.total)}</span
+									>
+								{:else if table.rows === 0}
+									<span class="text-base font-normal text-ink-3">{words.empty}</span>
+								{:else}
+									{formatNumber(table.rows)}
+								{/if}
+							</span>
+							<span class="truncate text-sm text-ink-3">
+								{#if figure !== null}
+									{caption(figure)}
+								{:else if table.rows > 0}
+									{words.rowsHeading}
+								{/if}
+							</span>
+						</span>
 						{#if figure?.kind === 'chart'}
-							<Spark
-								values={figure.trend}
-								kind={figure.config.kind === 'line' ? 'line' : 'bar'}
-								label={words.trend}
-							/>
+							<span class="mt-auto flex h-10 items-end">
+								<Spark
+									values={figure.trend}
+									kind={figure.config.kind === 'line' ? 'line' : 'bar'}
+									label={words.trend}
+									width={256}
+									height={40}
+								/>
+							</span>
 						{:else if figure?.kind === 'check'}
-							<Tally done={figure.done} total={figure.total} />
+							<span class="mt-auto flex h-10 items-end">
+								<Tally done={figure.done} total={figure.total} />
+							</span>
 						{/if}
-					</span>
-					<span class="text-ink-2 max-lg:hidden"
-						>{table.last === null ? '' : formatDate(table.last)}</span
-					>
-					<span class="text-right text-ink-3 max-sm:hidden">{count(table.rows)}</span>
-				</a>
+					</a>
+				{/each}
 			{/each}
-		{/each}
-		<div class="flex flex-wrap gap-2 p-4">
-			<Button onclick={() => startTable()}>{words.newTable}</Button>
-			<Button onclick={() => (shell.importing = { into: null })}>{words.importFile}</Button>
-			<Button onclick={() => (creatingBase = true)}>{words.newBase}</Button>
 		</div>
 	{/if}
 </div>
-
-<NameSheet
-	bind:open={creatingBase}
-	title={words.newBase}
-	placeholder={words.basePlaceholder}
-	onsave={(name) => applyWithUndo(createBase(app.ws, name).changes, words.baseCreated(name))}
-/>
-<NameSheet
-	open={renaming !== null}
-	onclose={() => (renaming = null)}
-	title={words.renameBase}
-	initial={renaming?.name ?? ''}
-	action={common.rename}
-	onsave={(name) => {
-		if (renaming !== null)
-			applyWithUndo(updateRecord(app.ws, renaming.id, { name }), words.baseRenamed);
-	}}
-/>

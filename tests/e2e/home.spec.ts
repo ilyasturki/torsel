@@ -85,7 +85,7 @@ function seedHome(request: APIRequestContext) {
 	});
 }
 
-test('the home leads each table with the figure it already charts or ticks, by base', async ({
+test('the home shows a card per table, led by the figure it already charts or ticks', async ({
 	page,
 	context,
 	account
@@ -94,10 +94,9 @@ test('the home leads each table with the figure it already charts or ticks, by b
 	await seedHome(context.request);
 	await page.goto('/app');
 
-	await expect(page.getByRole('heading', { name: 'Body', level: 2 })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Shopping', level: 2 })).toBeVisible();
-
 	const weighIns = row(page, 'Weigh-ins');
+	await expect(weighIns).toContainText('Body');
+	await expect(row(page, 'Shops')).toContainText('Shopping');
 	await expect(weighIns).toContainText('82.5');
 	await expect(weighIns).toContainText('Average kg, 7-day rolling average');
 	await expect(weighIns.getByRole('img', { name: 'Trend' })).toBeVisible();
@@ -107,7 +106,8 @@ test('the home leads each table with the figure it already charts or ticks, by b
 	await expect(list).toContainText('Bought');
 	await expect(list.getByRole('img', { name: '1 of 3' })).toBeVisible();
 
-	await expect(row(page, 'Shops')).toContainText('2 rows');
+	await expect(row(page, 'Shops')).toContainText('2');
+	await expect(row(page, 'Shops')).toContainText('Rows');
 	await expect(row(page, 'Shops').getByRole('img')).toHaveCount(0);
 	await expect(row(page, 'Blank')).toContainText('Empty');
 
@@ -134,7 +134,6 @@ test('the home stays home and marks the table left, which opens on its view', as
 	await expect(page).toHaveURL(/\/app$/u);
 	const left = row(page, 'Weigh-ins');
 	await expect(left).toHaveAttribute('aria-current', 'true');
-	await expect(left).toContainText('Curve');
 	await expect(row(page, 'List')).not.toHaveAttribute('aria-current', 'true');
 
 	await left.click();
@@ -142,7 +141,7 @@ test('the home stays home and marks the table left, which opens on its view', as
 	await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 });
 
-test('on a desk, the arrows walk the tables from the one left and Enter opens one', async ({
+test('on a desk, the arrows walk the cards from the one left and Enter opens one', async ({
 	page,
 	context,
 	account
@@ -155,33 +154,36 @@ test('on a desk, the arrows walk the tables from the one left and Enter opens on
 
 	await page.goto('/app');
 	await expect(row(page, 'Weigh-ins')).toBeFocused();
-	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('ArrowRight');
 	await expect(row(page, 'Blank')).toBeFocused();
 	await page.keyboard.press('ArrowDown');
 	await expect(row(page, 'List')).toBeFocused();
-	await page.keyboard.press('ArrowUp');
+	await page.keyboard.press('ArrowLeft');
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'Blank' })).toBeVisible();
 });
 
-test("a base's actions sit in its menu", async ({ page, context, account }) => {
+test("a base's actions sit in the home's menu", async ({ page, context, account }) => {
 	void account;
 	await seedHome(context.request);
 	await page.goto('/app');
 
-	const band = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Shopping' }) });
-	await band.last().getByRole('button', { name: 'More' }).click();
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	const baseMenu = async (item: string): Promise<void> => {
+		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+		await page.getByRole('menuitem', { name: 'Shopping' }).click();
+		await page.getByRole('menuitem', { name: item, exact: true }).click();
+	};
+
+	await baseMenu('Delete');
 	await expect(row(page, 'List')).toHaveCount(0);
 	await toastButton(page, 'Undo').click();
 	await expect(row(page, 'List')).toBeVisible();
 
-	await band.last().getByRole('button', { name: 'More' }).click();
-	await page.getByRole('menuitem', { name: 'Rename' }).click();
+	await baseMenu('Rename');
 	const dialog = page.getByRole('dialog', { name: 'Rename base' });
 	await dialog.getByRole('textbox').fill('Groceries');
 	await dialog.getByRole('button', { name: 'Rename' }).click();
-	await expect(page.getByRole('heading', { name: 'Groceries', level: 2 })).toBeVisible();
+	await expect(row(page, 'List')).toContainText('Groceries');
 });
 
 test('an empty home is one line, with Import a file as its main action', async ({
@@ -193,8 +195,8 @@ test('an empty home is one line, with Import a file as its main action', async (
 	await expect(page.getByText('No tables yet. Drop a CSV here or paste cells.')).toBeVisible();
 	const main = page.locator('main');
 	await expect(main.getByRole('button', { name: 'Import', exact: true })).toHaveClass(/bg-accent/u);
-	await expect(main.getByRole('button', { name: 'New table' })).toBeVisible();
-	await expect(main.getByRole('button')).toHaveCount(2);
+	await expect(main.getByRole('button')).toHaveCount(1);
+	await expect(page.getByRole('banner').getByRole('button', { name: 'New table' })).toBeVisible();
 	await expect(page.locator('main a[data-home-row]')).toHaveCount(0);
 });
 

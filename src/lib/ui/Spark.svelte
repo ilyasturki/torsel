@@ -2,16 +2,18 @@
 	let {
 		values,
 		kind = 'line',
-		label
+		label,
+		width: W = 120,
+		height: H = 24
 	}: {
 		/** Oldest first; the last one is drawn in ink. */
 		values: number[];
 		kind?: 'line' | 'bar';
 		label: string;
+		width?: number;
+		height?: number;
 	} = $props();
 
-	const W = 120;
-	const H = 24;
 	const GAP = 2;
 
 	const low = $derived(kind === 'bar' ? Math.min(0, ...values) : Math.min(...values));
