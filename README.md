@@ -80,7 +80,19 @@ bun run start
 
 ## MCP
 
-The server speaks MCP over Streamable HTTP at `/api/mcp`, statelessly, to clients on the 2026-07-28 revision and to those still on the 2025 ones. Create a token in Settings, Agents (MCP), then:
+The server speaks MCP over Streamable HTTP at `/api/mcp`, statelessly, to clients on the 2026-07-28 revision and to those still on the 2025 ones. Claude Code connects by signing in, with no token to copy:
+
+```sh
+claude mcp add --transport http torsel https://your-instance/api/mcp
+```
+
+Then `/mcp` in Claude Code opens Torsel's consent page in the browser. Claude.ai, ChatGPT and the other clients that sign in take the same URL.
+
+Torsel is its own OAuth 2.1 server. A client finds it from the endpoint's 401, which points to the protected resource metadata (RFC 9728) and the server metadata (RFC 8414). It identifies itself by the URL of its metadata document, or by registering (RFC 7591), and signs in with PKCE. The consent shows the app, where it returns and the account, and can narrow the access to read only. The client gets a one-hour token valid on `/api/mcp` alone (RFC 8707) and a refresh token that changes at each use; a refresh token used twice ends the connection. Settings, Connected apps, lists each app with the day it was last used and revokes it. Changing the password ends every connection.
+
+Sign-in needs `ORIGIN` on https, or on localhost; without it, tokens are the only way in. The server fetches a client's metadata document from public addresses only: `TORSEL_FETCH_PRIVATE=1` lets it reach loopback and private ones too, for an instance that lives on a LAN.
+
+Scripts and clients that don't sign in use a token. Create one in Settings, Agents (MCP), then:
 
 ```sh
 claude mcp add --transport http torsel https://your-instance/api/mcp \
