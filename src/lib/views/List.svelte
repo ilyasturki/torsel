@@ -45,10 +45,9 @@
 
 	// The middle shape of the covers, kept between a landscape 16:9 and a 2:3 poster: posters fill it, the rest sit inside.
 	const coverRatio = $derived.by(() => {
-		void app.version;
 		if (cover === undefined) return 1.5;
-		const ratios = app.ws
-			.rows(tableId)
+		const ratios = groups.entries
+			.flatMap(([, rows]) => rows)
 			.map((row) => imagesOf(row.data[cover.id])[0])
 			.filter((image) => image !== undefined)
 			.map((image) => image.h / image.w)
@@ -200,7 +199,7 @@
 	{/if}
 {/snippet}
 
-{#snippet row_(row: Rec)}
+{#snippet checkboxes(row: Rec)}
 	{#each checks as field (field.id)}
 		<input
 			type="checkbox"
@@ -211,6 +210,18 @@
 			onchange={() => change(row, field, valueOf(row, field) !== true)}
 		/>
 	{/each}
+{/snippet}
+
+{#snippet heading(row: Rec)}
+	{#if title !== undefined && !blank(valueOf(row, title))}
+		<CellValue field={title} value={valueOf(row, title)} />
+	{:else}
+		<span class="font-normal text-ink-3">{words.untitled}</span>
+	{/if}
+{/snippet}
+
+{#snippet row_(row: Rec)}
+	{@render checkboxes(row)}
 	<button
 		type="button"
 		class="min-w-0 truncate rounded-box py-1 text-left font-medium {focus} {wide.current
@@ -218,11 +229,7 @@
 			: 'flex-1 basis-48'}"
 		onclick={() => open(row)}
 	>
-		{#if title !== undefined && !blank(valueOf(row, title))}
-			<CellValue field={title} value={valueOf(row, title)} />
-		{:else}
-			<span class="font-normal text-ink-3">{words.untitled}</span>
-		{/if}
+		{@render heading(row)}
 	</button>
 	{#if wide.current}
 		{#each meta as field (field.id)}
@@ -263,24 +270,11 @@
 			class="min-w-0 truncate rounded-box text-left font-medium {focus}"
 			onclick={() => open(row)}
 		>
-			{#if title !== undefined && !blank(valueOf(row, title))}
-				<CellValue field={title} value={valueOf(row, title)} />
-			{:else}
-				<span class="font-normal text-ink-3">{words.untitled}</span>
-			{/if}
+			{@render heading(row)}
 		</button>
 		{#if meta.length > 0 || checks.length > 0}
 			<span class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
-				{#each checks as field (field.id)}
-					<input
-						type="checkbox"
-						class={checkbox}
-						aria-label={field.name}
-						checked={valueOf(row, field) === true}
-						disabled={locked.has(field.id)}
-						onchange={() => change(row, field, valueOf(row, field) !== true)}
-					/>
-				{/each}
+				{@render checkboxes(row)}
 				{#each meta as field (field.id)}
 					{@render value(row, field)}
 				{/each}

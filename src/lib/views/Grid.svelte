@@ -1123,12 +1123,10 @@
 		const added = await addImages(field.base, files, imagesOf(row.data[field.id]).length);
 		if (added.length === 0) return;
 		const kept = imagesOf(app.ws.live(row.id)?.data[field.id]);
-		const label = imageWords.added(added.length);
-		const group = app.apply(
+		applyWithUndo(
 			updateRow(app.ws, row.id, { [field.id]: imagesValue([...kept, ...added]) }),
-			label
+			imageWords.added(added.length)
 		);
-		showToast(label, group?.id ?? null);
 	}
 
 	function oncatcherpaste(event: ClipboardEvent): void {
