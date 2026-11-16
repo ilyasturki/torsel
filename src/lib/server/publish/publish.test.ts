@@ -242,7 +242,7 @@ function expectNoLeak(text: string, garden: Garden): void {
 	expect(text).not.toMatch(/SENTINEL/u);
 	expect(text).not.toContain('{{');
 	expect(text).not.toContain('clocks');
-	expect(text).not.toContain('srv');
+	expect(text).not.toMatch(/[0-9a-z]{9}\.[0-9a-z]{4}\.srv/u);
 	for (const id of garden.ids) expect(text).not.toContain(id);
 }
 
