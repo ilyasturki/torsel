@@ -86,6 +86,12 @@ const en = {
 		count === 1
 			? `1 value can't become ${type} and will be cleared.`
 			: `${count} values can't become ${type} and will be cleared.`,
+	fetchesImages: (count: number) =>
+		count === 1
+			? 'The image of 1 link will be fetched.'
+			: `The images of ${count} links will be fetched.`,
+	fetchingImages: (count: number) =>
+		count === 1 ? 'Fetching 1 image…' : `Fetching ${count} images…`,
 	nameNeeded: 'Give this field a name.',
 	nameTaken: (name: string) => `A field named "${name}" already exists.`,
 	unknownField: (name: string) => `unknown field: "${name}"`,
@@ -229,6 +235,13 @@ const fr: typeof en = {
 	formulaTakesOver: 'La formule remplace les valeurs actuelles.',
 	pickLinkTable: 'Choisis la table à lier.',
 	allCarryOver: 'Toutes les valeurs sont conservées.',
+	fetchesImages: (count) =>
+		plural('fr', count, {
+			one: 'L’image de # lien sera récupérée.',
+			other: 'Les images de # liens seront récupérées.'
+		}),
+	fetchingImages: (count) =>
+		plural('fr', count, { one: 'Récupération de # image…', other: 'Récupération de # images…' }),
 	valuesLost: (count, type) =>
 		plural('fr', count, {
 			one: `# valeur ne peut pas devenir ${type} et sera effacée.`,

@@ -6,6 +6,8 @@
 	import { me } from '#lib/client/session.svelte.ts';
 	import { currencyFor, formatNumber, formatValue, readNumber } from '#lib/client/format.ts';
 	import { readFormula } from '#lib/client/formula.ts';
+	import { fetchLinks, fetchesLinks } from '#lib/client/images.svelte.ts';
+	import type { ImageRef } from '#lib/core/images.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
 	import { canFill } from '#lib/core/autofill.ts';
@@ -22,7 +24,7 @@
 		Value
 	} from '#lib/core/model.ts';
 	import { DATE_STYLES, RESULT_TYPES, formatSet, hasChoices, isDated } from '#lib/core/model.ts';
-	import { retypeField } from '#lib/core/retype.ts';
+	import { imageLinksOf, retypeField } from '#lib/core/retype.ts';
 	import { CURRENCIES, currencyOf, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { fields as words } from '#lib/i18n/fields.ts';
@@ -174,6 +176,16 @@
 		return before.min !== after.min || before.max !== after.max || before.step !== after.step;
 	}
 
+	// The images fetched for a retype to image, held only while it applies.
+	let fetched: Map<string, ImageRef> | undefined;
+
+	/** The links a retype to image would fetch: none when this device can't ask the server. */
+	function linksToFetch(): string[] {
+		return existing !== undefined && type === 'image' && existing.type !== 'image' && fetchesLinks()
+			? imageLinksOf(app.ws, existing.id)
+			: [];
+	}
+
 	function conversion(expr: string | null = null): { changes: Change[]; lost: number } | null {
 		return existing === undefined || (type === existing.type && !rescaled())
 			? null
@@ -186,6 +198,7 @@
 						expr,
 						choices: $state.snapshot(choices),
 						checkWords: { yes: words.yes, no: words.no },
+						fetched,
 						...format()
 					},
 					existing.type === 'formula' ? app.computed(tableId) : undefined
@@ -198,6 +211,8 @@
 		if (result === null) return undefined;
 		if (type === 'formula') return words.formulaTakesOver;
 		if (type === 'link' && target === '') return words.pickLinkTable;
+		const links = linksToFetch().length;
+		if (links > 0) return words.fetchesImages(links);
 		if (result.lost === 0) return existing?.type === type ? undefined : words.allCarryOver;
 		return words.valuesLost(result.lost, typeLabel(type));
 	});
@@ -316,8 +331,42 @@
 		open = false;
 	}
 
+	// A retype to image waits on its fetches; what is picked meanwhile applies once they land.
+	let fetching = false;
+	let again = false;
+
 	function apply(): void {
+		if (fetching) {
+			again = true;
+			return;
+		}
 		if (existing === undefined || snapshot() === start) return;
+		const links = linksToFetch();
+		if (links.length === 0) {
+			applyNow();
+			return;
+		}
+		fetching = true;
+		showToast(words.fetchingImages(links.length));
+		void fetchLinks(existing.base, links)
+			.then((found) => {
+				fetched = new Map(
+					[...found].flatMap(([link, got]) => (typeof got === 'string' ? [] : [[link, got]]))
+				);
+				applyNow();
+			})
+			.finally(() => {
+				fetched = undefined;
+				fetching = false;
+				if (again) {
+					again = false;
+					apply();
+				}
+			});
+	}
+
+	function applyNow(): void {
+		if (existing === undefined) return;
 		const ready = settled();
 		if (ready === null) return;
 		const label = name.trim();
