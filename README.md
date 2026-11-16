@@ -8,7 +8,7 @@ It works offline. Every device keeps a full copy of your data and syncs with a s
 
 A base holds tables. A field is text or long text, a number, an amount of money, a percentage, a rating, a duration, a date with or without a time, one choice or several, a check, a link to another table, a URL, an email, a phone number, images, or a formula, which is a SQLite expression over the row such as `"Poids" * (1 + "Reps" / 30.0)`. A file pasted or dropped on the app imports as a table, each column's type guessed. Each table has views:
 
-- **Grid** shows every row, editable in place, with filters, colour rules and totals.
+- **Grid** shows every row, editable in place, with filters, colour rules, totals, and rows grouped by a field with subtotals.
 - **Entry** adds a row, prefilled from the last row with the same key (the same exercise, the same category), with steppers on numbers.
 - **List** groups rows into cards by a field.
 - **Chart** draws bars or a line of an aggregate, by day, week or month, with an optional rolling average.
