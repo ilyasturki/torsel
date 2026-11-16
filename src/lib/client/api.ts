@@ -127,7 +127,7 @@ function messageFrom(payload: unknown, fallback: string): string {
 	return fallback;
 }
 
-function sentence(text: string): string {
+export function sentence(text: string): string {
 	const capital = text.charAt(0).toUpperCase() + text.slice(1);
 	return /[.!?…]$/u.test(capital) ? capital : `${capital}.`;
 }

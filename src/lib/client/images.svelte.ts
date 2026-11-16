@@ -2,7 +2,7 @@ import type { ImageRef, ImageType } from '../core/images.ts';
 import { MAX_IMAGES, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS, isImageType } from '../core/images.ts';
 import { UPLOAD_PART } from '../core/thread.ts';
 import { images as words } from '../i18n/images.ts';
-import { ApiError, request, requestBlob } from './api.ts';
+import { ApiError, request, requestBlob, sentence } from './api.ts';
 import { app } from './app.svelte.ts';
 import type { LocalDb } from './local.ts';
 import { keepImage, readImage, readOutbox, sent } from './local.ts';
@@ -26,9 +26,13 @@ async function sha256(blob: Blob): Promise<string> {
 
 const stem = (name: string): string => name.replace(/\.[^.]+$/u, '') || 'image';
 
-/** A server's lowercase reason as a sentence of its own. */
-const sentence = (text: string): string =>
-	`${text.charAt(0).toUpperCase()}${text.slice(1).replace(/\.$/u, '')}.`;
+function translucent(context: CanvasRenderingContext2D): boolean {
+	const { data } = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
+	for (let at = 3; at < data.length; at += 4) {
+		if (data[at] < 255) return true;
+	}
+	return false;
+}
 
 /** A file as stored: downscaled, its metadata (a phone's GPS among it) dropped by re-encoding; a GIF stays as is so it still moves. */
 export async function prepareImage(file: File): Promise<{ ref: ImageRef; blob: Blob }> {
@@ -60,11 +64,16 @@ export async function prepareImage(file: File): Promise<{ ref: ImageRef; blob: B
 	const canvas = document.createElement('canvas');
 	canvas.width = Math.max(1, Math.round(width * scale));
 	canvas.height = Math.max(1, Math.round(height * scale));
-	canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+	const context = canvas.getContext('2d');
+	context?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 	bitmap.close();
 
-	// PNG keeps transparency; everything else reads as well as a JPEG at a fraction of the bytes.
-	const type: ImageType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+	// PNG keeps transparency, which a JPEG paints black; an opaque image reads as well as a JPEG at a fraction of the bytes.
+	const type: ImageType =
+		file.type === 'image/png' ||
+		(file.type !== 'image/jpeg' && context !== null && translucent(context))
+			? 'image/png'
+			: 'image/jpeg';
 	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.85));
 	if (blob === null) {
 		throw new ImageProblem(words.unreadable);
