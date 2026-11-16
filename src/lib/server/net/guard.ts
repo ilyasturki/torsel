@@ -68,24 +68,39 @@ const DENIED: [string, number, 'ipv4' | 'ipv6'][] = [
 ];
 
 let denied: BlockList | undefined;
+let interfacesFailureLogged = false;
+
+function hostInterfaces(): ReturnType<typeof networkInterfaces> {
+	try {
+		return networkInterfaces();
+	} catch (error) {
+		if (!interfacesFailureLogged) {
+			interfacesFailureLogged = true;
+			console.error("fetch guard: the host's addresses are unreadable, refusing fetches:", error);
+		}
+		throw new FetchRefused('address', "the host's own addresses are unreadable");
+	}
+}
 
 // Built on first use: the host's own public addresses reach the other apps it serves.
 function denyList(): BlockList {
-	if (denied === undefined) {
-		denied = new BlockList();
-		for (const [address, prefix, family] of DENIED) {
-			denied.addSubnet(address, prefix, family);
-		}
-		for (const entries of Object.values(networkInterfaces())) {
-			for (const entry of entries ?? []) {
-				denied.addAddress(entry.address, entry.family === 'IPv6' ? 'ipv6' : 'ipv4');
-			}
+	if (denied !== undefined) {
+		return denied;
+	}
+	const list = new BlockList();
+	for (const [address, prefix, family] of DENIED) {
+		list.addSubnet(address, prefix, family);
+	}
+	for (const entries of Object.values(hostInterfaces())) {
+		for (const entry of entries ?? []) {
+			list.addAddress(entry.address, entry.family === 'IPv6' ? 'ipv6' : 'ipv4');
 		}
 	}
+	denied = list;
 	return denied;
 }
 
-/** Whether an address is off limits; IPv4-mapped IPv6 forms count as their IPv4 address. */
+/** Whether an address is off limits; IPv4-mapped IPv6 forms count as their IPv4 address. Throws a FetchRefused when the host's addresses are unreadable. */
 export function deniedAddress(address: string): boolean {
 	const bare = address.replace(/^\[|\]$/gu, '');
 	const family = isIP(bare);
@@ -95,7 +110,26 @@ export function deniedAddress(address: string): boolean {
 	return denyList().check(bare, family === 6 ? 'ipv6' : 'ipv4');
 }
 
+function screened(
+	hostname: string,
+	list: LookupAddress[],
+	allowPrivate: boolean
+): FetchRefused | undefined {
+	try {
+		if (
+			list.length === 0 ||
+			(!allowPrivate && list.some(({ address }) => deniedAddress(address)))
+		) {
+			return new FetchRefused('address', `${hostname} resolves to a private address`);
+		}
+	} catch (error) {
+		return refusal(error);
+	}
+	return undefined;
+}
+
 // The socket connects to the address this returns, so the address checked is the one used.
+// A throw out of the dns callback is uncaught and ends the process: every failure goes to `callback`.
 function guardedLookup(allowPrivate: boolean): LookupFunction {
 	return (hostname, options, callback) => {
 		resolve(hostname, { all: true, family: options.family }, (error, addresses) => {
@@ -104,11 +138,9 @@ function guardedLookup(allowPrivate: boolean): LookupFunction {
 				return;
 			}
 			const list = addresses as LookupAddress[];
-			if (
-				list.length === 0 ||
-				(!allowPrivate && list.some(({ address }) => deniedAddress(address)))
-			) {
-				callback(new FetchRefused('address', `${hostname} resolves to a private address`), '', 0);
+			const refused = screened(hostname, list, allowPrivate);
+			if (refused !== undefined) {
+				callback(refused, '', 0);
 				return;
 			}
 			if (options.all === true) {
