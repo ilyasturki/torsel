@@ -206,7 +206,7 @@ test.describe('tables from a link', () => {
 		const links = await serve(context.request, { '/movies.csv': { body: MOVIES } });
 		const made = await link(context.request, links.url('/movies.csv'));
 		await openTable(page, made.table);
-		await expect(cell(page, '4 out of 5')).toBeVisible();
+		await expect(cell(page, '4')).toBeVisible();
 
 		await links.set({ '/movies.csv': { body: 'id,Title,Rating\n1,Alien,3\n2,Heat,5\n' } });
 		const refreshed = await context.request.post(`/api/sources/${made.table}/refresh`, {
@@ -214,7 +214,7 @@ test.describe('tables from a link', () => {
 		});
 		expect((await refreshed.json()).outcome).toMatchObject({ ok: true, changed: 1 });
 		await page.reload();
-		await expect(cell(page, '3 out of 5')).toBeVisible();
+		await expect(cell(page, '3')).toBeVisible();
 
 		await links.set({ '/movies.csv': { status: 500, body: '' } });
 		const failed = await context.request.post(`/api/sources/${made.table}/refresh`, { data: {} });

@@ -217,7 +217,8 @@ export async function previewSource(input: {
 	);
 	const columns = guessed.map((guess, at) => {
 		const { name, type, choices, ...format } = guess;
-		return { ...format, path: paths[at], name, type, choices };
+		// A source's types lock and a later page may hold 0 or 4.5, which a rating drops.
+		return { ...format, path: paths[at], name, type: type === 'rating' ? 'number' : type, choices };
 	});
 	const filter = input.filter ?? null;
 	const items =

@@ -469,7 +469,7 @@ describe('the preview', () => {
 		expect(preview.columns.map(({ path, type }) => [path, type])).toEqual([
 			['id', 'number'],
 			['Title', 'text'],
-			['Rating', 'rating'],
+			['Rating', 'number'],
 			['Genre', 'text']
 		]);
 	});
