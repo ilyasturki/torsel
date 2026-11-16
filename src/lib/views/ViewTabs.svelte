@@ -6,11 +6,14 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
+	import { me } from '#lib/client/session.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import { duplicateView } from '#lib/core/duplicate.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
+	import { isPublishable } from '#lib/core/published.ts';
 	import { names } from '#lib/i18n/names.ts';
+	import { publish as publishWords } from '#lib/i18n/publish.ts';
 	import { views as words } from '#lib/i18n/views.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -21,6 +24,7 @@
 	import { focus } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 
+	import PublishDialog from './PublishDialog.svelte';
 	import { VIEW_TYPES, addView, moveView, viewLabel } from './views.ts';
 
 	let {
@@ -53,6 +57,8 @@
 		width: number;
 	} | null = null;
 	let swallowClick = false;
+	let publishing = $state<ViewDef | null>(null);
+	let publishOpen = $state(false);
 
 	function tabs(): HTMLElement[] {
 		return strip === undefined ? [] : [...strip.querySelectorAll<HTMLElement>('[data-view]')];
@@ -240,6 +246,15 @@
 							>{words.viewSettings}</MenuItem
 						>
 						<MenuItem icon="plus" onSelect={() => duplicate(view)}>{words.duplicateView}</MenuItem>
+						{#if isPublishable(view.type) && me.account}
+							<MenuItem
+								icon="link"
+								onSelect={() => {
+									publishing = view;
+									publishOpen = true;
+								}}>{publishWords.publish}</MenuItem
+							>
+						{/if}
 						<MenuItem
 							icon="arrow-left"
 							shortcut={keys('mod', 'shift', '←')}
@@ -272,3 +287,7 @@
 		</Menu>
 	</span>
 </div>
+
+{#if publishing !== null}
+	<PublishDialog bind:open={publishOpen} view={publishing} />
+{/if}

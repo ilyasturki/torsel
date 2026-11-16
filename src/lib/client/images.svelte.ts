@@ -146,6 +146,13 @@ function remember(id: string, blob: Blob): string {
 
 const asking = new Map<string, Promise<string | null>>();
 
+let filePath = (base: string, id: string): string => `/api/blobs/${base}/${id}`;
+
+/** A published view's page reads its images through its link, which serves only the ones it shows. */
+export function imagesFromLink(token: string): void {
+	filePath = (_base, id) => `/v/${token}/files/${id}`;
+}
+
 /** A URL showing the image, from this device or else the server; null while its bytes are nowhere to be had. */
 export function imageUrl(base: string, ref: ImageRef): Promise<string | null> {
 	const known = urls.get(ref.id);
@@ -168,7 +175,7 @@ async function fetchImage(base: string, ref: ImageRef): Promise<string | null> {
 	}
 	let blob: Blob;
 	try {
-		blob = await requestBlob(`/api/blobs/${base}/${ref.id}`);
+		blob = await requestBlob(filePath(base, ref.id));
 	} catch (error) {
 		if (error instanceof ApiError) return null;
 		throw error;

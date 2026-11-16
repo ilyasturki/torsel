@@ -4,13 +4,16 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, SETTINGS, tableUrl } from '#lib/client/nav.ts';
+	import { me } from '#lib/client/session.svelte.ts';
 	import { downloadCsv, shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import { duplicateTable } from '#lib/core/duplicate.ts';
 	import { numberedName } from '#lib/core/names.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
+	import { isPublishable } from '#lib/core/published.ts';
 	import { names } from '#lib/i18n/names.ts';
+	import { publish as publishWords } from '#lib/i18n/publish.ts';
 	import { shell as shellWords } from '#lib/i18n/shell.ts';
 	import { table as words } from '#lib/i18n/table.ts';
 	import { views as viewWords } from '#lib/i18n/views.ts';
@@ -23,6 +26,7 @@
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
 	import MenuSub from '#lib/ui/MenuSub.svelte';
 
+	import PublishDialog from './PublishDialog.svelte';
 	import { VIEW_TYPES, addView, viewLabel } from './views.ts';
 
 	let {
@@ -43,6 +47,9 @@
 	} = $props();
 
 	let renaming = false;
+	let publishing = $state(false);
+
+	const publishable = $derived(view !== undefined && isPublishable(view.type) && !!me.account);
 
 	// A table a source fills takes no rows from a file.
 	const adds = $derived.by(() => {
@@ -120,6 +127,11 @@
 		{#if view !== undefined}
 			<MenuItem icon="arrow-up" onSelect={() => run(exportHere)}>{words.exportCsv}</MenuItem>
 		{/if}
+		{#if publishable}
+			<MenuItem icon="link" onSelect={() => run(() => (publishing = true))}
+				>{publishWords.publish}</MenuItem
+			>
+		{/if}
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={remove}>{words.deleteTable}</MenuItem>
 	</Menu>
@@ -168,6 +180,11 @@
 					>{words.exportCsv}</Button
 				>
 			{/if}
+			{#if publishable}
+				<Button variant="ghost" class="justify-start" onclick={() => run(() => (publishing = true))}
+					>{publishWords.publish}</Button
+				>
+			{/if}
 			<a
 				href={SETTINGS}
 				class="inline-flex h-control items-center rounded-box px-3 font-medium text-ink-2 transition-colors motion hover:bg-tint hover:text-ink"
@@ -176,4 +193,8 @@
 			<Button variant="ghost" class="justify-start" onclick={remove}>{words.deleteTable}</Button>
 		</div>
 	</Dialog>
+{/if}
+
+{#if view !== undefined}
+	<PublishDialog bind:open={publishing} {view} />
 {/if}

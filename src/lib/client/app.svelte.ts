@@ -7,6 +7,7 @@ import type { MemoryEngine } from '../core/engine.ts';
 import { openEngine } from '../core/engine.ts';
 import { latestClock, sameRec } from '../core/merge.ts';
 import type { Change, ChartConfig, FieldDef, Rec } from '../core/model.ts';
+import type { Opened } from '../core/published.ts';
 import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
 import { formulaProblem, formulaTables, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
@@ -104,6 +105,10 @@ class TorselApp {
 	// Chart data known before SQLite loads, by table and config, on the same terms.
 	private readonly earlyCharts = new Map<string, { revision: number; data: ChartData }>();
 	private seq = 0;
+	private given: {
+		computed: Map<string, SqlRow>;
+		chart: { table: string; data: ChartData } | null;
+	} | null = null;
 
 	public load(): Promise<void> {
 		this.loading ??= this.open();
@@ -166,6 +171,24 @@ class TorselApp {
 			this.bump(false);
 		})();
 		return this.loading;
+	}
+
+	/**
+	 * A published view's page: the records the server sent, read only, with the figures it
+	 * computed standing in for SQLite, which never loads here. No store opens and no sync starts.
+	 */
+	public openPublished(opened: Opened, chart: { table: string; data: ChartData } | null): void {
+		this.actor = { user: '', path: 'device', readOnly: true };
+		for (const change of opened.changes) {
+			this.ws.stamp(change, this.hlc.tick());
+		}
+		this.given = { computed: opened.computed, chart };
+		this.loading = Promise.resolve();
+		this.bump(false);
+	}
+
+	public get readOnly(): boolean {
+		return this.actor.readOnly === true;
 	}
 
 	private bump(changed = true): void {
@@ -535,6 +558,9 @@ class TorselApp {
 		if (formulas.length === 0) {
 			return new Map();
 		}
+		if (this.given !== null) {
+			return this.given.computed;
+		}
 		if (!this.ready) {
 			const early = this.early.get(tableId);
 			return early?.revision === this.ws.revision(tableId) ? early.rows : new Map();
@@ -563,6 +589,9 @@ class TorselApp {
 	}
 
 	public chart(tableId: string, config: ChartConfig): ChartData | null {
+		if (this.given !== null) {
+			return this.given.chart?.table === tableId ? this.given.chart.data : null;
+		}
 		if (!this.ready) {
 			const early = this.earlyCharts.get(`${tableId} ${JSON.stringify(config)}`);
 			return early?.revision === this.ws.revision(tableId) ? early.data : null;

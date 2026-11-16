@@ -3,6 +3,7 @@ import { area } from './runtime.ts';
 const en = {
 	publish: 'Publish to web',
 	publishNow: 'Publish',
+	who: 'Anyone with the link sees this view, read only.',
 	link: 'Link',
 	copyLink: 'Copy link',
 	linkCopied: 'Link copied',
@@ -20,6 +21,7 @@ const en = {
 const fr: typeof en = {
 	publish: 'Publier sur le web',
 	publishNow: 'Publier',
+	who: 'Toute personne qui a le lien voit cette vue, sans pouvoir la modifier.',
 	link: 'Lien',
 	copyLink: 'Copier le lien',
 	linkCopied: 'Lien copié',

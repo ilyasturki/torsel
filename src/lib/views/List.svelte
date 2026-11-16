@@ -66,6 +66,7 @@
 		void app.version;
 		return app.canAddRows(tableId);
 	});
+	const readOnly = $derived(app.readOnly);
 	const checks = $derived(show.filter((field) => field.type === 'check'));
 	const meta = $derived(show.filter((field) => field.type !== 'check'));
 
@@ -223,15 +224,21 @@
 
 {#snippet row_(row: Rec)}
 	{@render checkboxes(row)}
-	<button
-		type="button"
-		class="min-w-0 truncate rounded-box py-1 text-left font-medium {focus} {wide.current
-			? ''
-			: 'flex-1 basis-48'}"
-		onclick={() => open(row)}
-	>
-		{@render heading(row)}
-	</button>
+	{#if readOnly}
+		<span class="min-w-0 truncate py-1 font-medium {wide.current ? '' : 'flex-1 basis-48'}">
+			{@render heading(row)}
+		</span>
+	{:else}
+		<button
+			type="button"
+			class="min-w-0 truncate rounded-box py-1 text-left font-medium {focus} {wide.current
+				? ''
+				: 'flex-1 basis-48'}"
+			onclick={() => open(row)}
+		>
+			{@render heading(row)}
+		</button>
+	{/if}
 	{#if wide.current}
 		{#each meta as field (field.id)}
 			<span class="flex min-w-0 items-center {isNumeric(field.type) ? 'justify-end' : ''}">
@@ -257,6 +264,7 @@
 				: ''} {focus}"
 			style="aspect-ratio: 1 / {coverRatio}"
 			aria-label={images.length > 0 ? coverField.name : words.untitled}
+			disabled={readOnly && images.length === 0}
 			onclick={() => {
 				if (images.length > 0) viewing = { row: row.id, field: coverField };
 				else open(row);
@@ -266,13 +274,17 @@
 				<ImageThumb base={coverField.base} image={images[0]} fill />
 			{/if}
 		</button>
-		<button
-			type="button"
-			class="min-w-0 truncate rounded-box text-left font-medium {focus}"
-			onclick={() => open(row)}
-		>
-			{@render heading(row)}
-		</button>
+		{#if readOnly}
+			<span class="min-w-0 truncate font-medium">{@render heading(row)}</span>
+		{:else}
+			<button
+				type="button"
+				class="min-w-0 truncate rounded-box text-left font-medium {focus}"
+				onclick={() => open(row)}
+			>
+				{@render heading(row)}
+			</button>
+		{/if}
 		{#if meta.length > 0 || checks.length > 0}
 			<span class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
 				{@render checkboxes(row)}

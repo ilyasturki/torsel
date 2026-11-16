@@ -4,7 +4,8 @@ import { CREATED, DELETED } from './model.ts';
 /** The way a write reaches the records. */
 export type Path = 'device' | 'mcp' | 'assistant' | 'connector' | 'api';
 
-export type Actor = { user: string; path: Path };
+// `readOnly`: the visitor of a published view, who may write nothing.
+export type Actor = { user: string; path: Path; readOnly?: boolean };
 
 export type Lookup = (id: string) => Rec | undefined;
 
@@ -49,6 +50,9 @@ export function lockedKeys(
 	target: Target,
 	keys: Iterable<string>
 ): string[] {
+	if (actor.readOnly === true) {
+		return [...keys];
+	}
 	if (actor.path === 'connector') {
 		return [];
 	}

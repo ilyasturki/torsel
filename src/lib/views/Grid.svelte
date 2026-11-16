@@ -192,6 +192,8 @@
 		return app.lockedFields(tableId);
 	});
 
+	const readOnly = $derived(app.readOnly);
+
 	const writable = (row: Rec | undefined, field: FieldDef): boolean =>
 		(row !== undefined || adds) && !locked.has(field.id);
 
@@ -670,6 +672,7 @@
 			return;
 		}
 		if (field.type === 'formula') {
+			if (readOnly) return;
 			const cell = document.getElementById(cellId(headRow, headCol));
 			if (cell !== null) formulaEdit = { field: field.id, anchor: cell, typed: typed ?? '' };
 			return;
@@ -760,7 +763,7 @@
 			return;
 		}
 
-		if (event.altKey && event.key === 'ArrowDown' && fields[headCol] !== undefined) {
+		if (event.altKey && event.key === 'ArrowDown' && fields[headCol] !== undefined && !readOnly) {
 			event.preventDefault();
 			menuAnchor = table?.querySelector<HTMLElement>(`th[aria-colindex="${headCol + 2}"]`) ?? null;
 			menuField = fields[headCol].id;
@@ -1385,7 +1388,7 @@
 	}
 
 	function openRowMenuAtHead(): void {
-		if (head === null || headRow >= rows.length) return;
+		if (head === null || headRow >= rows.length || readOnly) return;
 		const box = document.getElementById(cellId(headRow, headCol))?.getBoundingClientRect();
 		if (box === undefined) return;
 		point = { x: box.left, y: box.bottom };
@@ -1393,6 +1396,7 @@
 	}
 
 	function onbodycontextmenu(event: MouseEvent): void {
+		if (readOnly) return;
 		const target = event.target as Element;
 		if (target === table) {
 			event.preventDefault();
@@ -1602,7 +1606,7 @@
 
 	function openFind(replace: boolean): void {
 		finding = true;
-		replacing ||= replace;
+		replacing ||= replace && !readOnly;
 		flushSync();
 		findInput?.focus();
 		findInput?.select();
@@ -1831,7 +1835,7 @@
 				{/if}
 			{/if}
 		{/if}
-		{#if r === bottom && c === right && row !== null && editing === null && filling === null}
+		{#if r === bottom && c === right && row !== null && editing === null && filling === null && !readOnly}
 			<div
 				aria-hidden="true"
 				class="absolute -right-1 -bottom-1 z-5 size-2 cursor-crosshair bg-accent ring-2 ring-raised pointer-coarse:hidden"
@@ -2026,6 +2030,16 @@
 											if (renaming === field.id) renameField(field);
 										}}
 									/>
+								{:else if readOnly}
+									<span
+										class="absolute inset-0 flex items-center px-3 whitespace-nowrap {numeric
+											? 'justify-end'
+											: field.type === 'check'
+												? 'justify-center'
+												: ''}"
+									>
+										<span class="min-w-0 truncate">{field.name}</span>
+									</span>
 								{:else}
 									<Tooltip shortcut={keys('alt', '↓')}>
 										{#snippet children(tip)}
@@ -2063,33 +2077,40 @@
 										{/snippet}
 									</Tooltip>
 								{/if}
-								<Tooltip shortcut="{keys('alt', 'shift', '←')} {keys('alt', 'shift', '→')}">
-									{#snippet children(tip)}
-										<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-										<div
-											{...mergeProps(tip, {
-												onpointerdown: (event: PointerEvent) => onresizedown(event, field, index),
-												ondblclick: () => refit(field)
-											})}
-											aria-hidden="true"
-											tabindex="-1"
-											class="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none hover:bg-tint-2 pointer-coarse:hidden"
-										></div>
-									{/snippet}
-								</Tooltip>
+								{#if !readOnly}
+									<Tooltip shortcut="{keys('alt', 'shift', '←')} {keys('alt', 'shift', '→')}">
+										{#snippet children(tip)}
+											<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+											<div
+												{...mergeProps(tip, {
+													onpointerdown: (event: PointerEvent) => onresizedown(event, field, index),
+													ondblclick: () => refit(field)
+												})}
+												aria-hidden="true"
+												tabindex="-1"
+												class="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none hover:bg-tint-2 pointer-coarse:hidden"
+											></div>
+										{/snippet}
+									</Tooltip>
+								{/if}
 							</th>
 						{/each}
-						<th class="sticky top-0 z-20 border-b border-rule-strong bg-band">
-							<AddField
-								{tableId}
-								bind:open={shell.addingField}
-								class="absolute inset-0 flex items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
-								onmore={(name, type, at) => {
-									fieldId = null;
-									preset = { name, type, at };
-									fieldOpen = true;
-								}}
-							/>
+						<th
+							class="sticky top-0 z-20 border-b border-rule-strong bg-band"
+							aria-hidden={readOnly || undefined}
+						>
+							{#if !readOnly}
+								<AddField
+									{tableId}
+									bind:open={shell.addingField}
+									class="absolute inset-0 flex items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
+									onmore={(name, type, at) => {
+										fieldId = null;
+										preset = { name, type, at };
+										fieldOpen = true;
+									}}
+								/>
+							{/if}
 						</th>
 						<th class="sticky top-0 z-20 border-b border-rule-strong bg-band" aria-hidden="true"
 						></th>
@@ -2109,15 +2130,22 @@
 								data-r={r}
 								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
 							>
-								<button
-									type="button"
-									class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
-									aria-label={words.openRow}
-									onclick={() => {
-										rowId = row.id;
-										rowOpen = true;
-									}}>{r + 1}</button
-								>
+								{#if readOnly}
+									<span
+										class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3"
+										>{r + 1}</span
+									>
+								{:else}
+									<button
+										type="button"
+										class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
+										aria-label={words.openRow}
+										onclick={() => {
+											rowId = row.id;
+											rowOpen = true;
+										}}>{r + 1}</button
+									>
+								{/if}
 							</td>
 							{#each fields as field, c (field.id)}
 								{@render dataCell(row, r, field, c)}

@@ -31,6 +31,8 @@
 		/** Shown, not set: the landing's showcase. */ still?: boolean;
 	} = $props();
 
+	const fixed = $derived(still || app.readOnly);
+
 	let width = $state(720);
 	let active = $state<number | null>(null);
 	const W = $derived(Math.max(280, Math.round(width)));
@@ -190,7 +192,7 @@
 	const byDate = $derived(isDated(xField?.type ?? 'text'));
 
 	const per = $derived(
-		!still
+		!fixed
 			? ''
 			: byDate && config.bucket === 'week'
 				? words.perWeek
@@ -258,7 +260,7 @@
 	{#if data === null}
 		<Empty text={words.chartUnset} />
 	{:else}
-		{#if still}
+		{#if fixed}
 			<span class="font-medium text-ink-3">{valueName}</span>
 		{:else}
 			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

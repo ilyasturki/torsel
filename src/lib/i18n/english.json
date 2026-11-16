@@ -386,6 +386,7 @@
 	"src/routes/app/settings/+page.svelte\tTorsel",
 	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl}",
 	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl} --header \"Authorization: Bearer {minted}\"",
+	"src/routes/v/[token]/+page.svelte\tTorsel",
 	"src/routes/v/[token]/files/[id]/+server.ts\tdefault-src 'none'; sandbox",
 	"src/routes/v/[token]/files/[id]/+server.ts\tpublic, max-age=60"
 ]
