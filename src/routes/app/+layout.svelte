@@ -26,6 +26,7 @@
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Logo from '#lib/ui/Logo.svelte';
+	import { roomy } from '#lib/ui/media.svelte.ts';
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import { focus, secondary } from '#lib/ui/styles.ts';
@@ -291,7 +292,7 @@
 						</Menu>
 					</div>
 				{/if}
-				<span class="contents max-lg:hidden"><SyncStatus /></span>
+				{#if roomy.current}<SyncStatus />{/if}
 				<div class="ml-auto flex shrink-0 items-center gap-1">
 					{#if table !== undefined}
 						<IconButton
@@ -373,7 +374,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="lg:hidden"><SyncStatus /></div>
+			{#if !roomy.current}<SyncStatus />{/if}
 		</header>
 
 		<div class="relative flex min-h-0 flex-1 px-gutter pt-3 pb-5 max-sm:p-0 max-sm:pb-safe">
