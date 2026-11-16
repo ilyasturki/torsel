@@ -175,9 +175,10 @@
 						icon: fieldIcon(candidate.type),
 						sub: table.name
 					}));
-		return [...tables, ...fields]
-			.filter((option) => option.name.toLowerCase().includes(query))
-			.slice(0, 8);
+		const options = [...tables, ...fields];
+		// A name typed out in full is done: Enter sends the message.
+		if (options.some((option) => option.name.toLowerCase() === query)) return [];
+		return options.filter((option) => option.name.toLowerCase().includes(query)).slice(0, 8);
 	});
 	let aimed = $state(0);
 	$effect(() => {
