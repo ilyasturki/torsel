@@ -80,6 +80,8 @@ type Garden = {
 	ids: string[];
 	grid: string;
 	list: string;
+	light: string;
+	minty: string;
 	chart: string;
 	entry: string;
 };
@@ -150,7 +152,7 @@ function plant(): Garden {
 		type: 'grid',
 		config: {
 			hidden: [secret, hiddenNumber, receipt],
-			filter: { field: name, text: 'xq' },
+			filters: [{ field: name, op: 'contains', value: 'xq' }],
 			sort: [{ field: kg, dir: 'desc' }],
 			widths: { [secret]: 333, [name]: 222 }
 		}
@@ -166,7 +168,23 @@ function plant(): Garden {
 		config: { kind: 'bar', x: kind, agg: 'sum', y: kg }
 	});
 	const entry = createView(ws, plants.id, { name: 'Log', type: 'entry' });
-	for (const view of [grid, list, chart, entry]) commit(view.changes);
+	const light = createView(ws, plants.id, {
+		name: 'Light',
+		type: 'list',
+		config: { title: name, show: [kg], filters: [{ field: kg, op: 'lt', value: 5 }] }
+	});
+	const minty = createView(ws, plants.id, {
+		name: 'Minty',
+		type: 'chart',
+		config: {
+			kind: 'bar',
+			x: kind,
+			agg: 'sum',
+			y: kg,
+			filters: [{ field: name, op: 'contains', value: 'Mint' }]
+		}
+	});
+	for (const view of [grid, list, chart, entry, light, minty]) commit(view.changes);
 
 	for (const id of [SHOWN_IMAGE, FILTERED_IMAGE, HIDDEN_IMAGE]) {
 		db.insert(blobs)
@@ -188,6 +206,8 @@ function plant(): Garden {
 		ids: [...ws.records.keys()],
 		grid: grid.id,
 		list: list.id,
+		light: light.id,
+		minty: minty.id,
 		chart: chart.id,
 		entry: entry.id
 	};
@@ -318,6 +338,18 @@ describe('a published list and chart', () => {
 		const published = JSON.parse(text) as Published;
 		expect(published.fields.map((field) => field.data.name)).toEqual(['Name', 'Kg']);
 		expect(published.rows).toHaveLength(3);
+	});
+
+	it('sends only the rows a filter keeps, and charts only those', async () => {
+		const garden = plant();
+		const list = JSON.parse(
+			(await fetchPublished(await publishView(garden.light))).text
+		) as Published;
+		expect(list.rows).toHaveLength(1);
+		const chart = JSON.parse(
+			(await fetchPublished(await publishView(garden.minty))).text
+		) as Published;
+		expect(chart.chart?.points ?? []).toEqual([]);
 	});
 
 	it('sends a chart as figures, never its rows', async () => {

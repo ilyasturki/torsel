@@ -32,7 +32,8 @@ function poolFor(ws: Workspace, baseId: string): Compute {
 	return {
 		computed: async (table) =>
 			new Map(await sqlPool.run(records, baseId, { kind: 'computed', table })),
-		chart: (table, config) => sqlPool.run(records, baseId, { kind: 'chart', table, config })
+		chart: (table, config, only) =>
+			sqlPool.run(records, baseId, { kind: 'chart', table, config, only })
 	};
 }
 

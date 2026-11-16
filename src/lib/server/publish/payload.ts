@@ -8,7 +8,7 @@ import type { Published, PublishedType } from '../../core/published.ts';
 import { isPublishable } from '../../core/published.ts';
 import type { SqlRow } from '../../core/sql.ts';
 import type { Workspace } from '../../core/workspace.ts';
-import { gridRows } from '../../views/grid.ts';
+import { filteredRows, gridRows } from '../../views/grid.ts';
 
 const FIELD_KEYS = [
 	'name',
@@ -28,7 +28,7 @@ const FIELD_KEYS = [
 /** What the payload's figures come from: the owner's SQLite copy of the base, read in a worker. */
 export type Compute = {
 	computed(tableId: string): Promise<Map<string, SqlRow>>;
-	chart(tableId: string, config: ChartConfig): Promise<ChartData | null>;
+	chart(tableId: string, config: ChartConfig, only: string[] | null): Promise<ChartData | null>;
 };
 
 export type Built = { published: Published; images: Set<string> };
@@ -50,7 +50,7 @@ class Minted {
 	}
 }
 
-type Shown = { fields: FieldDef[]; rows: Rec[]; chart: ChartConfig | null };
+type Shown = { fields: FieldDef[]; rows: Rec[]; chart: ChartConfig | null; only: string[] | null };
 
 function shown(ws: Workspace, view: ViewDef, computed: Map<string, SqlRow>): Shown {
 	const fields = ws.fields(view.table);
@@ -61,7 +61,8 @@ function shown(ws: Workspace, view: ViewDef, computed: Map<string, SqlRow>): Sho
 		return {
 			fields: fields.filter((field) => !hidden.has(field.id)),
 			rows: gridRows(ws, view.table, config, computed),
-			chart: null
+			chart: null,
+			only: null
 		};
 	}
 
@@ -72,8 +73,9 @@ function shown(ws: Workspace, view: ViewDef, computed: Map<string, SqlRow>): Sho
 		);
 		return {
 			fields: fields.filter((field) => keep.has(field.id)),
-			rows: ws.rows(view.table),
-			chart: null
+			rows: filteredRows(ws, view.table, config, computed),
+			chart: null,
+			only: null
 		};
 	}
 
@@ -82,7 +84,11 @@ function shown(ws: Workspace, view: ViewDef, computed: Map<string, SqlRow>): Sho
 	return {
 		fields: fields.filter((field) => keep.has(field.id)),
 		rows: [],
-		chart: setup
+		chart: setup,
+		only:
+			(config.filters ?? []).length === 0
+				? null
+				: filteredRows(ws, view.table, config, computed).map((row) => row.id)
 	};
 }
 
@@ -267,7 +273,8 @@ export async function buildPublished(
 	if (!isPublishable(view.type)) return null;
 
 	const formulas =
-		view.type !== 'chart' && ws.fields(table.id).some((field) => field.type === 'formula');
+		(view.type !== 'chart' || (view.config.filters ?? []).length > 0) &&
+		ws.fields(table.id).some((field) => field.type === 'formula');
 	const computed = formulas ? await compute.computed(table.id) : new Map<string, SqlRow>();
 	const picked = shown(ws, view, computed);
 
@@ -277,7 +284,7 @@ export async function buildPublished(
 
 	let chart: ChartData | null = null;
 	if (picked.chart !== null) {
-		const data = await compute.chart(table.id, picked.chart);
+		const data = await compute.chart(table.id, picked.chart, picked.only);
 		chart = data === null ? null : chartFor(data, picked.fields, picked.chart, ws);
 	}
 

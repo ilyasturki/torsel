@@ -9,7 +9,7 @@ export type SqlTask =
 	| { kind: 'formula-values'; table: string; stored: string }
 	| { kind: 'formula-cells'; table: string; fields: string[]; rows: string[] }
 	| { kind: 'computed'; table: string }
-	| { kind: 'chart'; table: string; config: ChartConfig };
+	| { kind: 'chart'; table: string; config: ChartConfig; only: string[] | null };
 
 export type SqlResult = {
 	query: QueryPage;

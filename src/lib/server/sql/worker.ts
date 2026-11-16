@@ -41,7 +41,7 @@ function run(engine: MemoryEngine, ws: Workspace, job: SqlJob): SqlResult[SqlJob
 		case 'computed':
 			return computedCells(engine, ws, task.table);
 		case 'chart':
-			return chartData(engine, ws, task.table, task.config);
+			return chartData(engine, ws, task.table, task.config, task.only);
 	}
 }
 
