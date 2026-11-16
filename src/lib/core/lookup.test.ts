@@ -143,6 +143,14 @@ describe('names through links', () => {
 		expect(problem(exercises.id, '"Sets"."Weight" * 2')).toBe('needs-aggregate Sets');
 		expect(problem(exercises.id, 'ROUND("Sets"."Weight")')).toBe('needs-aggregate Sets');
 		expect(problem(exercises.id, 'ROUND(AVERAGE("Sets"."Weight"), 1)')).toBe('none');
+		expect(problem(exercises.id, 'MAX("Sets"."Weight", 0)')).toBe('needs-aggregate Sets');
+		expect(problem(exercises.id, 'MIN("Sets"."Weight", "Sets"."Reps")')).toBe(
+			'needs-aggregate Sets'
+		);
+		expect(problem(exercises.id, 'AVERAGE("Sets"."Weight", 1)')).toBe('needs-aggregate Sets');
+		expect(problem(exercises.id, 'MAX(MAX("Sets"."Weight"), 0)')).toBe('none');
+		expect(problem(exercises.id, 'COUNTIF("Sets"."Weight", \'>1\')')).toBe('none');
+		expect(problem(exercises.id, 'GROUP_CONCAT("Sets"."Weight", \', \')')).toBe('none');
 		expect(problem(sets.id, 'SUM("Exercises"."Name")')).toBe('unknown-field Exercises');
 	});
 
@@ -208,6 +216,31 @@ describe('lookups and rollups in SQL', () => {
 		expect(await values(ws, exercises.id, count, '"_at", id')).toEqual([2, 1, 0]);
 		expect(await values(ws, exercises.id, average, '"_at", id')).toEqual([82.5, 100, null]);
 		expect(await values(ws, exercises.id, heavy, '"_at", id')).toEqual([1, 1, 0]);
+	});
+
+	it('reads a lookup of its own row inside a rollup', async () => {
+		const { ws, apply, base, sets, formula, exercises, bench } = gym();
+		const categories = createTable(
+			ws,
+			base,
+			'Categories',
+			[{ name: 'Factor', type: 'number' }],
+			() => defaultViews(defaultNames.en)
+		);
+		apply(categories);
+		const made = insertRows(ws, categories.id, [{ [categories.fieldIds[0]]: 2 }]);
+		apply(made);
+		const category = addField(ws, exercises.id, {
+			name: 'Category',
+			type: 'link',
+			target: categories.id
+		});
+		apply(category);
+		apply({ changes: updateRecord(ws, bench, { [category.id]: made.ids[0] }) });
+		const scaled = formula(exercises.id, 'Scaled', 'SUM("Sets"."Weight" * "Category"."Factor")');
+
+		expect(await values(ws, exercises.id, scaled, '"_at", id')).toEqual([330, null, null]);
+		expect(formulaTables(ws, exercises.id)).toEqual(new Set([sets.id, categories.id]));
 	});
 
 	it('rolls up a lookup and follows a rename of every name involved', async () => {

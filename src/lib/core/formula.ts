@@ -264,7 +264,15 @@ export function toDisplay(stored: string, names: Named[]): string {
 
 export type Rollup = { fn: string; from: number; open: number; close: number; table: string };
 
-type Call = { fn: string; from: number; open: number; close: number };
+type Call = { fn: string; from: number; open: number; close: number; commas: number };
+
+// Scalar in SQLite once given a second argument: over linked rows they would read one row.
+const FOLD_WITH_ONE = new Set(['MIN', 'MAX', 'AVERAGE']);
+
+function folds(call: Call): boolean {
+	const fn = call.fn.toUpperCase();
+	return AGGREGATE_NAMES.has(fn) && !(FOLD_WITH_ONE.has(fn) && call.commas > 0);
+}
 
 /** The rollups of a stored formula, or the first linking table named outside an aggregate. */
 export function rollupsOf(
@@ -295,12 +303,17 @@ export function rollupsOf(
 			word = { text: stored.slice(i, end), from: i };
 			i = end;
 		} else if (char === '(') {
-			open.push({ fn: word?.text ?? '', from: word?.from ?? i, open: i, close: -1 });
+			open.push({ fn: word?.text ?? '', from: word?.from ?? i, open: i, close: -1, commas: 0 });
 			word = null;
 			i += 1;
 		} else if (char === ')') {
 			const call = open.pop();
 			if (call !== undefined) call.close = i;
+			word = null;
+			i += 1;
+		} else if (char === ',') {
+			const call = open.at(-1);
+			if (call !== undefined) call.commas += 1;
 			word = null;
 			i += 1;
 		} else {
@@ -311,7 +324,7 @@ export function rollupsOf(
 
 	const found = new Map<Call, string>();
 	for (const use of uses) {
-		const call = use.calls.findLast((each) => AGGREGATE_NAMES.has(each.fn.toUpperCase()));
+		const call = use.calls.findLast(folds);
 		const taken = call === undefined ? undefined : found.get(call);
 		if (call === undefined || call.close < 0 || (taken !== undefined && taken !== use.table)) {
 			return { missing: use.table };
@@ -319,7 +332,13 @@ export function rollupsOf(
 		found.set(call, use.table);
 	}
 
-	const rollups = [...found].map(([call, table]) => ({ ...call, table }));
+	const rollups = [...found].map(([{ fn, from, open: at, close }, table]) => ({
+		fn,
+		from,
+		open: at,
+		close,
+		table
+	}));
 	for (const rollup of rollups) {
 		const nested = rollups.some(
 			(other) => other !== rollup && other.open < rollup.open && rollup.close < other.close
