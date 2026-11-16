@@ -230,6 +230,10 @@ test.describe('find and replace', () => {
 		}
 		const find = page.getByRole('textbox', { name: 'Find' });
 		await expect(find).toBeFocused();
+		const replace = page.getByRole('textbox', { name: 'Replace with' });
+		for (const input of [find, replace]) {
+			expect((await input.boundingBox())?.width ?? 0).toBeGreaterThan(160);
+		}
 		await find.fill('BAR');
 		await expect(page.getByText('1 of 2')).toBeVisible();
 		await expect(cell(page, 'heavy bar 120')).toBeInViewport();
@@ -237,7 +241,7 @@ test.describe('find and replace', () => {
 		await expect(page.getByText('2 of 2')).toBeVisible();
 		await expect(cell(page, 'heavy bar 145')).toBeInViewport();
 
-		await page.getByRole('textbox', { name: 'Replace with' }).fill('bell');
+		await replace.fill('bell');
 		await page.getByRole('button', { name: 'Replace all' }).click();
 		await expect(page.getByRole('status')).toContainText('Replaced in 2 cells');
 		await expect(cell(page, 'heavy bell 145')).toBeVisible();

@@ -1706,7 +1706,9 @@
 		</p>
 	{/if}
 	{#if finding}
-		<div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-rule px-3 py-1.5">
+		<div
+			class="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-rule px-3 py-1.5"
+		>
 			<div class="flex min-w-0 flex-1 items-center gap-1 sm:max-w-sm">
 				<input
 					bind:this={findInput}
@@ -1743,7 +1745,9 @@
 				/>
 			</div>
 			{#if replacing}
-				<div class="flex min-w-0 flex-1 items-center gap-1 sm:max-w-sm">
+				<div
+					class="order-last flex min-w-0 basis-full items-center gap-1 sm:order-none sm:max-w-sm sm:flex-1 sm:basis-auto"
+				>
 					<input
 						class="{inputStyle} min-w-0 flex-1"
 						aria-label={words.replaceWith}
@@ -1766,7 +1770,7 @@
 					>
 				</div>
 			{/if}
-			<IconButton icon="x" label={common.close} class="ml-auto" onclick={closeFind} />
+			<IconButton icon="x" label={common.close} class="sm:ml-auto" onclick={closeFind} />
 		</div>
 	{/if}
 	{#if filterField}
