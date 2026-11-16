@@ -95,7 +95,6 @@ export async function ingestImage(
 	return { ...ref, ...(name === undefined ? {} : { name }), src: given };
 }
 
-/** Whole bytes stored in `baseId` under their sha-256, as an upload's last part is. */
 export function storeImage(
 	db: Database,
 	userId: string,
