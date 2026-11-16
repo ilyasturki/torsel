@@ -76,6 +76,7 @@ describe('imageLinks', () => {
 			'https://res.example/w_300,h_400/poster.jpg'
 		]);
 		expect(imageLinks('Dune part two')).toEqual([]);
+		expect(imageLinks('dune.jpg, 3.5 ada@example.com')).toEqual([]);
 		expect(imageLinks('javascript:alert(1) file:///etc/passwd')).toEqual([]);
 	});
 });

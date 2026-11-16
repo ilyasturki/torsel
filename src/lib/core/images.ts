@@ -105,13 +105,18 @@ export function imagesValue(refs: ImageRef[]): Value {
 	return refs.length === 0 ? null : (refs.map((ref) => ({ ...ref })) as Value);
 }
 
+// A host with a lettered TLD, then a path: "dune.jpg", "3.5" and "a@b.com" are not links.
+const BARE_LINK = /^[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}\/\S/u;
+
 /** The links in a text value, each one an image to fetch: a bare domain reads as https. */
 export function imageLinks(text: string): string[] {
 	return text
 		.split(/\s+|,(?=\s|https?:\/\/)/u)
 		.map((part) => part.trim())
 		.filter((part) => part !== '')
-		.map((part) => (/^[a-z][a-z0-9+.-]*:/iu.test(part) ? part : `https://${part}`))
+		.map((part) =>
+			/^[a-z][a-z0-9+.-]*:/iu.test(part) ? part : BARE_LINK.test(part) ? `https://${part}` : ''
+		)
 		.filter((part) => isImageSource(part) && /^https?:\/\/[^/\s]+\.[^/\s]+/iu.test(part));
 }
 
