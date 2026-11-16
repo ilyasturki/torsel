@@ -141,10 +141,19 @@ function applyAction(action: ThreadAction): void {
 		decide(action, 'applied');
 		return;
 	}
-	app.apply(plain(action.changes), action.summary, 'ai', {
+	applyAs(action);
+}
+
+/** Applies an action as a step of the history; a decision of its own when the write gate left nothing to apply. */
+function applyAs(action: ThreadAction): void {
+	const group = app.apply(plain(action.changes), action.summary, 'ai', {
 		thread: assistant.id as string,
 		id: action.id
 	});
+	if (group === null) {
+		decide(action, 'applied');
+		return;
+	}
 	changed(action, 'applied');
 	markFresh(action);
 }
@@ -177,12 +186,7 @@ function redoOne(action: ThreadAction): void {
 		app.redo(group.id);
 		return;
 	}
-	app.apply(plain(action.changes), action.summary, 'ai', {
-		thread: assistant.id as string,
-		id: action.id
-	});
-	changed(action, 'applied');
-	markFresh(action);
+	applyAs(action);
 }
 
 export function undoChange(action: ThreadAction): void {
