@@ -63,6 +63,7 @@ test('says what it is, shows the work done and loads no SQLite on the way', asyn
 test('three tables of other kinds show what a person ends up with', async ({ page }) => {
 	await page.goto('/');
 	const section = posters(page);
+	await section.scrollIntoViewIfNeeded();
 	await expect(
 		section.getByRole('heading', { name: 'One table for each thing you keep track of.' })
 	).toBeVisible();

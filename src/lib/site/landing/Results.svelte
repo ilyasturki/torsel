@@ -21,12 +21,32 @@
 		return live.app.ws.rows(table).length;
 	};
 
+	let section = $state<HTMLElement>();
+	// Two screens below the first, the posters draw once the page nears them, not with it.
+	let near = $state(false);
+
 	onMount(() => {
 		void samples.load();
+		if (section === undefined) return;
+		const seen = new IntersectionObserver(
+			([entry]) => {
+				if (entry?.isIntersecting !== true) return;
+				near = true;
+				seen.disconnect();
+			},
+			{ rootMargin: '50% 0px' }
+		);
+		seen.observe(section);
+		return () => seen.disconnect();
 	});
 </script>
 
-<section class="grid grid-cols-1 gap-6" aria-labelledby="landing-keep" data-testid="posters">
+<section
+	bind:this={section}
+	class="grid grid-cols-1 gap-6"
+	aria-labelledby="landing-keep"
+	data-testid="posters"
+>
 	<h2
 		id="landing-keep"
 		class="px-3 text-h2 leading-tight font-semibold tighter text-balance lg:px-5"
@@ -42,7 +62,7 @@
 				data-testid="poster"
 			>
 				<div class="h-poster overflow-clip bg-glass-strong text-base">
-					{#if samples.View !== null && placed !== undefined}
+					{#if near && samples.View !== null && placed !== undefined}
 						<samples.View tableId={placed.table} viewId={placed.view} />
 					{/if}
 				</div>
