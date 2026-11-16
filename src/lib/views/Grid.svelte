@@ -91,8 +91,10 @@
 		gridLayout,
 		gridRows,
 		groupFieldOf,
+		groupKey,
 		groupLook,
 		groupRows,
+		groupValue,
 		linkOptions,
 		screenReading,
 		parseTsv,
@@ -251,8 +253,23 @@
 	function toggleGroup(key: string): void {
 		if (groupField === undefined) return;
 		const next = new Set(folded);
-		if (!next.delete(key)) next.add(key);
+		if (!next.delete(key)) {
+			next.add(key);
+			const inside = groups?.find((group) => group.key === key)?.rows ?? [];
+			if (inside.some((row) => row.id === head?.row || row.id === anchor?.row)) {
+				head = null;
+				anchor = null;
+			}
+		}
 		setFolded(view.id, groupField.id, [...next]);
+	}
+
+	/** A new row opens its folded group rather than vanish into it. */
+	function unfoldFor(id: string): void {
+		const row = app.ws.live(id);
+		if (groupField === undefined || row?.kind !== 'row') return;
+		const key = groupKey(groupValue(groupField, cellValue(row, groupField, app.computed(tableId))));
+		if (folded.has(key)) toggleGroup(key);
 	}
 
 	// The rows a person reaches: selection, paste, fill and find never touch a folded one.
@@ -568,7 +585,7 @@
 		const y = headHeight + layout.yOf(r);
 		const height = scroller.clientHeight - (totalled ? headHeight : 0);
 		if (y < scroller.scrollTop + headHeight) {
-			scroller.scrollTop = y - headHeight;
+			scroller.scrollTop = layout.revealTop(r);
 		} else if (y + rowHeight > scroller.scrollTop + height) {
 			scroller.scrollTop = y + rowHeight - height;
 		}
@@ -639,6 +656,7 @@
 			if (value === null) return null;
 			const made = insertRows(app.ws, tableId, [{ ...todayDates(), [field.id]: value }]);
 			applyCell([...extra, ...made.changes], words.rowAdded);
+			unfoldFor(made.ids[0]);
 			return made.ids[0];
 		}
 		const row = app.ws.live(rowKey);

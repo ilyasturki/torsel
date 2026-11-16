@@ -9,7 +9,7 @@ import {
 	updateRecord
 } from '../../src/lib/core/actions.ts';
 import type { Value, ViewConfig } from '../../src/lib/core/model.ts';
-import { expect, seed, tablePath, test } from './harness.ts';
+import { expect, seed, tablePath, test, viewSettings } from './harness.ts';
 
 const isPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -127,7 +127,7 @@ test('a range cleared across a folded group leaves its rows alone', async ({
 	await expect(grid.getByRole('gridcell', { name: '7', exact: true })).toBeVisible();
 });
 
-test('a long grouped grid edits and selects the row under the pointer, far down', async ({
+test('a long grouped grid of tall rows edits and selects the row under the pointer, far down', async ({
 	page,
 	context,
 	account
@@ -161,7 +161,9 @@ test('a long grouped grid edits and selects the row under the pointer, far down'
 		const grid = ws.views(made.id).find((view) => view.type === 'grid');
 		if (grid !== undefined) {
 			commit(
-				updateRecord(ws, grid.id, { config: { group: week, totals: { [n]: 'sum' } } as Value })
+				updateRecord(ws, grid.id, {
+					config: { group: week, totals: { [n]: 'sum' }, tall: true } as Value
+				})
 			);
 		}
 		return { table: made.id };
@@ -175,29 +177,117 @@ test('a long grouped grid edits and selects the row under the pointer, far down'
 		.evaluate((node) => {
 			node.scrollTop = node.scrollHeight;
 		});
-	const w13 = grid.locator('tr[data-group]').filter({ hasText: 'W13' });
-	await expect(w13).toContainText(/1,?345/u);
+	const w14 = grid.locator('tr[data-group]').filter({ hasText: 'W14' });
+	await expect(w14).toContainText(/1,?445/u);
 
-	const cell = grid.getByRole('gridcell', { name: '137', exact: true });
+	const cell = grid.getByRole('gridcell', { name: '147', exact: true });
 	await cell.click();
 	if (isPhone()) await page.keyboard.press('Escape');
 	await page.keyboard.type('1000');
 	await page.keyboard.press('Enter');
 	await expect(grid.getByRole('gridcell', { name: /^1,?000$/u })).toBeVisible();
-	await expect(grid.getByRole('gridcell', { name: '137', exact: true })).toHaveCount(0);
-	await expect(w13).toContainText(/2,?208/u);
+	await expect(grid.getByRole('gridcell', { name: '147', exact: true })).toHaveCount(0);
+	await expect(w14).toContainText(/2,?298/u);
 
 	if (isPhone()) return;
-	await grid.getByRole('gridcell', { name: '125', exact: true }).scrollIntoViewIfNeeded();
-	const from = await grid.getByRole('gridcell', { name: '125', exact: true }).boundingBox();
-	const to = await grid.getByRole('gridcell', { name: '134', exact: true }).boundingBox();
+	await grid.getByRole('gridcell', { name: '138', exact: true }).scrollIntoViewIfNeeded();
+	const from = await grid.getByRole('gridcell', { name: '138', exact: true }).boundingBox();
+	const to = await grid.getByRole('gridcell', { name: '141', exact: true }).boundingBox();
 	if (from === null || to === null) throw new Error('cells off screen');
 	await page.mouse.move(from.x + 10, from.y + from.height / 2);
 	await page.mouse.down();
 	await page.mouse.move(to.x + 10, to.y + to.height / 2, { steps: 8 });
 	await page.mouse.up();
-	await expect(page.getByText(/^Count\s*10$/u).first()).toBeVisible();
-	await expect(page.getByText(/^Sum\s*1,?295$/u).first()).toBeVisible();
+	await expect(page.getByText(/^Count\s*4$/u).first()).toBeVisible();
+	await expect(page.getByText(/^Sum\s*558$/u).first()).toBeVisible();
+
+	await page.keyboard.press('ControlOrMeta+Home');
+	const first = await grid.locator('tr[data-group]').first().boundingBox();
+	const head = await grid.locator('thead').boundingBox();
+	expect(first !== null && head !== null && first.y >= head.y + head.height - 1).toBe(true);
+});
+
+test('a row inserted inside a group stays in it', async ({ page, context, account }) => {
+	void account;
+	const { table } = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Body');
+		commit(base.changes);
+		const made = createTable(
+			ws,
+			base.id,
+			'Weigh-ins',
+			[
+				{ name: 'Day', type: 'date' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
+		commit(made.changes);
+		const [day, kg] = made.fieldIds;
+		commit(
+			insertRows(ws, made.id, [
+				{ [day]: '2025-03-01', [kg]: 80 },
+				{ [day]: '2025-03-01', [kg]: 81 },
+				{ [day]: '2025-03-02', [kg]: 79 },
+				{ [kg]: 70 }
+			]).changes
+		);
+		const grid = ws.views(made.id).find((view) => view.type === 'grid');
+		if (grid !== undefined) commit(updateRecord(ws, grid.id, { config: { group: day } }));
+		return { table: made.id };
+	});
+	await page.goto(tablePath(table));
+	const grid = page.getByRole('grid');
+	const headers = grid.locator('tr[data-group]');
+	await expect(headers).toHaveCount(3);
+
+	const eighty = grid.getByRole('gridcell', { name: '80', exact: true });
+	if (isPhone()) {
+		await eighty.dispatchEvent('contextmenu', { bubbles: true, cancelable: true });
+		await page
+			.getByRole('dialog', { name: 'Row' })
+			.getByRole('button', { name: 'Insert row below' })
+			.click();
+	} else {
+		await eighty.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert row below' }).click();
+	}
+	await expect(headers).toHaveCount(3);
+	await expect(headers.first().getByRole('button')).toHaveText(/Mar 1, 2025\s*3/u);
+});
+
+test('a row added to a folded group opens it', async ({ page, context, account }) => {
+	void account;
+	const { table } = await seedSets(context.request, ([exercise]) => ({ group: exercise }));
+	await page.goto(tablePath(table));
+	const grid = page.getByRole('grid');
+	const headers = grid.locator('tr[data-group]');
+	const blank = headers.filter({ hasText: 'No value' });
+	await blank.getByRole('button').click();
+	await expect(grid.getByRole('gridcell', { name: '20', exact: true })).toHaveCount(0);
+	await grid.getByRole('button', { name: 'New row' }).click();
+	if (isPhone()) await page.keyboard.press('Escape');
+	await page.keyboard.press('ArrowRight');
+	await page.keyboard.type('72');
+	await page.keyboard.press('Enter');
+	await expect(blank.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+	await expect(blank.getByRole('button')).toHaveText(/No value\s*2/u);
+	await expect(grid.getByRole('gridcell', { name: '72', exact: true })).toBeVisible();
+});
+
+test('the view settings group the grid and take it back', async ({ page, context, account }) => {
+	void account;
+	const { table } = await seedSets(context.request);
+	await page.goto(tablePath(table));
+	await viewSettings(page);
+	const settings = page.getByRole('dialog', { name: 'View settings' });
+	await settings.getByRole('combobox', { name: 'Group by' }).click();
+	await page.getByRole('option', { name: 'Exercise', exact: true }).click();
+	const headers = page.getByRole('grid').locator('tr[data-group]');
+	await expect(headers).toHaveCount(4);
+	await settings.getByRole('combobox', { name: 'Group by' }).click();
+	await page.getByRole('option', { name: 'Nothing', exact: true }).click();
+	await expect(headers).toHaveCount(0);
 });
 
 test.describe('in French', () => {

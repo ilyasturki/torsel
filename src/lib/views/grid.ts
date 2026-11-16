@@ -127,6 +127,10 @@ export function groupFieldOf(
 	return ws.fields(tableId).find((field) => field.id === config.group && field.type !== 'image');
 }
 
+export function groupKey(value: Value): string {
+	return value === null ? '' : JSON.stringify(value);
+}
+
 /** A datetime groups by its day. */
 export function groupValue(field: FieldDef, value: Value | undefined): Value {
 	if (isBlank(value)) return null;
@@ -149,7 +153,7 @@ export function groupRows(
 	const groups = new Map<string, RowGroup>();
 	for (const row of rows) {
 		const value = groupValue(field, cellValue(row, field, computed));
-		const key = value === null ? '' : JSON.stringify(value);
+		const key = groupKey(value);
 		const group = groups.get(key);
 		if (group === undefined) groups.set(key, { key, value, rows: [row] });
 		else group.rows.push(row);
@@ -206,6 +210,11 @@ export function gridLayout(
 		height: tops[count],
 		/** The top of row `r`; `r` past the last row is the blank row. */
 		yOf: (r: number): number => tops[lineOfRow[r] ?? lines.length],
+		/** Where row `r` is scrolled up to: the header right above it, if any, shows too. */
+		revealTop(r: number): number {
+			const line = lineOfRow[r] ?? lines.length;
+			return tops[line > 0 && 'group' in lines[line - 1] ? line - 1 : line];
+		},
 		lineOf: (r: number): number => lineOfRow[r] ?? lines.length,
 		lineAt,
 		/** The row under `y`; over a group header, the first row after it. */

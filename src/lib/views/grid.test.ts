@@ -712,6 +712,7 @@ describe('the layout of a grouped grid', () => {
 		expect(layout.tops).toEqual([0, 30, 120, 210, 240, 330, 420]);
 		expect([0, 1, 2, 3].map(layout.yOf)).toEqual([30, 120, 240, 330]);
 		expect(layout.height).toBe(420);
+		expect([0, 1, 2, 3].map(layout.revealTop)).toEqual([0, 120, 210, 330]);
 	});
 
 	it('finds the row under a point, the next one over a header', () => {
