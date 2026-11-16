@@ -53,15 +53,13 @@ export function openPublished(published: Published): Opened {
 				parent: target.id,
 				set: { name: '', type: 'text', order: 0 }
 			},
-			...target.rows.map(
-				(row, at): Change => ({
-					id: row.id,
-					kind: 'row',
-					base: base.id,
-					parent: target.id,
-					set: { [target.field]: row.title, [CREATED]: at }
-				})
-			)
+			...target.rows.map((row, at): Change => ({
+				id: row.id,
+				kind: 'row',
+				base: base.id,
+				parent: target.id,
+				set: { [target.field]: row.title, [CREATED]: at }
+			}))
 		);
 	}
 

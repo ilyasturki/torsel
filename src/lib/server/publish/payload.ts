@@ -87,7 +87,12 @@ function shown(ws: Workspace, view: ViewDef, computed: Map<string, SqlRow>): Sho
 	};
 }
 
-function sentConfig(view: ViewDef, ids: Minted, ws: Workspace, chart: ChartConfig | null): ViewConfig {
+function sentConfig(
+	view: ViewDef,
+	ids: Minted,
+	ws: Workspace,
+	chart: ChartConfig | null
+): ViewConfig {
 	const { config } = view;
 	if (view.type === 'grid') {
 		const widths: Record<string, number> = {};
@@ -195,7 +200,12 @@ function cell(
 	return value;
 }
 
-function chartFor(data: ChartData, fields: FieldDef[], setup: ChartConfig, ws: Workspace): ChartData {
+function chartFor(
+	data: ChartData,
+	fields: FieldDef[],
+	setup: ChartConfig,
+	ws: Workspace
+): ChartData {
 	const byId = new Map(fields.map((field) => [field.id, field]));
 	const titled = (id: string | null | undefined) =>
 		id != null && byId.get(id)?.type === 'link'
@@ -204,7 +214,11 @@ function chartFor(data: ChartData, fields: FieldDef[], setup: ChartConfig, ws: W
 	const x = titled(setup.x);
 	const series = titled(setup.color);
 	return {
-		points: data.points.map((point) => ({ x: x(point.x), series: series(point.series), y: point.y })),
+		points: data.points.map((point) => ({
+			x: x(point.x),
+			series: series(point.series),
+			y: point.y
+		})),
 		xName: data.xName,
 		agg: data.agg,
 		yName: data.yName,

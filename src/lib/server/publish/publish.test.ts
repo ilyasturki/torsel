@@ -25,12 +25,10 @@ vi.mock('../db/client.ts', async (original) => ({
 }));
 
 const { POST: publishedPost } = await import('../../../routes/api/published/+server.ts');
-const { GET: listGet, POST: publishPost } = await import(
-	'../../../routes/api/publications/+server.ts'
-);
-const { DELETE: unpublishDelete } = await import(
-	'../../../routes/api/publications/[view]/+server.ts'
-);
+const { GET: listGet, POST: publishPost } =
+	await import('../../../routes/api/publications/+server.ts');
+const { DELETE: unpublishDelete } =
+	await import('../../../routes/api/publications/[view]/+server.ts');
 const { GET: fileGet } = await import('../../../routes/v/[token]/files/[id]/+server.ts');
 
 type Handler = (event: RequestEvent) => Promise<Response> | Response;
@@ -57,11 +55,12 @@ const event = (init: Partial<RequestEvent> & { body?: unknown; signedIn?: boolea
 		...init
 	}) as unknown as RequestEvent;
 
-async function call(handler: Handler, init: Parameters<typeof event>[0]): Promise<Response> {
+async function call(handler: unknown, init: Parameters<typeof event>[0]): Promise<Response> {
 	try {
-		return await handler(event(init));
+		return await (handler as Handler)(event(init));
 	} catch (thrown) {
-		if (isHttpError(thrown)) return new Response(JSON.stringify(thrown.body), { status: thrown.status });
+		if (isHttpError(thrown))
+			return new Response(JSON.stringify(thrown.body), { status: thrown.status });
 		throw thrown;
 	}
 }
@@ -256,8 +255,7 @@ describe('a published grid', () => {
 	it('serves an image only a shown cell holds', async () => {
 		const garden = plant();
 		const token = await publishView(garden.grid);
-		const file = (id: string) =>
-			call(fileGet as Handler, { params: { token, id }, signedIn: false });
+		const file = (id: string) => call(fileGet, { params: { token, id }, signedIn: false });
 
 		expect((await file(SHOWN_IMAGE)).status).toBe(200);
 		expect((await file(FILTERED_IMAGE)).status).toBe(404);
@@ -269,13 +267,13 @@ describe('a published grid', () => {
 		const token = await publishView(garden.grid);
 		expect((await fetchPublished(token)).status).toBe(200);
 
-		const listed = await call(listGet as Handler, {});
+		const listed = await call(listGet, {});
 		expect(await listed.json()).toEqual([{ view: garden.grid, token }]);
 		expect(await publishView(garden.grid)).toBe(token);
 
-		await call(unpublishDelete as Handler, { params: { view: garden.grid } });
+		await call(unpublishDelete, { params: { view: garden.grid } });
 		expect((await fetchPublished(token)).status).toBe(404);
-		const file = await call(fileGet as Handler, {
+		const file = await call(fileGet, {
 			params: { token, id: SHOWN_IMAGE },
 			signedIn: false
 		});
