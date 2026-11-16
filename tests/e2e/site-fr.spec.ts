@@ -20,7 +20,7 @@ test('the french home names its language, its twin and its own card', async ({ r
 	expect(response.status()).toBe(200);
 	const html = await response.text();
 	expect(html).toContain('<html lang="fr"');
-	expect(html).toContain('Le tableur qui fait ce que tu demandes.');
+	expect(html).toContain('Tes chiffres prennent forme.');
 	expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/fr"`);
 	expect(html).toContain(`<link rel="alternate" hreflang="en" href="${ORIGIN}/"`);
 	expect(html).toContain(`<link rel="alternate" hreflang="fr" href="${ORIGIN}/fr"`);
@@ -92,10 +92,11 @@ test.describe('in french', () => {
 		});
 		await page.goto('/fr');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-			'Le tableur qui fait ce que tu demandes.'
+			'Tes chiffres prennent forme.'
 		);
 		const demo = page.getByTestId('demo');
 		await expect(demo.getByRole('gridcell', { name: 'Loyer' })).toBeVisible();
+		await demo.scrollIntoViewIfNeeded();
 		await expect(demo.getByRole('columnheader', { name: /Par an/u })).toBeInViewport();
 		await expect(demo.getByRole('gridcell', { name: '7680' })).toBeVisible();
 		await expect(demo.getByTestId('row-count')).toHaveText('6 lignes');
@@ -108,9 +109,22 @@ test.describe('in french', () => {
 				.getByRole('group', { name: 'Demandes' })
 				.getByRole('button', { name: 'Ajoute Netflix 13 et escalade 45, en loisirs.' })
 		).toBeVisible();
+		const posters = page.getByTestId('posters');
+		await posters.scrollIntoViewIfNeeded();
+		await expect(
+			posters.getByRole('heading', { name: 'Une table pour chaque chose que tu suis.' })
+		).toBeVisible();
+		await expect(posters.getByText('Moyenne de kg')).toBeVisible();
+		await expect(posters.getByText('180 séries')).toBeVisible();
+		await expect(posters.getByText('Le Voyage de Chihiro')).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Gratuit et open source.' })).toBeAttached();
 		await page.waitForTimeout(300);
 		expect(wasm).toEqual([]);
+		const widths = await page.evaluate(() => [
+			document.documentElement.scrollWidth,
+			document.documentElement.clientWidth
+		]);
+		expect(widths[0]).toBe(widths[1]);
 	});
 
 	test('a prompt on the french demo lands in the french table', async ({ page }) => {

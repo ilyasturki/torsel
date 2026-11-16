@@ -1,4 +1,5 @@
 import type { Cell, Example } from './examples.ts';
+import type { PosterWords } from './posters.ts';
 
 const n = (value: Cell): number => Number(value);
 
@@ -192,3 +193,51 @@ export const EXAMPLES_FR: Example[] = [
 		]
 	}
 ];
+
+export const POSTER_WORDS_FR: PosterWords = {
+	weighIns: 'Pesées',
+	date: 'Date',
+	kg: 'kg',
+	trend: 'Tendance',
+	workouts: 'Séances',
+	exercise: 'Exercice',
+	muscle: 'Muscle',
+	reps: 'Répétitions',
+	perWeek: 'Par semaine',
+	lifts: [
+		['Développé couché', 0, 60],
+		['Squat', 1, 80],
+		['Soulevé de terre', 2, 100],
+		['Développé militaire', 3, 40],
+		['Traction', 2, 0],
+		['Rowing', 2, 55]
+	],
+	muscles: [
+		['Pectoraux', 'pink'],
+		['Jambes', 'green'],
+		['Dos', 'blue'],
+		['Épaules', 'amber']
+	],
+	movies: 'Films',
+	title: 'Titre',
+	status: 'Statut',
+	watchedOn: 'Vu le',
+	rating: 'Note',
+	byStatus: 'Par statut',
+	statuses: [
+		['À voir', 'gray'],
+		['Vu', 'green'],
+		['Abandonné', 'orange']
+	],
+	films: [
+		['La Zone d’intérêt', 0, null, null],
+		['Aftersun', 0, null, null],
+		['Parasite', 0, null, null],
+		['Dune : Deuxième partie', 1, 3, 5],
+		['Perfect Days', 1, 12, 5],
+		['Past Lives', 1, 26, 4],
+		['Anatomie d’une chute', 1, 41, 4],
+		['Le Voyage de Chihiro', 1, 64, 5],
+		['Oppenheimer', 2, 50, 2]
+	]
+};

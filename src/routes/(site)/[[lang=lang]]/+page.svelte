@@ -5,7 +5,7 @@
 	import Closing from '#lib/site/landing/Closing.svelte';
 	import Demo from '#lib/site/landing/Demo.svelte';
 	import Hero from '#lib/site/landing/Hero.svelte';
-	import LogForm from '#lib/site/landing/LogForm.svelte';
+	import Results from '#lib/site/landing/Results.svelte';
 	import { Samples } from '#lib/site/landing/samples.svelte.ts';
 	import { structuredDataTag } from '#lib/site/seo.ts';
 	import Seo from '#lib/site/Seo.svelte';
@@ -24,11 +24,23 @@
 	{@html structuredDataTag()}
 </svelte:head>
 
-<main class="grid gap-24 pt-10 pb-24 max-lg:gap-16 max-lg:pt-8 max-lg:pb-16">
+<main>
 	<Hero />
-	<Demo {samples} />
-	<LogForm {samples} />
-	<Closing />
+	<div
+		class="mx-auto grid w-full max-w-page-gapped grid-cols-1 gap-28 p-2 pt-20 pb-24 max-lg:gap-20 max-lg:p-1.5 max-lg:pt-16 max-lg:pb-16"
+	>
+		<section class="grid grid-cols-1 gap-6" aria-labelledby="landing-try">
+			<div class="grid gap-2 px-3 lg:px-5">
+				<h2 id="landing-try" class="text-h2 leading-tight font-semibold tighter text-balance">
+					{t.tryTitle}
+				</h2>
+				<p class="max-w-xl text-lg text-ink-2">{t.tryLead}</p>
+			</div>
+			<Demo {samples} />
+		</section>
+		<Results {samples} />
+		<Closing />
+	</div>
 </main>
 {#if Toast !== null}
 	<Toast />

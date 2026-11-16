@@ -1,3 +1,4 @@
+import { plural } from './locale.ts';
 import { area } from './runtime.ts';
 
 const en = {
@@ -16,11 +17,17 @@ const en = {
 	otherLanguage: 'Français',
 	description:
 		'A spreadsheet you just ask. Say what you need and Torsel writes the formula, adds the rows and draws the chart. It works offline and its code is open.',
-	headline: 'A spreadsheet you just ask.',
-	lead: 'Say what you need. Torsel writes the formula, adds the rows, draws the chart.',
+	tagline: 'A spreadsheet you just ask.',
 	cardLead: 'It writes the formula, adds the rows, draws the chart.',
-	formTitle: 'A form on your phone, for every table.',
-	formLead: 'Log a row in two taps, even with no network. It lands in the table above.',
+	headline: 'Your numbers, taking shape.',
+	lead: 'A spreadsheet you talk to. Log a line, ask for the rest.',
+	tryTitle: 'Go ahead, it’s yours.',
+	tryLead:
+		'This is Torsel on sample tables. Edit a cell, ask for a chart. Nothing leaves your browser.',
+	keepTitle: 'One table for each thing you keep track of.',
+	weighIns: (count: number) => (count === 1 ? '1 weigh-in' : `${count} weigh-ins`),
+	sets: (count: number) => (count === 1 ? '1 set' : `${count} sets`),
+	movies: (count: number) => (count === 1 ? '1 movie' : `${count} movies`),
 	closeTitle: 'Free and open source.',
 	closeLead:
 		'No account needed to start, and your tables stay in your browser until you sync them.',
@@ -53,12 +60,17 @@ const fr: typeof en = {
 	otherLanguage: 'English',
 	description:
 		'Le tableur qui fait ce que tu demandes. Dis ce qu’il te faut et Torsel écrit la formule, ajoute les lignes et trace le graphique. Il marche hors ligne et son code est ouvert.',
-	headline: 'Le tableur qui fait ce que tu demandes.',
-	lead: 'Dis ce qu’il te faut. Torsel écrit la formule, ajoute les lignes, trace le graphique.',
+	tagline: 'Le tableur qui fait ce que tu demandes.',
 	cardLead: 'Il écrit la formule, ajoute les lignes, trace le graphique.',
-	formTitle: 'Un formulaire sur ton téléphone, pour chaque table.',
-	formLead:
-		'Ajoute une ligne en deux gestes, même sans réseau. Elle arrive dans la table au-dessus.',
+	headline: 'Tes chiffres prennent forme.',
+	lead: 'Un tableur à qui tu parles. Tu notes une ligne, tu demandes le reste.',
+	tryTitle: 'Vas-y, il est à toi.',
+	tryLead:
+		'Voici Torsel, sur des tables d’exemple. Modifie une cellule, demande un graphique. Rien ne sort de ton navigateur.',
+	keepTitle: 'Une table pour chaque chose que tu suis.',
+	weighIns: (count) => plural('fr', count, { one: '# pesée', other: '# pesées' }),
+	sets: (count) => plural('fr', count, { one: '# série', other: '# séries' }),
+	movies: (count) => plural('fr', count, { one: '# film', other: '# films' }),
 	closeTitle: 'Gratuit et open source.',
 	closeLead:
 		'Pas besoin de compte pour commencer, et tes tables restent dans ton navigateur tant que tu ne les synchronises pas.',

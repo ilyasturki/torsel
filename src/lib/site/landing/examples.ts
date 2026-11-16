@@ -1,5 +1,7 @@
 import type { DataColor } from '#lib/ui/colors.ts';
 
+import type { PosterWords } from './posters.ts';
+
 export type Cell = string | number;
 
 export type ExampleField = {
@@ -211,3 +213,51 @@ export const EXAMPLES: Example[] = [
 		]
 	}
 ];
+
+export const POSTER_WORDS: PosterWords = {
+	weighIns: 'Weigh-ins',
+	date: 'Date',
+	kg: 'kg',
+	trend: 'Trend',
+	workouts: 'Workouts',
+	exercise: 'Exercise',
+	muscle: 'Muscle',
+	reps: 'Reps',
+	perWeek: 'Per week',
+	lifts: [
+		['Bench press', 0, 60],
+		['Squat', 1, 80],
+		['Deadlift', 2, 100],
+		['Overhead press', 3, 40],
+		['Pull-up', 2, 0],
+		['Row', 2, 55]
+	],
+	muscles: [
+		['Chest', 'pink'],
+		['Legs', 'green'],
+		['Back', 'blue'],
+		['Shoulders', 'amber']
+	],
+	movies: 'Movies',
+	title: 'Title',
+	status: 'Status',
+	watchedOn: 'Watched on',
+	rating: 'Rating',
+	byStatus: 'By status',
+	statuses: [
+		['To watch', 'gray'],
+		['Watched', 'green'],
+		['Dropped', 'orange']
+	],
+	films: [
+		['The Zone of Interest', 0, null, null],
+		['Aftersun', 0, null, null],
+		['Parasite', 0, null, null],
+		['Dune: Part Two', 1, 3, 5],
+		['Perfect Days', 1, 12, 5],
+		['Past Lives', 1, 26, 4],
+		['Anatomy of a Fall', 1, 41, 4],
+		['Spirited Away', 1, 64, 5],
+		['Oppenheimer', 2, 50, 2]
+	]
+};

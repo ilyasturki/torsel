@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 
 	import type { ThreadAction } from '#lib/core/thread.ts';
 	import { assistant } from '#lib/i18n/assistant.ts';
 	import { shell } from '#lib/i18n/shell.ts';
 	import { site as t } from '#lib/i18n/site.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import Segmented from '#lib/ui/Segmented.svelte';
+	import Logo from '#lib/ui/Logo.svelte';
+	import { focus } from '#lib/ui/styles.ts';
 
-	import { wave } from './backdrop.ts';
 	import type { Example } from './examples.ts';
 	import type { Live, Samples } from './samples.svelte.ts';
 	import type { Sample } from './seed.ts';
@@ -33,7 +33,6 @@
 	let working = $state(false);
 	let key = 0;
 
-	let body = $state<HTMLElement>();
 	let scroller = $state<HTMLElement>();
 
 	const reduced = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -104,9 +103,6 @@
 		own.view = shown.view;
 		working = false;
 		busy = false;
-		await tick();
-		const box = body?.getBoundingClientRect();
-		if (box !== undefined && !reduced()) wave(box.left + box.width / 2, box.top + box.height / 2);
 	}
 
 	function startOver(): void {
@@ -125,12 +121,20 @@
 		void samples.load(startWorked);
 	});
 
-	const tab =
-		'h-control shrink-0 rounded-box px-3.5 font-semibold transition-colors motion max-sm:h-9';
+	const tab = (active: boolean): string =>
+		`relative flex h-10 shrink-0 items-center rounded-box px-3 font-medium whitespace-nowrap transition-colors motion ${focus} ${
+			active
+				? 'text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-ink'
+				: 'text-ink-2 hover:text-ink'
+		}`;
+	const chip = (active: boolean): string =>
+		`inline-flex h-control shrink-0 items-center rounded-box px-3 font-medium transition-colors motion ${focus} ${
+			active ? 'bg-tint-2 text-ink' : 'text-ink-2 hover:bg-tint hover:text-ink'
+		}`;
 </script>
 
 <section
-	class="grid grid-cols-1 overflow-hidden rounded-panel bg-glass text-base shadow-raised backdrop-blur-glass lg:h-stage lg:grid-cols-[1fr_auto]"
+	class="flex flex-col overflow-clip rounded-panel bg-canvas text-base shadow-raised ring-1 ring-frame lg:h-demo"
 	aria-label={t.demo}
 	data-testid="demo"
 	onpointerenter={(event) => {
@@ -139,18 +143,17 @@
 	onpointerdown={() => void samples.warm()}
 	onfocusin={() => void samples.warm()}
 >
-	<div class="flex min-h-0 min-w-0 flex-col bg-glass-strong max-lg:h-stage-narrow">
-		<div
-			class="flex shrink-0 hide-scrollbar gap-1 overflow-x-auto p-2 pb-0 max-lg:hidden"
-			role="group"
-			aria-label={t.examples}
+	<div class="flex min-h-13 shrink-0 items-center gap-x-3 px-gutter py-2.5 max-sm:gap-x-2">
+		<Logo class="size-4 shrink-0" />
+		<span class="min-w-0 truncate font-semibold">{example.table}</span>
+		<span class="shrink-0 text-ink-3" data-testid="row-count"
+			>{shell.rowCount(samples.rowCount)}</span
 		>
+		<div class="ml-auto flex shrink-0 gap-1 max-lg:hidden" role="group" aria-label={t.examples}>
 			{#each samples.examples as item (item.id)}
 				<button
 					type="button"
-					class="{tab} {item.id === example.id
-						? 'bg-fill text-on-fill'
-						: 'bg-tint text-ink-2 hover:bg-tint-2 hover:text-ink'}"
+					class={chip(item.id === example.id)}
 					aria-pressed={item.id === example.id}
 					onclick={() => {
 						samples.example = item;
@@ -159,84 +162,85 @@
 				>
 			{/each}
 		</div>
-		<div class="flex min-h-12 shrink-0 items-center gap-2.5 py-1 pr-2 pl-3">
-			<span class="min-w-0 truncate text-lg font-semibold tight">{example.table}</span>
-			<span class="shrink-0 pt-0.5 text-sm text-ink-2 max-sm:hidden" data-testid="row-count"
-				>{shell.rowCount(samples.rowCount)}</span
+	</div>
+	<div
+		class="flex shrink-0 hide-scrollbar gap-1 overflow-x-auto border-b border-rule px-gutter max-sm:pr-2"
+		role="group"
+		aria-label={t.views}
+	>
+		{#each samples.views as view (view.id)}
+			<button
+				type="button"
+				class={tab(view.id === viewId)}
+				aria-pressed={view.id === viewId}
+				onclick={() => {
+					if (view.type === 'chart') void samples.warm();
+					show(view.id);
+				}}>{view.name}</button
 			>
-			{#if samples.views.length > 0}
-				<Segmented
-					label={t.views}
-					class="ml-auto"
-					items={samples.views.map((view) => ({
-						id: view.id,
-						label: view.name,
-						active: view.id === viewId,
-						onclick: () => {
-							if (view.type === 'chart') void samples.warm();
-							show(view.id);
-						}
-					}))}
-				/>
-			{/if}
-		</div>
-		<div bind:this={body} class="relative min-h-0 flex-1 overflow-auto">
+		{/each}
+	</div>
+
+	<div class="relative flex min-h-0 flex-1 gap-3 px-gutter pt-3 pb-5 max-lg:flex-col max-sm:p-0">
+		<div
+			class="min-h-0 min-w-0 flex-1 overflow-auto rounded-panel bg-raised ring-1 ring-frame max-lg:h-stage-narrow max-lg:flex-none max-sm:rounded-none max-sm:ring-0"
+		>
 			{#if samples.View !== null && samples.sample !== undefined}
 				<samples.View tableId={samples.sample.table} {viewId} />
 			{/if}
 		</div>
-	</div>
 
-	<aside
-		class="flex min-h-0 min-w-0 flex-col border-hair max-lg:order-first max-lg:border-b lg:w-ask lg:border-l"
-		aria-label={assistant.ask}
-	>
-		<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">
-			{assistant.ask}
-		</div>
-		<div
-			bind:this={scroller}
-			class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:h-36 max-lg:flex-none max-lg:pt-3"
-			data-testid="thread"
+		<aside
+			class="flex min-h-0 min-w-0 flex-col rounded-panel bg-float shadow-float max-lg:order-first max-sm:rounded-none max-sm:shadow-none lg:w-ask"
+			aria-label={assistant.ask}
 		>
-			{#each thread.items as item (item.key)}
-				<div class="mt-2 flex justify-end first:mt-0">
-					<p class="rounded-box bg-tint-2 px-3 py-2 font-medium break-words">{item.text}</p>
-				</div>
-				{#if item.action !== null && live !== null}
-					<live.ChangeCard action={item.action} onshow={() => show(item.view)} />
-				{/if}
-			{/each}
-			{#if working}
-				<p class="text-ink-3" role="status">{assistant.working}</p>
-			{/if}
-		</div>
-
-		<div class="flex shrink-0 flex-col gap-1 px-2 pb-2" role="group" aria-label={t.prompts}>
-			{#each left as { prompt, index } (index)}
-				<button
-					type="button"
-					class="rounded-box bg-raised px-2.5 py-2 text-left font-medium shadow-raised transition-shadow motion hover:ring-1 hover:ring-ink-3 disabled:opacity-50"
-					disabled={busy || samples.tables === null}
-					onclick={() => void run(index)}>{prompt.text}</button
-				>
-			{:else}
-				<button
-					type="button"
-					class="self-start px-1 py-1 text-sm text-ink-2 underline hover:text-ink disabled:text-ink-3"
-					disabled={busy}
-					onclick={startOver}>{t.startOver}</button
-				>
-			{/each}
-		</div>
-
-		<div class="m-2 mt-0 flex shrink-0 items-end gap-1 rounded-box bg-tint p-2 max-lg:hidden">
-			<p class="min-h-control min-w-0 flex-1 px-1 py-1.5 {typed === '' ? 'text-ink-3' : ''}">
-				{typed === '' ? assistant.prompt : typed}
-			</p>
-			<Button variant="primary" class="shrink-0" tabindex={-1} disabled={typed === ''}
-				>{assistant.send}</Button
+			<div class="flex h-11 shrink-0 items-center px-4 font-semibold max-lg:hidden">
+				{assistant.ask}
+			</div>
+			<div
+				bind:this={scroller}
+				class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-3 max-lg:h-36 max-lg:flex-none max-lg:pt-3"
+				data-testid="thread"
 			>
-		</div>
-	</aside>
+				{#each thread.items as item (item.key)}
+					<div class="mt-2 flex justify-end first:mt-0">
+						<p class="rounded-box bg-tint-2 px-3 py-2 font-medium break-words">{item.text}</p>
+					</div>
+					{#if item.action !== null && live !== null}
+						<live.ChangeCard action={item.action} onshow={() => show(item.view)} />
+					{/if}
+				{/each}
+				{#if working}
+					<p class="text-ink-3" role="status">{assistant.working}</p>
+				{/if}
+			</div>
+
+			<div class="flex shrink-0 flex-col gap-1 px-2 pb-2" role="group" aria-label={t.prompts}>
+				{#each left as { prompt, index } (index)}
+					<button
+						type="button"
+						class="rounded-box bg-raised px-2.5 py-2 text-left font-medium shadow-raised transition-shadow motion hover:ring-1 hover:ring-ink-3 disabled:opacity-50"
+						disabled={busy || samples.tables === null}
+						onclick={() => void run(index)}>{prompt.text}</button
+					>
+				{:else}
+					<button
+						type="button"
+						class="self-start px-1 py-1 text-sm text-ink-2 underline hover:text-ink disabled:text-ink-3"
+						disabled={busy}
+						onclick={startOver}>{t.startOver}</button
+					>
+				{/each}
+			</div>
+
+			<div class="m-2 mt-0 flex shrink-0 items-end gap-1 rounded-box bg-tint p-2 max-lg:hidden">
+				<p class="min-h-control min-w-0 flex-1 px-1 py-1.5 {typed === '' ? 'text-ink-3' : ''}">
+					{typed === '' ? assistant.prompt : typed}
+				</p>
+				<Button variant="primary" class="shrink-0" tabindex={-1} disabled={typed === ''}
+					>{assistant.send}</Button
+				>
+			</div>
+		</aside>
+	</div>
 </section>

@@ -2,8 +2,10 @@ import type { Component } from 'svelte';
 
 import type { ViewDef } from '#lib/core/model.ts';
 
-import { EXAMPLES, type Example } from './examples.ts';
-import { EXAMPLES_FR } from './examples-fr.ts';
+import { EXAMPLES, POSTER_WORDS, type Example } from './examples.ts';
+import { EXAMPLES_FR, POSTER_WORDS_FR } from './examples-fr.ts';
+import type { Placed } from './poster-seed.ts';
+import { posters, type Poster, type PosterId } from './posters.ts';
 import type { Sample } from './seed.ts';
 
 export type Live = typeof import('./live.ts');
@@ -16,6 +18,8 @@ export class Samples {
 	public example: Example = $state() as Example;
 	public live = $state<Live | null>(null);
 	public tables = $state<Record<string, Sample> | null>(null);
+	public readonly posterList: Poster[];
+	public posters = $state<Record<PosterId, Placed> | null>(null);
 	public View = $state<ViewComponent | null>(null);
 	public Toast = $state<Component | null>(null);
 
@@ -27,6 +31,7 @@ export class Samples {
 	public constructor(locale: 'en' | 'fr') {
 		this.examples = locale === 'fr' ? EXAMPLES_FR : EXAMPLES;
 		this.example = this.examples[0];
+		this.posterList = posters(new Date(), locale === 'fr' ? POSTER_WORDS_FR : POSTER_WORDS);
 	}
 
 	public readonly sample = $derived(this.tables?.[this.example.id]);
@@ -49,12 +54,16 @@ export class Samples {
 		this.loading ??= Promise.all([
 			import('./live.ts').then((live) => {
 				let made: Record<string, Sample> | null = null;
+				let placed: Record<PosterId, Placed> | null = null;
 				const narrow = matchMedia('(max-width: 1023px)').matches;
 				void live.app.openSample((ws, commit) => {
 					made = live.seedExamples(ws, commit, this.examples, narrow);
+					placed = live.seedPosterTables(ws, commit, this.posterList);
 				}, this.engineWanted);
 				if (made !== null) for (const run of this.seeded) run(live, made);
+				if (placed !== null) live.showPostersEarly(this.posterList, placed);
 				this.tables = made;
+				this.posters = placed;
 				this.live = live;
 			}),
 			import('./SampleView.svelte').then((module) => (this.View = module.default)),

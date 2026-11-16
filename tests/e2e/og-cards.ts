@@ -33,7 +33,7 @@ h1 { font-size: 44px; font-weight: 600; letter-spacing: -0.01em; margin: 80px 0 
 p { font-size: 26px; color: #a3a5ad; margin: 14px 0 0; }
 </style></head><body>
 <svg viewBox="0 0 65.74 16" fill="#fff"><path fill-rule="evenodd" d="${mark}"/><path transform="translate(22)" d="${word}"/></svg>
-<h1>${t.headline}</h1><p>${t.cardLead}</p></body></html>`);
+<h1>${t.tagline}</h1><p>${t.cardLead}</p></body></html>`);
 	await page.evaluate(() => document.fonts.ready);
 	await page.screenshot({ path: join(root, 'static', file) });
 }

@@ -8,23 +8,11 @@ const FADE_MS = 1100;
 const HUE_CELLS = 7;
 
 type Rgb = [number, number, number];
-type Wave = { x: number; y: number; start: number; color: Rgb };
-
-const WAVE_SPEED = 26;
-const WAVE_WIDTH = 2.6;
-const WAVE_REACH = 48;
-
 function rgb(value: string): Rgb {
 	const match = /^#(..)(..)(..)$/u.exec(value.trim());
 	return match === null
 		? [128, 128, 128]
 		: [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)];
-}
-
-let waving: ((clientX: number, clientY: number) => void) | null = null;
-
-export function wave(clientX: number, clientY: number): void {
-	waving?.(clientX, clientY);
 }
 
 /** Cells behind the page, one pixel each scaled up by the compositor, painted where the pointer passes. */
@@ -40,7 +28,6 @@ export class Backdrop {
 	private palette: Rgb[] = [];
 	private restAlpha = 0;
 	private inkAlpha = 0;
-	private waves: Wave[] = [];
 	private last: { x: number; y: number } | null = null;
 	private hue = 0;
 	private active = 0;
@@ -53,7 +40,6 @@ export class Backdrop {
 		this.image = this.context.createImageData(1, 1);
 		this.resize();
 		this.readColors();
-		waving = (clientX, clientY) => this.wave(clientX, clientY);
 	}
 
 	public readColors(): void {
@@ -117,11 +103,8 @@ export class Backdrop {
 		const time = (now / 1000) * 0.3 + scrollY * 0.0012;
 		const fade = Math.exp(-elapsed / FADE_MS);
 		const { columns, rows, values, ink, inkColor, restAlpha, inkAlpha } = this;
-		this.waves = this.waves.filter(
-			(item) => ((now - item.start) / 1000) * WAVE_SPEED < WAVE_REACH + WAVE_WIDTH
-		);
 		const data = this.image.data;
-		let alive = this.waves.length > 0;
+		let alive = false;
 		for (let y = 0, index = 0; y < rows; y++) {
 			for (let x = 0; x < columns; x++, index++) {
 				const field =
@@ -132,21 +115,10 @@ export class Backdrop {
 				values[index] += (target - values[index]) * (jump ? 1 : 0.2);
 				const rest = this.color(x * 0.05 + y * 0.07 + time * 0.12);
 				ink[index] *= fade;
-				let strength = ink[index];
-				let red = inkColor[index * 3];
-				let green = inkColor[index * 3 + 1];
-				let blue = inkColor[index * 3 + 2];
-				for (const item of this.waves) {
-					const radius = ((now - item.start) / 1000) * WAVE_SPEED;
-					const distance = Math.hypot(x + 0.5 - item.x, y + 0.5 - item.y);
-					const near =
-						Math.max(0, 1 - Math.abs(distance - radius) / WAVE_WIDTH) *
-						Math.max(0, 1 - radius / WAVE_REACH);
-					if (near > strength) {
-						strength = near;
-						[red, green, blue] = item.color;
-					}
-				}
+				const strength = ink[index];
+				const red = inkColor[index * 3];
+				const green = inkColor[index * 3 + 1];
+				const blue = inkColor[index * 3 + 2];
 				if (strength > 0.01) alive = true;
 				const mix = Math.min(1, strength * 1.5);
 				const offset = index * 4;
@@ -173,7 +145,6 @@ export class Backdrop {
 
 	public stop(): void {
 		cancelAnimationFrame(this.frame);
-		waving = null;
 	}
 
 	public moveTo(clientX: number, clientY: number): void {
@@ -192,16 +163,5 @@ export class Backdrop {
 
 	public leave(): void {
 		this.last = null;
-	}
-
-	public wave(clientX: number, clientY: number): void {
-		this.hue += 2;
-		this.active = performance.now();
-		this.waves.push({
-			x: clientX / this.pitch,
-			y: clientY / this.pitch,
-			start: this.active,
-			color: this.color(this.hue)
-		});
 	}
 }

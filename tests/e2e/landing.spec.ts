@@ -36,26 +36,65 @@ const frames = (page: Page): Promise<number> =>
 const prompt = (page: Page, text: string): Locator =>
 	page.getByRole('group', { name: 'Prompts' }).getByRole('button', { name: text });
 
+const posters = (page: Page): Locator => page.getByTestId('posters');
+
 test('says what it is, shows the work done and loads no SQLite on the way', async ({ page }) => {
 	const wasm = wasmRequests(page);
 	await page.goto('/');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('A spreadsheet you just ask.');
-	await expect(page.getByRole('link', { name: 'Start now' }).first()).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your numbers, taking shape.');
+	await expect(page.getByRole('link', { name: 'Start now' }).first()).toBeInViewport();
 	const demo = page.getByTestId('demo');
 	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+	await demo.scrollIntoViewIfNeeded();
 	await expect(demo.getByRole('gridcell', { name: '7680' })).toBeInViewport();
 	await expect(
 		demo.getByTestId('change').filter({ hasText: 'New view "By category" on Budget' })
 	).toBeInViewport();
 	await expect(prompt(page, 'Add Netflix 13 and climbing 45, both fun.')).toBeVisible();
+	await posters(page).scrollIntoViewIfNeeded();
+	await expect(posters(page).getByText('Average kg')).toBeVisible();
+	await expect(posters(page).getByText('Total kg')).toBeVisible();
+	await expect(posters(page).getByText('Perfect Days')).toBeVisible();
 	await page.getByRole('heading', { name: 'Free and open source.' }).scrollIntoViewIfNeeded();
 	await page.waitForTimeout(300);
 	expect(wasm).toEqual([]);
 });
 
+test('three tables of other kinds show what a person ends up with', async ({ page }) => {
+	await page.goto('/');
+	const section = posters(page);
+	await expect(
+		section.getByRole('heading', { name: 'One table for each thing you keep track of.' })
+	).toBeVisible();
+	await expect(section.getByTestId('poster')).toHaveCount(3);
+	const captions = section.getByRole('figure');
+	await expect(captions.nth(0)).toContainText('Weigh-ins');
+	await expect(captions.nth(0)).toContainText(/\d+ weigh-ins/u);
+	await expect(captions.nth(1)).toContainText('180 sets');
+	await expect(captions.nth(2)).toContainText('9 movies');
+	await expect(section.getByText('7-day rolling average')).toBeVisible();
+	for (const muscle of ['Back', 'Chest', 'Legs', 'Shoulders']) {
+		await expect(section.getByText(muscle, { exact: true })).toBeVisible();
+	}
+});
+
+test('nothing on the page scrolls sideways', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByTestId('demo').getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+	await posters(page).scrollIntoViewIfNeeded();
+	await expect(posters(page).getByText('Average kg')).toBeVisible();
+	const widths = await page.evaluate(() => [
+		document.documentElement.scrollWidth,
+		document.documentElement.clientWidth
+	]);
+	expect(widths[0]).toBe(widths[1]);
+});
+
 test('composes the demo for the width it gets', async ({ page, isMobile }) => {
 	await page.goto('/');
 	const demo = page.getByTestId('demo');
+	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+	await demo.scrollIntoViewIfNeeded();
 	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeInViewport();
 	const category = demo.getByRole('columnheader', { name: 'Category' });
 	const examples = demo.getByRole('group', { name: 'Examples' });
@@ -85,7 +124,9 @@ test.describe('with its worker', () => {
 	test('what the page says about going offline holds', async ({ page, context }) => {
 		test.skip(process.env.TORSEL_TEST_DEV === '1', 'the worker is only registered in a build');
 		await page.goto('/');
-		await expect(page.getByText('Log a row in two taps, even with no network.')).toBeVisible();
+		await expect(
+			page.getByText('your tables stay in your browser until you sync them')
+		).toBeVisible();
 
 		await page.goto('/app');
 		await page.getByRole('button', { name: 'New table' }).first().click();
@@ -200,16 +241,50 @@ test('each example keeps its own table and thread', async ({ page, isMobile }) =
 test.describe('with reduced motion', () => {
 	test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-	test('the background holds still and a prompt applies at once', async ({ page }) => {
+	test('the cells hold still, the chart stands grown and a prompt applies at once', async ({
+		page
+	}) => {
 		await countFrames(page);
 		await page.goto('/');
-		await expect(page.getByTestId('backdrop')).toBeAttached();
+		const chart = page.locator('[data-testid="field"][data-shape="chart"]');
+		await expect(chart).toBeAttached();
 		await expect(page.getByTestId('demo').getByRole('gridcell', { name: 'Rent' })).toBeVisible();
 
 		await page.waitForTimeout(600);
 		const before = await frames(page);
 		await page.waitForTimeout(800);
 		expect(await frames(page)).toBe(before);
+
+		// The last bar rises past the middle of the field; no bar reaches the copy.
+		const box = await page.getByRole('heading', { level: 1 }).locator('..').boundingBox();
+		const cells = await chart.evaluate(
+			(canvas: HTMLCanvasElement, copy) => {
+				const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+				const pitch = canvas.clientWidth / canvas.width;
+				const alpha = (x: number, y: number): number => context.getImageData(x, y, 1, 1).data[3];
+				const last = canvas.width - 2;
+				let tallest = canvas.height;
+				while (tallest > 0 && alpha(last, tallest - 1) > 120) tallest -= 1;
+				// The cells whose centre falls inside the copy's box.
+				let under = 0;
+				const right = Math.min(canvas.width - 1, Math.floor(copy.right / pitch - 0.5));
+				const bottom = Math.min(canvas.height - 1, Math.floor(copy.bottom / pitch - 0.5));
+				for (let x = Math.ceil(copy.left / pitch - 0.5); x <= right; x++) {
+					for (let y = Math.ceil(copy.top / pitch - 0.5); y <= bottom; y++) {
+						under = Math.max(under, alpha(x, y));
+					}
+				}
+				return { tallest: tallest / canvas.height, under };
+			},
+			{
+				left: box?.x ?? 0,
+				right: (box?.x ?? 0) + (box?.width ?? 0),
+				top: box?.y ?? 0,
+				bottom: (box?.y ?? 0) + (box?.height ?? 0)
+			}
+		);
+		expect(cells.tallest).toBeLessThan(0.5);
+		expect(cells.under).toBeLessThan(120);
 
 		await prompt(page, 'Add Netflix 13 and climbing 45, both fun.').click();
 		await expect(page.getByTestId('change')).toHaveCount(3);
@@ -230,7 +305,7 @@ test.describe('with motion', () => {
 		await expect(demo.getByRole('status')).toBeHidden();
 	});
 
-	test('runs the background while the tab is visible', async ({ page }) => {
+	test('runs the cells while the tab is visible', async ({ page }) => {
 		await countFrames(page);
 		await page.goto('/');
 		await page.waitForTimeout(800);
@@ -239,24 +314,24 @@ test.describe('with motion', () => {
 		expect(await frames(page)).toBeGreaterThan(before);
 	});
 
-	test('the background takes colour under the pointer or a finger', async ({ page, isMobile }) => {
+	test('the cells take colour under the pointer or a finger', async ({ page, isMobile }) => {
 		await page.goto('/');
-		const backdrop = page.getByTestId('backdrop');
-		await expect(backdrop).toBeAttached();
-		// The first column's twelfth cell, by its centre, where the brush paints at full strength.
+		const chart = page.locator('[data-testid="field"][data-shape="chart"]');
+		await expect(chart).toBeAttached();
+		// The first column's thirtieth cell, by its centre: below the header, above the first bar.
 		const pitch = (): Promise<number> =>
-			backdrop.evaluate((canvas: HTMLCanvasElement) => canvas.clientWidth / canvas.width);
+			chart.evaluate((canvas: HTMLCanvasElement) => canvas.clientWidth / canvas.width);
 		const alpha = (): Promise<number> =>
-			backdrop.evaluate((canvas: HTMLCanvasElement) => {
+			chart.evaluate((canvas: HTMLCanvasElement) => {
 				const context = canvas.getContext('2d') as CanvasRenderingContext2D;
-				return context.getImageData(0, 11, 1, 1).data[3];
+				return context.getImageData(0, 29, 1, 1).data[3];
 			});
-		// At rest a cell stays under 62% opacity (158 of 255); a redraw comes within two frames.
+		// Away from the bars a cell rests under 14% opacity (36 of 255); a redraw comes within two frames.
 		await expect
 			.poll(async () => {
 				const size = await pitch();
-				if (isMobile) await page.touchscreen.tap(size / 2, size * 11.5);
-				else await page.mouse.move(size / 2, size * 11.5);
+				if (isMobile) await page.touchscreen.tap(size / 2, size * 29.5);
+				else await page.mouse.move(size / 2, size * 29.5);
 				await page.waitForTimeout(80);
 				return alpha();
 			})
@@ -275,16 +350,6 @@ test('a change card made ahead opens its view by touch or click', async ({ page,
 	else await show.click();
 	await expect(demo.getByText('Total amount')).toBeVisible();
 	await expect(demo.getByText('1230')).toBeVisible();
-});
-
-test('the form below logs a row into the table above', async ({ page }) => {
-	await page.goto('/');
-	const form = page.getByTestId('form');
-	await form.getByRole('textbox', { name: 'Item' }).fill('Coffee');
-	await form.getByRole('button', { name: 'Add row' }).click();
-	const demo = page.getByTestId('demo');
-	await expect(demo.getByTestId('row-count')).toHaveText('7 rows');
-	await expect(demo.getByRole('gridcell', { name: 'Coffee' })).toBeAttached();
 });
 
 test('the sample stays in the page and out of the app', async ({ page }) => {
