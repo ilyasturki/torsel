@@ -107,8 +107,9 @@ function whole(value: In, fallback?: number): number | null {
 	return n === null ? null : Math.trunc(n);
 }
 
-function capped(text: string): string | null {
-	return text.length > MAX_TEXT ? null : text;
+function joined(parts: string[], glue: string): string | null {
+	const size = parts.reduce((total, part) => total + part.length, glue.length * parts.length);
+	return size > MAX_TEXT ? null : parts.join(glue);
 }
 
 type Day = { y: number; m: number; d: number; h: number; min: number; s: number };
@@ -431,7 +432,7 @@ const SCALARS: Scalar[] = [
 		args: [a('text', { repeats: true })],
 		run: (args) => {
 			const parts = args.map(str);
-			return parts.includes(null) ? null : capped(parts.join(''));
+			return parts.includes(null) ? null : joined(parts as string[], '');
 		}
 	},
 	{
@@ -442,7 +443,7 @@ const SCALARS: Scalar[] = [
 			const parts = values.map(str);
 			if (glue === null || parts.includes(null)) return null;
 			const kept = truthy(skip) ? parts.filter((part) => part !== '') : parts;
-			return capped(kept.join(glue));
+			return joined(kept as string[], glue);
 		}
 	},
 	{

@@ -98,6 +98,7 @@ const SCALARS: Record<string, Case[]> = {
 	],
 	CONCATENATE: [
 		["CONCATENATE('a', 1, NULL, 'b')", 'a1b'],
+		["CONCATENATE(REPT('a', 600000), REPT('b', 600000))", null],
 		["CONCATENATE('only')", 'only']
 	],
 	TEXTJOIN: [
