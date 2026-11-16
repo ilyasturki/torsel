@@ -88,7 +88,8 @@ function hostInterfaces(): ReturnType<typeof networkInterfaces> {
 
 // Rebuilt hourly: the host's own public addresses reach the other apps it serves, and it can gain some.
 function denyList(): BlockList {
-	if (denied !== undefined && Date.now() - denied.at < DENY_LIST_MS) {
+	const age = Date.now() - (denied?.at ?? -Infinity);
+	if (denied !== undefined && age >= 0 && age < DENY_LIST_MS) {
 		return denied.list;
 	}
 	const host = hostInterfaces();
