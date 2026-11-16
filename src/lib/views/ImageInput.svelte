@@ -68,6 +68,7 @@
 	class="flex min-w-0 flex-wrap items-start gap-2 rounded-box {dropping
 		? 'ring-2 ring-accent ring-offset-2 ring-offset-float'
 		: ''}"
+	{id}
 	role="group"
 	aria-label={field.name}
 	onpaste={(event) => {
@@ -121,7 +122,7 @@
 	{#if touch.current}
 		<Menu label={words.addImage}>
 			{#snippet trigger(props)}
-				<button {...props} {id} type="button" class={tile}>
+				<button {...props} type="button" class={tile}>
 					<Icon name="plus" />{words.add}
 				</button>
 			{/snippet}
@@ -129,7 +130,7 @@
 			<MenuItem icon="image" onSelect={() => picker?.click()}>{words.chooseImage}</MenuItem>
 		</Menu>
 	{:else}
-		<button {id} type="button" class={tile} onclick={() => picker?.click()}>
+		<button type="button" class={tile} onclick={() => picker?.click()}>
 			<Icon name="plus" />{words.add}
 		</button>
 	{/if}
