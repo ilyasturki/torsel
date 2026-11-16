@@ -36,6 +36,8 @@ export async function generateTitle(
 			model: envText('TORSEL_AI_TITLE_MODEL', TITLE_MODEL),
 			max_tokens: 200,
 			system: SYSTEM,
+			// On, it spends the small budget thinking and the answer never comes.
+			thinking: { type: 'disabled' },
 			output_config: { effort: 'low', format: FORMAT },
 			messages: [{ role: 'user', content: titlePrompt(prompt, where) }]
 		},
