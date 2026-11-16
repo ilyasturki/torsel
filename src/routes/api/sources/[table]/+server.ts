@@ -27,12 +27,11 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 	const db = getDatabase();
 	try {
 		const patch = patchBody(await readJsonBody(request));
+		const runs = patch.secret !== undefined || patch.url !== undefined;
+		// Limited before the write: a key saved but never run leaves a paused source asleep.
+		if (runs) limit('refresh', user.id);
 		patchSource(db, user.id, params.table, patch);
-		let outcome = null;
-		if (patch.secret !== undefined || patch.url !== undefined) {
-			limit('refresh', user.id);
-			outcome = await runSource(db, user.id, params.table);
-		}
+		const outcome = runs ? await runSource(db, user.id, params.table) : null;
 		const source = readSource(db, user.id, params.table);
 		return json({ outcome, source: source === undefined ? null : publicSource(source) });
 	} catch (thrown) {
