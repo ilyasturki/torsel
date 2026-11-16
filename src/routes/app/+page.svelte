@@ -4,7 +4,7 @@
 	import { formatDate, formatMonth, formatNumber, formatValue } from '#lib/client/format.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { lastTable } from '#lib/client/place.ts';
-	import { isTyping, pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
+	import { isTyping, shell, startTable } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { createBase, deleteRecords, updateRecord } from '#lib/core/actions.ts';
 	import { lastEntry, tableFigure, type Figure } from '#lib/core/figure.ts';
@@ -18,11 +18,9 @@
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import Spark from '#lib/ui/Spark.svelte';
-	import { input } from '#lib/ui/styles.ts';
 	import Tally from '#lib/ui/Tally.svelte';
 	import NameSheet from '#lib/views/NameSheet.svelte';
 
-	let name = $state('');
 	let creatingBase = $state(false);
 	let renaming = $state<BaseDef | null>(null);
 
@@ -54,6 +52,7 @@
 		if (figure.kind === 'check') return figure.label;
 		const { at, config } = figure;
 		const label = viewWords.chartValue[config.agg ?? 'count'](figure.of);
+		if (config.agg === 'count' && config.bucket === 'month') return formatMonth(at);
 		if (!figure.byDate) return at === '' ? label : `${label}, ${at}`;
 		if (config.bucket === 'week') return words.weekOf(label, formatDate(at));
 		if (config.bucket === 'month') return `${label}, ${formatMonth(at)}`;
@@ -63,7 +62,8 @@
 	/** The headline as its field shows it: an amount, a percent, a clock. */
 	function amount(figure: Figure & { kind: 'chart' }): string {
 		const { agg, y } = figure.config;
-		const field = agg === 'count' || !y ? undefined : app.ws.field(y);
+		if (agg === 'count') return count(figure.value);
+		const field = !y ? undefined : app.ws.field(y);
 		return field === undefined ? formatNumber(figure.value) : formatValue(field, figure.value);
 	}
 
@@ -94,41 +94,19 @@
 			next.focus();
 		}
 	}
-
-	function pasteCells(event: ClipboardEvent): void {
-		const text = pastedCells(event);
-		if (text !== null) {
-			event.preventDefault();
-			shell.importing = { text, into: null };
-		}
-	}
 </script>
 
 <div class="flex min-h-full flex-col pb-4">
 	{#if empty}
 		<Empty text={words.noTables}>
-			<form
-				class="flex gap-2"
-				onsubmit={(event) => {
-					event.preventDefault();
-					startTable(undefined, name);
-				}}
+			<Button variant="primary" onclick={() => (shell.importing = { into: null })}
+				>{words.importFile}</Button
 			>
-				<input
-					use:focusAtDesk
-					class={input}
-					bind:value={name}
-					placeholder={words.tableName}
-					aria-label={words.tableName}
-					onpaste={pasteCells}
-				/>
-				<Button variant="primary" type="submit">{words.newTable}</Button>
-			</form>
-			<Button onclick={() => (shell.importing = { into: null })}>{words.importFile}</Button>
+			<Button onclick={() => startTable()}>{words.newTable}</Button>
 		</Empty>
 	{:else}
 		<div
-			class="sticky top-0 z-10 grid h-8 grid-cols-home items-center gap-x-4 border-b border-rule-strong bg-raised px-4 text-sm font-medium text-ink-3 max-sm:hidden"
+			class="sticky top-0 z-10 grid h-row grid-cols-home items-center gap-x-4 border-b border-rule-strong bg-raised px-4 text-sm font-medium text-ink-3 max-sm:hidden"
 			aria-hidden="true"
 		>
 			<span>{words.table}</span>
@@ -140,9 +118,7 @@
 		</div>
 		{#each bases as base (base.id)}
 			{#if grouped}
-				<div
-					class="flex h-8 items-center gap-2 border-b border-rule bg-band pr-1 pl-4 max-sm:h-row"
-				>
+				<div class="flex h-row items-center gap-2 border-b border-rule bg-band pr-1 pl-4">
 					<h2 class="min-w-0 flex-1 truncate text-sm font-medium text-ink-2">{base.name}</h2>
 					<Menu label={base.name} align="end">
 						{#snippet trigger(props)}

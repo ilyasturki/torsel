@@ -184,19 +184,17 @@ test("a base's actions sit in its menu", async ({ page, context, account }) => {
 	await expect(page.getByRole('heading', { name: 'Groceries', level: 2 })).toBeVisible();
 });
 
-test('an empty home is one line and one row: name a table, or import a file', async ({
+test('an empty home is one line, with Import a file as its main action', async ({
 	page,
 	account
 }) => {
 	void account;
 	await page.goto('/app');
-	await expect(
-		page.getByText('No tables yet. Name one, drop a CSV here, or paste cells.')
-	).toBeVisible();
-	await expect(page.getByRole('textbox', { name: 'Table name' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'New table' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
-	await expect(page.locator('main').getByRole('button')).toHaveCount(2);
+	await expect(page.getByText('No tables yet. Drop a CSV here or paste cells.')).toBeVisible();
+	const main = page.locator('main');
+	await expect(main.getByRole('button', { name: 'Import', exact: true })).toHaveClass(/bg-accent/u);
+	await expect(main.getByRole('button', { name: 'New table' })).toBeVisible();
+	await expect(main.getByRole('button')).toHaveCount(2);
 	await expect(page.locator('main a[data-home-row]')).toHaveCount(0);
 });
 

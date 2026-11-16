@@ -121,6 +121,15 @@ async function pasteText(page: Page, text: string): Promise<void> {
 	}, text);
 }
 
+/** From an empty home: New table, then its name typed into the title. */
+async function nameFirstTable(page: Page, name: string): Promise<void> {
+	await page.locator('main').getByRole('button', { name: 'New table' }).click();
+	const title = page.getByRole('textbox', { name: 'Table name' });
+	await expect(title).toBeFocused();
+	await title.fill(name);
+	await title.press('Enter');
+}
+
 /** Pointer activations on the page from now on, the audit's count of taps and clicks. */
 async function countTaps(page: Page): Promise<() => Promise<number>> {
 	await page.evaluate(() => {
@@ -146,9 +155,7 @@ test.describe('the first table', () => {
 	}) => {
 		void account;
 		await page.goto('/app');
-		const name = page.getByRole('textbox', { name: 'Table name' });
-		await name.fill('Weigh-ins');
-		await name.press('Enter');
+		await nameFirstTable(page, 'Weigh-ins');
 
 		await expect(page.getByRole('heading', { name: 'Weigh-ins' })).toBeVisible();
 		const field = page.getByRole('textbox', { name: 'Field name' });
@@ -201,8 +208,7 @@ test.describe('the first table', () => {
 	}) => {
 		void account;
 		await page.goto('/app');
-		await page.getByRole('textbox', { name: 'Table name' }).fill('Books');
-		await page.keyboard.press('Enter');
+		await nameFirstTable(page, 'Books');
 
 		const field = page.getByRole('textbox', { name: 'Field name' });
 		await field.fill('Code');
@@ -293,10 +299,10 @@ test.describe('the first table', () => {
 		await expect(cell(page, '100')).toBeVisible();
 	});
 
-	test('pasting into the name field starts a table too', async ({ page, account }) => {
+	test('cells pasted on the empty home start a table', async ({ page, account }) => {
 		void account;
 		await page.goto('/app');
-		await page.getByRole('textbox', { name: 'Table name' }).focus();
+		await expect(page.getByText('No tables yet. Drop a CSV here or paste cells.')).toBeVisible();
 		await pasteText(page, 'name\tkg\nSquat\t100');
 
 		const sheet = page.getByRole('dialog', { name: 'Import' });
@@ -329,8 +335,7 @@ test.describe('the first table', () => {
 	}) => {
 		void account;
 		await page.goto('/app');
-		await page.getByRole('textbox', { name: 'Table name' }).fill('Lifts');
-		await page.keyboard.press('Enter');
+		await nameFirstTable(page, 'Lifts');
 		const field = page.getByRole('textbox', { name: 'Field name' });
 		await field.fill('Day');
 		await field.press('Enter');
@@ -1226,8 +1231,7 @@ test.describe('a boot the server does not answer', () => {
 	}) => {
 		await page.route('**/api/auth/session', (route) => route.abort('internetdisconnected'));
 		await page.goto('/app');
-		await page.getByRole('textbox', { name: 'Table name' }).fill('Weigh-ins');
-		await page.keyboard.press('Enter');
+		await nameFirstTable(page, 'Weigh-ins');
 		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
 
@@ -1239,6 +1243,8 @@ test.describe('a boot the server does not answer', () => {
 		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toBeVisible();
 		await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 		await expect(page.getByRole('status')).toHaveCount(0);
+		await undo(page);
+		await expect(page.getByRole('heading', { name: 'Weigh-ins', exact: true })).toHaveCount(0);
 		await undo(page);
 		await expect(page.getByText('This table no longer exists.')).toBeVisible();
 	});
