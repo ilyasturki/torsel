@@ -287,7 +287,7 @@
 							<ChartToken
 								label={words.xAxis}
 								text={xField?.name ?? ''}
-								options={fieldOptions(fields)}
+								options={fieldOptions(fields.filter((field) => field.type !== 'image'))}
 								value={config.x ?? ''}
 								onpick={(field) => setChart({ x: field })}
 							/>
