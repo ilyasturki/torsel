@@ -88,6 +88,12 @@ async function stream(step: FakeStep, script: Script, response: ServerResponse):
 				index,
 				delta: { type: 'input_json_delta', partial_json: JSON.stringify(block.input) }
 			});
+			if (step.holdAt === block.id) {
+				await new Promise<void>((resolve) => {
+					script.release = resolve;
+					response.once('close', resolve);
+				});
+			}
 		} else if (block.type === 'note') {
 			send(response, 'content_block_start', {
 				type: 'content_block_start',

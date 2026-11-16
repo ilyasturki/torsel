@@ -59,7 +59,7 @@ const cards = (page: Page): Locator => thread(page).getByTestId('change');
 const isPhone = (): boolean => test.info().project.name === 'phone';
 
 async function openAsk(page: Page): Promise<void> {
-	if (!(await composer(page).isVisible())) {
+	if (!(await panel(page).isVisible())) {
 		await page.getByRole('button', { name: /^Ask/u }).click();
 	}
 }
@@ -72,7 +72,7 @@ async function ask(page: Page, text: string): Promise<void> {
 
 /** On a phone the panel covers the table: what a spec reads in the grid needs it closed. */
 async function seeTable(page: Page): Promise<void> {
-	if (isPhone() && (await composer(page).isVisible())) {
+	if (isPhone() && (await panel(page).isVisible())) {
 		await panel(page).getByRole('button', { name: 'Close' }).click();
 	}
 }
@@ -275,7 +275,7 @@ test('the request says what is on screen, and the assistant can open what it mad
 	expect(note).toContain('Selected: 2 rows, in Exercise, Reps.');
 	expect(note).toContain(`- ${rows[0]}: {\\"Exercise\\":\\"Bench\\",\\"Reps\\":8}`);
 	expect(note).toMatch(/Today: \d{4}-\d{2}-\d{2}\./u);
-	expect(note).toContain('a number as \\"1,234.5\\"');
+	expect(note).toContain('a number as \\"12,345.5\\"');
 	expect(requests[0].body.system).not.toContain(table);
 
 	await page.goto('/app/settings');
@@ -354,6 +354,7 @@ test('a new conversation gets a short title beside its first reply, never holdin
 
 	await context.request.post(`${FAKE}/__release-title?key=${key}`);
 	await expect(header).toHaveText('Bench press sets');
+	expect(await header.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
 	const { titles, requests } = await seen(context.request, key);
 	expect(requests).toHaveLength(1);
 	expect(titles).toHaveLength(1);
