@@ -64,7 +64,6 @@ describe('the guard when the host addresses are unreadable', () => {
 	afterEach(() => {
 		process.off('uncaughtException', record);
 		vi.restoreAllMocks();
-		vi.useRealTimers();
 	});
 
 	it('refuses the fetch, by name and by address, and the process lives', async () => {
@@ -102,6 +101,8 @@ describe('the guard over time', () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+		vi.restoreAllMocks();
+		interfaces.read = readable;
 	});
 
 	it('denies an address the host gains, once the list is an hour old', async () => {
@@ -131,6 +132,5 @@ describe('the guard over time', () => {
 		interfaces.read = unreadable;
 		vi.advanceTimersByTime(61 * 60 * 1000);
 		expect(() => guard.deniedAddress('8.8.8.8')).toThrow(guard.FetchRefused);
-		vi.restoreAllMocks();
 	});
 });

@@ -21,7 +21,6 @@ const MOVIES = 'id,Title\n1,Alien\n2,Heat\n';
 
 let server: Server;
 let link: string;
-// A slow site answers after 5 s, or when the test releases it.
 let slow: { hold: boolean; release: () => void } = { hold: false, release: () => undefined };
 let db: Database;
 let userId: string;
@@ -32,6 +31,7 @@ beforeAll(async () => {
 	process.env.TORSEL_SECRETS_KEY = 'a'.repeat(64);
 	server = createServer((_request, response) => {
 		const answer = () => {
+			if (response.headersSent) return;
 			response.writeHead(200, { 'content-type': 'text/csv' });
 			response.end(MOVIES);
 		};
