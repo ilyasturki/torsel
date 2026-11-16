@@ -494,12 +494,12 @@ const CONDITION_VALUE = z.union([
 	z.string(),
 	z.number(),
 	z.boolean(),
-	z.array(z.union([z.string(), z.number()]))
+	z.array(z.union([z.string().describe('a name or a date'), z.number().describe('a number')]))
 ]);
 
 const CONDITION = z
 	.strictObject({
-		field: z.string().nullable().describe('the field; null with op "formula"'),
+		field: z.union([z.string(), z.null().describe('with op "formula"')]).describe('the field'),
 		op: z.enum(OPS),
 		value: CONDITION_VALUE.optional().describe(
 			`none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or ${RELATIVE_DAYS.join(', ')}; a formula over field names for "formula", true rows matching`

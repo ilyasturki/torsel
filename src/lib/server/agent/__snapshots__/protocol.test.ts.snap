@@ -318,11 +318,16 @@ exports[`lists the same tools in every era 1`] = `
                                     "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                                     "properties": {
                                       "field": {
-                                        "description": "the field; null with op "formula"",
-                                        "type": [
-                                          "string",
-                                          "null",
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                          },
+                                          {
+                                            "description": "with op "formula"",
+                                            "type": "null",
+                                          },
                                         ],
+                                        "description": "the field",
                                       },
                                       "op": {
                                         "enum": [
@@ -363,9 +368,15 @@ exports[`lists the same tools in every era 1`] = `
                                           },
                                           {
                                             "items": {
-                                              "type": [
-                                                "string",
-                                                "number",
+                                              "anyOf": [
+                                                {
+                                                  "description": "a name or a date",
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "description": "a number",
+                                                  "type": "number",
+                                                },
                                               ],
                                             },
                                             "type": "array",
@@ -444,11 +455,16 @@ exports[`lists the same tools in every era 1`] = `
                             "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                             "properties": {
                               "field": {
-                                "description": "the field; null with op "formula"",
-                                "type": [
-                                  "string",
-                                  "null",
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "description": "with op "formula"",
+                                    "type": "null",
+                                  },
                                 ],
+                                "description": "the field",
                               },
                               "op": {
                                 "enum": [
@@ -489,9 +505,15 @@ exports[`lists the same tools in every era 1`] = `
                                   },
                                   {
                                     "items": {
-                                      "type": [
-                                        "string",
-                                        "number",
+                                      "anyOf": [
+                                        {
+                                          "description": "a name or a date",
+                                          "type": "string",
+                                        },
+                                        {
+                                          "description": "a number",
+                                          "type": "number",
+                                        },
                                       ],
                                     },
                                     "type": "array",
@@ -1711,11 +1733,16 @@ exports[`lists the same tools in every era 1`] = `
                             "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                             "properties": {
                               "field": {
-                                "description": "the field; null with op "formula"",
-                                "type": [
-                                  "string",
-                                  "null",
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "description": "with op "formula"",
+                                    "type": "null",
+                                  },
                                 ],
+                                "description": "the field",
                               },
                               "op": {
                                 "enum": [
@@ -1756,9 +1783,15 @@ exports[`lists the same tools in every era 1`] = `
                                   },
                                   {
                                     "items": {
-                                      "type": [
-                                        "string",
-                                        "number",
+                                      "anyOf": [
+                                        {
+                                          "description": "a name or a date",
+                                          "type": "string",
+                                        },
+                                        {
+                                          "description": "a number",
+                                          "type": "number",
+                                        },
                                       ],
                                     },
                                     "type": "array",
@@ -1846,11 +1879,16 @@ exports[`lists the same tools in every era 1`] = `
                     "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                     "properties": {
                       "field": {
-                        "description": "the field; null with op "formula"",
-                        "type": [
-                          "string",
-                          "null",
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "description": "with op "formula"",
+                            "type": "null",
+                          },
                         ],
+                        "description": "the field",
                       },
                       "op": {
                         "enum": [
@@ -1891,9 +1929,15 @@ exports[`lists the same tools in every era 1`] = `
                           },
                           {
                             "items": {
-                              "type": [
-                                "string",
-                                "number",
+                              "anyOf": [
+                                {
+                                  "description": "a name or a date",
+                                  "type": "string",
+                                },
+                                {
+                                  "description": "a number",
+                                  "type": "number",
+                                },
                               ],
                             },
                             "type": "array",
@@ -2360,11 +2404,16 @@ exports[`lists the same tools in every era 1`] = `
                             "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                             "properties": {
                               "field": {
-                                "description": "the field; null with op "formula"",
-                                "type": [
-                                  "string",
-                                  "null",
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "description": "with op "formula"",
+                                    "type": "null",
+                                  },
                                 ],
+                                "description": "the field",
                               },
                               "op": {
                                 "enum": [
@@ -2405,9 +2454,15 @@ exports[`lists the same tools in every era 1`] = `
                                   },
                                   {
                                     "items": {
-                                      "type": [
-                                        "string",
-                                        "number",
+                                      "anyOf": [
+                                        {
+                                          "description": "a name or a date",
+                                          "type": "string",
+                                        },
+                                        {
+                                          "description": "a number",
+                                          "type": "number",
+                                        },
                                       ],
                                     },
                                     "type": "array",
@@ -2495,11 +2550,16 @@ exports[`lists the same tools in every era 1`] = `
                     "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                     "properties": {
                       "field": {
-                        "description": "the field; null with op "formula"",
-                        "type": [
-                          "string",
-                          "null",
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "description": "with op "formula"",
+                            "type": "null",
+                          },
                         ],
+                        "description": "the field",
                       },
                       "op": {
                         "enum": [
@@ -2540,9 +2600,15 @@ exports[`lists the same tools in every era 1`] = `
                           },
                           {
                             "items": {
-                              "type": [
-                                "string",
-                                "number",
+                              "anyOf": [
+                                {
+                                  "description": "a name or a date",
+                                  "type": "string",
+                                },
+                                {
+                                  "description": "a number",
+                                  "type": "number",
+                                },
                               ],
                             },
                             "type": "array",
