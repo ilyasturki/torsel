@@ -315,7 +315,7 @@ exports[`lists the same tools in every era 1`] = `
                                   },
                                   "when": {
                                     "additionalProperties": false,
-                                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                                     "properties": {
                                       "field": {
                                         "description": "the field; null with op "formula"",
@@ -441,7 +441,7 @@ exports[`lists the same tools in every era 1`] = `
                         "filters": {
                           "items": {
                             "additionalProperties": false,
-                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                             "properties": {
                               "field": {
                                 "description": "the field; null with op "formula"",
@@ -1708,7 +1708,7 @@ exports[`lists the same tools in every era 1`] = `
                           },
                           "when": {
                             "additionalProperties": false,
-                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                             "properties": {
                               "field": {
                                 "description": "the field; null with op "formula"",
@@ -1843,7 +1843,7 @@ exports[`lists the same tools in every era 1`] = `
                 {
                   "items": {
                     "additionalProperties": false,
-                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                     "properties": {
                       "field": {
                         "description": "the field; null with op "formula"",
@@ -2357,7 +2357,7 @@ exports[`lists the same tools in every era 1`] = `
                           },
                           "when": {
                             "additionalProperties": false,
-                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                             "properties": {
                               "field": {
                                 "description": "the field; null with op "formula"",
@@ -2492,7 +2492,7 @@ exports[`lists the same tools in every era 1`] = `
                 {
                   "items": {
                     "additionalProperties": false,
-                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows",
                     "properties": {
                       "field": {
                         "description": "the field; null with op "formula"",

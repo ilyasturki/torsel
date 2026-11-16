@@ -215,12 +215,13 @@ export function viewCells(
 	ws: Workspace,
 	tableId: string,
 	view: ViewDef,
-	computed: Computed
+	computed: Computed,
+	hits: FormulaHits = noHits
 ): string[][] {
 	const config = view.type === 'grid' ? view.config : {};
 	const hidden = new Set(config.hidden ?? []);
 	const fields = ws.fields(tableId).filter((field) => !hidden.has(field.id));
-	const rows = gridRows(ws, tableId, config, computed);
+	const rows = gridRows(ws, tableId, config, computed, hits);
 	return [
 		fields.map((field) => field.name),
 		...rows.map((row) =>

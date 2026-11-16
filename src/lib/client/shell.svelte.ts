@@ -9,6 +9,7 @@ import { app } from './app.svelte.ts';
 import { tableUrl } from './nav.ts';
 import { applyWithUndo } from './toast.svelte.ts';
 import { viewCells } from '../views/grid.ts';
+import { formulaHits } from '../views/rules.ts';
 
 export type ImportStart = { file?: File; text?: string; into: string | null };
 
@@ -70,7 +71,13 @@ export function downloadCsv(tableId: string, viewId: string | null): void {
 		views.find((candidate) => candidate.id === viewId) ??
 		views.find((candidate) => candidate.type === 'grid');
 	if (table === undefined || view === undefined) return;
-	const cells = viewCells(app.ws, table.id, view, app.computed(table.id));
+	const cells = viewCells(
+		app.ws,
+		table.id,
+		view,
+		app.computed(table.id),
+		formulaHits((stored) => app.formulaPreview(table.id, stored))
+	);
 	// A byte-order mark is how Excel knows the file is UTF-8.
 	download(`${table.name.replace(/[\\/:*?"<>|]/gu, '-')}.csv`, `﻿${toCsv(cells)}`, 'text/csv');
 }

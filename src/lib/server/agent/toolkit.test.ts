@@ -449,8 +449,13 @@ describe('assistant tools', () => {
 
 		const refused = async (patch: unknown): Promise<unknown> =>
 			call('update_view', { base: made.base, table: 'Séries', view: grid.id, config: patch });
+		expect(await refused({ filters: [{ field: 'Weight', op: 'checked' }] })).toEqual({
+			error: expect.stringMatching(
+				/^Weight takes is, is-not, gt.*, contains, not-contains, not checked$/u
+			)
+		});
 		expect(await refused({ filters: [{ field: 'Weight', op: 'contains', value: '8' }] })).toEqual({
-			error: expect.stringMatching(/^Weight takes is, is-not, gt/u)
+			updated: grid.id
 		});
 		expect(
 			await refused({ filters: [{ field: 'Exercise', op: 'any-of', value: ['squat'] }] })

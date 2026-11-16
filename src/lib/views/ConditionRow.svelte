@@ -5,6 +5,7 @@
 	import { OPS_OF, RELATIVE_DAYS, arity, kindOf } from '#lib/core/conditions.ts';
 	import { namesIn, scopeOf, toDisplay, toStored } from '#lib/core/formula.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
+	import { todayIso } from '#lib/core/values.ts';
 	import { rules as words } from '#lib/i18n/rules.ts';
 	import ChipPicker from '#lib/ui/ChipPicker.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
@@ -49,7 +50,11 @@
 	]);
 
 	const opOptions = $derived(
-		kind === null ? [] : OPS_OF[kind].map((op) => ({ value: op, label: words.ops[op] }))
+		kind === null
+			? []
+			: [...OPS_OF[kind], ...(OPS_OF[kind].includes(condition.op) ? [] : [condition.op])].map(
+					(op) => ({ value: op, label: words.ops[op] })
+				)
 	);
 
 	function pickField(id: string): void {
@@ -134,7 +139,7 @@
 	}
 
 	function pickDay(at: number, choice: string): void {
-		const day = choice === EXACT ? new Date().toISOString().slice(0, 10) : choice;
+		const day = choice === EXACT ? todayIso() : choice;
 		if (shape === 'two') {
 			const both = [values[0] ?? day, values[1] ?? day] as Value[];
 			both[at] = day;

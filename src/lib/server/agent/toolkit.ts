@@ -36,12 +36,12 @@ import {
 import type { ColorRule, Condition, Op, Total } from '../../core/conditions.ts';
 import {
 	OPS,
-	OPS_OF,
 	RELATIVE_DAYS,
 	TOTALS,
 	arity,
 	daySpan,
 	kindOf,
+	opsFor,
 	totalsFor
 } from '../../core/conditions.ts';
 import { sameValue } from '../../core/entry.ts';
@@ -506,7 +506,7 @@ const CONDITION = z
 		)
 	})
 	.describe(
-		'ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled'
+		'ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled; all but check and image also contains, not-contains, on the text the cell shows'
 	);
 
 const COLOR = z.enum(DATA_COLORS);
@@ -532,8 +532,8 @@ function conditionOf(ws: Workspace, tableId: string, input: z.infer<typeof CONDI
 	if (input.field === null) throw new ToolError(`op "${input.op}" needs a field`);
 	const field = findField(ws, tableId, input.field);
 	const kind = kindOf(field);
-	if (!(OPS_OF[kind] as readonly Op[]).includes(input.op)) {
-		throw new ToolError(`${field.name} takes ${OPS_OF[kind].join(', ')}, not ${input.op}`);
+	if (!opsFor(kind).includes(input.op)) {
+		throw new ToolError(`${field.name} takes ${opsFor(kind).join(', ')}, not ${input.op}`);
 	}
 	const shape = arity(input.op);
 	if (shape === 'none') return { field: field.id, op: input.op };

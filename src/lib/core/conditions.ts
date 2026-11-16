@@ -101,6 +101,14 @@ export const OPS_OF: Record<Kind, readonly Op[]> = {
 	image: ['empty', 'filled']
 };
 
+const ANY_TEXT: Op[] = ['contains', 'not-contains'];
+
+/** What a field takes: its kind's ops, and a search of its text (the column menu's filter) wherever it reads as text. */
+export function opsFor(kind: Kind): readonly Op[] {
+	if (kind === 'check' || kind === 'image') return OPS_OF[kind];
+	return [...OPS_OF[kind], ...ANY_TEXT.filter((op) => !OPS_OF[kind].includes(op))];
+}
+
 /** Whether the op reads a value: one, two (`between`), or a list (`any-of`). */
 export function arity(op: Op): 'none' | 'one' | 'two' | 'list' {
 	if (op === 'empty' || op === 'filled' || op === 'checked' || op === 'unchecked') return 'none';
