@@ -90,24 +90,34 @@ export async function ingestImage(
 		throw new IngestFailed('not-an-image');
 	}
 
-	const id = createHash('sha256').update(body).digest('hex');
+	const ref = storeImage(db, userId, baseId, body, options.limit ?? storageLimit());
+	const name = nameOf(new URL(given));
+	return { ...ref, ...(name === undefined ? {} : { name }), src: given };
+}
+
+/** Whole bytes stored in `baseId` under their sha-256, as an upload's last part is. */
+export function storeImage(
+	db: Database,
+	userId: string,
+	baseId: string,
+	bytes: Buffer,
+	limit: number
+): ImageRef {
+	const id = createHash('sha256').update(bytes).digest('hex');
 	const received = receiveImagePart(
 		db,
-		{ userId, baseId, id, size: body.length, offset: 0, bytes: body },
-		options.limit ?? storageLimit()
+		{ userId, baseId, id, size: bytes.length, offset: 0, bytes },
+		limit
 	);
-	if (received.status === 'refused') {
-		throw new IngestFailed(
-			received.reason === 'full' || received.reason === 'too-many-pixels'
-				? received.reason
-				: 'not-an-image'
-		);
+	if (received.status === 'stored') {
+		return received.ref;
 	}
-	if (received.status !== 'stored') {
-		throw new IngestFailed('network');
-	}
-	const name = nameOf(new URL(given));
-	return { ...received.ref, ...(name === undefined ? {} : { name }), src: given };
+	throw new IngestFailed(
+		received.status === 'refused' &&
+			(received.reason === 'full' || received.reason === 'too-many-pixels')
+			? received.reason
+			: 'not-an-image'
+	);
 }
 
 /** Each distinct URL fetched once, a few at a time; a failure is kept per URL, never thrown. */
