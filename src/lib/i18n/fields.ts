@@ -88,8 +88,8 @@ const en = {
 			: `${count} values can't become ${type} and will be cleared.`,
 	fetchesImages: (count: number) =>
 		count === 1
-			? 'The image of 1 link will be fetched.'
-			: `The images of ${count} links will be fetched.`,
+			? '1 link will be fetched as an image.'
+			: `${count} links will be fetched as images.`,
 	noImagesFetched: (why: string) => `No image could be fetched. ${why}`.trim(),
 	fetchingImages: (count: number) =>
 		count === 1 ? 'Fetching 1 image…' : `Fetching ${count} images…`,
@@ -238,8 +238,8 @@ const fr: typeof en = {
 	allCarryOver: 'Toutes les valeurs sont conservées.',
 	fetchesImages: (count) =>
 		plural('fr', count, {
-			one: 'L’image de # lien sera récupérée.',
-			other: 'Les images de # liens seront récupérées.'
+			one: '# lien sera récupéré en image.',
+			other: '# liens seront récupérés en images.'
 		}),
 	noImagesFetched: (why) => `Aucune image n’a pu être récupérée. ${why}`.trim(),
 	fetchingImages: (count) =>
