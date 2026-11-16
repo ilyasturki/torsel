@@ -9,13 +9,12 @@ const en = {
 	storageFull: 'this account’s image storage is full',
 	partOutOfOrder: 'this part doesn’t follow the last one',
 	unreadable: 'Can’t read this image',
-	notKept: (name: string, why: string) => `${name} wasn’t kept: ${why}`,
+	notKept: (name: string, why: string) => `Couldn’t add ${name}. ${why}`,
 	add: 'Add',
 	addImage: 'Add an image',
 	takePhoto: 'Take a photo',
 	chooseImage: 'Choose an image',
 	remove: (name: string) => `Remove ${name}`,
-	removed: 'Image removed',
 	added: (count: number) => plural('en', count, { one: 'Image added', other: '# images added' }),
 	image: (at: number, of: number) => `Image ${at} of ${of}`,
 	position: (at: number, of: number) => `${at} of ${of}`,
@@ -23,8 +22,7 @@ const en = {
 	next: 'Next image',
 	close: 'Close',
 	missing: 'Image not here yet',
-	more: (count: number) => `+${count}`,
-	dropHere: 'Drop images here'
+	more: (count: number) => `+${count}`
 };
 
 const fr: typeof en = {
@@ -35,13 +33,12 @@ const fr: typeof en = {
 	storageFull: 'l’espace d’images de ce compte est plein',
 	partOutOfOrder: 'cette partie ne suit pas la précédente',
 	unreadable: 'Impossible de lire cette image',
-	notKept: (name, why) => `${name} n’a pas été gardée : ${why}`,
+	notKept: (name, why) => `Impossible d’ajouter ${name}. ${why}`,
 	add: 'Ajouter',
 	addImage: 'Ajouter une image',
 	takePhoto: 'Prendre une photo',
 	chooseImage: 'Choisir une image',
 	remove: (name) => `Retirer ${name}`,
-	removed: 'Image retirée',
 	added: (count) => plural('fr', count, { one: 'Image ajoutée', other: '# images ajoutées' }),
 	image: (at, of) => `Image ${at} sur ${of}`,
 	position: (at, of) => `${at} sur ${of}`,
@@ -49,8 +46,7 @@ const fr: typeof en = {
 	next: 'Image suivante',
 	close: 'Fermer',
 	missing: 'Image pas encore arrivée',
-	more: (count) => `+${count}`,
-	dropHere: 'Dépose les images ici'
+	more: (count) => `+${count}`
 };
 
 export default { en, fr };

@@ -26,9 +26,9 @@ async function sha256(blob: Blob): Promise<string> {
 
 const stem = (name: string): string => name.replace(/\.[^.]+$/u, '') || 'image';
 
-/** A sentence as the tail of another: "Can't read this image." reads "can't read this image". */
-const clause = (text: string): string =>
-	text.charAt(0).toLowerCase() + text.slice(1).replace(/\.$/u, '');
+/** A server's lowercase reason as a sentence of its own. */
+const sentence = (text: string): string =>
+	`${text.charAt(0).toUpperCase()}${text.slice(1).replace(/\.$/u, '')}.`;
 
 /** A file as stored: downscaled, its metadata (a phone's GPS among it) dropped by re-encoding; a GIF stays as is so it still moves. */
 export async function prepareImage(file: File): Promise<{ ref: ImageRef; blob: Blob }> {
@@ -107,7 +107,7 @@ export async function addImages(base: string, files: File[], held: number): Prom
 			refs.push(ref);
 		} catch (error) {
 			if (!(error instanceof ImageProblem)) throw error;
-			showToast(words.notKept(file.name || 'image', clause(error.message)));
+			showToast(words.notKept(file.name || 'image', sentence(error.message)));
 		}
 	}
 	return refs;
@@ -190,7 +190,7 @@ export async function flushOutbox(): Promise<void> {
 			}
 		} catch (error) {
 			if (!(error instanceof ApiError) || !FINAL.has(error.status)) throw error;
-			showToast(words.notKept(ref.name ?? 'image', clause(error.message)));
+			showToast(words.notKept(ref.name ?? 'image', sentence(error.message)));
 		}
 		await sent(db, base, ref.id);
 		flushed = true;
