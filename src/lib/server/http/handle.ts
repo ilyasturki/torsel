@@ -52,14 +52,14 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const FORMS_FROM_ANYWHERE = new Set([TOKEN_PATH, REVOKE_PATH]);
 
 // SvelteKit's own check, off in the kit config, can't spare a path; self is the pinned ORIGIN, as adapter-node calls every request https.
-// A form cannot send an Authorization header, so a request that carries one is no form.
+// A browser attaches cached Basic credentials to a form, never a Bearer token.
 export function crossSiteForm(request: Request, url: URL, pathname: string): boolean {
 	const type = mediaType(request);
 	const form = type === '' || FORM_TYPES.has(type);
 	return (
 		form &&
 		MUTATING.has(request.method) &&
-		!request.headers.has('authorization') &&
+		bearerToken(request) === null &&
 		request.headers.get('origin') !== (siteOrigin(url) ?? url.origin) &&
 		!FORMS_FROM_ANYWHERE.has(pathname)
 	);
