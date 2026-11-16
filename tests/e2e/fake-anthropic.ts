@@ -20,6 +20,9 @@ export type FakeStep = {
 	holdAt?: string;
 };
 
+/** What an empty thread offers, answered apart from the steps when the screen holds the key. */
+export type FakeSuggestion = { text: string; complete: boolean };
+
 /** The thread's title call, answered apart from the steps: by default the message without its key. */
 export type FakeTitle = { title?: string; hold?: boolean; fail?: boolean };
 
@@ -31,6 +34,8 @@ type Script = {
 	title: FakeTitle;
 	titles: Record<string, unknown>[];
 	releaseTitle: (() => void) | null;
+	suggest: FakeSuggestion[];
+	suggests: Record<string, unknown>[];
 };
 
 const scripts = new Map<string, Script>();
@@ -151,8 +156,27 @@ async function stream(step: FakeStep, script: Script, response: ServerResponse):
 }
 
 function isTitleCall(body: Record<string, unknown>): boolean {
-	const config = body.output_config as { format?: unknown } | undefined;
-	return config?.format != null;
+	return String(body.system).startsWith('Name this conversation');
+}
+
+function isSuggestCall(body: Record<string, unknown>): boolean {
+	return String(body.system).startsWith('Suggest what the person');
+}
+
+function answerJson(response: ServerResponse, value: unknown): void {
+	response.setHeader('content-type', 'application/json');
+	response.end(
+		JSON.stringify({
+			id: 'msg_json',
+			type: 'message',
+			role: 'assistant',
+			model: 'fake',
+			content: [{ type: 'text', text: JSON.stringify(value) }],
+			stop_reason: 'end_turn',
+			stop_sequence: null,
+			usage: { input_tokens: 1, output_tokens: 1 }
+		})
+	);
 }
 
 async function answerTitle(
@@ -180,19 +204,7 @@ async function answerTitle(
 	}
 	const asked = /<message>([\s\S]*)<\/message>/u.exec(JSON.stringify(body.messages))?.[1] ?? '';
 	const title = script.title.title ?? asked.replace(key, '').trim();
-	response.setHeader('content-type', 'application/json');
-	response.end(
-		JSON.stringify({
-			id: 'msg_title',
-			type: 'message',
-			role: 'assistant',
-			model: 'fake',
-			content: [{ type: 'text', text: JSON.stringify({ title }) }],
-			stop_reason: 'end_turn',
-			stop_sequence: null,
-			usage: { input_tokens: 1, output_tokens: 1 }
-		})
-	);
+	answerJson(response, { title });
 }
 
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -200,9 +212,10 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 	const key = url.searchParams.get('key') ?? '';
 
 	if (url.pathname === '/__script') {
-		const { steps, title } = JSON.parse(await readBody(request)) as {
+		const { steps, title, suggest } = JSON.parse(await readBody(request)) as {
 			steps: FakeStep[];
 			title?: FakeTitle;
+			suggest?: FakeSuggestion[];
 		};
 		scripts.set(key, {
 			steps,
@@ -211,7 +224,9 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 			release: null,
 			title: title ?? {},
 			titles: [],
-			releaseTitle: null
+			releaseTitle: null,
+			suggest: suggest ?? [],
+			suggests: []
 		});
 		response.end('{}');
 		return;
@@ -224,7 +239,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 			JSON.stringify({
 				requests: script?.requests ?? [],
 				aborted: script?.aborted ?? 0,
-				titles: script?.titles ?? []
+				titles: script?.titles ?? [],
+				suggests: script?.suggests ?? []
 			})
 		);
 		return;
@@ -247,6 +263,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 			messages: unknown[];
 		};
 		const found = scriptFor(body.messages);
+		if (found !== undefined && isSuggestCall(body)) {
+			found[1].suggests.push(body);
+			answerJson(response, { suggestions: found[1].suggest });
+			return;
+		}
 		if (found !== undefined && isTitleCall(body)) {
 			await answerTitle(found[0], found[1], body, response);
 			return;

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ThreadAction, ThreadRow } from './thread.ts';
-import { afterFallback, droppedSeqs, echoable, fitTitle, titleOf, toItems } from './thread.ts';
+import {
+	afterFallback,
+	droppedSeqs,
+	echoable,
+	fitSuggestions,
+	fitTitle,
+	titleOf,
+	toItems
+} from './thread.ts';
 
 function action(id: string, turn = 1): ThreadAction {
 	return { id, turn, summary: id, changes: [], before: [], status: 'applied' };
@@ -146,5 +154,30 @@ describe('fitTitle', () => {
 		expect(fitTitle('every morning, pull my weight from Withings')).toBe(
 			'every morning, pull my weight'
 		);
+	});
+});
+
+describe('fitSuggestions', () => {
+	it('keeps three distinct one-line requests, questions with their mark', () => {
+		expect(
+			fitSuggestions([
+				{ text: '  "Log bench press\n declined."', complete: false },
+				{ text: 'My best set?', complete: true },
+				{ text: 'my best set?', complete: true },
+				{ text: '', complete: true },
+				{ text: 'x'.repeat(81), complete: true },
+				{ text: 'Chart kg by week', complete: true },
+				{ text: 'A fourth one', complete: true }
+			])
+		).toEqual([
+			{ text: 'Log bench press declined', complete: false },
+			{ text: 'My best set?', complete: true },
+			{ text: 'Chart kg by week', complete: true }
+		]);
+	});
+
+	it('answers nothing for anything but a list', () => {
+		expect(fitSuggestions({ text: 'Log' })).toEqual([]);
+		expect(fitSuggestions([7, null, { text: 3 }])).toEqual([]);
 	});
 });

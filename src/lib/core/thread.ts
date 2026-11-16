@@ -222,3 +222,34 @@ export function fitTitle(text: string): string {
 	const space = cut.lastIndexOf(' ');
 	return (space > 0 ? cut.slice(0, space) : line.slice(0, MAX_GIVEN_TITLE)).replace(TRAILING, '');
 }
+
+/** A request offered on an empty thread: a complete one sends as is, the rest wait in the box for the values. */
+export type Suggestion = { text: string; complete: boolean };
+
+export const MAX_SUGGESTIONS = 3;
+
+// Past it a suggestion no longer fits its line in the panel.
+export const MAX_SUGGESTION = 80;
+
+/** The model's suggestions kept to what the panel shows: on one line, distinct, at most three. */
+export function fitSuggestions(value: unknown): Suggestion[] {
+	if (!Array.isArray(value)) return [];
+	const seen = new Set<string>();
+	const out: Suggestion[] = [];
+	for (const item of value) {
+		if (typeof item !== 'object' || item === null) continue;
+		const { text, complete } = item as Record<string, unknown>;
+		if (typeof text !== 'string') continue;
+		const line = text
+			.replace(/\s+/gu, ' ')
+			.trim()
+			.replace(QUOTES, '')
+			.trim()
+			.replace(/[\s.,;:…\-–—]+$/u, '');
+		if (line === '' || line.length > MAX_SUGGESTION || seen.has(line.toLowerCase())) continue;
+		seen.add(line.toLowerCase());
+		out.push({ text: line, complete: complete !== false });
+		if (out.length === MAX_SUGGESTIONS) break;
+	}
+	return out;
+}

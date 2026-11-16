@@ -9,7 +9,9 @@
 		deleteThread,
 		edit,
 		lastPrompt,
+		loadSuggestions,
 		newThread,
+		offer,
 		openThread,
 		redoTurn,
 		renameThread,
@@ -26,7 +28,7 @@
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { me } from '#lib/client/session.svelte.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
-	import type { Attachment, Item, ThreadContext } from '#lib/core/thread.ts';
+	import type { Attachment, Item, Suggestion, ThreadContext } from '#lib/core/thread.ts';
 	import {
 		ATTACHABLE,
 		MAX_CONTEXT_ROWS,
@@ -42,7 +44,7 @@
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Markdown from '#lib/ui/Markdown.svelte';
-	import { fieldFill, fieldFocusWithin } from '#lib/ui/styles.ts';
+	import { fieldFill, fieldFocusWithin, focus, secondary } from '#lib/ui/styles.ts';
 	import Textarea from '#lib/ui/Textarea.svelte';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 
@@ -93,6 +95,20 @@
 	});
 
 	const lastItem = $derived(items.at(-1));
+
+	const offering = $derived(
+		items.length === 0 &&
+			!assistant.busy &&
+			!editing &&
+			screen === 'table' &&
+			assistant.kind !== 'tool'
+	);
+
+	$effect(() => {
+		if (open && offering && me.account && table !== null) {
+			void loadSuggestions(table.id, view?.id ?? null, todayIso());
+		}
+	});
 
 	const uploading = $derived(
 		pending.some((item) => item.file === undefined && item.error === undefined)
@@ -161,6 +177,19 @@
 		} else {
 			void send(message);
 		}
+	}
+
+	function take(suggestion: Suggestion): void {
+		if (suggestion.complete) {
+			prompt = suggestion.text;
+			submit();
+			return;
+		}
+		prompt = `${suggestion.text} `;
+		void tick().then(() => {
+			field?.focus();
+			field?.setSelectionRange(prompt.length, prompt.length);
+		});
 	}
 
 	function startEdit(text: string): void {
@@ -456,6 +485,23 @@
 					</div>
 				{/if}
 			{/each}
+			{#if offering && offer.list.length > 0 && prompt === ''}
+				<ul class="mt-auto flex flex-col gap-1" aria-label={words.suggestions}>
+					{#each offer.list as suggestion (suggestion.text)}
+						<li>
+							<button
+								type="button"
+								class="flex min-h-control w-full items-center gap-2 rounded-box px-2.5 py-1 text-left {secondary} {focus} transition-colors motion"
+								onclick={() => take(suggestion)}
+								><Icon
+									name={suggestion.complete ? 'send' : 'pencil'}
+									class="size-4 shrink-0 text-ink-3"
+								/><span class="min-w-0 flex-1">{suggestion.text}</span></button
+							>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 			{#if assistant.busy}
 				<p class="text-ink-3" role="status" data-testid="step">
 					{(assistant.step === null ? undefined : words.steps[assistant.step]) ?? words.working}

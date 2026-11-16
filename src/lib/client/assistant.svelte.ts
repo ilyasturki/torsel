@@ -13,6 +13,7 @@ import type {
 	ThreadKind,
 	ThreadRow,
 	ThreadSummary,
+	Suggestion,
 	TurnEvent
 } from '../core/thread.ts';
 import { MAX_FILE_BYTES, UPLOAD_PART, droppedSeqs } from '../core/thread.ts';
@@ -49,6 +50,37 @@ export const assistant = $state({
 	// Bumped each time the assistant shows the person another screen.
 	moved: 0
 });
+
+/** What an empty thread offers on the open table, once its answer is in. */
+export const offer = $state({ key: '', list: [] as Suggestion[] });
+
+const offered = new Map<string, Suggestion[]>();
+
+export async function loadSuggestions(
+	table: string,
+	view: string | null,
+	today: string
+): Promise<void> {
+	const key = [table, view, today, app.ws.rows(table).length].join('|');
+	if (offer.key === key) return;
+	offer.key = key;
+	const known = offered.get(key);
+	if (known !== undefined) {
+		offer.list = known;
+		return;
+	}
+	offer.list = [];
+	try {
+		const { suggestions } = await request<{ suggestions: Suggestion[] }>('/api/ai/suggestions', {
+			method: 'POST',
+			body: { table, view, today }
+		});
+		offered.set(key, suggestions);
+		if (offer.key === key) offer.list = suggestions;
+	} catch {
+		// A hint the app can do without: offline or refused, the thread starts blank.
+	}
+}
 
 /** Rows the assistant just wrote, standing out in place for a moment. */
 export const fresh = new SvelteSet<string>();

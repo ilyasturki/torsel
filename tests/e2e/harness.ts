@@ -25,7 +25,7 @@ import { slugify } from '../../src/lib/core/slug.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
 import { createDatabase } from '../../src/lib/server/db/client.ts';
 import { loadWorkspace, writeChanges } from '../../src/lib/server/db/records.ts';
-import type { FakeStep, FakeTitle } from './fake-anthropic.ts';
+import type { FakeStep, FakeSuggestion, FakeTitle } from './fake-anthropic.ts';
 
 export type Account = { email: string; password: string };
 
@@ -232,11 +232,12 @@ export function expireEmailTokens(): void {
 export async function script(
 	request: APIRequestContext,
 	steps: FakeStep[],
-	title?: FakeTitle
+	title?: FakeTitle,
+	suggest?: FakeSuggestion[]
 ): Promise<string> {
 	const key = `script-${randomUUID()}`;
 	const response = await request.post(`${process.env.TORSEL_TEST_FAKE ?? ''}/__script?key=${key}`, {
-		data: { steps, title }
+		data: { steps, title, suggest }
 	});
 	expect(response.ok()).toBe(true);
 	return key;

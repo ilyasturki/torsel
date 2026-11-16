@@ -110,11 +110,15 @@ function fieldLine(ws: Workspace, field: FieldDef): string {
 	return `${field.name} (${field.id}, ${field.type}${extra}${about})`;
 }
 
-function cellText(ws: Workspace, field: FieldDef, value: Value | undefined): Value | undefined {
+export function cellText(
+	ws: Workspace,
+	field: FieldDef,
+	value: Value | undefined
+): Value | undefined {
 	return field.type === 'link' && typeof value === 'string' ? ws.rowTitle(value) : value;
 }
 
-function tableNote(ws: Workspace, context: ThreadContext): string[] | null {
+export function tableNote(ws: Workspace, context: ThreadContext): string[] | null {
 	const table = context.table === null ? undefined : ws.table(context.table);
 	const base = table === undefined ? undefined : ws.base(table.base);
 	if (table === undefined || base === undefined) return null;
