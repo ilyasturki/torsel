@@ -100,8 +100,8 @@ test('the assistant filters a grid and sets a colour rule, both undone from its 
 
 	await expect(thread(page).getByText('Done.')).toBeVisible();
 	const card = thread(page).getByTestId('change');
-	await expect(card).toContainText('Exercise is bench, Kg greater than or equal to 80');
-	await expect(card).toContainText('RPE greater than or equal to 9.5: Red');
+	await expect(card).toContainText('Exercise is bench, Kg is at least 80');
+	await expect(card).toContainText('RPE is at least 9.5: Red');
 
 	await seeTable(page);
 	const grid = page.getByRole('grid');
@@ -299,7 +299,7 @@ test('the header filters the grid by several typed conditions and colours its ro
 	await editor.getByRole('button', { name: 'Add condition' }).click();
 	const second = editor.locator('[data-condition]').nth(1);
 	await pick(second, 'Field', 'Kg');
-	await pick(second, 'Condition', 'greater than');
+	await pick(second, 'Condition', 'is more than');
 	await second.getByRole('textbox', { name: 'Value' }).fill('80');
 	await second.getByRole('textbox', { name: 'Value' }).press('Enter');
 	await expect(page.getByText(/: 1 of 4$/u)).toBeVisible();
@@ -311,7 +311,7 @@ test('the header filters the grid by several typed conditions and colours its ro
 	await editor.getByRole('button', { name: 'Add rule' }).click();
 	const rule = editor.locator('[data-condition]').first();
 	await pick(rule, 'Field', 'RPE');
-	await pick(rule, 'Condition', 'greater than or equal to');
+	await pick(rule, 'Condition', 'is at least');
 	await rule.getByRole('textbox', { name: 'Value' }).fill('9.5');
 	await rule.getByRole('textbox', { name: 'Value' }).press('Enter');
 	await page.keyboard.press('Escape');
@@ -320,6 +320,50 @@ test('the header filters the grid by several typed conditions and colours its ro
 
 	await undo(page);
 	await expect(grid.locator('tr[data-color="red"]')).toHaveCount(0);
+});
+
+test('a custom formula filters by any expression, and a refused one says why', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedSets(context.request);
+	await page.goto(tablePath(table));
+	await expect(page.getByRole('grid').getByRole('gridcell', { name: 'Squat' })).toBeVisible();
+
+	const editor = await openRules(page, 'Filter');
+	await editor.getByRole('button', { name: 'Add condition' }).click();
+	const row = editor.locator('[data-condition]').first();
+	await pick(row, 'Field', 'Custom formula');
+	const formula = row.getByRole('textbox', { name: 'Custom formula' });
+	await formula.fill('nope("Kg")');
+	await formula.press('Enter');
+	await expect(row.getByRole('alert')).toContainText('no such function');
+
+	await formula.fill('"Kg" * "Reps" > 600');
+	await formula.press('Enter');
+	await expect(row.getByRole('alert')).toHaveCount(0);
+	await expect(page.getByText(/: 1 of 4$/u)).toBeVisible();
+});
+
+test('a list shows its filter in the header, where it is cleared', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { list } = await seedLog(context.request);
+	await page.goto(list);
+	await expect(page.getByText('82.5')).toBeVisible();
+	await expect(page.getByText('145')).toHaveCount(0);
+
+	const editor = await openRules(page, 'Filter');
+	await expect(editor.locator('[data-condition]')).toHaveCount(1);
+	await editor.getByRole('button', { name: 'Remove condition' }).click();
+	await expect(editor.locator('[data-condition]')).toHaveCount(0);
+	await page.keyboard.press('Escape');
+	await expect(page.getByText('145')).toBeVisible();
 });
 
 test.describe('in French', () => {
@@ -340,9 +384,7 @@ test.describe('in French', () => {
 		}));
 		await page.goto(tablePath(table));
 		await expect(
-			page.getByText(
-				'Exercise contient «\u00a0ench\u00a0», Kg supérieur ou égal à 80\u00a0: 2 sur 4'
-			)
+			page.getByText('Exercise contient «\u00a0ench\u00a0», Kg vaut au moins 80\u00a0: 2 sur 4')
 		).toBeVisible();
 		const total = page.getByRole('grid').locator('[data-total="Kg"]');
 		await expect(total).toHaveText(/82,5/u);
@@ -352,7 +394,7 @@ test.describe('in French', () => {
 		await editor.getByRole('button', { name: 'Ajouter une règle' }).click();
 		const rule = editor.locator('[data-condition]').first();
 		await pick(rule, 'Champ', 'RPE');
-		await pick(rule, 'Condition', 'supérieur ou égal à');
+		await pick(rule, 'Condition', 'vaut au moins');
 		await rule.getByRole('textbox', { name: 'Valeur' }).fill('9,5');
 		await rule.getByRole('textbox', { name: 'Valeur' }).press('Enter');
 		await page.keyboard.press('Escape');

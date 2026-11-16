@@ -60,7 +60,6 @@ const SAME = new Set([
 	'rules.colorNames.orange',
 	'rules.colorNames.violet',
 	'rules.condition',
-	'rules.conditions',
 	'rules.operator'
 ]);
 

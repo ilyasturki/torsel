@@ -13,6 +13,14 @@
 
 	import ConditionRow from './ConditionRow.svelte';
 
+	function shifted<T>(list: readonly T[], at: number, by: number): T[] {
+		const to = at + by;
+		if (to < 0 || to >= list.length) return [...list];
+		const next = [...list];
+		[next[at], next[to]] = [next[to], next[at]];
+		return next;
+	}
+
 	let {
 		tableId,
 		rules,
@@ -59,6 +67,17 @@
 		list.map((field) => ({ value: field.id, label: field.name }));
 </script>
 
+{#snippet moveUp(at: number)}
+	{#if rules.length > 1}
+		<IconButton
+			icon="arrow-up"
+			label={words.moveUp}
+			class="{at === 0 ? 'invisible' : ''} {'when' in rules[at] ? 'max-sm:mt-2' : ''}"
+			onclick={() => onchange(shifted(rules, at, -1))}
+		/>
+	{/if}
+{/snippet}
+
 {#snippet colorButton(at: number, color: string, scale: boolean)}
 	<button
 		type="button"
@@ -99,6 +118,7 @@
 	{#each rules as rule, at (at)}
 		{#if 'when' in rule}
 			<div class="flex items-start gap-1">
+				{@render moveUp(at)}
 				{@render colorButton(at, rule.color, false)}
 				<div class="min-w-0 flex-1">
 					<ConditionRow
@@ -112,6 +132,7 @@
 			</div>
 		{:else if 'scale' in rule}
 			<div class="flex items-center gap-1">
+				{@render moveUp(at)}
 				{@render colorButton(at, rule.color, true)}
 				<Select
 					class="w-40 max-sm:flex-1"

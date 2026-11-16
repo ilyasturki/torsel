@@ -1,6 +1,5 @@
 import type { Op, RelativeDay, Total } from '../core/conditions.ts';
 import type { DataColor } from '../ui/colors.ts';
-import { plural } from './locale.ts';
 import { area } from './runtime.ts';
 
 const en = {
@@ -10,6 +9,7 @@ const en = {
 	addRule: 'Add rule',
 	removeCondition: 'Remove condition',
 	removeRule: 'Remove rule',
+	moveUp: 'Move up',
 	customFormula: 'Custom formula',
 	matchChoices: 'Match choice colours',
 	scale: 'Colour scale',
@@ -18,7 +18,6 @@ const en = {
 	value: 'Value',
 	from: 'From',
 	to: 'To',
-	anyValue: 'Any value',
 	ops: {
 		empty: 'is empty',
 		filled: 'is not empty',
@@ -28,10 +27,10 @@ const en = {
 		'not-contains': 'does not contain',
 		starts: 'starts with',
 		ends: 'ends with',
-		gt: 'greater than',
-		gte: 'greater than or equal to',
-		lt: 'less than',
-		lte: 'less than or equal to',
+		gt: 'is more than',
+		gte: 'is at least',
+		lt: 'is less than',
+		lte: 'is at most',
 		between: 'is between',
 		'not-between': 'is not between',
 		before: 'is before',
@@ -62,7 +61,7 @@ const en = {
 	noTotal: 'None',
 	calculate: 'Calculate',
 	colorNames: {
-		gray: 'Gray',
+		gray: 'Grey',
 		orange: 'Orange',
 		amber: 'Amber',
 		green: 'Green',
@@ -80,13 +79,10 @@ const en = {
 	choicesOf: (field: string) => `${field}'s choice colours`,
 	scaleOf: (field: string) => `${field} scale`,
 	total: (total: string, field: string) => `${total} of ${field}`,
-	conditions: (count: number) => (count === 1 ? '1 condition' : `${count} conditions`),
-	rules: (count: number) => (count === 1 ? '1 rule' : `${count} rules`),
 	filtersCleared: 'Filters cleared',
 	filtersChanged: 'Filter changed',
 	colorsChanged: 'Colours changed',
-	totalChanged: 'Total changed',
-	shownOf: (shown: number, all: number) => `${shown} of ${all} rows`
+	totalChanged: 'Total changed'
 };
 
 const fr: typeof en = {
@@ -96,6 +92,7 @@ const fr: typeof en = {
 	addRule: 'Ajouter une règle',
 	removeCondition: 'Retirer la condition',
 	removeRule: 'Retirer la règle',
+	moveUp: 'Monter',
 	customFormula: 'Formule personnalisée',
 	matchChoices: 'Couleurs des choix',
 	scale: 'Dégradé',
@@ -104,7 +101,6 @@ const fr: typeof en = {
 	value: 'Valeur',
 	from: 'De',
 	to: 'À',
-	anyValue: 'Toute valeur',
 	ops: {
 		empty: 'est vide',
 		filled: 'n’est pas vide',
@@ -114,10 +110,10 @@ const fr: typeof en = {
 		'not-contains': 'ne contient pas',
 		starts: 'commence par',
 		ends: 'se termine par',
-		gt: 'supérieur à',
-		gte: 'supérieur ou égal à',
-		lt: 'inférieur à',
-		lte: 'inférieur ou égal à',
+		gt: 'est supérieur à',
+		gte: 'vaut au moins',
+		lt: 'est inférieur à',
+		lte: 'vaut au plus',
 		between: 'est entre',
 		'not-between': 'n’est pas entre',
 		before: 'est avant',
@@ -152,7 +148,7 @@ const fr: typeof en = {
 		orange: 'Orange',
 		amber: 'Ambre',
 		green: 'Vert',
-		teal: 'Sarcelle',
+		teal: 'Turquoise',
 		blue: 'Bleu',
 		violet: 'Violet',
 		pink: 'Rose',
@@ -165,13 +161,10 @@ const fr: typeof en = {
 	choicesOf: (field) => `couleurs des choix de ${field}`,
 	scaleOf: (field) => `dégradé sur ${field}`,
 	total: (total, field) => `${total} de ${field}`,
-	conditions: (count) => plural('fr', count, { one: '# condition', other: '# conditions' }),
-	rules: (count) => plural('fr', count, { one: '# règle', other: '# règles' }),
 	filtersCleared: 'Filtres retirés',
 	filtersChanged: 'Filtre modifié',
 	colorsChanged: 'Couleurs modifiées',
-	totalChanged: 'Total modifié',
-	shownOf: (shown, all) => `${shown} sur ${all} lignes`
+	totalChanged: 'Total modifié'
 };
 
 export default { en, fr };
