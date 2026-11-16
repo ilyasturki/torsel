@@ -3,7 +3,7 @@
 	import { formatValue } from '#lib/client/format.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords, insertRows, updateRow } from '#lib/core/actions.ts';
-	import { toDisplay } from '#lib/core/formula.ts';
+	import { namesIn, toDisplay } from '#lib/core/formula.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { freshValue } from '#lib/core/values.ts';
 	import { common } from '#lib/i18n/common.ts';
@@ -219,7 +219,7 @@
 						<span class="truncate">{formatValue(field, computed?.[field.id] ?? null)}</span>
 						{#if field.expr}
 							<span class="ml-auto truncate text-sm text-ink-3"
-								>{toDisplay(field.expr, fields)}</span
+								>{toDisplay(field.expr, namesIn(app.ws, field.base))}</span
 							>
 						{/if}
 					</p>

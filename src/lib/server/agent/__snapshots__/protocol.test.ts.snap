@@ -969,7 +969,7 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "formula": {
-          "description": "for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers. An aggregate needs OVER, such as SUM("Weight") OVER () for the column total on every row.",
+          "description": "for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers. An aggregate needs OVER, such as SUM("Weight") OVER () for the column total on every row. Sheets names work too: IF, IFS, IFERROR, LEFT, RIGHT, MID, LEN, CONCATENATE, TEXTJOIN, SUBSTITUTE, PROPER, FIND, SEARCH, REGEXMATCH, REGEXEXTRACT, REGEXREPLACE, TODAY(), NOW(), YEAR, MONTH, DAY, WEEKDAY, ISOWEEKNUM, DAYS, DATEDIF, EDATE, EOMONTH, NETWORKDAYS, INT, ROUNDUP, ROUNDDOWN, AVERAGE, COUNTA, COUNTUNIQUE, COUNTIF, SUMIF, AVERAGEIF; dates are YYYY-MM-DD text, so DAYS(TODAY(), "Date") counts days where TODAY() - "Date" does not. "Link"."Field" reads a field of the row a link field points to. An aggregate over a table that links here folds its linked rows: SUM("Sets"."Weight" * "Sets"."Reps"), COUNT("Sets"); it needs that table to link here through one field. A name is the row's own field first, then a linking table.",
           "type": "string",
         },
         "grouping": {

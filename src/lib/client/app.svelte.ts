@@ -8,7 +8,7 @@ import { openEngine } from '../core/engine.ts';
 import { latestClock, sameRec } from '../core/merge.ts';
 import type { Change, ChartConfig, FieldDef, Rec } from '../core/model.ts';
 import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
-import { formulaProblem, formulaValues, materializeTable } from '../core/sql.ts';
+import { formulaProblem, formulaTables, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
 import type { Decision, LocalDb } from './local.ts';
 import {
@@ -502,7 +502,9 @@ class TorselApp {
 
 	private built_(tableId: string): MemoryEngine {
 		const engine = this.engine as MemoryEngine;
-		const revision = this.ws.revision(tableId);
+		const revision = Math.max(
+			...[tableId, ...formulaTables(this.ws, tableId)].map((id) => this.ws.revision(id))
+		);
 		if (this.built.get(tableId) !== revision) {
 			this.problems.set(tableId, materializeTable(engine, this.ws, tableId));
 			this.built.set(tableId, revision);
@@ -547,7 +549,7 @@ class TorselApp {
 
 		const engine = this.engine as MemoryEngine;
 		materializeTable(engine, ws, tableId);
-		this.built.delete(tableId);
+		this.built.clear();
 		return computedRows(engine, tableId, formulas);
 	}
 

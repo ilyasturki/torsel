@@ -7,7 +7,7 @@
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { addField, deleteRecords, reorder, shifted, updateRecord } from '#lib/core/actions.ts';
 	import { nameTaken } from '#lib/core/names.ts';
-	import { toDisplay } from '#lib/core/formula.ts';
+	import { namesIn, toDisplay } from '#lib/core/formula.ts';
 	import type {
 		Change,
 		Choice,
@@ -205,7 +205,7 @@
 			type = wanted?.type ?? field?.type ?? 'text';
 			choices = field?.choices.map((choice) => ({ ...choice })) ?? [];
 			target = field?.target ?? '';
-			formula = field?.expr ? toDisplay(field.expr, app.ws.fields(tableId)) : '';
+			formula = field?.expr ? toDisplay(field.expr, namesIn(app.ws, field.base)) : '';
 			description = field?.description ?? '';
 			step = field?.type === 'number' && field.step ? formatNumber(field.step, { edit: true }) : '';
 			decimals = field?.decimals == null ? AUTO : String(field.decimals);

@@ -31,7 +31,14 @@ import {
 	duplicateView
 } from '../../core/duplicate.ts';
 import { sameValue } from '../../core/entry.ts';
-import { BARE_AGGREGATE, FormulaError, toDisplay, toStored } from '../../core/formula.ts';
+import {
+	BARE_AGGREGATE,
+	FormulaError,
+	namesIn,
+	scopeOf,
+	toDisplay,
+	toStored
+} from '../../core/formula.ts';
 import type {
 	Change,
 	Choice,
@@ -210,10 +217,10 @@ function storedFormula(
 	ws: Workspace,
 	tableId: string,
 	formula: string,
-	fields?: FieldDef[]
+	without: string | null = null
 ): string {
 	try {
-		return toStored(formula, fields ?? ws.fields(tableId));
+		return toStored(formula, scopeOf(ws, tableId, without));
 	} catch (error) {
 		// The model reads English.
 		throw new ToolError(
@@ -374,7 +381,7 @@ const FIELD = z.strictObject({
 		.string()
 		.optional()
 		.describe(
-			'for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers. An aggregate needs OVER, such as SUM("Weight") OVER () for the column total on every row.'
+			'for a formula field: an SQLite expression over the fields of the row, names in double quotes, such as "Weight" * (1 + "Reps" / 30.0). Divide by 30.0 rather than 30: SQLite divides integers as integers. An aggregate needs OVER, such as SUM("Weight") OVER () for the column total on every row. Sheets names work too: IF, IFS, IFERROR, LEFT, RIGHT, MID, LEN, CONCATENATE, TEXTJOIN, SUBSTITUTE, PROPER, FIND, SEARCH, REGEXMATCH, REGEXEXTRACT, REGEXREPLACE, TODAY(), NOW(), YEAR, MONTH, DAY, WEEKDAY, ISOWEEKNUM, DAYS, DATEDIF, EDATE, EOMONTH, NETWORKDAYS, INT, ROUNDUP, ROUNDDOWN, AVERAGE, COUNTA, COUNTUNIQUE, COUNTIF, SUMIF, AVERAGEIF; dates are YYYY-MM-DD text, so DAYS(TODAY(), "Date") counts days where TODAY() - "Date" does not. "Link"."Field" reads a field of the row a link field points to. An aggregate over a table that links here folds its linked rows: SUM("Sets"."Weight" * "Sets"."Reps"), COUNT("Sets"); it needs that table to link here through one field. A name is the row\'s own field first, then a linking table.'
 		),
 	description: z.string().optional().describe('one sentence saying what the field holds')
 });
@@ -675,7 +682,7 @@ function describeField(ws: Workspace, field: FieldDef): z.infer<typeof FIELD_OUT
 		field.type === 'link' && field.target !== null ? ws.table(field.target) : undefined;
 	if (target !== undefined) out.target = target.name;
 	if (field.type === 'formula' && field.expr !== null)
-		out.formula = toDisplay(field.expr, ws.fields(field.table));
+		out.formula = toDisplay(field.expr, namesIn(ws, field.base));
 	if (field.description !== null) out.description = field.description;
 
 	return out as z.infer<typeof FIELD_OUT>;
@@ -1070,12 +1077,7 @@ export const TOOLS: Tool[] = [
 			let expr: string | null = null;
 			if (input.formula !== undefined) {
 				if (type !== 'formula') throw new ToolError(`"${field.name}" is not a computed field`);
-				expr = storedFormula(
-					ctx.ws,
-					table.id,
-					input.formula,
-					ctx.ws.fields(table.id).filter((other) => other.id !== field.id)
-				);
+				expr = storedFormula(ctx.ws, table.id, input.formula, field.id);
 				await validateFormula(ctx.ws, table.id, expr);
 				set.expr = expr;
 			}

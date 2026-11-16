@@ -14,6 +14,12 @@ const areas = import.meta.glob<Catalog>(
 
 // French that is the same word as the English, on purpose.
 const SAME = new Set([
+	'fields.suggestions',
+	'fields.args.occurrence',
+	'fields.args.date',
+	'fields.args.type',
+	'fields.args.condition',
+	'fields.args.expression',
 	'names.base',
 	'names.table',
 	'shell.tables',

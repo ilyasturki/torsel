@@ -1,4 +1,5 @@
 import { BARE_AGGREGATE, type FormulaError } from '../core/formula.ts';
+import type { ArgName } from '../core/functions.ts';
 import type { FieldType } from '../core/model.ts';
 import { plural } from './locale.ts';
 import { area } from './runtime.ts';
@@ -93,6 +94,47 @@ const en = {
 	selfReference: (name: string) => `"${name}" depends on itself`,
 	sqliteRefused: (detail: string) => `SQLite refused the formula: ${detail}`,
 	columnTotal: "a column total isn't a row formula",
+	notALink: (name: string) => `"${name}" isn't a link`,
+	needsAggregate: (table: string) => `"${table}" holds several rows: wrap it in SUM, COUNT…`,
+	twoLinks: (table: string, links: string[]) =>
+		`"${table}" links here through ${links.map((link) => `"${link}"`).join(' and ')}: there's no telling which to follow`,
+	twoReadings: (name: string) => `"${name}" is both a field here and a table: rename one`,
+	suggestions: 'Suggestions',
+	args: {
+		value: 'value',
+		text: 'text',
+		count: 'count',
+		start: 'start',
+		length: 'length',
+		search: 'search_for',
+		replacement: 'replace_with',
+		occurrence: 'occurrence',
+		times: 'times',
+		delimiter: 'delimiter',
+		skipEmpty: 'skip_empty',
+		pattern: 'pattern',
+		date: 'date',
+		startDate: 'start_date',
+		endDate: 'end_date',
+		unit: 'unit',
+		months: 'months',
+		type: 'type',
+		places: 'places',
+		number: 'number',
+		divisor: 'divisor',
+		power: 'power',
+		low: 'low',
+		high: 'high',
+		condition: 'condition',
+		ifTrue: 'if_true',
+		ifFalse: 'if_false',
+		fallback: 'if_blank',
+		expression: 'expression',
+		case: 'case',
+		range: 'range',
+		criterion: 'criterion',
+		sumRange: 'sum_range'
+	} satisfies Record<ArgName, string>,
 	formulaOf: (name: string) => `Formula of ${name}`,
 	formulaShort: '"Weight" * "Reps"',
 	fieldList: 'Fields',
@@ -199,6 +241,48 @@ const fr: typeof en = {
 	selfReference: (name) => `« ${name} » dépend de lui-même`,
 	sqliteRefused: (detail) => `SQLite refuse la formule : ${detail}`,
 	columnTotal: 'un total de colonne n’est pas une formule de ligne',
+	notALink: (name) => `« ${name} » n’est pas un lien`,
+	needsAggregate: (table) => `« ${table} » a plusieurs lignes : mets-le dans SUM, COUNT…`,
+	twoLinks: (table, links) =>
+		`« ${table} » est lié ici par ${links.map((link) => `« ${link} »`).join(' et ')} : impossible de savoir lequel suivre`,
+	twoReadings: (name) =>
+		`« ${name} » est à la fois un champ d’ici et une table : renomme l’un des deux`,
+	suggestions: 'Suggestions',
+	args: {
+		value: 'valeur',
+		text: 'texte',
+		count: 'nb',
+		start: 'début',
+		length: 'longueur',
+		search: 'à_chercher',
+		replacement: 'remplacer_par',
+		occurrence: 'occurrence',
+		times: 'fois',
+		delimiter: 'séparateur',
+		skipEmpty: 'ignorer_vides',
+		pattern: 'motif',
+		date: 'date',
+		startDate: 'date_début',
+		endDate: 'date_fin',
+		unit: 'unité',
+		months: 'mois',
+		type: 'type',
+		places: 'décimales',
+		number: 'nombre',
+		divisor: 'diviseur',
+		power: 'puissance',
+		low: 'min',
+		high: 'max',
+		condition: 'condition',
+		ifTrue: 'si_vrai',
+		ifFalse: 'si_faux',
+		fallback: 'si_vide',
+		expression: 'expression',
+		case: 'cas',
+		range: 'plage',
+		criterion: 'critère',
+		sumRange: 'plage_somme'
+	},
 	formulaOf: (name) => `Formule de ${name}`,
 	formulaShort: '"Poids" * "Reps"',
 	fieldList: 'Champs',
@@ -234,5 +318,13 @@ export function formulaProblem(words: typeof en, error: FormulaError): string {
 			return words.emptyFormula;
 		case 'self-reference':
 			return words.selfReference(error.subject);
+		case 'not-a-link':
+			return words.notALink(error.subject);
+		case 'needs-aggregate':
+			return words.needsAggregate(error.subject);
+		case 'two-links':
+			return words.twoLinks(error.subject, error.others);
+		case 'two-readings':
+			return words.twoReadings(error.subject);
 	}
 }

@@ -32,8 +32,8 @@ export type ArgName =
 	| 'low'
 	| 'high'
 	| 'condition'
-	| 'then'
-	| 'otherwise'
+	| 'ifTrue'
+	| 'ifFalse'
 	| 'fallback'
 	| 'expression'
 	| 'case'
@@ -321,7 +321,7 @@ const SCALARS: Scalar[] = [
 	},
 	{
 		name: 'IFS',
-		args: [a('condition'), a('then'), a('condition', { repeats: true })],
+		args: [a('condition'), a('ifTrue'), a('condition', { repeats: true })],
 		run: (args) => {
 			for (let i = 0; i + 1 < args.length; i += 2) {
 				if (truthy(args[i])) return (args[i + 1] ?? null) as Out;
@@ -336,7 +336,7 @@ const SCALARS: Scalar[] = [
 	},
 	{
 		name: 'SWITCH',
-		args: [a('expression'), a('case'), a('then', { repeats: true })],
+		args: [a('expression'), a('case'), a('ifTrue', { repeats: true })],
 		run: ([subject, ...rest]) => {
 			for (let i = 0; i + 1 < rest.length; i += 2) {
 				const wanted = rest[i];
@@ -721,7 +721,7 @@ const AGGREGATES: Aggregate[] = [
 
 /** What SQLite already answers to under the Sheets name, listed for the formula editor. */
 const NATIVE: FormulaFunction[] = [
-	{ name: 'IF', args: [a('condition'), a('then'), a('otherwise')] },
+	{ name: 'IF', args: [a('condition'), a('ifTrue'), a('ifFalse')] },
 	{ name: 'SUM', args: [a('value')] },
 	{ name: 'COUNT', args: [a('value')] },
 	{ name: 'MIN', args: [a('value', { repeats: true })] },

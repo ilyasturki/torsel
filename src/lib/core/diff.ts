@@ -1,5 +1,5 @@
 import type { Hlc } from './clock.ts';
-import { toDisplay } from './formula.ts';
+import { namesIn, toDisplay } from './formula.ts';
 import { latestClock } from './merge.ts';
 import type { Change, Choice, FieldDef, Kind, Rec, SortKey, Value, ViewConfig } from './model.ts';
 import { CREATED, DELETED, sortsOf } from './model.ts';
@@ -139,9 +139,9 @@ function structureLines(
 				});
 			}
 		} else if (key === 'expr') {
-			const fields = ws.fields(change.parent);
+			const names = namesIn(ws, change.base);
 			const shown = (value: Value | undefined): string =>
-				typeof value === 'string' ? toDisplay(value, fields) : '';
+				typeof value === 'string' ? toDisplay(value, names) : '';
 			lines.push({ label: key, before: shown(prior), after: shown(after) });
 		} else if (key === 'target') {
 			const table = (value: Value | undefined): string =>

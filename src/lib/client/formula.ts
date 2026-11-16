@@ -1,4 +1,4 @@
-import { FormulaError, toStored } from '../core/formula.ts';
+import { FormulaError, scopeOf, toStored } from '../core/formula.ts';
 import { formulaProblem, refusalText, fields as words } from '../i18n/fields.ts';
 import { app } from './app.svelte.ts';
 
@@ -15,10 +15,7 @@ export function readFormula(
 	let expr: string;
 	let refused: string | null;
 	try {
-		expr = toStored(
-			text,
-			app.ws.fields(tableId).filter((field) => field.id !== fieldId)
-		);
+		expr = toStored(text, scopeOf(app.ws, tableId, fieldId));
 		refused = app.checkFormula(tableId, expr);
 	} catch (error) {
 		return { problem: problemText(error) };

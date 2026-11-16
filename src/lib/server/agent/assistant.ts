@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
-import { toDisplay } from '../../core/formula.ts';
+import { namesIn, toDisplay } from '../../core/formula.ts';
 import { Hlc } from '../../core/clock.ts';
 import { stampAll } from '../../core/diff.ts';
 import type { FieldDef, Value } from '../../core/model.ts';
@@ -62,7 +62,7 @@ You can do what the person can do by hand from the app: change data, fields, vie
 
 Files they attach come with their message: images and PDFs as themselves, tables and text as text. Follow what they say to do with them; import_file brings a table in whole.
 
-For a computed field, write an SQLite expression over the row's fields, names in double quotes. For a view, pick the type that answers the request: chart for a progression, entry for fast input, list for browsing.
+For a computed field, write an SQLite expression over the row's fields, names in double quotes; Sheets function names work, "Link"."Field" reads through a link, and SUM("Table"."Field") folds the rows of a table linking here. For a view, pick the type that answers the request: chart for a progression, entry for fast input, list for browsing.
 
 Reply in the language the person writes in, never that of their data: an English message gets an English reply even when every table and field is named in French. Write nothing before or between tool calls, never describe your steps or plans, never mention what you left alone, use no lists or tables unless asked, and offer nothing more unless asked. A question gets the answer itself: the number, the date, the name.`;
 
@@ -90,7 +90,7 @@ function fieldLine(ws: Workspace, field: FieldDef): string {
 					: field.type === 'link' && field.target !== null
 						? ` to "${ws.table(field.target)?.name ?? field.target}"`
 						: field.type === 'formula' && field.expr !== null
-							? `: ${toDisplay(field.expr, ws.fields(field.table))}`
+							? `: ${toDisplay(field.expr, namesIn(ws, field.base))}`
 							: '';
 	const about = field.description === null ? '' : `, "${field.description}"`;
 	return `${field.name} (${field.id}, ${field.type}${extra}${about})`;

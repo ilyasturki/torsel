@@ -1,4 +1,5 @@
-import { BARE_AGGREGATE, FormulaError, toSql } from './formula.ts';
+import type { Rollup } from './formula.ts';
+import { BARE_AGGREGATE, FormulaError, rollupsOf } from './formula.ts';
 import type { FieldDef, Rec, Value } from './model.ts';
 import { CREATED, isNumeric } from './model.ts';
 import type { Workspace } from './workspace.ts';
@@ -45,48 +46,120 @@ function stored(fields: FieldDef[]): FieldDef[] {
 	return fields.filter((field) => field.type !== 'formula');
 }
 
-/** Each formula of a table as SQL over its columns, formulas referring to formulas inlined. */
-export function formulaColumns(ws: Workspace, tableId: string): Map<string, string> {
-	const fields = ws.fields(tableId);
-	const byId = new Map(fields.map((field) => [field.id, field]));
-	const done = new Map<string, string>();
-	const visiting = new Set<string>();
+const PAIR = /\{\{([a-z]_[0-9a-z]+)\}\}(?:\.\{\{([a-z]_[0-9a-z]+)\}\})?/gu;
 
-	function expand(field: FieldDef): string {
-		const known = done.get(field.id);
+function alias(depth: number): string {
+	return depth === 0 ? 't' : `x${depth}`;
+}
+
+/** Stored formulas as SQL: a lookup or a rollup becomes a subquery one alias deeper, formulas referring to formulas are inlined. */
+class Compiler {
+	public readonly tables = new Set<string>();
+
+	private readonly memo = new Map<string, string>();
+
+	private readonly visiting = new Set<string>();
+
+	public constructor(private readonly ws: Workspace) {}
+
+	public column(field: FieldDef, depth: number): string {
+		if (field.type !== 'formula') {
+			return `${alias(depth)}.${field.id}`;
+		}
+		const key = `${field.id}@${depth}`;
+		const known = this.memo.get(key);
 		if (known !== undefined) {
 			return known;
 		}
-		if (visiting.has(field.id)) {
+		if (this.visiting.has(field.id)) {
 			throw new FormulaError('self-reference', field.name);
 		}
-
-		visiting.add(field.id);
-		const sql = toSql(field.expr ?? 'NULL', (id) => {
-			const ref = byId.get(id);
-			if (ref === undefined) {
-				return 'NULL';
-			}
-			return ref.type === 'formula' ? `(${expand(ref)})` : `t.${ref.id}`;
-		});
-		visiting.delete(field.id);
-
-		done.set(field.id, sql);
-		return sql;
-	}
-
-	const out = new Map<string, string>();
-	for (const field of fields) {
-		if (field.type === 'formula') {
-			try {
-				out.set(field.id, expand(field));
-			} catch {
-				out.set(field.id, 'NULL');
-			}
+		this.visiting.add(field.id);
+		try {
+			const sql = `(${this.expr(field.table, field.expr ?? 'NULL', depth)})`;
+			this.memo.set(key, sql);
+			return sql;
+		} finally {
+			this.visiting.delete(field.id);
 		}
 	}
 
-	return out;
+	public expr(tableId: string, stored: string, depth: number): string {
+		const found = rollupsOf(stored, (id) => this.ws.table(id) !== undefined);
+		if ('missing' in found) {
+			return 'NULL';
+		}
+		let out = '';
+		let at = 0;
+		for (const rollup of found) {
+			out += this.tokens(tableId, stored.slice(at, rollup.from), depth);
+			out += this.rollup(tableId, stored, rollup, depth);
+			at = rollup.close + 1;
+		}
+		return out + this.tokens(tableId, stored.slice(at), depth);
+	}
+
+	private rollup(tableId: string, stored: string, rollup: Rollup, depth: number): string {
+		const links = this.ws
+			.fields(rollup.table)
+			.filter((field) => field.type === 'link' && field.target === tableId);
+		if (links.length !== 1) {
+			return 'NULL';
+		}
+		this.tables.add(rollup.table);
+		const inner = alias(depth + 1);
+		const args = this.tokens(tableId, stored.slice(rollup.open + 1, rollup.close), depth, {
+			table: rollup.table,
+			depth: depth + 1
+		});
+		return `(select ${rollup.fn}(${args}) from ${rollup.table} ${inner} where ${inner}.${links[0].id} = ${alias(depth)}.id)`;
+	}
+
+	private tokens(
+		tableId: string,
+		text: string,
+		depth: number,
+		child?: { table: string; depth: number }
+	): string {
+		return text.replace(PAIR, (_, first: string, second: string | undefined) => {
+			if (child !== undefined && first === child.table) {
+				if (second === undefined) return `${alias(child.depth)}.id`;
+				const field = this.ws.field(second);
+				return field?.table === child.table ? this.column(field, child.depth) : 'NULL';
+			}
+			const field = this.ws.field(first);
+			if (field === undefined || field.table !== tableId) return 'NULL';
+			if (second === undefined) return this.column(field, depth);
+
+			const target = this.ws.field(second);
+			if (field.type !== 'link' || field.target === null || target?.table !== field.target) {
+				return 'NULL';
+			}
+			this.tables.add(field.target);
+			const inner = alias(depth + 1);
+			return `(select ${this.column(target, depth + 1)} from ${field.target} ${inner} where ${inner}.id = ${alias(depth)}.${field.id})`;
+		});
+	}
+}
+
+/** Each formula of a table as SQL over its columns, and the other tables they read. */
+export function formulaColumns(
+	ws: Workspace,
+	tableId: string
+): { columns: Map<string, string>; tables: Set<string> } {
+	const compiler = new Compiler(ws);
+	const columns = new Map<string, string>();
+	for (const field of ws.fields(tableId)) {
+		if (field.type === 'formula') {
+			try {
+				columns.set(field.id, compiler.column(field, 0).slice(1, -1));
+			} catch {
+				columns.set(field.id, 'NULL');
+			}
+		}
+	}
+	compiler.tables.delete(tableId);
+	return { columns, tables: compiler.tables };
 }
 
 export function insertRowsSql(
@@ -129,14 +202,23 @@ function errorText(error: unknown): string {
 	return message.replace(/^.*?SQLITE_\w+: sqlite3 result code \d+: /u, '');
 }
 
-/** Rebuilds one table and its `v_` view; a formula SQLite refuses evaluates to NULL. */
-export function materializeTable(engine: Engine, ws: Workspace, tableId: string): FormulaProblems {
+const loaded = new WeakMap<Engine, Map<string, { ws: Workspace; revision: number }>>();
+
+/** Copies a table's rows into the engine, unless this workspace's copy at this revision is already there. */
+function loadTable(engine: Engine, ws: Workspace, tableId: string): void {
+	let tables = loaded.get(engine);
+	if (tables === undefined) {
+		tables = new Map();
+		loaded.set(engine, tables);
+	}
+	const revision = ws.revision(tableId);
+	const known = tables.get(tableId);
+	if (known?.ws === ws && known.revision === revision) {
+		return;
+	}
+
 	const fields = ws.fields(tableId);
-	const problems: FormulaProblems = new Map();
-
-	engine.exec(`drop view if exists v_${tableId}`);
 	engine.exec(`drop table if exists ${tableId}`);
-
 	const columns = stored(fields).map((field) => `${field.id} ${affinity(field)}`);
 	engine.exec(
 		`create table ${tableId} (id TEXT PRIMARY KEY, ${quote(CREATED)} REAL${columns.map((column) => `, ${column}`).join('')})`
@@ -150,8 +232,29 @@ export function materializeTable(engine: Engine, ws: Workspace, tableId: string)
 		engine.exec('rollback');
 		throw error;
 	}
+	for (const field of fields) {
+		if (field.type === 'link') {
+			engine.exec(`create index ${tableId}_${field.id} on ${tableId} (${field.id})`);
+		}
+	}
+	tables.set(tableId, { ws, revision });
+}
 
-	const formulas = formulaColumns(ws, tableId);
+/** The tables a table's formulas read besides its own: its SQL copy is stale once one of them moves. */
+export function formulaTables(ws: Workspace, tableId: string): Set<string> {
+	return formulaColumns(ws, tableId).tables;
+}
+
+/** Rebuilds one table, the tables its formulas read, and its `v_` view; a formula SQLite refuses evaluates to NULL. */
+export function materializeTable(engine: Engine, ws: Workspace, tableId: string): FormulaProblems {
+	const problems: FormulaProblems = new Map();
+
+	engine.exec(`drop view if exists v_${tableId}`);
+	const { columns: formulas, tables } = formulaColumns(ws, tableId);
+	for (const id of [tableId, ...tables]) {
+		loadTable(engine, ws, id);
+	}
+
 	for (const [id, sql] of formulas) {
 		try {
 			if (isBareAggregate(engine, tableId, sql)) {
@@ -180,12 +283,14 @@ export function materializeTable(engine: Engine, ws: Workspace, tableId: string)
 	return problems;
 }
 
-function formulaSql(ws: Workspace, tableId: string, stored: string): string {
-	const formulas = formulaColumns(ws, tableId);
-	return toSql(stored, (id) => {
-		const field = ws.field(id);
-		return field?.type === 'formula' ? `(${formulas.get(id) ?? 'NULL'})` : `t.${id}`;
-	});
+/** A stored formula as SQL over `t`, with every table it reads loaded. */
+function formulaSql(engine: Engine, ws: Workspace, tableId: string, stored: string): string {
+	const compiler = new Compiler(ws);
+	const sql = compiler.expr(tableId, stored, 0);
+	for (const id of [tableId, ...compiler.tables]) {
+		loadTable(engine, ws, id);
+	}
+	return sql;
 }
 
 /** What a formula not yet on the table would give each row; empty if SQLite refuses it, a `QueryError` if a bounded engine interrupts it. */
@@ -196,7 +301,7 @@ export function formulaValues(
 	stored: string
 ): Map<string, SqlValue> {
 	try {
-		const sql = formulaSql(ws, tableId, stored);
+		const sql = formulaSql(engine, ws, tableId, stored);
 		const rows = engine.all(`select t.id as id, (${sql}) as v from ${tableId} t`);
 		return new Map(rows.map((row) => [String(row.id), row.v]));
 	} catch (error) {
@@ -214,9 +319,8 @@ export function formulaProblem(
 	tableId: string,
 	stored: string
 ): string | null {
-	const sql = formulaSql(ws, tableId, stored);
-
 	try {
+		const sql = formulaSql(engine, ws, tableId, stored);
 		engine.all(`select (${sql}) as v from ${tableId} t limit 1`);
 		return isBareAggregate(engine, tableId, sql) ? BARE_AGGREGATE : null;
 	} catch (error) {
