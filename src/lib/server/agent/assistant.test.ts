@@ -153,7 +153,9 @@ describe('contextNote', () => {
 			[],
 			false
 		);
-		expect(note).toContain('in whatever language you reply ("Nov 2" stays "Nov 2", never translated)');
+		expect(note).toContain(
+			'in whatever language you reply ("Nov 2" stays "Nov 2", never translated)'
+		);
 		expect(note).toContain("its dates and numbers in their screen's form");
 	});
 
@@ -163,7 +165,12 @@ describe('contextNote', () => {
 		const [title, , rating] = table.fieldIds;
 		const fill = { prompt: `IMDb rating of {{${title}}}`, web: true, auto: true, since: 0 };
 		for (const change of updateRecord(ws, rating, { fill })) ws.stamp(change, hlc.tick());
-		const note = contextNote(ws, at({ screen: 'table', base: base.id, table: table.id }), [], false);
+		const note = contextNote(
+			ws,
+			at({ screen: 'table', base: base.id, table: table.id }),
+			[],
+			false
+		);
 		expect(note).toContain(
 			'filled by AI from "IMDb rating of {Title}" with a web search on new rows'
 		);
