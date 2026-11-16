@@ -85,8 +85,10 @@
 	const options = $derived.by((): Option[] => {
 		if (typing === null || dismissed) return [];
 		if (typing.owner !== undefined) {
-			const owner = scope.fields.find(same(typing.owner)) ?? scope.tables.find(same(typing.owner));
-			const reached = owner === undefined ? undefined : scope.through(owner.id);
+			const owned = same(typing.owner);
+			const reached = [...scope.fields.filter(owned), ...scope.tables.filter(owned)]
+				.map((owner) => scope.through(owner.id))
+				.find((fields) => fields !== undefined);
 			return reached === undefined ? [] : named(typing, reached, typeIcon).slice(0, SHOWN);
 		}
 		const folding = call !== null && AGGREGATE_NAMES.has(call.name);
