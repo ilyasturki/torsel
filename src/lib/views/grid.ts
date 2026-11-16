@@ -48,7 +48,6 @@ export function screenReading(ws: Workspace): Reading {
 
 const noHits: FormulaHits = () => new Map();
 
-/** The rows meeting every filter of the view, in the table's order. */
 export function filteredRows(
 	ws: Workspace,
 	tableId: string,
@@ -145,7 +144,7 @@ export function toHtml(cells: string[][]): string {
 	);
 }
 
-/** Each totalled field's figure over the shown rows, as its column reads; a share checked reads as a percent. */
+/** A share checked reads as a percent; every other total as its column does. */
 export function columnTotals(
 	rows: readonly Rec[],
 	fields: readonly FieldDef[],

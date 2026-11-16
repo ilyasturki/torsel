@@ -31,7 +31,6 @@ export type Op = (typeof OPS)[number];
 
 export type Condition = { field: string | null; op: Op; value?: Value };
 
-/** A day a date condition reads relative to today, or an ISO day. */
 export const RELATIVE_DAYS = [
 	'today',
 	'yesterday',
@@ -109,7 +108,6 @@ export function opsFor(kind: Kind): readonly Op[] {
 	return [...OPS_OF[kind], ...ANY_TEXT.filter((op) => !OPS_OF[kind].includes(op))];
 }
 
-/** Whether the op reads a value: one, two (`between`), or a list (`any-of`). */
 export function arity(op: Op): 'none' | 'one' | 'two' | 'list' {
 	if (op === 'empty' || op === 'filled' || op === 'checked' || op === 'unchecked') return 'none';
 	if (op === 'between' || op === 'not-between') return 'two';
@@ -345,10 +343,9 @@ export function scaleStep(value: number, low: number, high: number): number {
 	return Math.min(SCALE_STEPS, Math.max(1, Math.floor(at * SCALE_STEPS) + 1));
 }
 
-/** `field` is the matched rule's field, for a cell-only paint; `scales` colour single cells under any rule. */
+/** `scales` colour their own cells whatever rule the row matched. */
 export type Paint = {
 	color: string | null;
-	field: string | null;
 	scales: Map<string, { color: string; step: number }>;
 };
 
@@ -361,7 +358,7 @@ export function colorTest(
 	hits: FormulaHits,
 	rows: readonly Rec[]
 ): (row: Rec) => Paint {
-	type Match = (row: Rec) => { color: string; field: string | null } | null;
+	type Match = (row: Rec) => string | null;
 	const matches: Match[] = [];
 	const scales: { field: FieldDef; color: string; low: number; high: number }[] = [];
 	for (const rule of rules) {
@@ -369,15 +366,14 @@ export function colorTest(
 			const test = conditionTest(fields, [rule.when], cells, read, hits);
 			const field = rule.when.field;
 			const valid = rule.when.op === 'formula' || (field !== null && fields.has(field));
-			if (valid) matches.push((row) => (test(row) ? { color: rule.color, field } : null));
+			if (valid) matches.push((row) => (test(row) ? rule.color : null));
 		} else if ('choices' in rule) {
 			const field = fields.get(rule.choices);
 			if (field === undefined) continue;
 			const colors = new Map(field.choices.map((choice) => [choice.name, choice.color]));
 			matches.push((row) => {
 				const first = listOf(cells(row, field))[0];
-				const color = first === undefined ? null : (colors.get(first) ?? null);
-				return color === null ? null : { color, field: field.id };
+				return first === undefined ? null : (colors.get(first) ?? null);
 			});
 		} else {
 			const field = fields.get(rule.scale);
@@ -393,7 +389,7 @@ export function colorTest(
 		}
 	}
 	return (row) => {
-		let found: { color: string; field: string | null } | null = null;
+		let found: string | null = null;
 		for (const match of matches) {
 			found = match(row);
 			if (found !== null) break;
@@ -408,7 +404,7 @@ export function colorTest(
 				});
 			}
 		}
-		return { color: found?.color ?? null, field: found?.field ?? null, scales: painted };
+		return { color: found, scales: painted };
 	};
 }
 

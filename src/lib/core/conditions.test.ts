@@ -193,7 +193,6 @@ describe('colour rules', () => {
 		];
 		const paint = colorTest(fields, rules, cells, read, () => new Map(), movies);
 		expect(movies.map((row) => paint(row).color)).toEqual(['amber', 'red', null]);
-		expect(paint(movies[1]).field).toBe('rating');
 	});
 
 	it('scales a field over the shown rows', () => {

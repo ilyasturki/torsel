@@ -33,7 +33,7 @@ import {
 	duplicateTable,
 	duplicateView
 } from '../../core/duplicate.ts';
-import type { ColorRule, Condition, Op, Total } from '../../core/conditions.ts';
+import type { ColorRule, Condition, Total } from '../../core/conditions.ts';
 import {
 	OPS,
 	RELATIVE_DAYS,

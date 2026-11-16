@@ -56,7 +56,7 @@
 	import CalendarPopover from '#lib/ui/CalendarPopover.svelte';
 	import Drawer from '#lib/ui/Drawer.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
-	import { nextChoice, rowTint, scaleStep, swatch, tag } from '#lib/ui/colors.ts';
+	import { nextChoice, rowTint, scaleStep } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Menu from '#lib/ui/Menu.svelte';
@@ -234,8 +234,8 @@
 
 	const rowIndex = $derived(new Map(rows.map((row, index) => [row.id, index])));
 
-	// Until the pick, a matching row is tinted whole.
-	const PAINT = 'row' as 'row' | 'cell' | 'gutter';
+	// Narrower, a total shows its figure alone; its calculation is in the title.
+	const LABELLED_TOTAL = 120;
 
 	const paintOf = $derived.by((): ((row: Rec) => Paint) | null => {
 		void app.version;
@@ -269,16 +269,12 @@
 		paintOf === null ? null : new Map(rows.map((row) => [row.id, paintOf(row)]))
 	);
 
-	function cellPaint(row: Rec | null, field: FieldDef, first: boolean): string | undefined {
+	function cellPaint(row: Rec | null, field: FieldDef): string | undefined {
 		const paint = row === null ? undefined : paints?.get(row.id);
 		if (paint === undefined) return undefined;
 		const scale = paint.scales.get(field.id);
 		if (scale !== undefined) return scaleStep(scale.color, scale.step);
-		if (paint.color === null) return undefined;
-		if (PAINT === 'row') return rowTint(paint.color);
-		if (PAINT === 'cell' && (paint.field === field.id || (paint.field === null && first)))
-			return tag(paint.color);
-		return undefined;
+		return paint.color === null ? undefined : rowTint(paint.color);
 	}
 	const fieldIndex = $derived(new Map(fields.map((field, index) => [field.id, index])));
 
@@ -517,7 +513,7 @@
 	function reveal(r: number, c: number): void {
 		if (scroller === undefined) return;
 		const y = headHeight + r * rowHeight;
-		const height = scroller.clientHeight;
+		const height = scroller.clientHeight - (totalled ? headHeight : 0);
 		if (y < scroller.scrollTop + headHeight) {
 			scroller.scrollTop = y - headHeight;
 		} else if (y + rowHeight > scroller.scrollTop + height) {
@@ -1833,7 +1829,7 @@
 	{@const isEditing = editing?.row === key && editing.field === field.id}
 	{@const value = row === null ? null : cellValue(row, field, computed)}
 	{@const numeric = (isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
-	{@const painted = cellPaint(row, field, c === 0)}
+	{@const painted = cellPaint(row, field)}
 	<td
 		id={cellId(r, c)}
 		data-r={r}
@@ -2254,11 +2250,8 @@
 								role="rowheader"
 								data-r={r}
 								class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
-								style={PAINT === 'row' && paint?.color ? rowTint(paint.color) : undefined}
+								style={paint?.color ? rowTint(paint.color) : undefined}
 							>
-								{#if PAINT === 'gutter' && paint?.color}
-									<span class="absolute inset-y-0 left-0 w-1" style={swatch(paint.color)}></span>
-								{/if}
 								{#if readOnly}
 									<span
 										class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3"
@@ -2361,6 +2354,9 @@
 										aria-label={total === undefined
 											? `${ruleWords.calculate} ${field.name}`
 											: undefined}
+										title={total === undefined
+											? undefined
+											: ruleWords.total(ruleWords.totals[total], field.name)}
 										onclick={(event) => {
 											totalAnchor = event.currentTarget;
 											totalField = field.id;
@@ -2368,7 +2364,9 @@
 										}}
 									>
 										{#if total !== undefined && figure !== undefined}
-											<span class="truncate">{ruleWords.totals[total]}</span>
+											{#if widths[index] >= LABELLED_TOTAL}<span class="truncate"
+													>{ruleWords.totals[total]}</span
+												>{/if}
 											<span class="font-medium text-ink tabular-nums">{figure}</span>
 										{:else}
 											<span

@@ -14,7 +14,6 @@ function dayText(value: string): string {
 		: value;
 }
 
-/** A condition as a person reads it: "exercise is any of bench press, dips". */
 export function phraseText(phrase: Phrase): string {
 	if (phrase.op === 'formula') return phrase.value[0] ?? '';
 	const typed = ['contains', 'not-contains', 'starts', 'ends'].includes(phrase.op);
