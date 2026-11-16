@@ -241,6 +241,7 @@
 	"src/lib/server/api/openapi.ts\tthe token reads only",
 	"src/lib/server/api/openapi.ts\tthe toolkit refused the call; nothing was written",
 	"src/lib/server/api/openapi.ts\ttoo many requests from this token; wait as Retry-After says",
+	"src/lib/server/api/rows.ts\tImage",
 	"src/lib/server/api/rows.ts\tRow",
 	"src/lib/server/api/v1.ts\tAdd rows",
 	"src/lib/server/api/v1.ts\tChange a row",

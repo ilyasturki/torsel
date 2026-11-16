@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { IMAGE_TYPES, imagesOf } from '../../core/images.ts';
 import type { FieldDef, Rec, Value } from '../../core/model.ts';
 import type { SqlValue } from '../../core/sql.ts';
 import type { Workspace } from '../../core/workspace.ts';
@@ -7,10 +8,22 @@ import { createdAt } from '../../core/workspace.ts';
 import { serially } from '../db/serial.ts';
 import { SqlRefusal, sqlPool } from '../sql/pool.ts';
 
+export const IMAGE = z
+	.strictObject({
+		id: z.string().describe("the image's sha-256; write it back to keep the image"),
+		type: z.enum(IMAGE_TYPES),
+		w: z.number().int().describe('width in pixels'),
+		h: z.number().int().describe('height in pixels'),
+		size: z.number().int().describe('bytes'),
+		name: z.string().optional().describe('the file name it was added with'),
+		src: z.string().optional().describe('the link it was fetched from')
+	})
+	.meta({ id: 'Image' });
+
 export const CELL_OUT = z
-	.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])
+	.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string()), z.array(IMAGE)])
 	.describe(
-		'as written: text; a number (an amount, percent points, seconds for a duration); a YYYY-MM-DD date or YYYY-MM-DDTHH:MM datetime; a boolean for a check; the choice text; an array of choice texts; the id of the linked row; a formula as SQLite computes it; null when empty'
+		'as written: text; a number (an amount, percent points, a score for a rating, seconds for a duration); a YYYY-MM-DD date or YYYY-MM-DDTHH:MM datetime; a boolean for a check; the choice text; an array of choice texts; the id of the linked row; an array of Image for an image field; a formula as SQLite computes it; null when empty'
 	);
 
 export const ROW = z
@@ -25,9 +38,13 @@ export type Row = z.infer<typeof ROW>;
 
 export type Keys = 'name' | 'id';
 
-function cell(value: Value | undefined): Row['fields'][string] {
+function cell(field: FieldDef, value: Value | undefined): Row['fields'][string] {
 	if (value === undefined || value === null) {
 		return null;
+	}
+	if (field.type === 'image') {
+		const refs = imagesOf(value);
+		return refs.length === 0 ? null : refs;
 	}
 	if (Array.isArray(value)) {
 		return value.filter((item) => typeof item === 'string');
@@ -83,7 +100,7 @@ export async function shapeRows(
 			fields[keys === 'id' ? field.id : field.name] =
 				field.type === 'formula'
 					? (computed.get(row.id)?.get(field.id) ?? null)
-					: cell(row.data[field.id]);
+					: cell(field, row.data[field.id]);
 		}
 		return { id: row.id, createdAt: new Date(createdAt(row)).toISOString(), fields };
 	});

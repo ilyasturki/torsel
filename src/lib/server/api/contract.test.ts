@@ -10,6 +10,7 @@ import { createDatabase } from '../db/client.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
 import { execute } from '../agent/mcp.ts';
+import { storeImage } from '../images/ingest.ts';
 import type { Tool } from '../agent/toolkit.ts';
 import { toolNamed } from '../agent/toolkit.ts';
 import { createHandle } from '../http/handle.ts';
@@ -38,6 +39,9 @@ const ROUTES = Object.entries(
 });
 
 const ORIGIN = 'https://torsel.test';
+
+const TINY_PNG =
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 let db: Database;
 let userId: string;
@@ -428,6 +432,94 @@ describe('the REST API', () => {
 		expect((await call('DELETE', `${path}?ids=${ids[0]}`)).status).toBe(422);
 		expect((await call('DELETE', `${path}/${bench}`)).body).toEqual({ deleted: 1 });
 		expect((await call('GET', path)).body.rows).toEqual([]);
+	});
+
+	it('reads and writes every kind of cell as its type says, images as their stored refs', async () => {
+		const setup = { userId, tokenId: 'setup', label: 'Setup', access: 'write' } as const;
+		const tool = (name: string, input: Record<string, unknown>) =>
+			execute(db, setup, toolNamed(name) as Tool, input, 'mcp');
+		expect(
+			(
+				await tool('create_table', {
+					base: 'Money',
+					name: 'Accounts',
+					fields: [{ name: 'Name', type: 'text' }]
+				})
+			).outcome.ok
+		).toBe(true);
+		expect(
+			(
+				await tool('create_table', {
+					base: 'Money',
+					name: 'Receipts',
+					fields: [
+						{ name: 'Shop', type: 'text' },
+						{ name: 'Photo', type: 'image' },
+						{ name: 'Stars', type: 'rating' },
+						{ name: 'Paid', type: 'currency', currency: 'EUR' },
+						{ name: 'Wait', type: 'duration' },
+						{ name: 'Tags', type: 'choices' },
+						{ name: 'On', type: 'date' },
+						{ name: 'Account', type: 'link', target: 'Accounts' }
+					]
+				})
+			).outcome.ok
+		).toBe(true);
+		const accounts = await call('POST', '/api/v1/bases/Money/tables/Accounts/rows', {
+			body: { rows: [{ Name: 'Joint' }] }
+		});
+		const joint = accounts.body.rows[0].id;
+		const baseId = loadWorkspace(db, userId)
+			.bases()
+			.find((base) => base.name === 'Money')!.id;
+		const stored = storeImage(db, userId, baseId, Buffer.from(TINY_PNG, 'base64'), 0);
+
+		const path = '/api/v1/bases/Money/tables/Receipts/rows';
+		const added = await call('POST', path, {
+			body: {
+				rows: [
+					{
+						Shop: 'Bakery',
+						Photo: stored.id,
+						Stars: 4,
+						Paid: 12.5,
+						Wait: '0:01:30',
+						Tags: ['food', 'weekly'],
+						On: '2026-11-16',
+						Account: 'Joint'
+					},
+					{ Shop: 'Kiosk' }
+				]
+			}
+		});
+		expect(added.status).toBe(201);
+		const image = { id: stored.id, type: 'image/png', w: 1, h: 1, size: stored.size };
+		expect(added.body.rows[0].fields).toEqual({
+			Shop: 'Bakery',
+			Photo: [image],
+			Stars: 4,
+			Paid: 12.5,
+			Wait: 90,
+			Tags: ['food', 'weekly'],
+			On: '2026-11-16',
+			Account: joint
+		});
+		expect(added.body.rows[1].fields.Photo).toBeNull();
+
+		const listed = await call('GET', `${path}?fields=Photo`);
+		expect(listed.body.rows[0].fields).toEqual({ Photo: [image] });
+		const kiosk = added.body.rows[1].id;
+		const kept = await call('PATCH', `${path}/${kiosk}`, {
+			body: { Photo: listed.body.rows[0].fields.Photo.map((ref: { id: string }) => ref.id) }
+		});
+		expect(kept.body.fields.Photo).toEqual([image]);
+		const unknown = await call('PATCH', `${path}/${kiosk}`, { body: { Photo: 'f'.repeat(64) } });
+		expect(unknown.status).toBe(422);
+		const fed = await call('GET', '/api/v1/changes?base=Money');
+		expect(
+			fed.body.changes.find((change: { id: string }) => change.id === kiosk).row.fields.Photo
+		).toEqual([image]);
+		expect(doc.components.schemas).toHaveProperty('Image');
 	});
 
 	it('answers 429 with Retry-After past the token budget', async () => {
