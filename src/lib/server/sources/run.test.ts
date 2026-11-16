@@ -254,6 +254,42 @@ describe('a source run', () => {
 		expect(tableOf(made.table).rows.map((row) => row.Title)).toEqual(['Alien', 'Heat']);
 	});
 
+	it('reads the new link when the link changes while it reads', async () => {
+		answers['/movies.csv'] = { body: MOVIES };
+		answers['/films.csv'] = { body: 'id,Title,Rating,Genre\n3,Ran,5,Drama\n' };
+		const made = await createSource(db, userId, spec('/movies.csv'));
+		let reads = 0;
+		const moveFirst: typeof guardedFetch = async (target, options) => {
+			reads += 1;
+			if (reads === 1) await patchSource(db, userId, made.table, { url: `${base}/films.csv` });
+			return guardedFetch(target, options);
+		};
+
+		expect(await runSource(db, userId, made.table, { get: moveFirst })).toMatchObject({
+			ok: true,
+			added: 1
+		});
+		expect(reads).toBe(2);
+		expect(tableOf(made.table).rows.map((row) => row.Title)).toEqual(['Ran']);
+	});
+
+	it('records no failure of a link changed while it read', async () => {
+		answers['/films.csv'] = { body: MOVIES };
+		const made = await createSource(db, userId, spec('/gone.csv'));
+		let reads = 0;
+		const moveFirst: typeof guardedFetch = async (target, options) => {
+			reads += 1;
+			if (reads === 1) await patchSource(db, userId, made.table, { url: `${base}/films.csv` });
+			return guardedFetch(target, options);
+		};
+
+		expect(await runSource(db, userId, made.table, { get: moveFirst })).toMatchObject({
+			ok: true,
+			added: 2
+		});
+		expect(readSource(db, userId, made.table)).toMatchObject({ failures: 0, problem: null });
+	});
+
 	it('refuses to keep rows gone from a source with no key', async () => {
 		await expect(
 			createSource(db, userId, spec('/movies.csv', { key: null, missing: 'keep' }))

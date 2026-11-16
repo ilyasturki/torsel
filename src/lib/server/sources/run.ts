@@ -208,7 +208,7 @@ async function failed(
 	source: Source,
 	error: PullFailed,
 	now: number
-): Promise<RunOutcome> {
+): Promise<RunOutcome | undefined> {
 	const problem = error.problem;
 	const limited = problem === 'limit';
 	const failures = limited ? source.failures : source.failures + 1;
@@ -226,8 +226,8 @@ async function failed(
 	}
 	const shown = limited || (transient && failures < QUIET_FAILURES) ? null : problem;
 
-	await serially(source.userId, async () => {
-		if (!sameLink(readSource(db, source.userId, source.tableId), source)) return;
+	const written = await serially(source.userId, async () => {
+		if (!sameLink(readSource(db, source.userId, source.tableId), source)) return false;
 		const ws = loadWorkspace(db, source.userId, source.baseId);
 		const changes = markChanges(ws, source.tableId, shown, null);
 		if (changes.length > 0) writeChanges(db, CONNECTOR(source.userId), ws, changes);
@@ -237,8 +237,9 @@ async function failed(
 			problem,
 			nextAt
 		});
+		return true;
 	});
-	return { ok: false, problem };
+	return written ? { ok: false, problem } : undefined;
 }
 
 type Get = Parameters<typeof pull>[2];
@@ -260,9 +261,10 @@ export async function runSource(
 		return { ok: false, problem: 'gone' };
 	}
 
+	const again = () => runSource(db, userId, tableId, options);
 	const secret = source.secret === null ? null : open(source.secret, bound(source));
 	if (source.auth !== 'none' && secret === null) {
-		return failed(db, source, new PullFailed('auth'), clock());
+		return (await failed(db, source, new PullFailed('auth'), clock())) ?? again();
 	}
 
 	let pulled: Pulled;
@@ -273,12 +275,8 @@ export async function runSource(
 			options.get
 		);
 	} catch (error) {
-		return failed(
-			db,
-			source,
-			error instanceof PullFailed ? error : new PullFailed('network'),
-			clock()
-		);
+		const pullFailed = error instanceof PullFailed ? error : new PullFailed('network');
+		return (await failed(db, source, pullFailed, clock())) ?? again();
 	}
 
 	const outcome = await serially(userId, async (): Promise<RunOutcome | undefined> => {
@@ -311,5 +309,5 @@ export async function runSource(
 			problem
 		};
 	});
-	return outcome ?? runSource(db, userId, tableId, options);
+	return outcome ?? again();
 }
