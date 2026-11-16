@@ -131,6 +131,17 @@ async function knock(
 }
 
 describe('the MCP endpoint', () => {
+	it('takes a token from the Authorization header only, never the query string', async () => {
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+		const user = await createUser(db, 'me@example.com', 'correct horse');
+		const { token } = issueToken(db, user.id, 'agent', 'api');
+
+		const inQuery = await knock(`/api/mcp?access_token=${token}`, null, db);
+		expect(inQuery.status).toBe(401);
+		expect((await knock('/api/mcp', token, db)).status).toBe(200);
+	});
+
 	it('challenges a request without a valid token', async () => {
 		const db = createDatabase(':memory:');
 		runMigrations(db);

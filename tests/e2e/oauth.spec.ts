@@ -344,14 +344,24 @@ test.describe('the protocol', () => {
 	test('the consent can only be given from this server’s own page', async ({
 		page,
 		context,
+		request: anonymous,
 		account,
 		baseURL
 	}) => {
-		void account;
 		const clientId = await register(context.request);
 		await page.goto(authorizeUrl(baseURL ?? '', clientId, pkce().challenge));
 		await expect(page.getByRole('button', { name: 'Allow' })).toBeVisible();
 		const id = new URL(page.url()).searchParams.get('request') ?? '';
+
+		const device = await anonymous.post('/api/auth/login', {
+			data: { ...account, client: 'device', label: 'Phone' }
+		});
+		const { token } = (await device.json()) as { token: string };
+		const fromDevice = await anonymous.get(`/api/oauth/requests/${id}`, {
+			headers: { authorization: `Bearer ${token}` }
+		});
+		expect(fromDevice.status()).toBe(403);
+
 		const cookie = (await context.cookies())
 			.map(({ name, value }) => `${name}=${value}`)
 			.join('; ');
