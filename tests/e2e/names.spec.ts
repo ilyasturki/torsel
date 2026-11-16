@@ -74,7 +74,7 @@ test("a field's settings refuse a name another field has", async ({ page, contex
 	await columnMenu(page, 'Kg', 'Field settings');
 	const sheet = page.getByRole('dialog', { name: 'Field', exact: true });
 	await sheet.getByRole('textbox').first().fill('exercise');
-	await sheet.getByRole('button', { name: 'Save' }).click();
+	await sheet.getByRole('textbox').first().press('Enter');
 
 	await expect(sheet.getByRole('alert')).toHaveText('A field named "Exercise" already exists.');
 	await page.keyboard.press('Escape');
