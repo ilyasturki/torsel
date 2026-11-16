@@ -841,9 +841,13 @@ describe('image writes', () => {
 			async fromUrl(_, url) {
 				fetched.push(url);
 				if (url.includes('gone')) throw new IngestFailed('status');
+				if (url.includes('busy')) throw new IngestFailed('busy', 30);
 				return ref(url.includes('alien') ? 'b' : 'a', url);
 			},
-			fromFile: (_, name) => (name === 'receipt.jpg' ? { ...ref('c'), name } : null),
+			fromFile(_, name) {
+				if (name === 'notes.pdf') throw new IngestFailed('not-an-image');
+				return name === 'receipt.jpg' ? { ...ref('c'), name } : null;
+			},
 			fromId: (_, id) => (id === 'd'.repeat(64) ? ref('d') : null)
 		};
 		s.ctx.images = images;
@@ -906,6 +910,12 @@ describe('image writes', () => {
 		expect(
 			await s.call('add_rows', { base, table: 'Movies', rows: [{ Poster: 'a poster' }] })
 		).toEqual({ error: expect.stringContaining('"a poster" is not an image') });
+		expect(
+			await s.call('add_rows', { base, table: 'Movies', rows: [{ Poster: 'notes.pdf' }] })
+		).toEqual({
+			error:
+				'rows[0]."Poster": notes.pdf was not stored: it is not a JPEG, PNG, WebP, GIF or AVIF image; nothing was written'
+		});
 		expect(s.actions.length).toBe(before);
 	});
 
@@ -948,5 +958,25 @@ describe('image writes', () => {
 			[ref('b', 'https://img.example/alien.jpg')],
 			null
 		]);
+	});
+
+	it('converts nothing when the fetch budget runs out', async () => {
+		const s = withImages();
+		await s.call('create_table', {
+			name: 'Movies',
+			fields: [{ name: 'Poster', type: 'url' }]
+		});
+		const base = s.ctx.ws.bases()[0].id;
+		await s.call('add_rows', {
+			base,
+			table: 'Movies',
+			rows: [{ Poster: 'https://img.example/busy.jpg' }]
+		});
+
+		expect(
+			await s.call('update_field', { base, table: 'Movies', field: 'Poster', type: 'image' })
+		).toEqual({ error: expect.stringContaining('"Poster" was not converted') });
+		const table = s.ctx.ws.tables(base)[0].id;
+		expect(s.ctx.ws.fields(table)[0].type).toBe('url');
 	});
 });

@@ -66,7 +66,7 @@ import {
 } from '../../core/model.ts';
 import { nameTaken, numberedName, sameName } from '../../core/names.ts';
 import type { ImageRef } from '../../core/images.ts';
-import { MAX_IMAGES, imageRef, imagesValue, isImageId, isImageSource } from '../../core/images.ts';
+import { MAX_IMAGES, imagesValue, isImageId, isImageSource } from '../../core/images.ts';
 import { imageLinksOf, retypeField } from '../../core/retype.ts';
 import { sourceMark } from '../../core/source.ts';
 import type { SqlValue } from '../../core/sql.ts';
@@ -747,16 +747,22 @@ async function storedImages(
 			}
 			const host = imageHostOf(ctx);
 			const items = given.map((item): Item => {
-				const ref = imageRef(item);
-				if (ref !== null) return { at, given: ref.id, ref };
 				if (typeof item !== 'string') {
 					throw new ToolError(
 						`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`
 					);
 				}
 				const text = item.trim();
-				const stored = isImageId(text) ? host.fromId(baseId, text) : null;
-				const attached = stored ?? host.fromFile(baseId, text);
+				let attached: ImageRef | null;
+				try {
+					attached =
+						(isImageId(text) ? host.fromId(baseId, text) : null) ?? host.fromFile(baseId, text);
+				} catch (error) {
+					if (!(error instanceof IngestFailed)) throw error;
+					throw new ToolError(
+						`${at}: ${text} was not stored: ${FETCH_PROBLEMS[error.problem]}; nothing was written`
+					);
+				}
 				if (attached !== null) return { at, given: text, ref: attached };
 				if (!isImageSource(text)) {
 					throw new ToolError(
@@ -781,9 +787,10 @@ async function storedImages(
 			`a call fetches up to ${MAX_FETCHES} image links; split the rest into further calls`
 		);
 	}
-	const host = links.length === 0 ? null : imageHostOf(ctx);
 	const fetched =
-		host === null ? new Map() : await ingestAll(links, (url) => host.fromUrl(baseId, url));
+		links.length === 0
+			? new Map<string, ImageRef | IngestFailed>()
+			: await ingestAll(links, (url) => imageHostOf(ctx).fromUrl(baseId, url));
 
 	const out = rows.map((values) => ({ ...values }));
 	for (const { row, field, items } of wanted) {
@@ -1405,6 +1412,9 @@ export const TOOLS: Tool[] = [
 					fetched = new Map();
 					if (host !== null) {
 						for (const [link, got] of await ingestAll(links, (url) => host.fromUrl(base.id, url))) {
+							if (got instanceof IngestFailed && got.problem === 'busy') {
+								throw new ToolError(`"${field.name}" was not converted: ${FETCH_PROBLEMS.busy}`);
+							}
 							if (!(got instanceof IngestFailed)) fetched.set(link, got);
 						}
 					}
