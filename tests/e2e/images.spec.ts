@@ -19,6 +19,7 @@ import {
 	pick,
 	seed,
 	signIn,
+	tableMenu,
 	tablePath,
 	test
 } from './harness.ts';
@@ -706,11 +707,7 @@ test.describe('image links', () => {
 		const row = await height(posterCell(page, 'Dune'));
 		const head = await height(header);
 
-		await page.getByRole('button', { name: 'More' }).click();
-		await page
-			.getByRole('menuitem', { name: 'View settings' })
-			.or(page.getByRole('dialog').getByRole('button', { name: 'View settings' }))
-			.click();
+		await tableMenu(page, 'View settings');
 		const settings = page.getByRole('dialog', { name: 'View settings' });
 		await pick(settings.getByRole('combobox', { name: 'Row height' }), 'Tall');
 		await page.keyboard.press('Escape');
