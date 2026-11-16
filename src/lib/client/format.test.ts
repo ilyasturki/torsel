@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { createBase, createTable } from '../core/actions.ts';
+import { Hlc } from '../core/clock.ts';
 import { DATE_STYLES } from '../core/model.ts';
-import { localeFormats } from './format.ts';
+import type { Change } from '../core/model.ts';
+import { Workspace } from '../core/workspace.ts';
+import { currencyFor, localeFormats } from './format.ts';
 
 const LOCALES = [
 	'en-US',
@@ -207,6 +211,10 @@ describe('the words for a day', () => {
 		expect(localeFormats('en-US').readDate('today 3:05 pm', NOW)).toBe('2026-11-02T15:05');
 	});
 
+	it('refuses a word that only the object prototype knows', () => {
+		expect(localeFormats('en-US').readDate('constructor', NOW)).toBeNull();
+	});
+
 	it('crosses the end of a month', () => {
 		expect(localeFormats('en-US').readDate('tomorrow', new Date(2026, 11, 31))).toBe('2027-01-01');
 	});
@@ -241,5 +249,42 @@ describe('a currency typed in another one', () => {
 		expect(localeFormats('en-US').currencyName('EUR')).toBe('euros');
 		expect(localeFormats('fr-FR').currencyName('EUR')).toBe('euros');
 		expect(localeFormats('fr-FR').currencyName('USD')).toBe('dollars des États-Unis');
+	});
+});
+
+describe('a new currency field', () => {
+	const hlc = new Hlc('test');
+	const commit = (ws: Workspace, changes: Change[]): void => {
+		for (const change of changes) ws.stamp(change, hlc.tick());
+	};
+	const table = (ws: Workspace, base: string, currencies: string[]): string => {
+		const made = createTable(
+			ws,
+			base,
+			'Spend',
+			[
+				{ name: 'Item', type: 'text' },
+				...currencies.map((currency, at) => ({
+					name: `Price ${at}`,
+					type: 'currency' as const,
+					currency
+				}))
+			],
+			() => []
+		);
+		commit(ws, made.changes);
+		return made.id;
+	};
+
+	it('takes what the table uses most, then the workspace, then the locale', () => {
+		const ws = new Workspace();
+		const base = createBase(ws, 'Money');
+		commit(ws, base.changes);
+		const gbp = table(ws, base.id, ['GBP', 'GBP', 'EUR']);
+		const bare = table(ws, base.id, []);
+		expect(currencyFor(ws, gbp, 'en-US')).toBe('GBP');
+		expect(currencyFor(ws, bare, 'en-US')).toBe('GBP');
+		expect(currencyFor(new Workspace(), bare, 'en-US')).toBe('USD');
+		expect(currencyFor(new Workspace(), bare, 'fr-FR')).toBe('EUR');
 	});
 });

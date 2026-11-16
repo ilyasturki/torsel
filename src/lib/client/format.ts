@@ -35,14 +35,14 @@ export type DateStyle = { withYear?: boolean; look?: DateStyleName | null };
 
 const SPACES = /[\s  ]/gu;
 const ISO_LIKE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/u;
-const DAYS_FROM_TODAY: Record<string, number> = {
-	today: 0,
-	tomorrow: 1,
-	yesterday: -1,
-	aujourdhui: 0,
-	demain: 1,
-	hier: -1
-};
+const DAYS_FROM_TODAY = new Map([
+	['today', 0],
+	['tomorrow', 1],
+	['yesterday', -1],
+	['aujourdhui', 0],
+	['demain', 1],
+	['hier', -1]
+]);
 const TIME = /^(.*?)[\s,]*(\d{1,2})(?:(?::|\s*h\s*|\.)(\d{2}))?\s*(?:([ap])\.?\s?m\.?)?$/iu;
 
 function escaped(text: string): string {
@@ -148,13 +148,11 @@ export function localeFormats(locale?: string) {
 		return value ?? parseAmount(raw);
 	}
 
-	/** True when the text carries another currency's sign or code than `code`. */
 	function otherCurrency(raw: string, code: string): boolean {
 		const rest = withoutOwnSign(raw, code);
 		return /\p{Sc}/u.test(rest) || (currencyIn(rest) ?? code) !== code;
 	}
 
-	/** The currency's name as an amount of it reads, "euros" or "US dollars". */
 	function currencyName(code: string): string {
 		return (
 			numberFormat({ style: 'currency', currency: code, currencyDisplay: 'name' })
@@ -327,7 +325,7 @@ export function localeFormats(locale?: string) {
 	}
 
 	function readDay(text: string, now: Date): string | null {
-		const shift = DAYS_FROM_TODAY[plain(text).replace(/['’]/u, '')];
+		const shift = DAYS_FROM_TODAY.get(plain(text).replace(/['’]/u, ''));
 		if (shift !== undefined) {
 			const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + shift);
 			return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
@@ -629,7 +627,6 @@ const REGION_CURRENCY: Record<string, string> = {
 	AE: 'AED'
 };
 
-/** A new currency field's: what the table's currency fields use most, else the workspace's, else the locale's. */
 export function currencyFor(ws: Workspace, tableId: string, locale?: string): string {
 	const most = (tables: string[]): string | undefined => {
 		const counts = new Map<string, number>();

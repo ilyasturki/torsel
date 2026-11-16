@@ -6,7 +6,13 @@ import { createBase, createTable, defaultViews, insertRows } from '../../src/lib
 import type { Rec } from '../../src/lib/core/model.ts';
 import { columnMenu, expect, seed, tablePath, test, toastButton, undo } from './harness.ts';
 
-type Expenses = { path: string; table: string; item: string; price: string; paid: string };
+type Expenses = {
+	path: string;
+	table: string;
+	price: string;
+	paid: string;
+	bought: string;
+};
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -23,18 +29,19 @@ function seedExpenses(request: APIRequestContext): Promise<Expenses> {
 				{ name: 'Price', type: 'currency', currency: 'EUR' },
 				{ name: 'Share', type: 'percent' },
 				{ name: 'Paid on', type: 'date' },
-				{ name: 'Note', type: 'text' }
+				{ name: 'Note', type: 'text' },
+				{ name: 'Bought at', type: 'datetime' }
 			],
 			() => defaultViews(names.en)
 		);
 		commit(table.changes);
-		const [item, price, share, paid] = table.fieldIds;
+		const [item, price, share, paid, , bought] = table.fieldIds;
 		commit(
 			insertRows(ws, table.id, [
 				{ [item]: 'Coffee', [price]: 34, [share]: 10, [paid]: '2026-11-03' }
 			]).changes
 		);
-		return { path: tablePath(table.id), table: table.id, item, price, paid };
+		return { path: tablePath(table.id), table: table.id, price, paid, bought };
 	});
 }
 
@@ -48,7 +55,6 @@ function at(page: Page, column: number): Locator {
 	return page.locator(`td[data-r="0"][data-c="${column}"]`);
 }
 
-/** Opens a cell's editor: a tap on a phone, Enter on the selected cell on a desktop. */
 async function openEditor(page: Page, column: number): Promise<Locator> {
 	const target = at(page, column);
 	await target.scrollIntoViewIfNeeded();
@@ -61,11 +67,20 @@ async function openEditor(page: Page, column: number): Promise<Locator> {
 	return target.locator('input');
 }
 
-function isoDay(shift: number): string {
-	const day = new Date();
-	day.setDate(day.getDate() + shift);
-	const two = (n: number): string => String(n).padStart(2, '0');
-	return `${day.getFullYear()}-${two(day.getMonth() + 1)}-${two(day.getDate())}`;
+function isoDay(page: Page, shift: number): Promise<string> {
+	return page.evaluate((by) => {
+		const day = new Date();
+		day.setDate(day.getDate() + by);
+		const two = (n: number): string => String(n).padStart(2, '0');
+		return `${day.getFullYear()}-${two(day.getMonth() + 1)}-${two(day.getDate())}`;
+	}, shift);
+}
+
+async function press(page: Page, box: { x: number; y: number; width: number; height: number }) {
+	const x = box.x + box.width / 2;
+	const y = box.y + box.height / 2;
+	if (onPhone()) await page.touchscreen.tap(x, y);
+	else await page.mouse.click(x, y);
 }
 
 test.describe('the discard question', () => {
@@ -84,16 +99,18 @@ test.describe('the discard question', () => {
 
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await sheet.getByLabel('Note').fill('to the bakery');
-		await close.click();
+		const cross = await close.boundingBox();
+		expect(cross).not.toBeNull();
+		await press(page, cross!);
 
 		await expect(question).toBeVisible();
 		await expect(question.getByRole('button', { name: 'Keep editing' })).toBeFocused();
 		const asked = await question.boundingBox();
-		const cross = await close.boundingBox();
-		expect(asked && cross && Math.abs(asked.y - (cross.y + cross.height))).toBeLessThan(24);
+		expect(asked && Math.abs(asked.y - (cross!.y + cross!.height))).toBeLessThan(24);
+		expect(await close.boundingBox()).toEqual(cross);
 		await expect(sheet.getByRole('button', { name: 'Add row' })).toBeVisible();
 
-		await close.click();
+		await press(page, cross!);
 		await expect(sheet).toHaveCount(0);
 
 		await page.getByRole('button', { name: 'Add row' }).click();
@@ -164,6 +181,22 @@ test.describe('a price', () => {
 		expect((await stored(page, table))?.[price]).toBe(34);
 	});
 
+	test('in another currency is named at once in the row sheet', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const { path } = await seedExpenses(context.request);
+		await page.goto(path);
+
+		await page.getByRole('button', { name: 'Add row' }).click();
+		const sheet = page.getByRole('dialog');
+		await sheet.getByLabel('Price').fill('$12');
+		await expect(page.getByRole('status')).toContainText(grid.en.otherCurrency('euros'));
+		await expect(sheet.getByLabel('Price')).toHaveAttribute('aria-invalid', 'true');
+	});
+
 	test('a column made a currency takes the table currency', async ({ page, context, account }) => {
 		void account;
 		const { path } = await seedExpenses(context.request);
@@ -219,14 +252,14 @@ for (const { locale, words } of [
 				await page.keyboard.press('Enter');
 				await expect
 					.poll(async () => (await stored(page, table))?.[paid], word)
-					.toBe(isoDay([1, 0, -1][index]));
+					.toBe(await isoDay(page, [1, 0, -1][index]));
 			}
 		});
 	});
 }
 
-test.describe('the today key', () => {
-	test('Ctrl+; writes today in a selected date cell and in its editor', async ({
+test.describe('the today and now keys', () => {
+	test('Ctrl+; puts today in a selected date cell and in its editor', async ({
 		page,
 		context,
 		account
@@ -234,13 +267,38 @@ test.describe('the today key', () => {
 		void account;
 		const { path, table, paid } = await seedExpenses(context.request);
 		await page.goto(path);
+		const today = await isoDay(page, 0);
 
 		await at(page, 3).click();
 		if (onPhone()) await page.keyboard.press('Escape');
 		await page.keyboard.press('Control+;');
-		await expect.poll(async () => (await stored(page, table))?.[paid]).toBe(isoDay(0));
+		await page.keyboard.press('Enter');
+		await expect.poll(async () => (await stored(page, table))?.[paid]).toBe(today);
 
 		await undo(page);
 		await expect.poll(async () => (await stored(page, table))?.[paid]).toBe('2026-11-03');
+
+		if (onPhone()) return;
+		await at(page, 0).click();
+		const editor = await openEditor(page, 3);
+		await editor.press('Control+;');
+		await editor.press('Enter');
+		await expect.poll(async () => (await stored(page, table))?.[paid]).toBe(today);
+	});
+
+	test('Ctrl+Shift+; puts now in a date and time cell', async ({ page, context, account }) => {
+		void account;
+		const { path, table, bought } = await seedExpenses(context.request);
+		await page.goto(path);
+		const today = await isoDay(page, 0);
+
+		await at(page, 5).scrollIntoViewIfNeeded();
+		await at(page, 5).click();
+		if (onPhone()) await page.keyboard.press('Escape');
+		await page.keyboard.press('Control+Shift+;');
+		await page.keyboard.press('Enter');
+		await expect
+			.poll(async () => String((await stored(page, table))?.[bought]))
+			.toMatch(new RegExp(`^${today}T\\d{2}:\\d{2}$`, 'u'));
 	});
 });

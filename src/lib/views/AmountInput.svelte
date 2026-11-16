@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	import { affixes, bareText, currencyName, otherCurrency, readValue } from '#lib/client/format.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import type { FieldFormat, Value } from '#lib/core/model.ts';
@@ -28,6 +30,10 @@
 	const foreign = $derived(field.type === 'currency' && otherCurrency(text, currencyOf(field)));
 
 	$effect(() => {
+		if (foreign) untrack(() => showToast(words.otherCurrency(currencyName(currencyOf(field)))));
+	});
+
+	$effect(() => {
 		const current = typeof value === 'number' ? value : null;
 		if (!foreign && (readValue(field, text) ?? null) !== current) text = shown(current);
 	});
@@ -49,8 +55,5 @@
 	oninput={(event) => {
 		text = event.currentTarget.value;
 		if (!foreign) value = readValue(field, text) ?? null;
-	}}
-	onblur={() => {
-		if (foreign) showToast(words.otherCurrency(currencyName(currencyOf(field))));
 	}}
 />
