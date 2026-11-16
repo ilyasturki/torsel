@@ -300,12 +300,17 @@ describe('a source run', () => {
 		process.env.TORSEL_SOURCES = '1';
 		try {
 			answers['/movies.csv'] = { body: MOVIES };
-			await createSource(db, userId, spec('/movies.csv'));
+			const first = await createSource(db, userId, spec('/movies.csv'));
 			await expect(
 				createSource(db, userId, spec('/movies.csv', { name: 'Two' }))
 			).rejects.toMatchObject({
 				reason: 'count'
 			});
+			const ws = loadWorkspace(db, userId);
+			writeChanges(db, { user: userId, path: 'device' }, ws, deleteRecords(ws, [first.table]));
+			await expect(
+				createSource(db, userId, spec('/movies.csv', { name: 'Two' }))
+			).resolves.toMatchObject({ base: first.base });
 		} finally {
 			delete process.env.TORSEL_SOURCES;
 		}

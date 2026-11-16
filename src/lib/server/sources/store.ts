@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNotNull, lte, ne } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, lte, ne } from 'drizzle-orm';
 
 import type { Database } from '../db/client.ts';
 import type { Source } from '../db/schema.ts';
@@ -14,8 +14,13 @@ export function readSource(db: Database, userId: string, tableId: string): Sourc
 		.get();
 }
 
-export function countSources(db: Database, userId: string): number {
-	return db.select({ n: count() }).from(sources).where(eq(sources.userId, userId)).get()?.n ?? 0;
+export function sourceTables(db: Database, userId: string): string[] {
+	return db
+		.select({ table: sources.tableId })
+		.from(sources)
+		.where(eq(sources.userId, userId))
+		.all()
+		.map((row) => row.table);
 }
 
 export function insertSource(db: Database, row: Source): void {

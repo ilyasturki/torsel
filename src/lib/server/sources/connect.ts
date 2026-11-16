@@ -19,7 +19,7 @@ import type { Format, Item } from './read.ts';
 import { cellsOf, guessKey, pathName } from './read.ts';
 import { CONNECTOR, bound, nextRun } from './run.ts';
 import { hintOf, seal } from './secrets.ts';
-import { countSources, deleteSource, insertSource, readSource, updateSource } from './store.ts';
+import { deleteSource, insertSource, readSource, sourceTables, updateSource } from './store.ts';
 
 export const SOURCE_TYPES: readonly FieldType[] = FIELD_TYPES.filter(
 	(type) => type !== 'link' && type !== 'formula'
@@ -122,8 +122,10 @@ export async function createSource(
 	}
 
 	return serially(userId, async () => {
-		if (countSources(db, userId) >= sourceLimits().sources) throw new SourceRefused('count');
 		const ws = loadWorkspace(db, userId);
+		// A deleted table's source waits for an undo; it doesn't count against the cap.
+		const live = sourceTables(db, userId).filter((id) => ws.table(id) !== undefined);
+		if (live.length >= sourceLimits().sources) throw new SourceRefused('count');
 		let home: { id: string; changes: Change[] };
 		if (spec.base === null) {
 			home = homeBase(ws, names);
