@@ -74,7 +74,7 @@ const fr: typeof en = {
 						'Session expirée, # modifications attendent ici jusqu’à ce que tu te <signin>reconnectes</signin>'
 				}),
 	syncFailed: 'Échec de la synchro, <retry>réessayer</retry>',
-	syncedRefused: 'Impossible de modifier des données synchronisées',
+	syncedRefused: 'Données synchronisées non modifiables',
 	otherAccount: 'Cet appareil contient les données d’un autre compte, <erase>les effacer</erase>'
 };
 

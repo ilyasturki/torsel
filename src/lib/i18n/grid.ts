@@ -122,8 +122,8 @@ const fr: typeof en = {
 		(kept === 0
 			? ''
 			: plural('fr', kept, {
-					one: ', # cellule synchronisée conservée',
-					other: ', # cellules synchronisées conservées'
+					one: ', # synchronisée conservée',
+					other: ', # synchronisées conservées'
 				})),
 	columnsFitted: 'Colonnes ajustées',
 	filled: (cells) =>
