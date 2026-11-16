@@ -268,7 +268,7 @@
 						})}
 				/>
 			</Field>
-						{#if (config.filters ?? []).length > 0}
+			{#if (config.filters ?? []).length > 0}
 				<div class="flex items-center gap-2">
 					<span class="min-w-0 flex-1 truncate">
 						{(config.filters ?? []).map((item) => conditionText(app.ws, tableId, item)).join(', ')}
