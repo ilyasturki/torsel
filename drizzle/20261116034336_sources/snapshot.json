@@ -1,9 +1,10 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "6d0c703f-02d7-40cd-8f4f-d0855f24a5ca",
+  "id": "12e13fb4-05bf-4720-8d21-c56a0c4c8d5c",
   "prevIds": [
-    "ce2bf238-6202-404c-a0cb-2309fce6abab"
+    "98205dc0-ec7d-44e9-ac02-22726b409121",
+    "afcdbc08-ae37-426f-844e-3a38aa62d6fd"
   ],
   "ddl": [
     {
@@ -16,6 +17,22 @@
     },
     {
       "name": "email_tokens",
+      "entityType": "tables"
+    },
+    {
+      "name": "oauth_clients",
+      "entityType": "tables"
+    },
+    {
+      "name": "oauth_grants",
+      "entityType": "tables"
+    },
+    {
+      "name": "oauth_refresh_tokens",
+      "entityType": "tables"
+    },
+    {
+      "name": "oauth_requests",
       "entityType": "tables"
     },
     {
@@ -172,6 +189,26 @@
     },
     {
       "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "grant_id",
+      "entityType": "columns",
+      "table": "auth_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "resource",
+      "entityType": "columns",
+      "table": "auth_tokens"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -249,6 +286,336 @@
       "name": "used_at",
       "entityType": "columns",
       "table": "email_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "oauth_clients"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "oauth_clients"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "redirect_uris",
+      "entityType": "columns",
+      "table": "oauth_clients"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "oauth_clients"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "used_at",
+      "entityType": "columns",
+      "table": "oauth_clients"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "client_id",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "client_name",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "access",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "resource",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_used_at",
+      "entityType": "columns",
+      "table": "oauth_grants"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_hash",
+      "entityType": "columns",
+      "table": "oauth_refresh_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "grant_id",
+      "entityType": "columns",
+      "table": "oauth_refresh_tokens"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "oauth_refresh_tokens"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "used_at",
+      "entityType": "columns",
+      "table": "oauth_refresh_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "client_id",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "client_name",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "client_host",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "redirect_uri",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "loopback_only",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "state",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code_challenge",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "resource",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "access",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "decided_at",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code_hash",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "used_at",
+      "entityType": "columns",
+      "table": "oauth_requests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "grant_id",
+      "entityType": "columns",
+      "table": "oauth_requests"
     },
     {
       "type": "text",
@@ -774,6 +1141,26 @@
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "named",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source",
+      "entityType": "columns",
+      "table": "threads"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "created_at",
@@ -892,6 +1279,21 @@
     },
     {
       "columns": [
+        "grant_id"
+      ],
+      "tableTo": "oauth_grants",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_auth_tokens_grant_id_oauth_grants_id_fk",
+      "entityType": "fks",
+      "table": "auth_tokens"
+    },
+    {
+      "columns": [
         "user_id"
       ],
       "tableTo": "users",
@@ -904,6 +1306,51 @@
       "name": "fk_email_tokens_user_id_users_id_fk",
       "entityType": "fks",
       "table": "email_tokens"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_oauth_grants_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "oauth_grants"
+    },
+    {
+      "columns": [
+        "grant_id"
+      ],
+      "tableTo": "oauth_grants",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_oauth_refresh_tokens_grant_id_oauth_grants_id_fk",
+      "entityType": "fks",
+      "table": "oauth_refresh_tokens"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_oauth_requests_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "oauth_requests"
     },
     {
       "columns": [
@@ -1045,6 +1492,42 @@
     },
     {
       "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_clients_pk",
+      "entityType": "pks",
+      "table": "oauth_clients"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_grants_pk",
+      "entityType": "pks",
+      "table": "oauth_grants"
+    },
+    {
+      "columns": [
+        "token_hash"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_refresh_tokens_pk",
+      "entityType": "pks",
+      "table": "oauth_refresh_tokens"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_requests_pk",
+      "entityType": "pks",
+      "table": "oauth_requests"
+    },
+    {
+      "columns": [
         "user_id",
         "id"
       ],
@@ -1168,6 +1651,20 @@
     {
       "columns": [
         {
+          "value": "grant_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "auth_tokens_grant_idx",
+      "entityType": "indexes",
+      "table": "auth_tokens"
+    },
+    {
+      "columns": [
+        {
           "value": "user_id",
           "isExpression": false
         }
@@ -1178,6 +1675,34 @@
       "name": "email_tokens_user_idx",
       "entityType": "indexes",
       "table": "email_tokens"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "oauth_grants_user_idx",
+      "entityType": "indexes",
+      "table": "oauth_grants"
+    },
+    {
+      "columns": [
+        {
+          "value": "grant_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "oauth_refresh_tokens_grant_idx",
+      "entityType": "indexes",
+      "table": "oauth_refresh_tokens"
     },
     {
       "columns": [
@@ -1263,6 +1788,24 @@
     },
     {
       "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "source",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "threads_user_source_idx",
+      "entityType": "indexes",
+      "table": "threads"
+    },
+    {
+      "columns": [
         "token_hash"
       ],
       "nameExplicit": false,
@@ -1278,6 +1821,15 @@
       "name": "email_tokens_token_hash_unique",
       "entityType": "uniques",
       "table": "email_tokens"
+    },
+    {
+      "columns": [
+        "code_hash"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_requests_code_hash_unique",
+      "entityType": "uniques",
+      "table": "oauth_requests"
     },
     {
       "columns": [
