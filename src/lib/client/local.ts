@@ -41,7 +41,7 @@ type All = ['records', 'meta', 'images', 'outbox'];
 
 const ALL: All = ['records', 'meta', 'images', 'outbox'];
 
-export async function openLocal(name = 'torsel'): Promise<LocalDb> {
+export async function openLocal(name = 'torsel', blocked?: () => void): Promise<LocalDb> {
 	return openDB<Schema>(name, 2, {
 		// A store this device already has holds records not yet sent: create only what it lacks.
 		upgrade(db, oldVersion) {
@@ -58,7 +58,8 @@ export async function openLocal(name = 'torsel'): Promise<LocalDb> {
 		blocking(_current, _next, event) {
 			(event.target as IDBDatabase).close();
 			window.location.reload();
-		}
+		},
+		blocked
 	});
 }
 

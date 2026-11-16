@@ -117,7 +117,10 @@ class TorselApp {
 			void this.load().then(() => this.follow(data));
 		};
 
-		const db = await openLocal();
+		// A tab still on the old version holds the upgrade back and only answers this.
+		const db = await openLocal(undefined, () =>
+			this.channel?.postMessage('restart' satisfies Written)
+		);
 		this.db = db;
 
 		// Per tab: `merge` takes equal clocks for one write.

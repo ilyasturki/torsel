@@ -1117,7 +1117,7 @@
 	}
 
 	async function pasteImages(row: Rec, field: FieldDef, files: File[]): Promise<void> {
-		const added = await addImages(field.base, files);
+		const added = await addImages(field.base, files, imagesOf(row.data[field.id]).length);
 		if (added.length === 0) return;
 		const kept = imagesOf(app.ws.live(row.id)?.data[field.id]);
 		const label = imageWords.added(added.length);

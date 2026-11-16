@@ -34,7 +34,7 @@
 	async function add(files: File[]): Promise<void> {
 		const shown = files.filter((file) => file.type.startsWith('image/') || file.type === '');
 		if (shown.length === 0) return;
-		const added = await addImages(field.base, shown);
+		const added = await addImages(field.base, shown, images.length);
 		if (added.length > 0) value = imagesValue([...imagesOf(value), ...added]);
 	}
 

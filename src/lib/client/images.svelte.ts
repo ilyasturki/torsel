@@ -1,5 +1,5 @@
 import type { ImageRef, ImageType } from '../core/images.ts';
-import { MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS, isImageType } from '../core/images.ts';
+import { MAX_IMAGES, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS, isImageType } from '../core/images.ts';
 import { UPLOAD_PART } from '../core/thread.ts';
 import { images as words } from '../i18n/images.ts';
 import { ApiError, request, requestBlob } from './api.ts';
@@ -94,12 +94,13 @@ async function local(): Promise<LocalDb> {
 	return db;
 }
 
-/** Each file as an image of `base`, kept here at once and queued for the server; a file that can't be one is told and skipped. */
-export async function addImages(base: string, files: File[]): Promise<ImageRef[]> {
-	const db = await local();
+/** Each file as an image of `base`, kept here at once and queued for the server, up to a cell's room past the `held` it has; a file that can't be one is told and skipped. */
+export async function addImages(base: string, files: File[], held: number): Promise<ImageRef[]> {
 	const refs: ImageRef[] = [];
 	for (const file of files) {
+		if (held + refs.length >= MAX_IMAGES) break;
 		try {
+			const db = await local();
 			const { ref, blob } = await prepareImage(file);
 			await keepImage(db, ref, blob, base);
 			remember(ref.id, blob);
@@ -163,7 +164,7 @@ async function fetchImage(base: string, ref: ImageRef): Promise<string | null> {
 	// The type is the ref's, never the response's: the bytes only ever show as an image.
 	const typed = new Blob([blob], { type: isImageType(ref.type) ? ref.type : 'image/jpeg' });
 	if (db !== undefined) {
-		await keepImage(db, ref, typed);
+		await keepImage(db, ref, typed).catch(() => undefined);
 	}
 	return remember(ref.id, typed);
 }
@@ -171,7 +172,7 @@ async function fetchImage(base: string, ref: ImageRef): Promise<string | null> {
 // Refusals that sending again won't change: the image stays on this device only.
 const FINAL = new Set([400, 413, 415, 422, 507]);
 
-/** Sends every image waiting here, oldest first; stops at the first that can't go for now, leaving it and the rest queued. */
+/** Sends every image waiting here; stops at the first that can't go for now, leaving it and the rest queued. */
 export async function flushOutbox(): Promise<void> {
 	const db = await app.store();
 	if (db === undefined) return;

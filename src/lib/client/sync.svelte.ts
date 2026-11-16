@@ -40,7 +40,7 @@ async function exchange(): Promise<boolean> {
 	let refused = false;
 	// Before the records, so another device seldom gets a ref ahead of its bytes; an image the server can't take yet holds no record back.
 	await flushOutbox().catch((error: unknown) => {
-		if (!(error instanceof ApiError) || error.status === OFFLINE || error.status === 401) {
+		if (error instanceof ApiError && (error.status === OFFLINE || error.status === 401)) {
 			throw error;
 		}
 	});
