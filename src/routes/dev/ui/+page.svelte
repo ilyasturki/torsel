@@ -441,6 +441,15 @@
 							class="flex h-control items-center rounded-box px-2 font-medium"
 							style="background: var(--d-{color}-bg); color: var(--d-{color}-fg)">{color}</span
 						>
+						<span
+							class="flex h-control items-center rounded-box px-2"
+							style="background: var(--d-{color}-tint)">row</span
+						>
+						<span class="flex h-control overflow-hidden rounded-box">
+							{#each [1, 2, 3, 4, 5] as step (step)}
+								<span class="block h-full w-3" style="background: var(--d-{color}-{step})"></span>
+							{/each}
+						</span>
 					</span>
 					<span class="font-mono text-xs text-ink-2">{values[`d-${color}`]}</span>
 				</Specimen>
