@@ -21,7 +21,7 @@
 		fichiers ne contiennent aucune de tes données.
 	</p>
 	<p>
-		Effacer les données du site dans le navigateur supprime ces tables : exporte-les depuis les
+		Effacer les données du site dans le navigateur supprime ces tables : exporte-les depuis les
 		Réglages si tu veux en garder une copie.
 	</p>
 </LegalSection>
@@ -29,7 +29,7 @@
 <LegalSection title="Avec un compte">
 	<p>
 		Un compte ajoute la synchronisation et l’assistant. Le serveur stocke ton adresse e-mail, une
-		empreinte de ton mot de passe si tu en as défini un, et les jetons de session de tes appareils.
+		empreinte de ton mot de passe si tu en as défini un et les jetons de session de tes appareils.
 		Tes tables, champs, vues et lignes sont copiés sur le serveur pour que tes appareils se
 		synchronisent.
 	</p>
@@ -41,9 +41,8 @@
 
 <LegalSection title="L’assistant">
 	<p>
-		L’assistant ne s’exécute que quand tu lui demandes quelque chose. Tes messages, et les données
-		de table qu’il lit pour te répondre, sont envoyés à Anthropic, qui fait tourner le modèle. Selon
-		les
+		L’assistant ne s’exécute que quand tu lui demandes quelque chose. Tes messages et les données de
+		table qu’il lit pour te répondre sont envoyés à Anthropic, qui fait tourner le modèle. Selon les
 		<a class={link} href="https://www.anthropic.com/legal/commercial-terms">
 			conditions commerciales d’Anthropic</a
 		>, ce contenu ne sert pas à entraîner ses modèles. Si tu n’ouvres jamais l’assistant, rien ne
@@ -63,7 +62,7 @@
 
 <LegalSection title="Clients MCP">
 	<p>
-		Un jeton créé dans les Réglages permet au client MCP à qui tu le donnes de lire et d’écrire tes
+		Avec un jeton créé dans les Réglages, le client MCP à qui tu le donnes peut lire et écrire tes
 		données. Ce que ce client en fait se règle entre toi et son éditeur. Tu peux révoquer un jeton
 		dans les Réglages à tout moment.
 	</p>
@@ -80,8 +79,8 @@
 <LegalSection title="Hébergement et journaux">
 	<p>
 		Le serveur est hébergé chez Hetzner, en Allemagne. Le proxy inverse n’écrit aucun journal
-		d’accès. L’app journalise les erreurs pour les diagnostiquer, et compte en mémoire les
-		connexions échouées par adresse IP pour freiner les tentatives sur les mots de passe.
+		d’accès. L’app journalise les erreurs pour les diagnostiquer et compte en mémoire les connexions
+		échouées par adresse IP pour freiner les tentatives sur les mots de passe.
 	</p>
 </LegalSection>
 

@@ -70,9 +70,9 @@ const fr: typeof en = {
 	startOver: 'Recommencer',
 	logoAlt: 'Le logo de Torsel',
 	privacyDescription:
-		'Ce qui reste sur ton appareil quand tu utilises Torsel, ce qui en sort, et qui le reçoit.',
+		'Ce qui reste sur ton appareil quand tu utilises Torsel, ce qui en sort et qui le reçoit.',
 	termsDescription:
-		'Les conditions d’utilisation de Torsel sur torsel.ilyasturki.com, et qui l’édite.',
+		'Les conditions d’utilisation de Torsel sur torsel.ilyasturki.com et qui l’édite.',
 	updated: 'Mis à jour le'
 };
 

@@ -82,7 +82,7 @@ export const EXAMPLES_FR: Example[] = [
 		],
 		prompts: [
 			{
-				text: 'Ajoute la valeur attendue : signé compte en entier, en discussion la moitié, une piste un cinquième.',
+				text: 'Ajoute la valeur attendue : signé compte en entier, en discussion la moitié, une piste un cinquième.',
 				kind: 'formula',
 				name: 'Attendu',
 				expr: `"Valeur" * CASE "Étape" WHEN 'Signé' THEN 1 WHEN 'En discussion' THEN 0.5 WHEN 'Piste' THEN 0.2 ELSE 0 END`,

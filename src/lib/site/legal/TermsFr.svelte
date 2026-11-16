@@ -6,7 +6,7 @@
 </script>
 
 <p class="max-w-prose text-lg text-ink-2">
-	Ces conditions couvrent le service de torsel.ilyasturki.com. Le code est une autre affaire : il
+	Ces conditions couvrent le service de torsel.ilyasturki.com. Le code est une autre affaire : il
 	est
 	<a class={link} href={REPOSITORY}>open source sous licence MIT</a>, et tu peux faire tourner ton
 	propre serveur sous cette seule licence.
@@ -57,11 +57,11 @@
 
 <LegalSection title="Qui édite Torsel">
 	<p>
-		{LEGAL_NAME}, {LEGAL_REGISTRATION}, France. Directeur de la publication : Ilyas Turki. Contact :
+		{LEGAL_NAME}, {LEGAL_REGISTRATION}, France. Directeur de la publication : Ilyas Turki. Contact :
 		<a class={link} href="mailto:{CONTACT}">{CONTACT}</a>.
 	</p>
 	<p>
-		Hébergeur : Hetzner Online GmbH, Industriestraße 25, 91710 Gunzenhausen, Allemagne,
+		Hébergeur : Hetzner Online GmbH, Industriestraße 25, 91710 Gunzenhausen, Allemagne,
 		<a class={link} href="https://www.hetzner.com">hetzner.com</a>.
 	</p>
 	<p>Ces conditions sont régies par le droit français.</p>
