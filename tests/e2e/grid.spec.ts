@@ -276,7 +276,8 @@ test.describe('cells', () => {
 		void account;
 		await open(page, (await seedEveryType(context.request)).path);
 
-		for (const col of [0, 1, 2]) {
+		// A phone edits the date in a drawer.
+		for (const col of isPhone() ? [0, 1] : [0, 1, 2]) {
 			const cell = at(page, 0, col);
 			const closed = await cell.boundingBox();
 			if (isPhone()) await cell.tap();
@@ -1046,26 +1047,9 @@ test.describe('phone', () => {
 		const date = at(page, 0, 2);
 		await date.scrollIntoViewIfNeeded();
 		await date.tap();
-		await expect(date.locator('input')).toHaveAttribute('type', 'date');
-		await date.locator('input').press('Escape');
-	});
-
-	test('one tap on a date opens the picker', async ({ page, context, account }) => {
-		void account;
-		await page.addInitScript(() => {
-			const counted = window as unknown as { pickers: number };
-			counted.pickers = 0;
-			HTMLInputElement.prototype.showPicker = function () {
-				counted.pickers += 1;
-			};
-		});
-		await open(page, (await seedEveryType(context.request)).path);
-
-		const date = at(page, 0, 2);
-		await date.scrollIntoViewIfNeeded();
-		await date.tap();
-		await expect(date.locator('input')).toHaveAttribute('type', 'date');
-		expect(await page.evaluate(() => (window as unknown as { pickers: number }).pickers)).toBe(1);
+		await expect(page.getByRole('dialog', { name: 'Date' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog', { name: 'Date' })).toHaveCount(0);
 	});
 
 	test('Enter in a number moves down the column with the same keyboard', async ({

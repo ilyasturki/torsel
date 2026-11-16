@@ -22,6 +22,8 @@ test('the design system shows every section, stays out of search, and fits the s
 		'select',
 		'menu',
 		'dialog',
+		'drawer',
+		'calendar',
 		'textarea',
 		'grid',
 		'entry',

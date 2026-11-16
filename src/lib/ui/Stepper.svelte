@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { HTMLInputAttributes } from 'svelte/elements';
+
 	import { ui as words } from '#lib/i18n/ui.ts';
 
 	import Icon from './Icon.svelte';
@@ -8,22 +10,37 @@
 		label,
 		text,
 		size = 'md',
+		full = false,
+		id,
+		placeholder,
+		inputmode = 'decimal',
+		invalid = false,
 		oninput,
-		onstep
+		onstep,
+		onkeydown,
+		onblur
 	}: {
 		label: string;
 		text: string;
 		size?: 'xs' | 'sm' | 'md' | 'lg';
+		/** The width of its row instead of a fixed one, at `xs`. */
+		full?: boolean;
+		id?: string;
+		placeholder?: string;
+		inputmode?: HTMLInputAttributes['inputmode'];
+		invalid?: boolean;
 		oninput: (text: string) => void;
 		onstep: (direction: 1 | -1) => void;
+		onkeydown?: (event: KeyboardEvent) => void;
+		onblur?: () => void;
 	} = $props();
 
-	const sizes = {
-		xs: 'h-control w-36 font-medium',
+	const sizes = $derived({
+		xs: `h-control font-medium ${full ? 'w-full' : 'w-36'}`,
 		sm: 'h-16 text-xl',
 		md: 'h-20 text-hero',
 		lg: 'h-28 text-hero-lg'
-	};
+	});
 	const sides = { xs: 'w-control', sm: 'w-11', md: 'w-18', lg: 'w-18' };
 	const side = $derived(
 		`motion flex ${sides[size]} shrink-0 items-center justify-center rounded-box text-ink transition-colors hover:bg-tint-2`
@@ -43,14 +60,20 @@
 			>
 		{/if}
 		<input
-			class="w-full min-w-0 bg-transparent text-center leading-none tighter text-ink outline-none {size ===
+			class="w-full min-w-0 bg-transparent text-center leading-none tighter text-ink outline-none placeholder:text-ink-3 {size ===
 			'xs'
 				? ''
 				: 'pt-3 font-semibold'}"
-			inputmode="decimal"
+			{id}
+			{inputmode}
+			{placeholder}
+			autocomplete="off"
 			aria-label={label}
+			aria-invalid={invalid || undefined}
 			value={text}
 			oninput={(event) => oninput(event.currentTarget.value)}
+			{onkeydown}
+			{onblur}
 		/>
 	</label>
 	<button type="button" class={side} aria-label={words.plus(label)} onclick={() => onstep(1)}>

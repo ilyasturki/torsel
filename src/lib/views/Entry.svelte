@@ -8,7 +8,7 @@
 	import type { PlanLine } from '#lib/core/entry.ts';
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
-	import { nativeDateText, nowIso, parseDate, todayIso } from '#lib/core/values.ts';
+	import { nowIso, todayIso } from '#lib/core/values.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import Rich from '#lib/i18n/Rich.svelte';
 	import { table as tableWords } from '#lib/i18n/table.ts';
@@ -18,10 +18,11 @@
 	import Icon from '#lib/ui/Icon.svelte';
 	import { roomy } from '#lib/ui/media.svelte.ts';
 	import Stepper from '#lib/ui/Stepper.svelte';
-	import { focus, input } from '#lib/ui/styles.ts';
+	import { focus } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
 	import EntryKey from './EntryKey.svelte';
+	import DateInput from './DateInput.svelte';
 	import FieldInput from './FieldInput.svelte';
 	import RowSheet from './RowSheet.svelte';
 
@@ -527,17 +528,20 @@
 				{/each}
 
 				{#if dateField !== undefined}
-					<label class="flex items-center gap-3">
-						<span class="w-24 shrink-0 truncate text-ink-2">{dateField.name}</span>
-						<input
-							class="{input} min-w-0 flex-1"
-							type={dateField.type === 'datetime' ? 'datetime-local' : 'date'}
-							value={nativeDateText(dateField, values[dateField.id] ?? stamp(dateField))}
-							oninput={(event) => {
-								if (dateField) values[dateField.id] = parseDate(event.currentTarget.value);
-							}}
-						/>
-					</label>
+					{@const day = dateField}
+					<div class="flex items-center gap-3">
+						<label for="entry-{day.id}" class="w-24 shrink-0 truncate text-ink-2">{day.name}</label>
+						<div class="min-w-0 flex-1">
+							<DateInput
+								id="entry-{day.id}"
+								field={day}
+								label={day.name}
+								bind:value={
+									() => values[day.id] ?? stamp(day), (next) => (values[day.id] = next ?? null)
+								}
+							/>
+						</div>
+					</div>
 				{/if}
 
 				<div class="flex-1 max-lg:hidden"></div>

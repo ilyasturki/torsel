@@ -99,16 +99,6 @@ export function freshValue(field: Pick<FieldFormat, 'type'>, now: Date = new Dat
 	return field.type === 'datetime' ? nowIso(now) : null;
 }
 
-export function nativeDateText(field: Pick<FieldFormat, 'type'>, value: unknown): string {
-	if (typeof value !== 'string') {
-		return '';
-	}
-	if (field.type === 'date') {
-		return value.slice(0, 10);
-	}
-	return value.length === 10 ? `${value}T00:00` : value;
-}
-
 export const CURRENCIES = [
 	'EUR',
 	'USD',

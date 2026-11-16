@@ -5,7 +5,7 @@
 	import type { ImageRef } from '#lib/core/images.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { isContact, isNumeric } from '#lib/core/model.ts';
-	import { nativeDateText, parseDate, ratingScale } from '#lib/core/values.ts';
+	import { ratingScale } from '#lib/core/values.ts';
 	import { fields as words } from '#lib/i18n/fields.ts';
 	import ChipPicker from '#lib/ui/ChipPicker.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
@@ -16,7 +16,10 @@
 
 	import AmountInput from './AmountInput.svelte';
 	import ContactInput from './ContactInput.svelte';
+	import DateInput from './DateInput.svelte';
+	import DurationInput from './DurationInput.svelte';
 	import ImageInput from './ImageInput.svelte';
+	import { insertStamp } from './stamp.ts';
 
 	let {
 		field,
@@ -61,21 +64,12 @@
 		value={typeof value === 'number' ? value : null}
 		onchange={(next) => (value = next)}
 	/>
+{:else if field.type === 'duration'}
+	<DurationInput {id} {field} label={field.name} bind:value />
 {:else if isNumeric(field.type)}
-	<AmountInput
-		{id}
-		{field}
-		bind:value
-		placeholder={field.type === 'duration' ? undefined : field.name}
-	/>
+	<AmountInput {id} {field} bind:value placeholder={field.name} />
 {:else if field.type === 'date' || field.type === 'datetime'}
-	<input
-		{id}
-		class={input}
-		type={field.type === 'datetime' ? 'datetime-local' : 'date'}
-		value={nativeDateText(field, value)}
-		oninput={(event) => (value = parseDate(event.currentTarget.value))}
-	/>
+	<DateInput {id} {field} label={field.name} bind:value />
 {:else if field.type === 'choice'}
 	<Select
 		{id}
@@ -134,6 +128,7 @@
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) =>
 			(value = event.currentTarget.value === '' ? null : event.currentTarget.value)}
+		onkeydown={(event) => insertStamp(event, field)}
 	/>
 {:else if isContact(field.type)}
 	<ContactInput
@@ -150,5 +145,6 @@
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) =>
 			(value = event.currentTarget.value === '' ? null : event.currentTarget.value)}
+		onkeydown={(event) => insertStamp(event, field)}
 	/>
 {/if}

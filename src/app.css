@@ -328,6 +328,16 @@
 	animation: enter var(--mid) var(--ease);
 }
 
+@keyframes rise {
+	from {
+		translate: 0 100%;
+	}
+}
+
+@utility rise {
+	animation: rise var(--slow) var(--ease);
+}
+
 @utility translate-x-ask-out {
 	translate: calc(100% + 40px) 0;
 }

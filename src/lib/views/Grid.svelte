@@ -42,20 +42,15 @@
 	import { imagesOf, imagesValue } from '#lib/core/images.ts';
 	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import {
-		currencyOf,
-		freshValue,
-		nativeDateText,
-		nowIso,
-		ratingScale,
-		todayIso
-	} from '#lib/core/values.ts';
+	import { currencyOf, freshValue, ratingScale } from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
 	import { images as imageWords } from '#lib/i18n/images.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import { names } from '#lib/i18n/names.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import CalendarPopover from '#lib/ui/CalendarPopover.svelte';
+	import Drawer from '#lib/ui/Drawer.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -66,6 +61,9 @@
 
 	import AddField from './AddField.svelte';
 	import CellValue from './CellValue.svelte';
+	import DatePanel from './DatePanel.svelte';
+	import { dayPicked, durationStep } from './dates.ts';
+	import DurationInput from './DurationInput.svelte';
 	import FieldSheet from './FieldSheet.svelte';
 	import type { Box } from './fill.ts';
 	import { fillChanges, fillTarget } from './fill.ts';
@@ -93,6 +91,7 @@
 	import GridPicker from './GridPicker.svelte';
 	import GridRowMenu from './GridRowMenu.svelte';
 	import RowSheet from './RowSheet.svelte';
+	import { stampOf, stampText } from './stamp.ts';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
 
@@ -130,7 +129,10 @@
 	let editing = $state.raw<Editing | null>(null);
 	let draft = $state('');
 	let seed = $state('');
-	let nativeDate = $state<'date' | 'datetime-local' | null>(null);
+	// On touch a date or a duration is edited in a drawer, not in the cell.
+	let drawer = $state<'date' | 'duration' | null>(null);
+	let drawerValue = $state<Value>(null);
+	let editorBox = $state<HTMLElement>();
 
 	let rowOpen = $state(false);
 	let rowId = $state<string | null>(null);
@@ -598,6 +600,12 @@
 		settle(target, value, down, across, leaving);
 	}
 
+	function keepDuration(target: Editing): void {
+		const before =
+			target.row === BLANK ? null : (app.ws.live(target.row)?.data[target.field] ?? null);
+		settle(target, before === drawerValue ? undefined : drawerValue, 0, 0, false);
+	}
+
 	function cancelEdit(): void {
 		editing = null;
 		table?.focus({ preventScroll: true });
@@ -627,9 +635,8 @@
 		}
 	}
 
-	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
+	function initialDraft(field: FieldDef, row: Rec | undefined): string {
 		const value = row === undefined ? freshValue(field) : row.data[field.id];
-		if (native) return nativeDateText(field, value);
 		return typeof value === 'number' && affixed(field)
 			? bareText(field, value)
 			: editText(field, value);
@@ -671,12 +678,20 @@
 			toggleCheck(key, field);
 			return;
 		}
-		const native = touch && isDated(field.type);
-		const initial = initialDraft(field, row, native);
+		const initial = initialDraft(field, row);
+		const drawn =
+			touch && typed === undefined
+				? isDated(field.type)
+					? 'date'
+					: field.type === 'duration'
+						? 'duration'
+						: null
+				: null;
 		flushSync(() => {
 			// Typed over a range, the range stays for Ctrl+Enter to fill.
 			if (typed === undefined || !isRange) anchor = head;
-			nativeDate = native ? (field.type === 'datetime' ? 'datetime-local' : 'date') : null;
+			drawer = drawn;
+			drawerValue = row === undefined ? freshValue(field) : (row.data[field.id] ?? null);
 			seed = typed ?? '';
 			draft = typed ?? initial;
 			editing = {
@@ -839,27 +854,6 @@
 		}
 	}
 
-	/** Ctrl+; puts in today, Ctrl+Shift+; the time as well, as in a spreadsheet. */
-	function stampOf(event: KeyboardEvent): 'date' | 'time' | null {
-		if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
-		if (event.key === ';') return event.shiftKey ? 'time' : 'date';
-		// AZERTY puts ; on the Comma key, where Shift types a period.
-		const shifted = event.key === ':' || (event.key === '.' && event.code === 'Comma');
-		return shifted && event.shiftKey ? 'time' : null;
-	}
-
-	function stampText(field: FieldDef | undefined, time: boolean): string | null {
-		if (field === undefined) return null;
-		if (field.type === 'date') return editText(field, todayIso());
-		if (field.type === 'datetime') return editText(field, nowIso());
-		if (field.type === 'text' || field.type === 'longtext') {
-			return time
-				? formatValue({ type: 'datetime' }, nowIso())
-				: formatValue({ type: 'date' }, todayIso());
-		}
-		return null;
-	}
-
 	/** Ctrl+Enter: what is typed goes into every cell of the range, as one paste. */
 	function fillDraft(): void {
 		const target = editing;
@@ -902,6 +896,16 @@
 		} else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
 			event.preventDefault();
 			fillDraft();
+		} else if (
+			(event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+			editing !== null &&
+			app.ws.field(editing.field)?.type === 'duration'
+		) {
+			event.preventDefault();
+			const field = app.ws.field(editing.field);
+			if (field === undefined) return;
+			const current = cellReader(app.ws)(field, draft);
+			draft = editText(field, durationStep(current, event.key === 'ArrowUp' ? 1 : -1));
 		} else if (stampOf(event) !== null && editing !== null) {
 			const field = app.ws.field(editing.field);
 			const text = field === undefined ? null : stampText(field, stampOf(event) === 'time');
@@ -1781,9 +1785,12 @@
 					bind:value={draft}
 					onkeydown={ondraftkeydown}
 					onblur={() => commitDraft({ leaving: true })}></textarea>
+			{:else if drawer !== null}
+				<div class="absolute inset-0 z-1 ring-2 ring-accent ring-inset" aria-hidden="true"></div>
 			{:else}
-				{@const marks = nativeDate === null && affixed(field) ? affixes(field) : null}
+				{@const marks = affixed(field) ? affixes(field) : null}
 				<div
+					bind:this={editorBox}
 					class="absolute inset-y-0 -right-px left-0 z-1 flex h-full items-center bg-raised ring-2 ring-accent ring-inset"
 				>
 					{#if marks?.prefix}
@@ -1792,22 +1799,13 @@
 					<input
 						{@attach (node: HTMLInputElement) => {
 							node.focus();
-							if (node.type === 'text')
-								node.setSelectionRange(node.value.length, node.value.length);
-							if (node.type === 'date' || node.type === 'datetime-local') {
-								try {
-									node.showPicker();
-								} catch {
-									// No user activation or no `showPicker`: a second tap still opens it.
-								}
-							}
+							node.setSelectionRange(node.value.length, node.value.length);
 						}}
 						class="h-full min-w-0 flex-1 bg-transparent px-3 outline-none {numeric
 							? 'text-right'
 							: ''} {marks?.prefix ? 'pl-1' : ''} {marks?.suffix ? 'pr-1' : ''}"
 						aria-label={field.name}
 						placeholder={field.name}
-						type={nativeDate ?? 'text'}
 						inputmode={numeric && field.type !== 'duration' ? 'decimal' : undefined}
 						enterkeyhint="done"
 						autocomplete="off"
@@ -1819,6 +1817,17 @@
 						<span class="shrink-0 pr-3 text-ink-3" aria-hidden="true">{marks.suffix}</span>
 					{/if}
 				</div>
+				{#if isDated(field.type) && editorBox}
+					{@const target = editing}
+					{@const typed = cellReader(app.ws)(field, draft)}
+					<CalendarPopover
+						anchor={editorBox}
+						value={typeof typed === 'string' ? typed : typeof value === 'string' ? value : null}
+						onpick={(day) => {
+							if (editing === target) settle(target, dayPicked(field, value, day), 0, 0, false);
+						}}
+					/>
+				{/if}
 			{/if}
 		{/if}
 		{#if r === bottom && c === right && row !== null && editing === null && filling === null}
@@ -2285,6 +2294,42 @@
 			table?.focus({ preventScroll: true });
 		}}
 	/>
+{/if}
+{#if editing !== null && drawer !== null}
+	{@const target = editing}
+	{@const field = app.ws.field(target.field)}
+	{#if field !== undefined}
+		<Drawer
+			open={true}
+			title={field.name}
+			onclose={() => {
+				if (editing !== target) return;
+				if (drawer === 'duration') keepDuration(target);
+				else cancelEdit();
+			}}
+		>
+			{#if drawer === 'date'}
+				<DatePanel
+					{field}
+					label={field.name}
+					value={drawerValue}
+					onchoose={(next) => {
+						if (editing === target) settle(target, next, 0, 0, false);
+					}}
+				/>
+			{:else}
+				<DurationInput
+					{field}
+					label={field.name}
+					size="sm"
+					bind:value={drawerValue}
+					onenter={() => {
+						if (editing === target) keepDuration(target);
+					}}
+				/>
+			{/if}
+		</Drawer>
+	{/if}
 {/if}
 <RowSheet bind:open={rowOpen} {tableId} {rowId} order={rows.map((row) => row.id)} />
 <FieldSheet

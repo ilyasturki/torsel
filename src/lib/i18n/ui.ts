@@ -16,7 +16,12 @@ const en = {
 	rating: (value: number, max: number) => `${value} out of ${max}`,
 	minus: (label: string) => `${label} minus`,
 	plus: (label: string) => `${label} plus`,
-	tally: (done: number, total: number) => `${done} of ${total}`
+	tally: (done: number, total: number) => `${done} of ${total}`,
+	yesterday: 'Yesterday',
+	today: 'Today',
+	tomorrow: 'Tomorrow',
+	previousMonth: 'Previous month',
+	nextMonth: 'Next month'
 };
 
 const fr: typeof en = {
@@ -35,7 +40,12 @@ const fr: typeof en = {
 	rating: (value, max) => `${value} sur ${max}`,
 	minus: (label) => `Diminuer ${label}`,
 	plus: (label) => `Augmenter ${label}`,
-	tally: (done, total) => `${done} sur ${total}`
+	tally: (done, total) => `${done} sur ${total}`,
+	yesterday: 'Hier',
+	today: 'Aujourd’hui',
+	tomorrow: 'Demain',
+	previousMonth: 'Mois précédent',
+	nextMonth: 'Mois suivant'
 };
 
 export default { en, fr };

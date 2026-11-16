@@ -16,8 +16,10 @@
 	import CodeInput from '#lib/ui/CodeInput.svelte';
 	import { DATA_COLORS } from '#lib/ui/colors.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
+	import Calendar from '#lib/ui/Calendar.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import Lightbox from '#lib/ui/Lightbox.svelte';
+	import Drawer from '#lib/ui/Drawer.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import { FIELD_ICON_TYPES, fieldIcon } from '#lib/ui/field-icons.ts';
@@ -188,6 +190,8 @@
 		{ src: sketch(600, 338, '#24486b', 'Still'), alt: 'A 16:9 still', w: 600, h: 338 },
 		{ src: null, alt: 'Not here yet', w: 342, h: 513 }
 	];
+	let drawerOpen = $state(false);
+	let day = $state<string | null>('2026-11-03');
 	let dirtyName = $state('');
 	let rowOpen = $state(false);
 	let newRowOpen = $state(false);
@@ -851,6 +855,30 @@
 					{/each}
 				</div>
 				<Lightbox bind:open={lightboxOpen} bind:at={lightboxAt} items={pictures} label="Poster" />
+			</Specimen>
+		</Section>
+
+		<Section name="Drawer" from="ui/Drawer.svelte">
+			<Specimen label="a phone's bottom drawer: drag the handle down, tap the backdrop or Escape">
+				<Button onclick={() => (drawerOpen = true)}>Open a drawer</Button>
+				<Drawer bind:open={drawerOpen} title="Paid on">
+					<Calendar
+						large
+						value={day}
+						onpick={(picked) => {
+							day = picked;
+							drawerOpen = false;
+						}}
+					/>
+				</Drawer>
+			</Specimen>
+		</Section>
+
+		<Section name="Calendar" from="ui/Calendar.svelte, ui/CalendarPopover.svelte">
+			<Specimen label="a popover under the typed date from sm, in a drawer below">
+				<div class="w-72">
+					<Calendar value={day} onpick={(picked) => (day = picked)} />
+				</div>
 			</Specimen>
 		</Section>
 
