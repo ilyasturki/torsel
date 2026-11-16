@@ -3,9 +3,10 @@
 	import { editText, readValue } from '#lib/client/format.ts';
 	import type { Condition, Op } from '#lib/core/conditions.ts';
 	import { OPS_OF, RELATIVE_DAYS, arity, kindOf } from '#lib/core/conditions.ts';
-	import { namesIn, scopeOf, toDisplay, toStored } from '#lib/core/formula.ts';
+	import { FormulaError, namesIn, scopeOf, toDisplay, toStored } from '#lib/core/formula.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { todayIso } from '#lib/core/values.ts';
+	import { fields as fieldWords, formulaProblem, refusalText } from '#lib/i18n/fields.ts';
 	import { rules as words } from '#lib/i18n/rules.ts';
 	import ChipPicker from '#lib/ui/ChipPicker.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
@@ -98,7 +99,8 @@
 		let value: Value = text;
 		if (kind === 'number' && field !== undefined) {
 			const read = readValue(field, text);
-			value = typeof read === 'number' ? read : text.trim() === '' ? '' : text;
+			if (typeof read !== 'number' && text.trim() !== '') return;
+			value = typeof read === 'number' ? read : '';
 		}
 		if (shape === 'two') {
 			const both = [values[0] ?? '', values[1] ?? ''] as Value[];
@@ -168,13 +170,19 @@
 		}
 	});
 
+	let problem = $state('');
+
 	function settleFormula(): void {
 		let stored: string;
 		try {
 			stored = toStored(formula, scopeOf(app.ws, tableId));
-		} catch {
+		} catch (error) {
+			problem = error instanceof FormulaError ? formulaProblem(fieldWords, error) : String(error);
 			return;
 		}
+		const refused = app.checkFormula(tableId, stored);
+		problem = refused === null ? '' : refusalText(fieldWords, refused);
+		if (refused !== null) return;
 		if (stored !== shownFormula) {
 			shownFormula = stored;
 			setValue(stored);
@@ -209,6 +217,7 @@
 			<div class="min-w-0 flex-1">
 				<FormulaInput
 					bind:value={formula}
+					{problem}
 					{tableId}
 					fieldId={null}
 					label={words.customFormula}

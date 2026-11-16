@@ -336,6 +336,20 @@ async function validateFormula(ws: Workspace, tableId: string, stored: string): 
 	}
 }
 
+async function validateConditions(
+	ws: Workspace,
+	tableId: string,
+	config: ViewConfig
+): Promise<void> {
+	const conditions = [
+		...(config.filters ?? []),
+		...(config.colors ?? []).flatMap((rule) => ('when' in rule ? [rule.when] : []))
+	];
+	for (const condition of conditions) {
+		if (condition.op === 'formula') await validateFormula(ws, tableId, String(condition.value));
+	}
+}
+
 const BASE = z.string().describe('name or id of the base');
 const TABLE = z.string().describe('name or id of the table');
 const CELL = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())], {
@@ -1643,7 +1657,7 @@ export const TOOLS: Tool[] = [
 			config: VIEW_CONFIG
 		}),
 		output: ID,
-		run: (
+		run: async (
 			ctx,
 			input: {
 				base: string;
@@ -1656,11 +1670,9 @@ export const TOOLS: Tool[] = [
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			const name = givenName(input.name, 'view');
-			const made = createView(ctx.ws, table.id, {
-				name,
-				type: input.type,
-				config: viewConfig(ctx.ws, table.id, input.config)
-			});
+			const config = viewConfig(ctx.ws, table.id, input.config);
+			await validateConditions(ctx.ws, table.id, config);
+			const made = createView(ctx.ws, table.id, { name, type: input.type, config });
 			ctx.commit({
 				summary: words.newView(name, table.name),
 				changes: made.changes
@@ -1849,7 +1861,7 @@ export const TOOLS: Tool[] = [
 		kind: 'write',
 		destructive: true,
 		idempotent: true,
-		run: (
+		run: async (
 			ctx,
 			input: {
 				base: string;
@@ -1865,7 +1877,9 @@ export const TOOLS: Tool[] = [
 			const set: Record<string, Value> = {};
 			if (input.name !== undefined) set.name = givenName(input.name, 'view');
 			if (input.config !== undefined) {
-				set.config = { ...view.config, ...viewConfig(ctx.ws, table.id, input.config) } as Value;
+				const config = viewConfig(ctx.ws, table.id, input.config);
+				await validateConditions(ctx.ws, table.id, config);
+				set.config = { ...view.config, ...config } as Value;
 			}
 			ctx.commit({
 				summary: words.changeView(view.name, table.name),

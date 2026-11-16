@@ -465,6 +465,16 @@ describe('assistant tools', () => {
 		expect(await refused({ filters: [{ field: 'Date', op: 'is', value: 'last week' }] })).toEqual({
 			error: expect.stringMatching(/YYYY-MM-DD or one of today/u)
 		});
+		expect(
+			await refused({
+				filters: [{ field: null, op: 'formula', value: '"Weight" > AVG("Weight")' }]
+			})
+		).toEqual({ error: expect.stringMatching(/column total/u) });
+		expect(
+			await refused({
+				colors: [{ when: { field: null, op: 'formula', value: 'nope("Weight")' }, color: 'red' }]
+			})
+		).toEqual({ error: expect.stringMatching(/no such function/u) });
 		expect(await refused({ totals: { Exercise: 'sum' } })).toEqual({
 			error: expect.stringMatching(/Exercise totals as count, not sum/u)
 		});
