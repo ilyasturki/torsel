@@ -6,6 +6,7 @@ import { runMigrations } from '#lib/server/db/migrate.ts';
 import { createHandle } from '#lib/server/http/handle.ts';
 import { handleLocale } from '#lib/server/http/locale.ts';
 import { startImageSweep } from '#lib/server/images/sweep.ts';
+import { loadDenyList } from '#lib/server/net/guard.ts';
 import { startScheduler } from '#lib/server/sources/schedule.ts';
 import { loadSecretsKey } from '#lib/server/sources/secrets.ts';
 
@@ -14,6 +15,7 @@ import { loadSecretsKey } from '#lib/server/sources/secrets.ts';
 if (!building) {
 	runMigrations(getDatabase());
 	loadSecretsKey();
+	loadDenyList();
 	startScheduler(getDatabase());
 	startImageSweep(getDatabase());
 }

@@ -67,12 +67,16 @@ const DENIED: [string, number, 'ipv4' | 'ipv6'][] = [
 	['ff00::', 8, 'ipv6']
 ];
 
-let denied: BlockList | undefined;
+const DENY_LIST_MS = 60 * 60 * 1000;
+
+let denied: { list: BlockList; at: number } | undefined;
 let interfacesFailureLogged = false;
 
 function hostInterfaces(): ReturnType<typeof networkInterfaces> {
 	try {
-		return networkInterfaces();
+		const host = networkInterfaces();
+		interfacesFailureLogged = false;
+		return host;
 	} catch (error) {
 		if (!interfacesFailureLogged) {
 			interfacesFailureLogged = true;
@@ -82,10 +86,10 @@ function hostInterfaces(): ReturnType<typeof networkInterfaces> {
 	}
 }
 
-// Built on first use: the host's own public addresses reach the other apps it serves.
+// Rebuilt hourly: the host's own public addresses reach the other apps it serves, and it can gain some.
 function denyList(): BlockList {
-	if (denied !== undefined) {
-		return denied;
+	if (denied !== undefined && Date.now() - denied.at < DENY_LIST_MS) {
+		return denied.list;
 	}
 	const host = hostInterfaces();
 	const list = new BlockList();
@@ -97,8 +101,19 @@ function denyList(): BlockList {
 			list.addAddress(entry.address, entry.family === 'IPv6' ? 'ipv6' : 'ipv4');
 		}
 	}
-	denied = list;
-	return denied;
+	denied = { list, at: Date.now() };
+	return list;
+}
+
+/** Reads the host's addresses at start; unreadable, it logs once and fetches stay refused until they read. */
+export function loadDenyList(): void {
+	try {
+		denyList();
+	} catch (error) {
+		if (!(error instanceof FetchRefused)) {
+			throw error;
+		}
+	}
 }
 
 /** Whether an address is off limits; IPv4-mapped IPv6 forms count as their IPv4 address. Throws a FetchRefused when the host's addresses are unreadable. */

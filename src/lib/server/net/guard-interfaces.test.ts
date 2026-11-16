@@ -64,6 +64,7 @@ describe('the guard when the host addresses are unreadable', () => {
 	afterEach(() => {
 		process.off('uncaughtException', record);
 		vi.restoreAllMocks();
+		vi.useRealTimers();
 	});
 
 	it('refuses the fetch, by name and by address, and the process lives', async () => {
@@ -83,5 +84,53 @@ describe('the guard when the host addresses are unreadable', () => {
 		expect(guard.deniedAddress('127.0.0.1')).toBe(true);
 		expect(guard.deniedAddress('10.0.0.1')).toBe(true);
 		expect(guard.deniedAddress('8.8.8.8')).toBe(false);
+	});
+
+	it('reads them at start without throwing, logs once, and denies once they read', async () => {
+		interfaces.read = unreadable;
+		expect(() => guard.loadDenyList()).not.toThrow();
+		const refused = "network: the host's own addresses are unreadable";
+		expect(await refusal(guard, guard.guardedFetch('http://8.8.8.8:9/', BUDGET))).toBe(refused);
+		expect(console.error).toHaveBeenCalledOnce();
+		interfaces.read = readable;
+		expect(guard.deniedAddress(HOST_ADDRESS)).toBe(true);
+	});
+});
+
+describe('the guard over time', () => {
+	const GAINED = '198.252.206.16';
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('denies an address the host gains, once the list is an hour old', async () => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.resetModules();
+		const guard = await import('./guard.ts');
+		interfaces.read = readable;
+		guard.loadDenyList();
+		interfaces.read = () => ({
+			...readable(),
+			eth1: [{ ...(readable().eth0?.[0] as NetworkInterfaceInfo), address: GAINED }]
+		});
+		vi.advanceTimersByTime(59 * 60 * 1000);
+		expect(guard.deniedAddress(GAINED)).toBe(false);
+		vi.advanceTimersByTime(2 * 60 * 1000);
+		expect(guard.deniedAddress(GAINED)).toBe(true);
+		expect(guard.deniedAddress(HOST_ADDRESS)).toBe(true);
+	});
+
+	it('refuses, rather than keep a stale list, when the hourly read fails', async () => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.resetModules();
+		vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const guard = await import('./guard.ts');
+		interfaces.read = readable;
+		guard.loadDenyList();
+		interfaces.read = unreadable;
+		vi.advanceTimersByTime(61 * 60 * 1000);
+		expect(() => guard.deniedAddress('8.8.8.8')).toThrow(guard.FetchRefused);
+		vi.restoreAllMocks();
 	});
 });
