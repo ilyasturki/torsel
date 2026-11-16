@@ -162,6 +162,55 @@ test('every change applies at once, shows its before and after, and undoes alone
 	expect(told).not.toContain('Change 1 row');
 });
 
+test('a card puts what the rows share on one line and shows every value typed', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [
+		{
+			blocks: [
+				{
+					type: 'tool',
+					id: 'toolu_sets',
+					name: 'add_rows',
+					input: {
+						base: 'Tables',
+						table: 'Lifts',
+						rows: [
+							{ Exercise: 'Bench press declined', Reps: 10, Kg: 72 },
+							{ Exercise: 'Bench press declined', Reps: 8, Kg: 77.5 },
+							{ Exercise: 'Bench press declined', Reps: 6, Kg: 80 }
+						]
+					}
+				}
+			]
+		},
+		{ blocks: [{ type: 'text', text: 'Done.' }] }
+	]);
+	await page.goto(tablePath(table));
+	await ask(page, `${key} log three sets`);
+	await expect(thread(page).getByText('Done.')).toBeVisible();
+
+	const card = cards(page).first();
+	await expect(card.getByText('Bench press declined')).toHaveCount(1);
+	await expect(card.getByRole('columnheader')).toHaveText(['Reps', 'Kg']);
+	for (const typed of ['10', '72', '77.5', '6', '80']) {
+		await expect(card.getByRole('cell', { name: typed, exact: true })).toBeInViewport({
+			ratio: 1
+		});
+	}
+	const box = await card.boundingBox();
+	const scroller = await card.locator('.overflow-x-auto').evaluate((node) => ({
+		scroll: node.scrollWidth,
+		client: node.clientWidth
+	}));
+	expect(scroller.scroll).toBeLessThanOrEqual(scroller.client);
+	expect(box?.width ?? 0).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
+});
+
 test('the request says what is on screen, and the assistant can open what it made', async ({
 	page,
 	context,
