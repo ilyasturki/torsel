@@ -2054,9 +2054,7 @@
 								</Tooltip>
 							</th>
 						{/each}
-						<th
-							class="sticky top-0 z-20 border-r border-b border-r-rule-col border-b-rule-strong bg-band"
-						>
+						<th class="sticky top-0 z-20 border-b border-rule-strong bg-band">
 							<AddField
 								{tableId}
 								bind:open={shell.addingField}
@@ -2099,8 +2097,7 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(row, r, field, c)}
 							{/each}
-							<td class="border-r border-b border-r-rule-col border-b-rule" aria-hidden="true"></td>
-							<td class="border-b border-rule" aria-hidden="true"></td>
+							<td colspan="2" class="border-b border-rule" aria-hidden="true"></td>
 						</tr>
 					{/each}
 					{#if end < total}
@@ -2127,8 +2124,7 @@
 							{#each fields as field, c (field.id)}
 								{@render dataCell(null, rows.length, field, c)}
 							{/each}
-							<td class="border-r border-b border-r-rule-col border-b-rule" aria-hidden="true"></td>
-							<td class="border-b border-rule" aria-hidden="true"></td>
+							<td colspan="2" class="border-b border-rule" aria-hidden="true"></td>
 						</tr>
 					{/if}
 				</tbody>
