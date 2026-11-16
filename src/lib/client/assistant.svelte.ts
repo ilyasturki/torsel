@@ -9,6 +9,7 @@ import type {
 	EventKind,
 	ThreadAction,
 	ThreadContext,
+	ThreadKind,
 	ThreadRow,
 	ThreadSummary,
 	TurnEvent
@@ -36,11 +37,14 @@ export const assistant = $state({
 	available: null as boolean | null,
 	id: null as string | null,
 	title: '',
+	kind: 'assistant' as ThreadKind,
 	rows: [] as ThreadRow[],
 	actions: [] as ThreadAction[],
 	threads: [] as ThreadSummary[],
 	listing: false,
 	busy: false,
+	// The tool the turn is calling, named on the step line while it works.
+	step: null as string | null,
 	// Bumped each time the assistant shows the person another screen.
 	moved: 0
 });
@@ -283,6 +287,9 @@ function onEvent(event: TurnEvent): void {
 			rows.push({ seq: 0, role: 'assistant', content: [], meta: null });
 			break;
 		case 'block':
+			if (event.block.type === 'tool_use' && event.block.name !== undefined) {
+				assistant.step = event.block.name;
+			}
 			blocksOf(live)[event.index] =
 				event.block.type === 'text'
 					? { type: 'text', text: '' }
@@ -346,6 +353,7 @@ type Message = { prompt: string; context: ThreadContext; where: string; files: A
 
 async function run(mode: Mode, message: Message | null): Promise<void> {
 	assistant.busy = true;
+	assistant.step = null;
 	assistant.listing = false;
 	const mine = new AbortController();
 	controller = mine;

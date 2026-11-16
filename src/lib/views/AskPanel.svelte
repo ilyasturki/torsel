@@ -451,103 +451,107 @@
 				{/if}
 			{/each}
 			{#if assistant.busy}
-				<p class="text-ink-3" role="status">{words.working}</p>
+				<p class="text-ink-3" role="status" data-testid="step">
+					{(assistant.step === null ? undefined : words.steps[assistant.step]) ?? words.working}
+				</p>
 			{/if}
 		</div>
 
-		<div class="flex shrink-0 items-center gap-2 px-4 pb-1 text-sm text-ink-3">
-			{#if editing}
-				<span class="min-w-0 flex-1 truncate">{words.editingLast}</span>
-				<button type="button" class="shrink-0 underline" onclick={cancelEdit}
-					>{common.cancel}</button
-				>
-			{:else}
-				<span class="min-w-0 truncate" data-testid="context">{where}</span>
-				{#if selected.length > 0}
-					<button type="button" class="shrink-0 underline" onclick={clearSelection}
-						>{common.clear}</button
+		{#if assistant.kind !== 'tool'}
+			<div class="flex shrink-0 items-center gap-2 px-4 pb-1 text-sm text-ink-3">
+				{#if editing}
+					<span class="min-w-0 flex-1 truncate">{words.editingLast}</span>
+					<button type="button" class="shrink-0 underline" onclick={cancelEdit}
+						>{common.cancel}</button
 					>
-				{/if}
-			{/if}
-		</div>
-
-		<form
-			class="m-2 mt-0 flex shrink-0 flex-col gap-1 rounded-box p-2 {fieldFill} {fieldFocusWithin}"
-			onsubmit={(event) => {
-				event.preventDefault();
-				submit();
-			}}
-		>
-			{#if pending.length > 0}
-				<ul class="flex flex-wrap gap-1" aria-label={words.attachedFiles}>
-					{#each pending as item (item.key)}
-						<li class="flex max-w-full items-center gap-1 rounded-box bg-tint px-2 text-sm">
-							<Icon name="attach" class="size-3 text-ink-3" />
-							<span class="min-w-0 truncate">{item.name}</span>
-							<span class="shrink-0 text-ink-3"
-								>{item.error ??
-									(item.file === undefined
-										? `${Math.round((item.received / item.size) * 100)}%`
-										: size(item.size))}</span
-							>
-							<button
-								type="button"
-								class="flex size-5 shrink-0 items-center justify-center text-ink-3 hover:text-ink"
-								aria-label={words.removeFile(item.name)}
-								onclick={() => (pending = pending.filter((other) => other.key !== item.key))}
-								><Icon name="x" class="size-3" /></button
-							>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-			<div class="flex items-end gap-1">
-				<label for="ask-input" class="sr-only">{words.prompt}</label>
-				<Textarea
-					id="ask-input"
-					bare
-					bind:ref={field}
-					bind:value={prompt}
-					rows={1}
-					maxlength={MAX_PROMPT}
-					enterkeyhint="send"
-					class="flex-1 px-1 py-1.5"
-					placeholder={words.prompt}
-					{onpaste}
-				/>
-				<input
-					bind:this={picker}
-					type="file"
-					multiple
-					accept={ATTACHABLE}
-					class="hidden"
-					onchange={(event) => {
-						// The list empties with the input, and the uploads read it one by one.
-						void attach([...(event.currentTarget.files ?? [])]);
-						event.currentTarget.value = '';
-					}}
-				/>
-				<Button
-					variant="ghost"
-					class="w-control shrink-0 px-0"
-					aria-label={words.attachFiles}
-					title={pending.length >= MAX_FILES ? words.maxFiles(MAX_FILES) : undefined}
-					disabled={pending.length >= MAX_FILES}
-					onclick={() => picker?.click()}><Icon name="attach" /></Button
-				>
-				{#if assistant.busy}
-					<Button class="shrink-0" onclick={stop}>{words.stop}</Button>
 				{:else}
-					<Button
-						variant="primary"
-						class="shrink-0"
-						type="submit"
-						title={uploading ? words.waitingUploads : undefined}
-						disabled={prompt.trim() === '' || uploading}
-						>{editing ? common.save : words.send}</Button
-					>
+					<span class="min-w-0 truncate" data-testid="context">{where}</span>
+					{#if selected.length > 0}
+						<button type="button" class="shrink-0 underline" onclick={clearSelection}
+							>{common.clear}</button
+						>
+					{/if}
 				{/if}
 			</div>
-		</form>
+
+			<form
+				class="m-2 mt-0 flex shrink-0 flex-col gap-1 rounded-box p-2 {fieldFill} {fieldFocusWithin}"
+				onsubmit={(event) => {
+					event.preventDefault();
+					submit();
+				}}
+			>
+				{#if pending.length > 0}
+					<ul class="flex flex-wrap gap-1" aria-label={words.attachedFiles}>
+						{#each pending as item (item.key)}
+							<li class="flex max-w-full items-center gap-1 rounded-box bg-tint px-2 text-sm">
+								<Icon name="attach" class="size-3 text-ink-3" />
+								<span class="min-w-0 truncate">{item.name}</span>
+								<span class="shrink-0 text-ink-3"
+									>{item.error ??
+										(item.file === undefined
+											? `${Math.round((item.received / item.size) * 100)}%`
+											: size(item.size))}</span
+								>
+								<button
+									type="button"
+									class="flex size-5 shrink-0 items-center justify-center text-ink-3 hover:text-ink"
+									aria-label={words.removeFile(item.name)}
+									onclick={() => (pending = pending.filter((other) => other.key !== item.key))}
+									><Icon name="x" class="size-3" /></button
+								>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				<div class="flex items-end gap-1">
+					<label for="ask-input" class="sr-only">{words.prompt}</label>
+					<Textarea
+						id="ask-input"
+						bare
+						bind:ref={field}
+						bind:value={prompt}
+						rows={1}
+						maxlength={MAX_PROMPT}
+						enterkeyhint="send"
+						class="flex-1 px-1 py-1.5"
+						placeholder={words.prompt}
+						{onpaste}
+					/>
+					<input
+						bind:this={picker}
+						type="file"
+						multiple
+						accept={ATTACHABLE}
+						class="hidden"
+						onchange={(event) => {
+							// The list empties with the input, and the uploads read it one by one.
+							void attach([...(event.currentTarget.files ?? [])]);
+							event.currentTarget.value = '';
+						}}
+					/>
+					<Button
+						variant="ghost"
+						class="w-control shrink-0 px-0"
+						aria-label={words.attachFiles}
+						title={pending.length >= MAX_FILES ? words.maxFiles(MAX_FILES) : undefined}
+						disabled={pending.length >= MAX_FILES}
+						onclick={() => picker?.click()}><Icon name="attach" /></Button
+					>
+					{#if assistant.busy}
+						<Button class="shrink-0" onclick={stop}>{words.stop}</Button>
+					{:else}
+						<Button
+							variant="primary"
+							class="shrink-0"
+							type="submit"
+							title={uploading ? words.waitingUploads : undefined}
+							disabled={prompt.trim() === '' || uploading}
+							>{editing ? common.save : words.send}</Button
+						>
+					{/if}
+				</div>
+			</form>
+		{/if}
 	{/if}
 </aside>

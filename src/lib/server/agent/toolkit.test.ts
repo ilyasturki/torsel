@@ -8,7 +8,8 @@ import type { Effect } from '../../core/thread.ts';
 import { inLocale, requestLocale } from '../http/locale.ts';
 import type { Sheet } from './files.ts';
 import type { Action, ToolContext } from './toolkit.ts';
-import { runTool, toolNamed } from './toolkit.ts';
+import catalog from '../../i18n/assistant.ts';
+import { TOOLS, runTool, toolNamed } from './toolkit.ts';
 
 vi.mock('$app/env', () => ({ building: false }));
 
@@ -772,5 +773,14 @@ describe('source tables', () => {
 		const changes = s.actions.at(-1)?.changes ?? [];
 		expect(changes.some((change) => change.kind === 'row')).toBe(false);
 		expect(changes[0].set.decimals).toBe(2);
+	});
+});
+
+describe('step line', () => {
+	it('names every tool in both languages', () => {
+		for (const tool of TOOLS) {
+			expect(catalog.en.steps[tool.name], tool.name).toBeTruthy();
+			expect(catalog.fr.steps[tool.name], tool.name).toBeTruthy();
+		}
 	});
 });
