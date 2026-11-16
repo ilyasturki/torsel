@@ -8,7 +8,7 @@ import { createdAt } from '../../core/workspace.ts';
 import type { Locale } from '../../i18n/locale.ts';
 import { cellText, tableNote } from './assistant.ts';
 import type { Meter } from './quota.ts';
-import { quickModel } from './title.ts';
+import { QUICK_TOKENS, quickModel } from './title.ts';
 
 const SUGGEST_MS = 15_000;
 
@@ -111,7 +111,7 @@ export async function suggest(
 	const message = await client.beta.messages.create(
 		{
 			...quickModel(),
-			max_tokens: 400,
+			max_tokens: QUICK_TOKENS,
 			system: SYSTEM,
 			output_config: { effort: 'low', format: FORMAT },
 			messages: [{ role: 'user', content: prompt }]

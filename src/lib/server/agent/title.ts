@@ -6,16 +6,18 @@ import type { Meter } from './quota.ts';
 
 export const TITLE_MODEL = 'claude-haiku-5-5';
 
-/** A short answer's model; Haiku would spend the small budget thinking, the larger models refuse thinking off. */
-export function quickModel(): { model: string; thinking?: { type: 'disabled' } } {
-	const model = envText('TORSEL_AI_TITLE_MODEL', TITLE_MODEL);
-	return model.startsWith('claude-haiku') ? { model, thinking: { type: 'disabled' } } : { model };
+/** The model of the short calls beside a turn: titles, suggestions, follow-ups, fills without the web. */
+export function quickModel(): { model: string } {
+	return { model: envText('TORSEL_AI_TITLE_MODEL', TITLE_MODEL) };
 }
+
+// Room for the little thinking a short answer takes at low effort, and the answer.
+export const QUICK_TOKENS = 2000;
 
 // Past it the reply is long done, and the first message stands in.
 const TITLE_MS = 20_000;
 
-const SYSTEM = `Name this conversation for a history list. Reply with the name only: 2 to 4 words, at most 32 characters, a noun phrase for its subject. Write it in the language of the person's message, never the language of their data or of the screen line. Copy their own names for tables and things exactly as written, never a near word. Sentence case. No quotes, no final punctuation, no emoji, no verb such as "help with" or "question about".`;
+const SYSTEM = `Name this conversation for a history list. Reply with the name only: 2 to 4 words, at most 32 characters, a noun phrase for its subject. Write it in the language of the person's message, never the language of their data or of the screen line: an English message gets an English name even when every table on screen is named in French. Copy their own names for tables and things exactly as written, never a near word. Sentence case. No quotes, no final punctuation, no emoji, no verb such as "help with" or "question about".`;
 
 const FORMAT = {
 	type: 'json_schema' as const,
@@ -42,7 +44,7 @@ export async function generateTitle(
 	const message = await client.beta.messages.create(
 		{
 			...quickModel(),
-			max_tokens: 200,
+			max_tokens: QUICK_TOKENS,
 			system: SYSTEM,
 			output_config: { effort: 'low', format: FORMAT },
 			messages: [{ role: 'user', content: titlePrompt(prompt, where) }]
