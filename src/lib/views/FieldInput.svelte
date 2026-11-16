@@ -29,7 +29,7 @@
 		value?: Value;
 		computed?: Value;
 		id?: string;
-		onimages?: (added: ImageRef[]) => void;
+		onimages?: (added: ImageRef[], shown: boolean) => void;
 	} = $props();
 
 	const targets = $derived.by(() => {

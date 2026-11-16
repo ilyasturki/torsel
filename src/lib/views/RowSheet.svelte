@@ -116,9 +116,15 @@
 	}
 
 	/** Images finish preparing after a tap: they go to the row they were added on, even once the sheet has moved to the next. */
-	function addImagesTo(row: string | null, field: FieldDef, added: ImageRef[]): void {
+	function addImagesTo(
+		row: string | null,
+		field: FieldDef,
+		added: ImageRef[],
+		shown: boolean
+	): void {
+		// A new row's form that closed meanwhile was saved or dropped without them: no other row takes them.
 		if (row === null) {
-			values[field.id] = imagesValue([...imagesOf(values[field.id]), ...added]);
+			if (shown) values[field.id] = imagesValue([...imagesOf(values[field.id]), ...added]);
 			return;
 		}
 		const next = imagesValue([...imagesOf(app.ws.live(row)?.data[field.id]), ...added]);
@@ -254,7 +260,7 @@
 							id="row-{field.id}"
 							{field}
 							bind:value={() => values[field.id], (next) => set(field, next ?? null)}
-							onimages={(added) => addImagesTo(row, field, added)}
+							onimages={(added, shown) => addImagesTo(row, field, added, shown)}
 						/>
 					</div>
 				{/if}

@@ -24,8 +24,8 @@
 		field: FieldDef;
 		value?: Value;
 		id?: string;
-		/** Takes images added once they are ready, for a caller whose row may have changed meanwhile. */
-		onadd?: (added: ImageRef[]) => void;
+		/** Takes images added once they are ready, for a caller whose row may have changed meanwhile; `shown` is false once this input has left the screen. */
+		onadd?: (added: ImageRef[], shown: boolean) => void;
 	} = $props();
 
 	// A phone offers its camera; a desktop's "Add" opens the file picker straight away.
@@ -38,6 +38,11 @@
 	let viewing = $state(false);
 	let at = $state(0);
 	let dropping = $state(false);
+	let mounted = true;
+
+	$effect(() => () => {
+		mounted = false;
+	});
 
 	async function add(files: File[]): Promise<void> {
 		const shown = files.filter((file) => file.type.startsWith('image/') || file.type === '');
@@ -45,7 +50,7 @@
 		const added = await addImages(field.base, shown, images.length);
 		if (added.length === 0) return;
 		if (onadd === undefined) value = imagesValue([...imagesOf(value), ...added]);
-		else onadd(added);
+		else onadd(added, mounted);
 	}
 
 	function remove(index: number): void {
