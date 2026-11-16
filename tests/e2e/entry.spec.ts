@@ -215,3 +215,45 @@ test('a double click on Add row logs one row, and the desktop button is mouse-si
 	if (onPhone()) expect(height).toBeGreaterThan(more?.height ?? 0);
 	else expect(height).toBe(more?.height);
 });
+
+test('the picked key scrolls into its strip, and the page stays put', async ({
+	page,
+	context,
+	account
+}) => {
+	test.skip(!onPhone(), 'the strip scrolls only on a phone');
+	void account;
+	const sessions = ['push day', 'pull day', 'legs day', 'upper day', 'lower day', 'arms day'];
+	const path = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Gym');
+		commit(base.changes);
+		const sets = createTable(
+			ws,
+			base.id,
+			'Sets',
+			[
+				{
+					name: 'Session',
+					type: 'choice',
+					choices: sessions.map((name) => ({ name, color: null }))
+				},
+				{ name: 'Reps', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
+		commit(sets.changes);
+		const [session, reps] = sets.fieldIds;
+		commit(insertRows(ws, sets.id, [{ [session]: 'arms day', [reps]: 8 }]).changes);
+		const entry = createView(ws, sets.id, {
+			name: 'Log',
+			type: 'entry',
+			config: { match: [session] }
+		});
+		commit(entry.changes);
+		return tablePath(sets.id, entry.id);
+	});
+	await page.goto(path);
+	const picked = page.getByRole('button', { name: 'arms day', pressed: true });
+	await expect(picked).toBeInViewport({ ratio: 1 });
+	expect(await page.evaluate(() => scrollY)).toBe(0);
+});
