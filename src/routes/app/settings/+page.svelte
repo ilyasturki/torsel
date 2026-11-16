@@ -2,8 +2,16 @@
 	import { ApiError, DEFAULT_SERVER, apiBase } from '#lib/client/api.ts';
 	import { app } from '#lib/client/app.svelte.ts';
 	import { checkAvailability } from '#lib/client/assistant.svelte.ts';
-	import type { PublicToken } from '#lib/client/auth.ts';
-	import { createToken, listTokens, revokeToken, setPassword } from '#lib/client/auth.ts';
+	import type { ConnectedApp, PublicToken } from '#lib/client/auth.ts';
+	import {
+		authConfig,
+		createToken,
+		disconnectApp,
+		listConnectedApps,
+		listTokens,
+		revokeToken,
+		setPassword
+	} from '#lib/client/auth.ts';
 	import { formatDate } from '#lib/client/format.ts';
 	import { SETTINGS } from '#lib/client/nav.ts';
 	import { me } from '#lib/client/session.svelte.ts';
@@ -30,6 +38,9 @@
 	let lifetime = $state('never');
 	let minted = $state<string | null>(null);
 	let tokenProblem = $state('');
+	let apps = $state<ConnectedApp[]>([]);
+	let appProblem = $state('');
+	let signInConnects = $state(false);
 
 	// From sm up a section reads as a row: its name on the left, what it holds on the right.
 	const row = 'flex flex-col gap-3 sm:flex-row sm:gap-8 sm:border-b sm:border-rule sm:py-6';
@@ -44,9 +55,33 @@
 		}
 	}
 
+	async function refreshApps(): Promise<void> {
+		try {
+			apps = await listConnectedApps();
+		} catch {
+			apps = [];
+		}
+	}
+
 	$effect(() => {
-		if (me.account) void refreshTokens();
+		if (!me.account) return;
+		void refreshTokens();
+		void refreshApps();
+		authConfig().then(
+			(config) => (signInConnects = config.oauth),
+			() => (signInConnects = false)
+		);
 	});
+
+	async function disconnect(id: string): Promise<void> {
+		appProblem = '';
+		try {
+			await disconnectApp(id);
+			await refreshApps();
+		} catch {
+			appProblem = words.appRevokeFailed;
+		}
+	}
 
 	async function leave(): Promise<void> {
 		showToast((await signOut()) ? words.signedOut : words.stillSignedIn);
@@ -115,7 +150,16 @@
 		);
 	}
 
+	function appDetails(app: ConnectedApp): string {
+		return words.appDetails(
+			app.clientHost,
+			app.access,
+			app.lastUsedAt === null ? null : day(app.lastUsedAt)
+		);
+	}
+
 	const mcpUrl = $derived(`${base ?? DEFAULT_SERVER}/api/mcp`);
+	const addCommand = $derived(`claude mcp add --transport http torsel ${mcpUrl}`);
 	const command = $derived(
 		minted
 			? `claude mcp add --transport http torsel ${mcpUrl} --header "Authorization: Bearer ${minted}"`
@@ -194,6 +238,14 @@
 			<h2 class={rowName}>{words.agents}</h2>
 			<div class={rowBody}>
 				<code class="font-mono text-sm break-all text-ink-2">{mcpUrl}</code>
+				{#if signInConnects}
+					<div class="flex flex-col items-start gap-2">
+						<code class="font-mono text-sm break-all">{addCommand}</code>
+						<Button onclick={() => void navigator.clipboard.writeText(addCommand)}
+							>{words.copyCommand}</Button
+						>
+					</div>
+				{/if}
 				<form
 					class="flex flex-wrap gap-2"
 					onsubmit={(event) => {
@@ -243,6 +295,28 @@
 						{/each}
 					</div>
 				{/if}
+			</div>
+		</section>
+	{/if}
+
+	{#if me.account && apps.length > 0}
+		<section class={row}>
+			<h2 class={rowName}>{words.connectedApps}</h2>
+			<div class={rowBody}>
+				<div class="flex flex-col">
+					{#each apps as connected (connected.id)}
+						<div class="flex min-h-row items-center justify-between gap-3">
+							<span class="flex min-w-0 flex-col">
+								<span class="truncate">{connected.clientName}</span>
+								<span class="text-sm text-ink-3">{appDetails(connected)}</span>
+							</span>
+							<Button variant="ghost" onclick={() => disconnect(connected.id)}
+								>{words.revoke}</Button
+							>
+						</div>
+					{/each}
+				</div>
+				{#if appProblem}<p role="alert">{appProblem}</p>{/if}
 			</div>
 		</section>
 	{/if}

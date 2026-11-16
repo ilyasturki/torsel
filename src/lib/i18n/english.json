@@ -248,5 +248,6 @@
 	"src/routes/app/login/+page.svelte\t?to={encodeURIComponent(to)}",
 	"src/routes/app/settings/+page.svelte\tClaude Code",
 	"src/routes/app/settings/+page.svelte\tTorsel",
+	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl}",
 	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl} --header \"Authorization: Bearer {minted}\""
 ]

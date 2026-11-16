@@ -43,6 +43,14 @@ const en = {
 			...(expires === null ? [] : [`${expires.past ? 'expired' : 'expires'} ${expires.date}`])
 		].join(', '),
 	revoke: 'Revoke',
+	connectedApps: 'Connected apps',
+	appDetails: (host: string | null, access: 'read' | 'write', lastUsed: string | null) =>
+		[
+			...(host === null ? [] : [host]),
+			access === 'read' ? 'read only' : 'read and write',
+			lastUsed === null ? 'never used' : `last used ${lastUsed}`
+		].join(', '),
+	appRevokeFailed: 'Couldn’t revoke the app. Try again.',
 	allData: 'All data on this device',
 	import: 'Import',
 	export: 'Export',
@@ -93,6 +101,14 @@ const fr: typeof en = {
 			...(expires === null ? [] : [`${expires.past ? 'a expiré le' : 'expire le'} ${expires.date}`])
 		].join(', '),
 	revoke: 'Révoquer',
+	connectedApps: 'Apps connectées',
+	appDetails: (host, access, lastUsed) =>
+		[
+			...(host === null ? [] : [host]),
+			access === 'read' ? 'lecture seule' : 'lecture et écriture',
+			lastUsed === null ? 'jamais utilisée' : `utilisée le ${lastUsed}`
+		].join(', '),
+	appRevokeFailed: 'Impossible de révoquer l’app. Réessaie.',
 	allData: 'Toutes les données de cet appareil',
 	import: 'Importer',
 	export: 'Exporter',

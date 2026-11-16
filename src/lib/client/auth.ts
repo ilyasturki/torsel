@@ -6,7 +6,7 @@ export type Account = { id: string; email: string; createdAt: number; hasPasswor
 export type PublicToken = {
 	id: string;
 	label: string;
-	kind: 'web' | 'device' | 'api';
+	kind: 'web' | 'device' | 'api' | 'oauth';
 	access: 'read' | 'write';
 	prefix: string;
 	createdAt: number;
@@ -15,7 +15,13 @@ export type PublicToken = {
 	current: boolean;
 };
 
-export type AuthConfig = { signUp: boolean; google: boolean; emailDelivers: boolean };
+export type AuthConfig = {
+	signUp: boolean;
+	google: boolean;
+	emailDelivers: boolean;
+	/** Agents can connect by signing in, with no token to copy. */
+	oauth: boolean;
+};
 
 export type Lookup = {
 	exists: boolean;
@@ -130,4 +136,47 @@ export async function createToken(
 
 export async function revokeToken(id: string): Promise<void> {
 	await request<undefined>(`/api/auth/tokens/${id}`, { method: 'DELETE' });
+}
+
+export type ConnectedApp = {
+	id: string;
+	clientName: string;
+	clientHost: string | null;
+	access: 'read' | 'write';
+	createdAt: number;
+	lastUsedAt: number | null;
+};
+
+export async function listConnectedApps(): Promise<ConnectedApp[]> {
+	return request<ConnectedApp[]>('/api/oauth/grants');
+}
+
+export async function disconnectApp(id: string): Promise<void> {
+	await request<undefined>(`/api/oauth/grants/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export type PendingAuthorization = {
+	clientName: string;
+	clientHost: string | null;
+	redirectHost: string;
+	loopbackOnly: boolean;
+	access: 'read' | 'write';
+	email: string;
+};
+
+export async function pendingAuthorization(id: string): Promise<PendingAuthorization> {
+	return request<PendingAuthorization>(`/api/oauth/requests/${encodeURIComponent(id)}`);
+}
+
+/** The person's answer; the browser then goes back to the app with it. */
+export async function answerAuthorization(
+	id: string,
+	allow: boolean,
+	access: 'read' | 'write'
+): Promise<string> {
+	const { redirect } = await request<{ redirect: string }>(
+		`/api/oauth/requests/${encodeURIComponent(id)}`,
+		{ method: 'POST', body: { allow, access } }
+	);
+	return redirect;
 }

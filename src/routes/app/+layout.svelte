@@ -9,7 +9,7 @@
 	import { assistant, checkAvailability, resumeThread } from '#lib/client/assistant.svelte.ts';
 	import { tableBySlug, viewBySlug } from '#lib/client/directory.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
-	import { HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
+	import { AUTHORIZE, HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { visitTable } from '#lib/client/place.ts';
 	import { me } from '#lib/client/session.svelte.ts';
 	import { isTyping, pastedCells, shell } from '#lib/client/shell.svelte.ts';
@@ -63,7 +63,11 @@
 		return () => void listening.then((handle) => handle.remove());
 	});
 
-	const bare = $derived(page.url.pathname === LOGIN || page.url.pathname.startsWith(`${LOGIN}/`));
+	const bare = $derived(
+		page.url.pathname === LOGIN ||
+			page.url.pathname.startsWith(`${LOGIN}/`) ||
+			page.url.pathname === AUTHORIZE
+	);
 	const onSettings = $derived(page.url.pathname === SETTINGS);
 
 	let beforeSettings = $state(HOME);
