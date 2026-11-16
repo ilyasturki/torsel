@@ -1,5 +1,5 @@
 import { SOURCE } from './access.ts';
-import type { Rec, Value } from './model.ts';
+import type { FieldDef, FieldType, FormatKey, Rec, Value } from './model.ts';
 
 export const EVERY = ['manual', 'hour', 'day'] as const;
 
@@ -35,3 +35,11 @@ export function sourceName(url: string): string {
 		return url;
 	}
 }
+
+/** One field a source fills: the path it reads, and the field it lands in. */
+export type Column = {
+	path: string;
+	name: string;
+	type: FieldType;
+	choices?: string[];
+} & Partial<Pick<FieldDef, FormatKey>>;

@@ -45,7 +45,10 @@ const SAME = new Set([
 	'views.total',
 	'login.email',
 	'site.github',
-	'site.llms'
+	'site.llms',
+	'sources.brands.letterboxd',
+	'sources.brands.sheet',
+	'sources.brands.github'
 ]);
 
 const SAMPLES: unknown[][] = [

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -8,7 +8,10 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PATH, SOURCE } from '../../core/access.ts';
+import { presetSource } from '../../core/presets.ts';
+import catalogs from '../../i18n/sources.ts';
 import { deleteRecords, updateRecord } from '../../core/actions.ts';
+import type { Rec, Value } from '../../core/model.ts';
 import { isDeleted } from '../../core/model.ts';
 import { sourceMark } from '../../core/source.ts';
 import { createUser } from '../auth/accounts.ts';
@@ -95,7 +98,7 @@ function spec(path: string, extra: Partial<SourceSpec> = {}): SourceSpec {
 function tableOf(table: string) {
 	const ws = loadWorkspace(db, userId);
 	const fields = Object.fromEntries(ws.fields(table).map((field) => [field.name, field.id]));
-	const rows = ws.rows(table).map((row) => ({
+	const rows = ws.rows(table).map((row): Record<string, Value> => ({
 		id: row.id,
 		...Object.fromEntries(Object.entries(fields).map(([name, id]) => [name, row.data[id]]))
 	}));
@@ -290,7 +293,7 @@ describe('a source run', () => {
 		expect(ws.get(fields.Title)?.data[PATH]).toBeNull();
 		expect(rows).toHaveLength(2);
 		expect(readSource(db, userId, made.table)).toBeUndefined();
-		expect(rows.every((row) => !isDeleted(ws.get(row.id) as never))).toBe(true);
+		expect(rows.every((row) => !isDeleted(ws.get(String(row.id)) as Rec))).toBe(true);
 	});
 
 	it('refuses past the number of sources an account may keep', async () => {
@@ -319,7 +322,7 @@ describe('a source run', () => {
 				watermark: 0,
 				push: [
 					{
-						...(ws.get(made.table) as never),
+						...(ws.get(made.table) as Rec),
 						data: { [SOURCE]: null },
 						clocks: { [SOURCE]: '9999999999999:0000:zz' }
 					}
@@ -329,6 +332,53 @@ describe('a source run', () => {
 		expect(refused.refused).toEqual([{ id: made.table, keys: [SOURCE] }]);
 		writeChanges(db, CONNECTOR(userId), ws, updateRecord(ws, made.table, { [SOURCE]: null }));
 		expect(loadWorkspace(db, userId).get(made.table)?.data[SOURCE]).toBeNull();
+	});
+});
+
+describe('the Letterboxd preset', () => {
+	it('fills a diary from the feed, lists left out, ratings in half stars', async () => {
+		answers['/sample/rss/'] = {
+			type: 'application/rss+xml',
+			body: readFileSync(join(import.meta.dirname, 'fixtures/letterboxd.xml'), 'utf8')
+		};
+		const preset = presetSource('letterboxd', 'sample', catalogs.en);
+		if (preset === null) throw new Error('no preset');
+		const made = await createSource(db, userId, {
+			...spec('/sample/rss/'),
+			name: preset.name,
+			label: preset.label,
+			key: preset.key,
+			filter: preset.filter,
+			missing: preset.missing,
+			columns: preset.columns ?? []
+		});
+		expect(await runSource(db, userId, made.table)).toMatchObject({ ok: true, added: 3 });
+		const { rows } = tableOf(made.table);
+		expect(rows.map((row) => ({ ...row, id: undefined }))).toEqual([
+			{
+				Title: expect.any(String),
+				Year: expect.any(Number),
+				'Date watched': expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/u),
+				Rating: null,
+				Favorite: expect.any(Boolean),
+				Rewatch: expect.any(Boolean),
+				Link: expect.stringMatching(/^https:\/\/letterboxd\.com\//u)
+			},
+			expect.objectContaining({
+				Title: 'Doctor Strange in the Multiverse of Madness',
+				Year: 2022,
+				Rating: 3.5,
+				Favorite: true,
+				Rewatch: true
+			}),
+			expect.objectContaining({
+				Title: 'Backrooms',
+				Year: 2026,
+				'Date watched': '2026-11-15',
+				Rating: 3.5,
+				Favorite: false
+			})
+		]);
 	});
 });
 

@@ -2,10 +2,10 @@ import { PATH, SOURCE } from '../../core/access.ts';
 import type { FieldSpec } from '../../core/actions.ts';
 import { createTable, homeBase, updateRecord } from '../../core/actions.ts';
 import { guessColumns } from '../../core/csv.ts';
-import type { Change, FieldDef, FieldType, FormatKey } from '../../core/model.ts';
+import type { Change, FieldType } from '../../core/model.ts';
 import { FIELD_TYPES, FORMAT_KEYS, hasChoices } from '../../core/model.ts';
 import { numberedName } from '../../core/names.ts';
-import type { Every, Missing } from '../../core/source.ts';
+import type { Column, Every, Missing } from '../../core/source.ts';
 import { EVERY, MISSING, markValue } from '../../core/source.ts';
 import { names } from '../../i18n/names.ts';
 import { sourceLimits } from '../config.ts';
@@ -24,13 +24,6 @@ import { countSources, deleteSource, insertSource, readSource, updateSource } fr
 export const SOURCE_TYPES: readonly FieldType[] = FIELD_TYPES.filter(
 	(type) => type !== 'link' && type !== 'formula'
 );
-
-export type Column = {
-	path: string;
-	name: string;
-	type: FieldType;
-	choices?: string[];
-} & Partial<Pick<FieldDef, FormatKey>>;
 
 export type SourceSpec = {
 	base: string | null;
