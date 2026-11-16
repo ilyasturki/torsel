@@ -273,7 +273,7 @@ test.describe('in French', () => {
 		await page.goto('/v/AAAAAAAAAAAAAAAAAAAAAA');
 		const heading = page.getByRole('heading', { name: 'Ce lien ne fonctionne plus' });
 		await expect(heading).toBeVisible();
-		await expect(page.getByText('Son propriétaire a arrêté de le partager.')).toBeVisible();
+		await expect(page.getByText('Son auteur ne le partage plus.')).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Aller sur Torsel' })).toHaveAttribute(
 			'href',
 			'/fr'

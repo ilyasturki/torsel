@@ -33,7 +33,7 @@ const fr: typeof en = {
 	failed: 'Serveur injoignable',
 	madeWith: 'Fait avec Torsel',
 	gone: 'Ce lien ne fonctionne plus',
-	goneWhy: 'Son propriétaire a arrêté de le partager.',
+	goneWhy: 'Son auteur ne le partage plus.',
 	toTorsel: 'Aller sur Torsel',
 	loadFailed: 'Impossible de charger cette vue',
 	noSuchLink: 'lien introuvable',
