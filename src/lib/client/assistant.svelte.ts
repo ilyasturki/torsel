@@ -3,6 +3,7 @@ import { SvelteSet } from 'svelte/reactivity';
 import { goto } from '$app/navigation';
 
 import type { Change } from '../core/model.ts';
+import { DELETED } from '../core/model.ts';
 import type {
 	Attachment,
 	Effect,
@@ -152,8 +153,8 @@ function applyAction(action: ThreadAction): void {
 }
 
 /** Applies an action as a step of the history; a decision of its own when the write gate left nothing to apply. */
-function applyAs(action: ThreadAction): void {
-	const group = app.apply(plain(action.changes), action.summary, 'ai', {
+function applyAs(action: ThreadAction, changes = plain(action.changes)): void {
+	const group = app.apply(changes, action.summary, 'ai', {
 		thread: assistant.id as string,
 		id: action.id
 	});
@@ -196,7 +197,19 @@ function redoOne(action: ThreadAction): void {
 		app.redo(group.id);
 		return;
 	}
-	applyAs(action);
+	applyAs(action, redone(action));
+}
+
+/** What a change made, made again: a record its undo deleted comes back too. */
+function redone(action: ThreadAction): Change[] {
+	const revived = new Set(
+		action.before.filter((change) => change.set[DELETED] === true).map((change) => change.id)
+	);
+	return plain(action.changes).map((change) =>
+		revived.has(change.id) && !(DELETED in change.set)
+			? { ...change, set: { ...change.set, [DELETED]: null } }
+			: change
+	);
 }
 
 export function undoChange(action: ThreadAction): void {
