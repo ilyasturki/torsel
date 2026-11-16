@@ -159,6 +159,13 @@ describe('contextNote', () => {
 		expect(note).toContain("its dates and numbers in their screen's form");
 	});
 
+	it('asks for "Done." in the language of the message, not English', () => {
+		const { ws } = movies();
+		expect(contextNote(ws, at({}), [], false)).toContain(
+			'reply "Done." in that language ("C\'est fait." in French)'
+		);
+	});
+
 	it('says a filled field searches the web, and fills new rows', () => {
 		const { ws, base, table } = movies();
 		const hlc = new Hlc('w');
