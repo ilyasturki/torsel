@@ -8,6 +8,7 @@
 	import { imagesFromLink } from '#lib/client/images.svelte.ts';
 	import type { Published } from '#lib/core/published.ts';
 	import { publish as words } from '#lib/i18n/publish.ts';
+	import { viewName } from '#lib/i18n/names.ts';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Logo from '#lib/ui/Logo.svelte';
@@ -40,7 +41,7 @@
 </script>
 
 <svelte:head>
-	<title>{shown === null ? 'Torsel' : `${shown.view.name} · ${shown.table.name}`}</title>
+	<title>{shown === null ? 'Torsel' : `${viewName(shown.view)} · ${shown.table.name}`}</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -54,7 +55,7 @@
 				<Icon name="chevron" class="size-3 shrink-0 max-sm:hidden" />
 				<span class="truncate">{shown.table.name}</span>
 				<Icon name="chevron" class="size-3 shrink-0" />
-				<span class="truncate font-medium text-ink">{shown.view.name}</span>
+				<span class="truncate font-medium text-ink">{viewName(shown.view)}</span>
 			</p>
 			<a
 				href="/"

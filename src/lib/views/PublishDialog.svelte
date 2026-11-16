@@ -3,6 +3,7 @@
 	import { syncNow } from '#lib/client/sync.svelte.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import type { ViewDef } from '#lib/core/model.ts';
+	import { viewName } from '#lib/i18n/names.ts';
 	import { publish as words } from '#lib/i18n/publish.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -66,7 +67,7 @@
 			await request(`/api/publications/${view.id}`, { method: 'DELETE' });
 			token = null;
 			open = false;
-			showToast(words.unpublished(view.name));
+			showToast(words.unpublished(viewName(view)));
 		});
 
 	async function copy(): Promise<void> {

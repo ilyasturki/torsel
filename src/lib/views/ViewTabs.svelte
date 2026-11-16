@@ -12,7 +12,7 @@
 	import { duplicateView } from '#lib/core/duplicate.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import { isPublishable } from '#lib/core/published.ts';
-	import { names } from '#lib/i18n/names.ts';
+	import { names, viewName } from '#lib/i18n/names.ts';
 	import { publish as publishWords } from '#lib/i18n/publish.ts';
 	import { views as words } from '#lib/i18n/views.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
@@ -160,14 +160,14 @@
 	}
 
 	function duplicate(view: ViewDef): void {
-		const name = names.copy(view.name);
+		const name = names.copy(viewName(view));
 		const made = duplicateView(app.ws, view.id, name);
 		applyWithUndo(made.changes, words.viewDuplicated(name));
 		void goto(tableUrl(table.id, made.id));
 	}
 
 	function remove(view: ViewDef): void {
-		const label = words.viewDeleted(view.name);
+		const label = words.viewDeleted(viewName(view));
 		const group = app.apply(deleteRecords(app.ws, [view.id]), label);
 		showToast(label, group?.id ?? null);
 		if (view.id === current?.id) void goto(tableUrl(table.id));
@@ -217,7 +217,7 @@
 		{#each views as view, at (view.id)}
 			<Tooltip shortcut={at < 9 ? keys('alt', String(at + 1)) : undefined}>
 				{#snippet children(tip)}
-					<ContextMenu label={view.name}>
+					<ContextMenu label={viewName(view)}>
 						{#snippet target(props)}
 							<a
 								{...mergeProps(tip, props, {
@@ -239,7 +239,7 @@
 									: drag
 										? 'transition-transform motion'
 										: 'transition-colors motion'}"
-								style={shift(at)}>{view.name}</a
+								style={shift(at)}>{viewName(view)}</a
 							>
 						{/snippet}
 						<MenuItem icon="settings" onSelect={() => onsettings(view.id)}

@@ -24,6 +24,7 @@
 	} from '#lib/core/model.ts';
 	import { isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { common } from '#lib/i18n/common.ts';
+	import { viewName } from '#lib/i18n/names.ts';
 	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -60,7 +61,7 @@
 
 	function commit(set: { name?: string; type?: ViewType; config?: ViewConfig }): void {
 		if (existing === undefined) return;
-		const label = set.name ?? existing.name;
+		const label = set.name ?? viewName(existing);
 		const record: Record<string, Value> = { ...set };
 		if (set.config !== undefined) record.config = JSON.parse(JSON.stringify(set.config)) as Value;
 		applyWithUndo(updateRecord(app.ws, existing.id, record), words.viewChanged(label));
@@ -76,7 +77,7 @@
 		if (draft === null || existing === undefined) return;
 		const label = draft.trim() || viewLabel(type);
 		draft = null;
-		if (label !== existing.name) commit({ name: label });
+		if (label !== viewName(existing)) commit({ name: label });
 	}
 
 	$effect(() => {
@@ -86,7 +87,9 @@
 	function pickType(next: ViewType): void {
 		if (existing === undefined || next === type) return;
 		commit(
-			existing.name === viewLabel(type) ? { type: next, name: viewLabel(next) } : { type: next }
+			viewName(existing) === viewLabel(type)
+				? { type: next, name: viewLabel(next) }
+				: { type: next }
 		);
 	}
 
@@ -168,7 +171,7 @@
 
 	function remove(): void {
 		if (existing === undefined) return;
-		const label = words.viewDeleted(existing.name);
+		const label = words.viewDeleted(viewName(existing));
 		const group = app.apply(deleteRecords(app.ws, [existing.id]), label);
 		showToast(label, group?.id ?? null);
 		open = false;
@@ -187,7 +190,7 @@
 		<Field label={words.name}>
 			<input
 				class={input}
-				value={draft ?? existing?.name ?? ''}
+				value={draft ?? (existing === undefined ? '' : viewName(existing))}
 				placeholder={viewLabel(type)}
 				oninput={(event) => (draft = event.currentTarget.value)}
 				onchange={rename}

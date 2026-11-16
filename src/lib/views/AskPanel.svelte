@@ -54,6 +54,7 @@
 	import { todayIso } from '#lib/core/values.ts';
 	import { assistant as words } from '#lib/i18n/assistant.ts';
 	import { common } from '#lib/i18n/common.ts';
+	import { viewName } from '#lib/i18n/names.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -102,7 +103,11 @@
 	const where = $derived.by(() => {
 		if (screen === 'settings') return words.onSettings;
 		if (table === null) return words.onHome;
-		return words.onTable(table.name, view?.name ?? null, selected.length);
+		return words.onTable(
+			table.name,
+			view === undefined || view === null ? null : viewName(view),
+			selected.length
+		);
 	});
 
 	const items = $derived(toItems(assistant.rows, assistant.actions));

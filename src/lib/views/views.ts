@@ -6,7 +6,7 @@ import { shell } from '#lib/client/shell.svelte.ts';
 import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 import { createView, reorder, shifted } from '#lib/core/actions.ts';
 import type { ViewType } from '#lib/core/model.ts';
-import { names } from '#lib/i18n/names.ts';
+import { names, viewName } from '#lib/i18n/names.ts';
 import { views as words } from '#lib/i18n/views.ts';
 import type { IconName } from '#lib/ui/Icon.svelte';
 
@@ -23,7 +23,7 @@ export const VIEW_TYPES: { id: ViewType; icon: IconName }[] = [
 export const viewLabel = (type: ViewType): string => names.views[type];
 
 export function unusedName(tableId: string, label: string): string {
-	const taken = new Set(app.ws.views(tableId).map((view) => view.name));
+	const taken = new Set(app.ws.views(tableId).flatMap((view) => [view.name, viewName(view)]));
 	let unused = label;
 	for (let n = 2; taken.has(unused); n += 1) unused = `${label} ${n}`;
 	return unused;
@@ -56,7 +56,7 @@ export async function moveView(
 	);
 	pin.table = tableId;
 	pin.view = shown ?? null;
-	applyWithUndo(reorder(app.ws, ids), words.viewMoved(views[from].name));
+	applyWithUndo(reorder(app.ws, ids), words.viewMoved(viewName(views[from])));
 	if (shown !== undefined) {
 		await goto(tableUrl(tableId, shown), { replaceState: true, reset: false });
 	}

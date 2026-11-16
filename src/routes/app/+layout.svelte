@@ -20,6 +20,7 @@
 	import { markDocumentLocale } from '#lib/i18n/runtime.ts';
 	import { shell as words } from '#lib/i18n/shell.ts';
 	import { home as homeWords } from '#lib/i18n/home.ts';
+	import { viewName } from '#lib/i18n/names.ts';
 	import { views as viewWords } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -284,14 +285,15 @@
 									data-view-menu
 									class="flex h-control min-w-0 items-center gap-1 rounded-box px-2 font-medium text-ink-2 transition-colors motion hover:text-ink {focus}"
 								>
-									<span class="truncate">{view?.name}</span>
+									<span class="truncate">{view === undefined ? '' : viewName(view)}</span>
 									<Icon name="chevron-down" class="size-3.5 shrink-0 text-ink-3" />
 								</button>
 							{/snippet}
 							{#each views as option (option.id)}
 								<MenuItem
 									checked={option.id === view?.id}
-									onSelect={() => void goto(tableUrl(table.id, option.id))}>{option.name}</MenuItem
+									onSelect={() => void goto(tableUrl(table.id, option.id))}
+									>{viewName(option)}</MenuItem
 								>
 							{/each}
 						</Menu>

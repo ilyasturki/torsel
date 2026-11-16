@@ -11,6 +11,7 @@
 	import type { ChartConfig, Value, ViewDef } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import Rich from '#lib/i18n/Rich.svelte';
+	import { viewName } from '#lib/i18n/names.ts';
 	import { views as words } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import { strongColor } from '#lib/ui/colors.ts';
@@ -63,7 +64,10 @@
 		const current = app.ws.view(view.id);
 		if (current === undefined) return;
 		const next = JSON.parse(JSON.stringify({ ...current.config, ...patch })) as Value;
-		applyWithUndo(updateRecord(app.ws, view.id, { config: next }), words.viewChanged(current.name));
+		applyWithUndo(
+			updateRecord(app.ws, view.id, { config: next }),
+			words.viewChanged(viewName(current))
+		);
 	}
 
 	const numeric = $derived(

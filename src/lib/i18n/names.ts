@@ -1,4 +1,5 @@
 import type { DefaultNames } from '../core/actions.ts';
+import type { ViewType } from '../core/model.ts';
 import { area } from './runtime.ts';
 
 const en: DefaultNames = {
@@ -23,3 +24,11 @@ export default { en, fr };
 
 /** Default names written into data, in the language of whoever makes the record. */
 export const names = area({ en, fr });
+
+/** A view still called by its type's default name, in any language and numbered or not, shows it in the current one; the stored name stays. */
+export function viewName(view: { name: string; type: ViewType }): string {
+	const [, stem = view.name, number] = /^(.*?)(?: (\d+))?$/u.exec(view.name) ?? [];
+	if (![en, fr].some((set) => set.views[view.type] === stem)) return view.name;
+	const shown = names.views[view.type];
+	return number === undefined ? shown : `${shown} ${number}`;
+}
