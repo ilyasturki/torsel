@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// The browser suite's own Playwright: it stays out of the app's dependencies and the Nix closure.
-import playwright from '../tests/e2e/node_modules/playwright/index.js';
+import { chromium } from '@playwright/test';
 
-import siteCopy from '../src/lib/i18n/site.ts';
+import siteCopy from '../../src/lib/i18n/site.ts';
 
-const root = join(import.meta.dirname, '..');
+// Renders static/og.png and og-fr.png from the site catalog: `node tests/e2e/og-cards.ts`.
+const root = join(import.meta.dirname, '../..');
 const logo = readFileSync(join(root, 'src/lib/ui/Logo.svelte'), 'utf8');
 const [mark, word] = [...logo.matchAll(/\sd="([^"]+)"/gu)].map((match) => match[1]);
 const font = (subset: string): string =>
@@ -19,7 +19,7 @@ const font = (subset: string): string =>
 
 const cards = { 'og.png': 'en', 'og-fr.png': 'fr' } as const;
 
-const browser = await playwright.chromium.launch();
+const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });
 for (const [file, locale] of Object.entries(cards)) {
 	const t = siteCopy[locale];
