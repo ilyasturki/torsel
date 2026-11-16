@@ -41,8 +41,11 @@
 
 <LegalSection title="L’assistant">
 	<p>
-		L’assistant ne s’exécute que quand tu lui demandes quelque chose. Tes messages et les données de
-		table qu’il lit pour te répondre sont envoyés à Anthropic, qui fait tourner le modèle. Selon les
+		L’assistant s’exécute quand tu l’ouvres ou que tu lui demandes quelque chose. Tes messages et
+		les données de table qu’il lit pour te répondre, ou pour te proposer une demande quand tu
+		l’ouvres sur une table, sont envoyés à Anthropic, qui fait tourner le modèle. Quand une demande
+		a besoin du web, il cherche avec la recherche web d’Anthropic, qui reçoit les mots cherchés.
+		Selon les
 		<a class={link} href="https://www.anthropic.com/legal/commercial-terms">
 			conditions commerciales d’Anthropic</a
 		>, ce contenu ne sert pas à entraîner ses modèles. Si tu n’ouvres jamais l’assistant, rien ne

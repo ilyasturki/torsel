@@ -38,8 +38,10 @@
 
 <LegalSection title="The assistant">
 	<p>
-		The assistant runs only when you ask it something. Your messages, and the table data it reads to
-		answer you, are sent to Anthropic, which runs the model. Under
+		The assistant runs when you open it or ask it something. Your messages, and the table data it
+		reads to answer you or to suggest a request when you open it on a table, are sent to Anthropic,
+		which runs the model. When a request needs the web, it searches through Anthropic's web search,
+		which receives the search words. Under
 		<a class={link} href="https://www.anthropic.com/legal/commercial-terms">
 			Anthropic's commercial terms
 		</a>
