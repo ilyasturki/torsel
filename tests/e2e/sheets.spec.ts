@@ -325,7 +325,9 @@ test.describe('formula guard', () => {
 		const formula = sheet.getByRole('textbox', { name: 'Formula' });
 		await formula.fill('SUM("Kg")');
 		await formula.press('Control+Enter');
-		await expect(sheet.getByRole('alert')).toHaveText("a column total isn't a row formula");
+		await expect(sheet.getByRole('alert')).toHaveText(
+			'a column total goes in the totals row, at the foot of the grid'
+		);
 		await formula.fill('SUM("Kg") OVER ()');
 		await formula.press('Control+Enter');
 		await expect(sheet).toHaveCount(0);
