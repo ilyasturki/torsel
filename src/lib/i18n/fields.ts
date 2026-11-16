@@ -90,6 +90,7 @@ const en = {
 		count === 1
 			? 'The image of 1 link will be fetched.'
 			: `The images of ${count} links will be fetched.`,
+	noImagesFetched: (why: string) => `No image could be fetched. ${why}`.trim(),
 	fetchingImages: (count: number) =>
 		count === 1 ? 'Fetching 1 image…' : `Fetching ${count} images…`,
 	nameNeeded: 'Give this field a name.',
@@ -240,6 +241,7 @@ const fr: typeof en = {
 			one: 'L’image de # lien sera récupérée.',
 			other: 'Les images de # liens seront récupérées.'
 		}),
+	noImagesFetched: (why) => `Aucune image n’a pu être récupérée. ${why}`.trim(),
 	fetchingImages: (count) =>
 		plural('fr', count, { one: 'Récupération de # image…', other: 'Récupération de # images…' }),
 	valuesLost: (count, type) =>

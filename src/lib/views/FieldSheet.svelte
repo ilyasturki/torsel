@@ -353,7 +353,13 @@
 				fetched = new Map(
 					[...found].flatMap(([link, got]) => (typeof got === 'string' ? [] : [[link, got]]))
 				);
-				applyNow();
+				if (fetched.size > 0) {
+					applyNow();
+					return;
+				}
+				const why = [...found.values()].find((got) => typeof got === 'string');
+				showToast(words.noImagesFetched(typeof why === 'string' ? why : ''));
+				if (existing !== undefined) type = existing.type;
 			})
 			.finally(() => {
 				fetched = undefined;
