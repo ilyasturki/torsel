@@ -220,10 +220,7 @@ function refusal(error: unknown): FetchRefused {
 	return new FetchRefused('network', error instanceof Error ? error.message : String(error));
 }
 
-/**
- * GET a URL anyone could have chosen: only http(s), never a private, loopback or link-local
- * address (redirects included), within a time and a size budget, without cookies.
- */
+/** GET a URL anyone could have chosen: http(s) only, no private address even after a redirect, within budget. */
 export async function guardedFetch(
 	target: string | URL,
 	options: GuardedRequest

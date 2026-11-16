@@ -94,10 +94,7 @@ export function purgeExpired(db: Database, now = new Date()): void {
 		.run();
 }
 
-/**
- * The authorization endpoint. Until the client and its redirect check out, a failure is shown
- * here, never sent anywhere; after that, it goes back to the client.
- */
+/** Until the client and its redirect check out, a failure is shown here, never sent to the client. */
 export async function authorize(
 	db: Database,
 	params: URLSearchParams,

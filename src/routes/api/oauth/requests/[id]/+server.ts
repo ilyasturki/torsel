@@ -3,7 +3,7 @@ import { error, json } from '@sveltejs/kit';
 import type { Credential } from '#lib/server/auth/session.ts';
 import { oauthOrigin } from '#lib/server/config.ts';
 import { getDatabase } from '#lib/server/db/client.ts';
-import { readJsonBody } from '#lib/server/http/body.ts';
+import { mediaType, readJsonBody } from '#lib/server/http/body.ts';
 import { requireCredential } from '#lib/server/http/guards.ts';
 import { decide, pendingRequest } from '#lib/server/oauth/flow.ts';
 import { errors } from '#lib/i18n/errors.ts';
@@ -35,8 +35,7 @@ export const POST: RequestHandler = async ({ request, locals, params, url }) => 
 	if (origin === null || request.headers.get('origin') !== origin) {
 		error(403, errors.consentInBrowser);
 	}
-	const type = (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-	if (type !== 'application/json') {
+	if (mediaType(request) !== 'application/json') {
 		error(415, 'expected a JSON body');
 	}
 

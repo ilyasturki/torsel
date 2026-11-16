@@ -1,9 +1,9 @@
+import { mediaType } from '../http/body.ts';
 import type { TokenAnswer } from './flow.ts';
 
 /** The body of a form-encoded OAuth request, or null when it isn't one. */
 export async function readForm(request: Request): Promise<URLSearchParams | null> {
-	const type = (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-	if (type !== 'application/x-www-form-urlencoded') {
+	if (mediaType(request) !== 'application/x-www-form-urlencoded') {
 		return null;
 	}
 	return new URLSearchParams(await request.text());

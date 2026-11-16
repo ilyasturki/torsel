@@ -13,6 +13,7 @@ import {
 	mcpChallenge,
 	mcpResource
 } from '../oauth/metadata.ts';
+import { mediaType } from './body.ts';
 import { applyCors, preflightResponse } from './cors.ts';
 import { PUBLIC_API_ROUTES } from './public-routes.ts';
 import { errors } from '../../i18n/errors.ts';
@@ -45,14 +46,10 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 // OAuth clients post these forms from their own servers, with no Origin at all.
 const FORMS_FROM_ANYWHERE = new Set([TOKEN_PATH, REVOKE_PATH]);
 
-/**
- * SvelteKit's cross-site form check, which runs before this hook and can't spare a path: the kit
- * config turns it off (`csrf.trustedOrigins: ['*']`) so this one can spare the OAuth endpoints.
- * Self is the pinned ORIGIN: adapter-node calls a request https unless a proxy header says otherwise.
- */
+// SvelteKit's own check, off in the kit config, can't spare a path; self is the pinned ORIGIN, as adapter-node calls every request https.
 export function crossSiteForm(request: Request, url: URL, pathname: string): boolean {
-	const type = request.headers.get('content-type');
-	const form = !type || FORM_TYPES.has(type.split(';')[0].trim().toLowerCase());
+	const type = mediaType(request);
+	const form = type === '' || FORM_TYPES.has(type);
 	return (
 		form &&
 		MUTATING.has(request.method) &&
@@ -139,11 +136,7 @@ export function createHandle(database: () => Database): Handle {
 		}
 
 		// An OAuth token for another audience is no token here: the client is told to sign in again.
-		if (
-			credential?.token.kind === 'oauth' &&
-			pathname === MCP_PATH &&
-			!reaches(credential, pathname, event.url)
-		) {
+		if (credential !== null && pathname === MCP_PATH && !reaches(credential, pathname, event.url)) {
 			credential = null;
 		}
 

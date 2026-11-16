@@ -3,6 +3,10 @@ import { error } from '@sveltejs/kit';
 import { jsonObject } from '../json.ts';
 import { errors } from '../../i18n/errors.ts';
 
+export function mediaType(request: Request): string {
+	return (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+}
+
 export async function readJsonBody(request: Request): Promise<Record<string, unknown>> {
 	const body = await jsonObject(request);
 

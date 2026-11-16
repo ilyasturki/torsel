@@ -7,7 +7,7 @@ import type { Database } from '../db/client.ts';
 import { oauthClients, oauthGrants } from '../db/schema.ts';
 import { isRecord } from '../json.ts';
 import { FetchRefused, guardedFetch } from '../net/guard.ts';
-import { validRedirect } from './redirects.ts';
+import { isLoopback, validRedirect } from './redirects.ts';
 
 export type Client = {
 	id: string;
@@ -35,8 +35,6 @@ const DOCUMENT_BUDGET = {
 	maxBytes: 5 * 1024,
 	maxRedirects: 0
 };
-
-const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 // oxlint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/gu;
@@ -78,7 +76,7 @@ export function metadataUrl(clientId: string, origin: string): URL | null {
 	if (url.href !== clientId || url.username !== '' || url.password !== '') {
 		return null;
 	}
-	const fixture = url.protocol === 'http:' && LOOPBACK.has(url.hostname) && fetchesPrivate();
+	const fixture = isLoopback(clientId) && fetchesPrivate();
 	if (url.protocol !== 'https:' && !fixture) {
 		return null;
 	}

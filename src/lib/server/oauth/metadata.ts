@@ -40,6 +40,9 @@ export function serverMetadata(origin: string): OAuthMetadata {
 
 /** The two discovery documents, when OAuth is on and the request asks for one. */
 export function discoveryResponse(request: Request, url: URL): Response | undefined {
+	if (!url.pathname.startsWith('/.well-known/oauth-')) {
+		return undefined;
+	}
 	const origin = oauthOrigin(url);
 	if (origin === null) {
 		return undefined;
