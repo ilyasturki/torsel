@@ -29,7 +29,7 @@
 	import { common } from '#lib/i18n/common.ts';
 	import { fields as words } from '#lib/i18n/fields.ts';
 	import Button from '#lib/ui/Button.svelte';
-	import { DATA_COLORS, swatch } from '#lib/ui/colors.ts';
+	import { DATA_COLORS, nextChoice, swatch } from '#lib/ui/colors.ts';
 	import Field from '#lib/ui/Field.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -259,7 +259,7 @@
 	function addChoice(): void {
 		const value = newChoice.trim();
 		if (value !== '' && !choices.some((choice) => choice.name === value)) {
-			choices.push({ name: value, color: DATA_COLORS[(choices.length % 7) + 1] });
+			choices.push(nextChoice(choices, value));
 		}
 		newChoice = '';
 	}

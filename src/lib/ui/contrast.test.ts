@@ -95,6 +95,27 @@ describe.each([
 		expect(ratio(parse(tokens.ink, tokens), surface(on, tokens))).toBeGreaterThanOrEqual(4.5);
 	});
 
+	it.each(DATA_COLORS.map((color) => [color]))(
+		'ink, ink-3 and the %s tag read on its row tint',
+		(color) => {
+			const tint = parse(tokens[`d-${color}-tint`], tokens);
+			expect(ratio(parse(tokens.ink, tokens), tint)).toBeGreaterThanOrEqual(4.5);
+			expect(ratio(parse(tokens['ink-3'], tokens), tint)).toBeGreaterThanOrEqual(4.5);
+			expect(
+				ratio(parse(tokens[`d-${color}-fg`], tokens), parse(tokens[`d-${color}-bg`], tokens))
+			).toBeGreaterThanOrEqual(4.5);
+		}
+	);
+
+	it.each(DATA_COLORS.flatMap((color) => [1, 2, 3, 4, 5].map((step) => [color, step])))(
+		'ink reads on %s scale step %i',
+		(color, step) => {
+			expect(
+				ratio(parse(tokens.ink, tokens), parse(tokens[`d-${color}-${step}`], tokens))
+			).toBeGreaterThanOrEqual(4.5);
+		}
+	);
+
 	it.each(DATA_COLORS.map((color) => [color]))('%s as a bar on the panel reads at 3:1', (color) => {
 		expect(
 			ratio(parse(tokens[`d-${color}`], tokens), surface('raised', tokens))

@@ -8,8 +8,12 @@ export const DATA_COLORS = [
 	'teal',
 	'blue',
 	'violet',
-	'pink'
+	'pink',
+	'red'
 ] as const;
+
+// Gray and red are left out: a new choice or a chart series never reads as a warning.
+const AUTO_COLORS = DATA_COLORS.slice(1, -1);
 
 export type DataColor = (typeof DATA_COLORS)[number];
 
@@ -18,7 +22,7 @@ export function isDataColor(value: unknown): value is DataColor {
 }
 
 export function nextChoice(choices: Choice[], name: string): Choice {
-	return { name, color: DATA_COLORS[(choices.length % 7) + 1] };
+	return { name, color: AUTO_COLORS[choices.length % AUTO_COLORS.length] };
 }
 
 export function swatch(color: string | null | undefined): string {
@@ -31,6 +35,6 @@ export function tag(color: string | null | undefined): string {
 }
 
 export function strongColor(color: string | null | undefined, index: number): string {
-	const name = isDataColor(color) ? color : DATA_COLORS[(index % (DATA_COLORS.length - 1)) + 1];
+	const name = isDataColor(color) ? color : AUTO_COLORS[index % AUTO_COLORS.length];
 	return `var(--d-${name})`;
 }
