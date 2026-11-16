@@ -95,6 +95,8 @@
 		/>
 	{:else}
 		<TableSwitcher name={table.name} current={table.id} />
-		<SourceGlyph table={table.id} />
 	{/if}
 </h1>
+{#if !editing}
+	<SourceGlyph table={table.id} />
+{/if}

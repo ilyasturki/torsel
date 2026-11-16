@@ -35,7 +35,7 @@
 	});
 
 	const look = $derived(
-		`grid size-control shrink-0 place-items-center self-center rounded-box transition-colors motion hover:bg-tint hover:text-ink aria-expanded:bg-tint ${focus} ${problem === null ? 'text-ink-3' : 'text-warn'}`
+		`grid size-control shrink-0 place-items-center self-center rounded-box transition-colors motion hover:bg-tint aria-expanded:bg-tint ${focus} ${problem === null ? 'text-ink-3 hover:text-ink' : 'text-warn'}`
 	);
 </script>
 

@@ -98,7 +98,10 @@
 			<div class="shrink-0">
 				<Empty text={words.empty}>
 					<Button onclick={() => (shell.addingField = true)}>{words.addField}</Button>
-					<Button onclick={() => (shell.importing = { into: tableId })}>{words.importFile}</Button>
+					{#if app.canAddRows(tableId)}
+						<Button onclick={() => (shell.importing = { into: tableId })}>{words.importFile}</Button
+						>
+					{/if}
 				</Empty>
 			</div>
 		{/if}
