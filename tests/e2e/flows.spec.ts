@@ -971,7 +971,7 @@ test.describe('importing', () => {
 	});
 });
 
-test.describe('the audit’s core jobs, at or below their old count', () => {
+test.describe('the audit’s core jobs, at or below their old count, two dearer on a phone', () => {
 	test('create a table: was 3', async ({ page, account }) => {
 		void account;
 		await page.goto('/app');

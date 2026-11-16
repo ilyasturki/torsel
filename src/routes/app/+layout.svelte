@@ -255,10 +255,10 @@
 				>
 					<Logo class="size-4" />
 				</a>
-				<div class="flex min-w-0 shrink items-center gap-2">
+				<div class="flex min-w-0 shrink items-center gap-2 lg:shrink-0">
 					{#if table !== undefined}
 						<TableTitle {table} rows={rowCount} />
-						<span class="shrink-0 text-ink-3 max-sm:sr-only">{words.rowCount(rowCount)}</span>
+						<span class="shrink-0 text-ink-3 max-lg:sr-only">{words.rowCount(rowCount)}</span>
 					{:else}
 						<h1 class="flex min-w-0" aria-label={heading}>
 							<TableSwitcher name={heading} current={null} />
@@ -266,11 +266,11 @@
 					{/if}
 				</div>
 				{#if table !== undefined}
-					<span class="h-4 w-px shrink-0 bg-rule max-sm:hidden"></span>
-					<div class="flex min-w-0 max-sm:hidden">
+					<span class="h-4 w-px shrink-0 bg-rule max-lg:hidden"></span>
+					<div class="flex min-w-0 max-lg:hidden">
 						<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
 					</div>
-					<div class="flex min-w-0 sm:hidden">
+					<div class="flex min-w-0 lg:hidden">
 						<Menu label={viewWords.views}>
 							{#snippet trigger(props)}
 								<button
