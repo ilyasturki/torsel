@@ -19,6 +19,7 @@
 	import { common } from '#lib/i18n/common.ts';
 	import { markDocumentLocale } from '#lib/i18n/runtime.ts';
 	import { shell as words } from '#lib/i18n/shell.ts';
+	import { views as viewWords } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -125,6 +126,8 @@
 	});
 
 	const onTable = $derived(table !== undefined);
+	// Entry and a source table keep New row's slot, empty, so the tools beside it stay put.
+	const noNewRow = $derived(view?.type === 'entry' || !adds);
 
 	const rowCount = $derived.by(() => {
 		void app.version;
@@ -297,22 +300,31 @@
 		</header>
 
 		{#if table !== undefined}
-			<div class="flex shrink-0 items-center gap-1 border-b border-rule px-gutter max-sm:pr-2">
+			<div
+				class="box-content flex h-10 shrink-0 items-center gap-1 border-b border-rule px-gutter max-sm:h-11 max-sm:pr-2"
+			>
 				<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
-				<IconButton
-					icon="more"
-					label={common.more}
-					class="max-sm:hidden"
-					onclick={(event) => {
-						menuAnchor = event.currentTarget;
-						menuOpen = !menuOpen;
-					}}
-				/>
-				{#if view?.type !== 'entry' && adds}
+				<div class="ml-auto flex shrink-0 items-center gap-1">
+					<IconButton
+						icon="settings"
+						label={viewWords.viewSettings}
+						onclick={() => openViewSettings(view?.id ?? null)}
+					/>
+					<IconButton
+						icon="more"
+						label={common.more}
+						class="max-sm:hidden"
+						onclick={(event) => {
+							menuAnchor = event.currentTarget;
+							menuOpen = !menuOpen;
+						}}
+					/>
 					<Button
 						variant="primary"
-						class="ml-auto max-sm:w-control max-sm:px-0"
+						class="max-sm:w-control max-sm:px-0 {noNewRow ? 'invisible' : ''}"
 						aria-label={words.newRow}
+						aria-hidden={noNewRow ? 'true' : undefined}
+						tabindex={noNewRow ? -1 : undefined}
 						onclick={() => {
 							if (view?.type === 'grid') gridJump.blankRow += 1;
 							else shell.newRow = true;
@@ -321,7 +333,7 @@
 						<Icon name="plus" class="size-4 sm:hidden" />
 						<span class="max-sm:hidden">{words.newRow}</span>
 					</Button>
-				{/if}
+				</div>
 			</div>
 		{/if}
 
@@ -344,13 +356,7 @@
 	<ImportSheet />
 
 	{#if table !== undefined}
-		<TableMenu
-			bind:open={menuOpen}
-			anchor={menuAnchor}
-			{table}
-			{view}
-			onviewsettings={() => openViewSettings(view?.id ?? null)}
-		/>
+		<TableMenu bind:open={menuOpen} anchor={menuAnchor} {table} {view} />
 		{#if settingsView !== null}
 			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={settingsView} />
 		{/if}

@@ -2,7 +2,7 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, createView } from '../../src/lib/core/actions.ts';
-import { expect, newView, seed, tablePath, test, toastButton } from './harness.ts';
+import { expect, newView, seed, tablePath, test, toastButton, viewSettings } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -81,11 +81,7 @@ test('a view is added in two taps and its settings hold no type hints', async ({
 	await expect(page.getByRole('status')).toContainText('View "Chart" added');
 	await page.keyboard.press('Escape');
 
-	await page.getByRole('button', { name: 'More' }).click();
-	await page
-		.getByRole('menuitem', { name: 'View settings' })
-		.or(page.getByRole('dialog').getByRole('button', { name: 'View settings' }))
-		.click();
+	await viewSettings(page);
 	const settings = page.getByRole('dialog', { name: 'View settings' });
 	await expect(settings.getByRole('group', { name: 'View type' })).toHaveText('GridEntryListChart');
 	await expect(settings.getByRole('button', { name: 'Chart' })).toHaveAttribute(

@@ -20,7 +20,8 @@ import {
 	tablePath,
 	test,
 	toastButton,
-	undo
+	undo,
+	viewSettings
 } from './harness.ts';
 
 function seedLifts(request: APIRequestContext) {
@@ -208,7 +209,7 @@ test('a view added, then deleted', async ({ page }) => {
 	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
 
 	await views.getByRole('link', { name: 'Chart' }).click();
-	await tableMenu(page, 'View settings');
+	await viewSettings(page);
 	await page
 		.getByRole('dialog', { name: 'View settings' })
 		.getByRole('button', { name: 'Delete' })

@@ -29,14 +29,12 @@
 		open = $bindable(false),
 		anchor = null,
 		table,
-		view,
-		onviewsettings
+		view
 	}: {
 		open?: boolean;
 		anchor?: HTMLElement | null;
 		table: TableDef;
 		view?: ViewDef;
-		onviewsettings?: () => void;
 	} = $props();
 
 	let renaming = false;
@@ -98,11 +96,6 @@
 
 {#if wide.current}
 	<Menu bind:open {anchor} label={table.name} align="end" onCloseAutoFocus={keepRenameFocus}>
-		{#if onviewsettings !== undefined}
-			<MenuItem icon="settings" onSelect={() => run(onviewsettings)}
-				>{viewWords.viewSettings}</MenuItem
-			>
-		{/if}
 		<MenuSub icon="plus" label={viewWords.newView}>
 			{#each VIEW_TYPES as option (option.id)}
 				<MenuItem icon={option.icon} onSelect={() => run(() => addView(table.id, option.id))}
@@ -128,11 +121,6 @@
 {:else}
 	<Dialog bind:open title={table.name} onCloseAutoFocus={keepRenameFocus}>
 		<div class="-mx-2 flex flex-col items-stretch">
-			{#if onviewsettings !== undefined}
-				<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
-					>{viewWords.viewSettings}</Button
-				>
-			{/if}
 			<span class="px-3 pt-2 text-sm text-ink-3" id="new-view">{viewWords.newView}</span>
 			<div class="grid grid-cols-4 gap-1 px-1 pb-1" role="group" aria-labelledby="new-view">
 				{#each VIEW_TYPES as option (option.id)}

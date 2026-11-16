@@ -27,7 +27,8 @@ import {
 	tablePath,
 	test,
 	toastButton,
-	undo
+	undo,
+	viewSettings
 } from './harness.ts';
 
 const header = (page: Page, name: string): Locator =>
@@ -601,7 +602,7 @@ test.describe('fields and views', () => {
 
 		const firstRow = page.locator('tbody tr').first();
 		const openSettings = async (): Promise<Locator> => {
-			await tableMenu(page, 'View settings');
+			await viewSettings(page);
 			return page.getByRole('dialog', { name: 'View settings' });
 		};
 
@@ -644,7 +645,7 @@ test.describe('fields and views', () => {
 		void account;
 		const { table, list } = await seedGym(context.request);
 		await page.goto(tablePath(table, list));
-		await tableMenu(page, 'View settings');
+		await viewSettings(page);
 
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await sheet.getByRole('button', { name: /^Chart/u }).click();
@@ -665,7 +666,7 @@ test.describe('fields and views', () => {
 		void account;
 		const { table, list, chart } = await seedGym(context.request);
 		const open = async (): Promise<Locator> => {
-			await tableMenu(page, 'View settings');
+			await viewSettings(page);
 			return page.getByRole('dialog', { name: 'View settings' });
 		};
 
@@ -701,7 +702,7 @@ test.describe('fields and views', () => {
 		await page.keyboard.press('Enter');
 		await expect(cell(page, 'Bench')).toHaveCount(0);
 
-		await tableMenu(page, 'View settings');
+		await viewSettings(page);
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await expect(sheet.getByText('Only rows where Exercise contains "squ"')).toBeVisible();
 		await sheet.getByRole('button', { name: 'Clear filter' }).click();
@@ -737,7 +738,7 @@ test.describe('fields and views', () => {
 		await expect(dialog).toHaveCount(0);
 		await expect(header(page, 'Repetitions')).toBeVisible();
 
-		await tableMenu(page, 'View settings');
+		await viewSettings(page);
 		const settings = page.getByRole('dialog', { name: 'View settings' });
 		await settings.getByLabel('Name').fill('Sheet');
 		await settings.getByLabel('Name').press('Enter');

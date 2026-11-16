@@ -19,7 +19,8 @@ import {
 	tableList,
 	tableMenu,
 	tablePath,
-	test
+	test,
+	viewSettings
 } from './harness.ts';
 
 function seedTwoTables(request: APIRequestContext) {
@@ -352,7 +353,7 @@ test('the table menu renames the table, opens view settings and adds a view', as
 	await expect(page.getByRole('heading', { name: 'Sets' })).toBeVisible();
 	await expect(page.getByRole('status')).toContainText('Table renamed');
 
-	await tableMenu(page, 'View settings');
+	await viewSettings(page);
 	await expect(dialog.getByRole('heading', { name: 'View settings' })).toBeVisible();
 	await page
 		.getByRole('dialog', { name: 'View settings' })
@@ -385,7 +386,6 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 
 	const menu = page.getByRole('menu');
 	await expect(menu.getByRole('menuitem')).toHaveText([
-		'View settings',
 		'New view',
 		'Rename table',
 		'Duplicate table',
@@ -401,7 +401,6 @@ test('the table menu hangs from its button on desktop and is a sheet on a phone'
 	).toBeLessThan(2);
 	expect(list?.y ?? 0).toBeGreaterThan(button?.y ?? 0);
 
-	await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('menuitem', { name: 'Chart', exact: true })).toBeVisible();

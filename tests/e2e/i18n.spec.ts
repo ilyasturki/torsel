@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 
-import common from '../../src/lib/i18n/common.ts';
 import email from '../../src/lib/i18n/email.ts';
 import errors from '../../src/lib/i18n/errors.ts';
 import home from '../../src/lib/i18n/home.ts';
@@ -67,11 +66,7 @@ test.describe('in fr-FR', () => {
 		void account;
 		await page.goto('/app');
 		await page.getByRole('button', { name: home.fr.newTable }).first().click();
-		await page.getByRole('button', { name: common.fr.more }).last().click();
-		await page
-			.getByRole('menuitem', { name: views.fr.viewSettings })
-			.or(page.getByRole('dialog').getByRole('button', { name: views.fr.viewSettings }))
-			.click();
+		await page.getByRole('button', { name: views.fr.viewSettings, exact: true }).click();
 		const picker = page.getByRole('group', { name: views.fr.viewType });
 		await expect(picker.getByRole('button')).toHaveCount(4);
 		const clipped = await picker

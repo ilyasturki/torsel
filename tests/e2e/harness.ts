@@ -90,6 +90,11 @@ export async function tableMenu(page: Page, item: string): Promise<void> {
 		.click();
 }
 
+/** Opens the current view's settings from its icon in the bar. */
+export async function viewSettings(page: Page): Promise<void> {
+	await page.getByRole('button', { name: 'View settings', exact: true }).click();
+}
+
 /** Adds a view of a type: the "+" by the view tabs from `sm` up, the table's sheet on a phone. */
 export async function newView(
 	page: Page,

@@ -2,7 +2,7 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newView, pick, seed, tableMenu, tablePath, test } from './harness.ts';
+import { expect, newView, pick, seed, tablePath, test, viewSettings } from './harness.ts';
 
 test.beforeEach(() => {
 	test.skip(test.info().project.name !== 'phone', 'a phone-sized screen is the point here');
@@ -81,7 +81,7 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 		'aria-current',
 		'page'
 	);
-	await tableMenu(page, 'View settings');
+	await viewSettings(page);
 	const sheet = page.getByRole('dialog');
 	await sheet.getByRole('button', { name: 'Line', exact: true }).click();
 	await pick(sheet.getByRole('combobox', { name: 'Horizontal axis' }), 'Day');
