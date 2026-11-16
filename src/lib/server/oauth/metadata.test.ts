@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { discoveryResponse, mcpChallenge } from './metadata.ts';
+import { challenge, discoveryResponse } from './metadata.ts';
 
 const PRM = '/.well-known/oauth-protected-resource/api/mcp';
 const AS = '/.well-known/oauth-authorization-server';
@@ -56,7 +56,7 @@ describe('OAuth', () => {
 		vi.stubEnv('ORIGIN', 'http://192.168.1.50:3000');
 		expect(await fetchDocument(PRM, 'http://192.168.1.50:3000')).toBeNull();
 		expect(await fetchDocument(AS, 'http://192.168.1.50:3000')).toBeNull();
-		expect(mcpChallenge(new URL('http://192.168.1.50:3000/api/mcp'), false)).toBe(
+		expect(challenge(new URL('http://192.168.1.50:3000/api/mcp'), false)).toBe(
 			'Bearer realm="torsel"'
 		);
 	});
@@ -73,10 +73,10 @@ describe('the MCP challenge', () => {
 	it('points to the resource metadata and the scopes on a 401', () => {
 		vi.stubEnv('ORIGIN', 'https://torsel.test');
 		const url = new URL('https://spoofed.example/api/mcp');
-		expect(mcpChallenge(url, false)).toBe(
+		expect(challenge(url, false)).toBe(
 			'Bearer realm="torsel", resource_metadata="https://torsel.test/.well-known/oauth-protected-resource/api/mcp", scope="read write"'
 		);
-		expect(mcpChallenge(url, true)).toBe(
+		expect(challenge(url, true)).toBe(
 			'Bearer realm="torsel", error="invalid_token", resource_metadata="https://torsel.test/.well-known/oauth-protected-resource/api/mcp", scope="read write"'
 		);
 	});

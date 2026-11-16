@@ -77,6 +77,11 @@ export function mcpCallsPerMinute(): number {
 	return envCount('TORSEL_MCP_CALLS_PER_MINUTE', 120);
 }
 
+/** REST API requests one credential may make per minute, 0 for no cap. */
+export function apiCallsPerMinute(): number {
+	return envCount('TORSEL_API_CALLS_PER_MINUTE', 300);
+}
+
 export function brevoKey(): string | undefined {
 	const key = envText('BREVO_API_KEY', '');
 	return key === '' ? undefined : key;

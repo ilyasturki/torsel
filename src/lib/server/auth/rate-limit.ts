@@ -6,7 +6,12 @@ const HOUR = 60 * MINUTE;
 
 const MAX_TRACKED = 10_000;
 
-export type Window = { hit: (key: string) => boolean; reset: () => void };
+export type Window = {
+	hit: (key: string) => boolean;
+	/** Milliseconds until `key` may hit again, 0 when it may now. */
+	wait: (key: string) => number;
+	reset: () => void;
+};
 
 // In memory: an instance is one process on one SQLite file.
 export function slidingWindow(limit: number, windowMs: number): Window {
@@ -29,6 +34,13 @@ export function slidingWindow(limit: number, windowMs: number): Window {
 			hits.set(key, recent);
 
 			return recent.length > limit;
+		},
+		wait(key) {
+			const recent = hits.get(key) ?? [];
+			if (recent.length < limit) {
+				return 0;
+			}
+			return Math.max(0, recent[recent.length - limit] + windowMs - Date.now());
 		},
 		reset() {
 			hits.clear();

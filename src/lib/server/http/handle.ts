@@ -5,21 +5,26 @@ import type { Credential } from '../auth/session.ts';
 import { SESSION_COOKIE, bearerToken, resolveCredential, secureCookies } from '../auth/session.ts';
 import type { Database } from '../db/client.ts';
 import { oauthOrigin, siteOrigin } from '../config.ts';
+import { errorResponse } from '../api/errors.ts';
 import {
+	API_PATH,
 	MCP_PATH,
 	REVOKE_PATH,
 	TOKEN_PATH,
-	discoveryResponse,
-	mcpChallenge,
-	mcpResource
+	challenge,
+	discoveryResponse
 } from '../oauth/metadata.ts';
 import { mediaType } from './body.ts';
-import { applyCors, preflightResponse } from './cors.ts';
+import { applyCors, openCors, preflightResponse } from './cors.ts';
 import { PUBLIC_API_ROUTES } from './public-routes.ts';
 import { errors } from '../../i18n/errors.ts';
 
 function isApiPath(pathname: string): boolean {
 	return pathname === '/api' || pathname.startsWith('/api/');
+}
+
+function isRestPath(pathname: string): boolean {
+	return pathname === API_PATH || pathname.startsWith(`${API_PATH}/`);
 }
 
 // SvelteKit routes on the decoded path, so `GET /%61pi/x` reaches `/api/x`: matching
@@ -47,29 +52,32 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const FORMS_FROM_ANYWHERE = new Set([TOKEN_PATH, REVOKE_PATH]);
 
 // SvelteKit's own check, off in the kit config, can't spare a path; self is the pinned ORIGIN, as adapter-node calls every request https.
+// A form cannot send an Authorization header, so a request that carries one is no form.
 export function crossSiteForm(request: Request, url: URL, pathname: string): boolean {
 	const type = mediaType(request);
 	const form = type === '' || FORM_TYPES.has(type);
 	return (
 		form &&
 		MUTATING.has(request.method) &&
+		!request.headers.has('authorization') &&
 		request.headers.get('origin') !== (siteOrigin(url) ?? url.origin) &&
 		!FORMS_FROM_ANYWHERE.has(pathname)
 	);
 }
 
-/** Web and device credentials reach the whole API; a token for agents reaches only MCP, and an OAuth one only its own audience. */
+/** Web and device credentials reach the whole API; a token for agents reaches only MCP and the REST API, and an OAuth one only its own audience. */
 function reaches(credential: Credential, pathname: string, url: URL): boolean {
 	const { kind, resource } = credential.token;
 	if (kind === 'web' || kind === 'device') {
 		return true;
 	}
-	if (pathname !== MCP_PATH) {
+	const audience = pathname === MCP_PATH ? MCP_PATH : isRestPath(pathname) ? API_PATH : null;
+	if (audience === null) {
 		return false;
 	}
 	if (kind === 'oauth') {
 		const origin = oauthOrigin(url);
-		return origin !== null && resource === mcpResource(origin);
+		return origin !== null && resource === `${origin}${audience}`;
 	}
 	return true;
 }
@@ -120,44 +128,60 @@ export function createHandle(database: () => Database): Handle {
 		}
 
 		const origin = event.request.headers.get('origin');
+		// The REST API takes a bearer token only, never the cookie: any page may call it, as no browser holds its credential.
+		const rest = isRestPath(pathname);
+		const cors = (response: Response) => (rest ? openCors(response) : applyCors(response, origin));
 
 		if (event.request.method === 'OPTIONS') {
-			return applyCors(preflightResponse(), origin);
+			return cors(preflightResponse());
 		}
 
-		const secret = bearerToken(event.request) ?? event.cookies.get(SESSION_COOKIE) ?? null;
+		const secret =
+			bearerToken(event.request) ?? (rest ? null : (event.cookies.get(SESSION_COOKIE) ?? null));
 
 		let credential: Credential | null;
 		try {
 			credential = resolveCredential(database(), secret);
 		} catch (error) {
 			console.error('could not resolve a credential:', error);
-			return applyCors(json({ message: errors.databaseUnavailable }, { status: 503 }), origin);
+			return cors(
+				rest
+					? errorResponse(503, 'unavailable', errors.databaseUnavailable)
+					: json({ message: errors.databaseUnavailable }, { status: 503 })
+			);
 		}
 
 		// An OAuth token for another audience is no token here: the client is told to sign in again.
-		if (credential !== null && pathname === MCP_PATH && !reaches(credential, pathname, event.url)) {
+		if (
+			credential !== null &&
+			(pathname === MCP_PATH || rest) &&
+			!reaches(credential, pathname, event.url)
+		) {
 			credential = null;
 		}
 
 		event.locals.credential = credential;
 
 		if (credential === null && !(pathname in PUBLIC_API_ROUTES)) {
-			const refused = json({ message: errors.authRequired }, { status: 401 });
-			if (pathname === MCP_PATH) {
-				refused.headers.set('www-authenticate', mcpChallenge(event.url, secret !== null));
+			const refused = rest
+				? errorResponse(401, 'unauthorized', errors.authRequired)
+				: json({ message: errors.authRequired }, { status: 401 });
+			if (pathname === MCP_PATH || rest) {
+				refused.headers.set(
+					'www-authenticate',
+					challenge(event.url, secret !== null, rest ? API_PATH : MCP_PATH)
+				);
 			}
-			return applyCors(refused, origin);
+			return cors(refused);
 		}
 
 		if (credential !== null && !reaches(credential, pathname, event.url)) {
-			return applyCors(
-				json({ message: 'an API token reaches only /api/mcp' }, { status: 403 }),
-				origin
+			return cors(
+				json({ message: 'an API token reaches only /api/mcp and /api/v1' }, { status: 403 })
 			);
 		}
 
-		const response = applyCors(await resolve(event), origin);
+		const response = cors(await resolve(event));
 		if (!response.headers.has('cache-control')) {
 			response.headers.set('cache-control', 'private, no-store');
 		}

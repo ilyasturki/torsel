@@ -7,6 +7,7 @@ import {
 import { oauthOrigin } from '../config.ts';
 
 export const MCP_PATH = '/api/mcp';
+export const API_PATH = '/api/v1';
 export const AUTHORIZE_PATH = '/oauth/authorize';
 export const TOKEN_PATH = '/api/oauth/token';
 export const REGISTER_PATH = '/api/oauth/register';
@@ -14,9 +15,19 @@ export const REVOKE_PATH = '/api/oauth/revoke';
 
 export const SCOPES = ['read', 'write'];
 
-/** The audience of every token this server issues: what clients send as `resource`. */
+/** The MCP endpoint as an audience: what clients send as `resource`, and the default. */
 export function mcpResource(origin: string): string {
 	return `${origin}${MCP_PATH}`;
+}
+
+/** The REST API as an audience. */
+export function apiResource(origin: string): string {
+	return `${origin}${API_PATH}`;
+}
+
+/** Every audience a token of this server can have. */
+export function resources(origin: string): string[] {
+	return [mcpResource(origin), apiResource(origin)];
 }
 
 export function serverMetadata(origin: string): OAuthMetadata {
@@ -47,23 +58,29 @@ export function discoveryResponse(request: Request, url: URL): Response | undefi
 	if (origin === null) {
 		return undefined;
 	}
-	return oauthMetadataResponse(request, {
-		oauthMetadata: serverMetadata(origin),
-		resourceServerUrl: new URL(mcpResource(origin)),
-		scopesSupported: SCOPES,
-		resourceName: 'Torsel'
-	});
+	for (const resource of resources(origin)) {
+		const response = oauthMetadataResponse(request, {
+			oauthMetadata: serverMetadata(origin),
+			resourceServerUrl: new URL(resource),
+			scopesSupported: SCOPES,
+			resourceName: 'Torsel'
+		});
+		if (response !== undefined) {
+			return response;
+		}
+	}
+	return undefined;
 }
 
-/** `WWW-Authenticate` for a 401 on the MCP endpoint: where to sign in, when OAuth is on. */
-export function mcpChallenge(url: URL, invalidToken: boolean): string {
+/** `WWW-Authenticate` for a 401 on the MCP endpoint or the API: where to sign in, when OAuth is on. */
+export function challenge(url: URL, invalidToken: boolean, path = MCP_PATH): string {
 	const parts = ['Bearer realm="torsel"'];
 	if (invalidToken) {
 		parts.push('error="invalid_token"');
 	}
 	const origin = oauthOrigin(url);
 	if (origin !== null) {
-		const document = getOAuthProtectedResourceMetadataUrl(new URL(mcpResource(origin)));
+		const document = getOAuthProtectedResourceMetadataUrl(new URL(`${origin}${path}`));
 		parts.push(`resource_metadata="${document}"`, `scope="${SCOPES.join(' ')}"`);
 	}
 	return parts.join(', ');

@@ -12,6 +12,19 @@ afterEach(() => {
 });
 
 describe('slidingWindow', () => {
+	it('says how long until a refused key may hit again', () => {
+		const window = slidingWindow(2, 1000);
+		expect(window.wait('a')).toBe(0);
+		window.hit('a');
+		vi.advanceTimersByTime(300);
+		window.hit('a');
+		expect(window.wait('a')).toBe(700);
+		window.hit('a');
+		expect(window.wait('a')).toBe(1000);
+		vi.advanceTimersByTime(1000);
+		expect(window.wait('a')).toBe(0);
+	});
+
 	it('refuses past the limit and forgets once the window has moved', () => {
 		const window = slidingWindow(2, 1000);
 

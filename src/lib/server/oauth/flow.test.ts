@@ -337,6 +337,18 @@ describe('the tokens', () => {
 		expect(resolveCredential(db, answer.refresh_token)).toBeNull();
 	});
 
+	it('give a bearer bound to the REST API when the client names it, kept on refresh', async () => {
+		const api = `${ORIGIN}/api/v1`;
+		const { verifier, challenge } = pkce();
+		const { code } = await codeFor(challenge, 'read', { resource: api });
+		const answer = trade(code, verifier, { resource: api });
+		expect(answer.status).toBe(200);
+		const pair = answer.body as { access_token: string; refresh_token: string };
+		expect(resolveCredential(db, pair.access_token)?.token).toMatchObject({ resource: api });
+		const renewed = refresh(pair.refresh_token).body as { access_token: string };
+		expect(resolveCredential(db, renewed.access_token)?.token.resource).toBe(api);
+	});
+
 	it('rotate on refresh: a fresh pair, the old refresh token spent', async () => {
 		const first = await connected();
 		const second = refresh(first.refresh_token);

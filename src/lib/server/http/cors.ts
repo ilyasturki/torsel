@@ -16,6 +16,13 @@ export function applyCors(response: Response, origin: string | null): Response {
 	return response;
 }
 
+/** Any origin, no credentials: for an endpoint that takes only a bearer token. */
+export function openCors(response: Response): Response {
+	response.headers.set('access-control-allow-origin', '*');
+	response.headers.set('access-control-expose-headers', 'www-authenticate, retry-after');
+	return response;
+}
+
 export function preflightResponse(): Response {
 	return new Response(null, {
 		status: 204,

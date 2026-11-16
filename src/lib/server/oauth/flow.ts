@@ -13,7 +13,7 @@ import {
 	oauthRequests
 } from '../db/schema.ts';
 import { resolveClient } from './clients.ts';
-import { mcpResource } from './metadata.ts';
+import { mcpResource, resources } from './metadata.ts';
 import { CHALLENGE, verifierMatches } from './pkce.ts';
 import { isLoopback, redirectMatches } from './redirects.ts';
 
@@ -151,11 +151,14 @@ export async function authorize(
 	if (state !== null && state.length > MAX_STATE) {
 		return back('invalid_request', 'state is too long');
 	}
-	const resource = mcpResource(origin);
 	const asked = single('resource');
-	// A client that names no resource can only mean the one this server has.
-	if (asked !== null && !sameResource(asked, resource)) {
-		return back('invalid_target', `the only resource here is ${resource}`);
+	// MCP clients often name no resource: that one is the default.
+	const resource =
+		asked === null
+			? mcpResource(origin)
+			: resources(origin).find((candidate) => sameResource(asked, candidate));
+	if (resource === undefined) {
+		return back('invalid_target', `the resources here are ${resources(origin).join(' and ')}`);
 	}
 
 	purgeExpired(db, now);

@@ -16,7 +16,8 @@ import {
 } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
-import type { Actor } from '../../core/access.ts';
+import type { Actor, Path } from '../../core/access.ts';
+import type { Workspace } from '../../core/workspace.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeUndoable } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
@@ -75,9 +76,20 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 		};
 	}
 
+	return (await execute(db, caller, tool, input, 'mcp')).outcome;
+}
+
+/** Runs a tool for a credential outside the app; the workspace it ran on, writes included. */
+export async function execute(
+	db: Database,
+	caller: Pick<McpCaller, 'userId' | 'tokenId'>,
+	tool: Tool,
+	input: unknown,
+	path: Path
+): Promise<{ outcome: Outcome; ws: Workspace }> {
 	const work = async () => {
 		const ws = loadWorkspace(db, caller.userId);
-		const actor: Actor = { user: caller.userId, path: 'mcp' };
+		const actor: Actor = { user: caller.userId, path };
 		const ctx: ToolContext = {
 			ws,
 			actor,
@@ -97,7 +109,7 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 				}
 			}
 		};
-		return runTool(ctx, tool, input);
+		return { outcome: await runTool(ctx, tool, input), ws };
 	};
 	// Writes load and commit inside the account's turn, so no call overwrites what another just wrote;
 	// a token's queries take turns, so one token never holds every SQL worker.

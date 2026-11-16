@@ -310,6 +310,20 @@ export function formulaValues(
 	}
 }
 
+/** The computed values of a table's formula fields for the given rows; the base must be materialized. */
+export function formulaCells(
+	engine: Engine,
+	tableId: string,
+	fields: string[],
+	rows: string[]
+): [string, SqlValue[]][] {
+	if (fields.length === 0 || rows.length === 0) {
+		return [];
+	}
+	const sql = `select id, ${fields.map(quote).join(', ')} from v_${tableId} where id in (${rows.map(() => '?').join(', ')})`;
+	return engine.all(sql, rows).map((row) => [String(row.id), fields.map((id) => row[id] ?? null)]);
+}
+
 /** Why SQLite refuses a stored formula on this table, or null; the table must be materialized. */
 export function formulaProblem(
 	engine: Engine,

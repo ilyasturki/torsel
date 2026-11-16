@@ -4,6 +4,7 @@ import type { MemoryEngine, Sqlite3 } from '../../core/memory-engine.ts';
 import { memoryEngine } from '../../core/memory-engine.ts';
 import {
 	QueryError,
+	formulaCells,
 	formulaProblem,
 	formulaValues,
 	materializeBase,
@@ -33,6 +34,8 @@ function run(engine: MemoryEngine, ws: Workspace, job: SqlJob): SqlResult[SqlJob
 			return formulaProblem(engine, ws, task.table, task.stored);
 		case 'formula-values':
 			return [...formulaValues(engine, ws, task.table, task.stored)];
+		case 'formula-cells':
+			return formulaCells(engine, task.table, task.fields, task.rows);
 	}
 }
 

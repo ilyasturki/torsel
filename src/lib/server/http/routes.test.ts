@@ -33,6 +33,9 @@ const routes = endpoints(ROOT).map((file) => ({
 
 const guarded = (source: string) => source.includes('requireCredential(');
 
+const isRest = (path: string) => path.startsWith('/api/v1/');
+const forAgents = (path: string) => path === '/api/mcp' || isRest(path);
+
 describe('api routes', () => {
 	it('found the API surface', () => {
 		expect(routes.length).toBeGreaterThan(10);
@@ -88,19 +91,19 @@ async function reach(kind: AuthToken['kind']): Promise<Map<string, number>> {
 }
 
 describe('an api token', () => {
-	it('reaches the MCP endpoint and nothing else', async () => {
+	it('reaches the MCP endpoint and the REST API, and nothing else', async () => {
 		const statuses = await reach('api');
 
-		expect(statuses.get('/api/mcp')).toBe(200);
-		expect([...statuses].filter(([path, status]) => path !== '/api/mcp' && status !== 403)).toEqual(
+		expect([...statuses].filter(([path, status]) => forAgents(path) && status !== 200)).toEqual([]);
+		expect([...statuses].filter(([path, status]) => !forAgents(path) && status !== 403)).toEqual(
 			[]
 		);
 	});
 
-	it('reaches nothing outside MCP as an OAuth token', async () => {
+	it('reaches nothing outside MCP and the REST API as an OAuth token', async () => {
 		const statuses = await reach('oauth');
 
-		expect([...statuses].filter(([path, status]) => path !== '/api/mcp' && status !== 403)).toEqual(
+		expect([...statuses].filter(([path, status]) => !forAgents(path) && status !== 403)).toEqual(
 			[]
 		);
 	});
@@ -221,8 +224,28 @@ describe('an OAuth access token', () => {
 		for (const { path } of routes.filter((route) => route.path !== '/api/mcp')) {
 			const concrete = path.replaceAll(/\[[^\]]+\]/gu, 'x');
 			const { status } = await knockAt('https://torsel.test', concrete, db, bearer);
-			expect([path, status]).toEqual([path, 403]);
+			const expected = isRest(path) ? (path in PUBLIC_API_ROUTES ? 200 : 401) : 403;
+			expect([path, status]).toEqual([path, expected]);
 		}
+	});
+
+	it('reaches the REST API of its own audience and nothing else', async () => {
+		vi.stubEnv('ORIGIN', 'https://torsel.test');
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+		const token = await oauthToken(db, 'https://torsel.test/api/v1');
+		const bearer = { headers: { authorization: `Bearer ${token}` } };
+
+		for (const { path } of routes) {
+			const concrete = path.replaceAll(/\[[^\]]+\]/gu, 'x');
+			const { status } = await knockAt('https://torsel.test', concrete, db, bearer);
+			const expected = isRest(path) ? 200 : path === '/api/mcp' ? 401 : 403;
+			expect([path, status]).toEqual([path, expected]);
+		}
+		const mcp = await knockAt('https://torsel.test', '/api/mcp', db, bearer);
+		expect(mcp.headers.get('www-authenticate')).toContain(
+			'/.well-known/oauth-protected-resource/api/mcp"'
+		);
 	});
 
 	it('is no token for another audience, or once OAuth is off', async () => {
@@ -259,6 +282,27 @@ describe('the MCP challenge with OAuth on', () => {
 		expect(bare.headers.get('www-authenticate')).toBe(
 			'Bearer realm="torsel", resource_metadata="https://torsel.test/.well-known/oauth-protected-resource/api/mcp", scope="read write"'
 		);
+	});
+
+	it('names the REST API resource metadata on its own 401', async () => {
+		vi.stubEnv('ORIGIN', 'https://torsel.test');
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+		const bare = await knockAt('https://torsel.test', '/api/v1/bases', db, { method: 'GET' });
+		expect(bare.status).toBe(401);
+		expect(await bare.json()).toEqual({
+			error: { code: 'unauthorized', message: 'authentication required' }
+		});
+		expect(bare.headers.get('www-authenticate')).toBe(
+			'Bearer realm="torsel", resource_metadata="https://torsel.test/.well-known/oauth-protected-resource/api/v1", scope="read write"'
+		);
+		const document = await knockAt(
+			'https://torsel.test',
+			'/.well-known/oauth-protected-resource/api/v1',
+			db,
+			{ method: 'GET' }
+		);
+		expect(await document.json()).toMatchObject({ resource: 'https://torsel.test/api/v1' });
 	});
 
 	it('serves the discovery documents before any route', async () => {
@@ -327,5 +371,60 @@ describe('a cross-site form', () => {
 			headers: { 'content-type': 'application/json' }
 		});
 		expect(crossSiteForm(request, url, '/api/mcp')).toBe(false);
+	});
+});
+
+describe('the REST API', () => {
+	it('never takes the session cookie, so any page may call it', async () => {
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+		const user = await createUser(db, 'me@example.com', 'correct horse');
+		const { token } = issueToken(db, user.id, 'web', 'web');
+		const url = new URL('https://torsel.test/api/v1/bases');
+		const event = (cookie: string | undefined, headers: Record<string, string> = {}) =>
+			({
+				url,
+				request: new Request(url, { headers: { origin: 'https://elsewhere.example', ...headers } }),
+				route: { id: '/api/v1/bases' },
+				cookies: { get: () => cookie },
+				locals: {}
+			}) as unknown as RequestEvent;
+		const handle = createHandle(() => db);
+		const resolve = async () => new Response('reached');
+
+		const byCookie = await handle({ event: event(token), resolve });
+		expect(byCookie.status).toBe(401);
+		expect(byCookie.headers.get('access-control-allow-origin')).toBe('*');
+
+		const byBearer = await handle({
+			event: event(undefined, { authorization: `Bearer ${token}` }),
+			resolve
+		});
+		expect(byBearer.status).toBe(200);
+	});
+
+	it('takes a bodiless DELETE from curl, with no Origin and no content type', async () => {
+		const db = createDatabase(':memory:');
+		runMigrations(db);
+		const user = await createUser(db, 'me@example.com', 'correct horse');
+		const { token } = issueToken(db, user.id, 'agent', 'api');
+		const url = new URL('https://torsel.test/api/v1/bases/x/tables/y/rows?ids=a');
+		const request = new Request(url, {
+			method: 'DELETE',
+			headers: { authorization: `Bearer ${token}` }
+		});
+		expect(crossSiteForm(request, url, url.pathname)).toBe(false);
+		const event = {
+			url,
+			request,
+			route: { id: '/api/v1/bases/[base]/tables/[table]/rows' },
+			cookies: { get: () => undefined },
+			locals: {}
+		} as unknown as RequestEvent;
+		const response = await createHandle(() => db)({
+			event,
+			resolve: async () => new Response('reached')
+		});
+		expect(response.status).toBe(200);
 	});
 });

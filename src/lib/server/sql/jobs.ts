@@ -5,12 +5,14 @@ import type { QueryPage, SqlValue } from '../../core/sql.ts';
 export type SqlTask =
 	| { kind: 'query'; sql: string; offset: number }
 	| { kind: 'formula-problem'; table: string; stored: string }
-	| { kind: 'formula-values'; table: string; stored: string };
+	| { kind: 'formula-values'; table: string; stored: string }
+	| { kind: 'formula-cells'; table: string; fields: string[]; rows: string[] };
 
 export type SqlResult = {
 	query: QueryPage;
 	'formula-problem': string | null;
 	'formula-values': [string, SqlValue][];
+	'formula-cells': [string, SqlValue[]][];
 };
 
 export type SqlJob = {

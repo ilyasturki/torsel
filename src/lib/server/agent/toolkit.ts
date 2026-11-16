@@ -312,7 +312,7 @@ const CELL = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.s
 	error: (issue) =>
 		`${JSON.stringify(issue.input)} is not a value: give text, a number, a boolean, null, or an array of texts`
 });
-const ROW_VALUES = z
+export const ROW_VALUES = z
 	.record(z.string(), CELL)
 	.describe(
 		'values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text'
@@ -1757,7 +1757,7 @@ export async function runTool(
 	ctx: ToolContext,
 	tool: Tool,
 	raw: unknown
-): Promise<{ ok: true; result: ToolResult } | { ok: false; error: string }> {
+): Promise<{ ok: true; result: ToolResult } | { ok: false; error: string; failed?: true }> {
 	const parsed = tool.input.safeParse(raw ?? {});
 	if (!parsed.success) {
 		return { ok: false, error: inputProblem(tool.input, parsed.error) };
@@ -1778,6 +1778,10 @@ export async function runTool(
 			return { ok: false, error: error.message };
 		}
 		console.error(`${tool.name} failed:`, error);
-		return { ok: false, error: `${tool.name} failed on the server; nothing was written` };
+		return {
+			ok: false,
+			error: `${tool.name} failed on the server; nothing was written`,
+			failed: true
+		};
 	}
 }
