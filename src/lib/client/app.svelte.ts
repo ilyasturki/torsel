@@ -1,5 +1,6 @@
 import type { Actor, Target } from '../core/access.ts';
 import { allowed, canAddRows, canEditValues, canWrite } from '../core/access.ts';
+import { chartSetup } from '../core/actions.ts';
 import type { ChartData } from '../core/chart.ts';
 import { chartData } from '../core/chart.ts';
 import { Hlc } from '../core/clock.ts';
@@ -7,7 +8,8 @@ import type { MemoryEngine } from '../core/engine.ts';
 import { openEngine } from '../core/engine.ts';
 import { latestClock, sameRec } from '../core/merge.ts';
 import type { Change, ChartConfig, FieldDef, Rec } from '../core/model.ts';
-import type { Opened } from '../core/published.ts';
+import type { Published } from '../core/published.ts';
+import { openPublished as publishedChanges } from '../core/published.ts';
 import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
 import { formulaProblem, formulaTables, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
@@ -105,10 +107,6 @@ class TorselApp {
 	// Chart data known before SQLite loads, by table and config, on the same terms.
 	private readonly earlyCharts = new Map<string, { revision: number; data: ChartData }>();
 	private seq = 0;
-	private given: {
-		computed: Map<string, SqlRow>;
-		chart: { table: string; data: ChartData } | null;
-	} | null = null;
 
 	public load(): Promise<void> {
 		this.loading ??= this.open();
@@ -173,18 +171,21 @@ class TorselApp {
 		return this.loading;
 	}
 
-	/**
-	 * A published view's page: the records the server sent, read only, with the figures it
-	 * computed standing in for SQLite, which never loads here. No store opens and no sync starts.
-	 */
-	public openPublished(opened: Opened, chart: { table: string; data: ChartData } | null): void {
+	/** SQLite never loads here: the server's formula values and chart stay the early ones for good. */
+	public openPublished(published: Published): void {
 		this.actor = { user: '', path: 'device', readOnly: true };
-		for (const change of opened.changes) {
+		const { changes, computed } = publishedChanges(published);
+		for (const change of changes) {
 			this.ws.stamp(change, this.hlc.tick());
 		}
-		this.given = { computed: opened.computed, chart };
 		this.loading = Promise.resolve();
-		this.bump(false);
+		const table = published.table.id;
+		this.computedEarly(table, computed);
+		const config = this.ws.view(published.view.id)?.config;
+		if (published.chart !== null && config !== undefined) {
+			const setup = chartSetup(this.ws.fields(table), config, this.ws.rows(table));
+			this.chartEarly(table, setup, published.chart);
+		}
 	}
 
 	public get readOnly(): boolean {
@@ -558,9 +559,6 @@ class TorselApp {
 		if (formulas.length === 0) {
 			return new Map();
 		}
-		if (this.given !== null) {
-			return this.given.computed;
-		}
 		if (!this.ready) {
 			const early = this.early.get(tableId);
 			return early?.revision === this.ws.revision(tableId) ? early.rows : new Map();
@@ -589,9 +587,6 @@ class TorselApp {
 	}
 
 	public chart(tableId: string, config: ChartConfig): ChartData | null {
-		if (this.given !== null) {
-			return this.given.chart?.table === tableId ? this.given.chart.data : null;
-		}
 		if (!this.ready) {
 			const early = this.earlyCharts.get(`${tableId} ${JSON.stringify(config)}`);
 			return early?.revision === this.ws.revision(tableId) ? early.data : null;

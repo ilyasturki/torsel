@@ -7,7 +7,6 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { imagesFromLink } from '#lib/client/images.svelte.ts';
 	import type { Published } from '#lib/core/published.ts';
-	import { openPublished } from '#lib/core/published.ts';
 	import { publish as words } from '#lib/i18n/publish.ts';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -32,10 +31,7 @@
 				body: { token }
 			});
 			imagesFromLink(token);
-			app.openPublished(
-				openPublished(published),
-				published.chart === null ? null : { table: published.table.id, data: published.chart }
-			);
+			app.openPublished(published);
 			shown = published;
 		} catch (error) {
 			failed = error instanceof ApiError && error.status === 404 ? words.gone : words.loadFailed;
