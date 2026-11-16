@@ -79,6 +79,7 @@ test('a view is added in two taps and its settings hold no type hints', async ({
 	await expect(tabs(page)).toHaveText(['Grid', 'Entry', 'Trend', 'Log', 'Chart']);
 	await expect(tabs(page).getByText('Chart')).toHaveAttribute('aria-current', 'page');
 	await expect(page.getByRole('status')).toContainText('View "Chart" added');
+	await page.keyboard.press('Escape');
 
 	await page.getByRole('button', { name: 'More' }).click();
 	await page

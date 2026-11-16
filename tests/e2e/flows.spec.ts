@@ -939,20 +939,22 @@ test.describe('importing', () => {
 		await expect(header(page, 'load_mode')).toBeAttached();
 
 		await page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Entry' }).click();
-		const source = page.getByText(/^From /u);
-		await expect(source).toHaveText('From Oct 28');
+		const plan = page.getByRole('group', { name: 'Last time' });
+		const lines = plan.getByRole('button', { name: /^(Logged )?\d/u });
+		await expect(page.getByRole('button', { name: 'Push A', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(plan.getByRole('button', { pressed: true })).toContainText('60');
 		await expect(page.getByRole('button', { name: 'Add row' })).toBeInViewport();
 		await expect(page.getByRole('button', { name: 'weight_kg plus' })).toBeInViewport();
 		await expect(page.getByRole('button', { name: 'reps plus' })).toBeInViewport();
 		await expect(page.getByText('load_mode')).toHaveCount(0);
 		await expect(page.getByRole('textbox', { name: 'grip' })).toHaveCount(0);
-		await expect(page.getByRole('button', { name: 'Dip', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(lines.filter({ hasText: /^Logged/u })).toHaveCount(0);
 		await page.getByRole('button', { name: 'Add row' }).click();
 		await expect(page.getByText(`${rows.count + 1} rows`, { exact: true })).toBeVisible();
-		await expect(source).toHaveText('From today');
+		await expect(plan.getByRole('button', { name: /^Logged/u })).toHaveCount(1);
 	});
 });
 

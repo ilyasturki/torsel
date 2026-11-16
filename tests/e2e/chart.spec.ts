@@ -104,7 +104,7 @@ test.describe('in French', () => {
 		void account;
 		await page.goto(await seedWeighIns(context.request));
 		await expect(page.getByTestId('chart-line')).toHaveText(
-			/^Moyenne\s*de\s*Kg\s*par\s*Day\s*par\s*jour$/u
+			/^Moyenne\s*de\s*Kg\s*par\s*Day\s*par\s*jour\s*$/u
 		);
 	});
 });
@@ -120,7 +120,7 @@ test('a new chart starts from a guess, and its sentence sets it as it is picked'
 	const chart = page.getByRole('img', { name: 'Average kg per Day' });
 	await expect(chart.locator('polyline')).toHaveCount(1);
 	await expect(page.getByTestId('chart-line')).toHaveText(
-		/Average\s*of\s*Kg\s*by\s*Day\s*per\s*day/u
+		/^Average\s*of\s*Kg\s*by\s*Day\s*per\s*day\s*$/u
 	);
 
 	if (onPhone()) {
@@ -146,5 +146,5 @@ test('a new chart starts from a guess, and its sentence sets it as it is picked'
 			: page.getByRole('menuitem', { name: 'Row count' })
 	).click();
 	await expect(page.getByRole('img', { name: 'Row count per Day' })).toBeVisible();
-	await expect(page.getByTestId('chart-line')).toHaveText(/^Row count\s*by\s*Day\s*per\s*day$/u);
+	await expect(page.getByTestId('chart-line')).toHaveText(/^Row count\s*by\s*Day\s*per\s*day\s*$/u);
 });
