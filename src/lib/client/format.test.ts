@@ -5,7 +5,7 @@ import { Hlc } from '../core/clock.ts';
 import { DATE_STYLES } from '../core/model.ts';
 import type { Change } from '../core/model.ts';
 import { Workspace } from '../core/workspace.ts';
-import { currencyFor, localeFormats } from './format.ts';
+import { currencyFor, localeFormats, timeFrom } from './format.ts';
 
 const LOCALES = [
 	'en-US',
@@ -286,5 +286,15 @@ describe('a new currency field', () => {
 		expect(currencyFor(ws, bare, 'en-US')).toBe('GBP');
 		expect(currencyFor(new Workspace(), bare, 'en-US')).toBe('USD');
 		expect(currencyFor(new Workspace(), bare, 'fr-FR')).toBe('EUR');
+	});
+});
+
+describe('timeFrom', () => {
+	it('says how long ago or how soon, in the locale', () => {
+		const now = Date.UTC(2026, 10, 16, 12);
+		expect(timeFrom(now - 12 * 60_000, now, 'en-US')).toBe('12 min. ago');
+		expect(timeFrom(now + 48 * 60_000, now, 'en-US')).toBe('in 48 min.');
+		expect(timeFrom(now - 2 * 3_600_000, now, 'fr-FR')).toMatch(/^il y a\s2\sh$/u);
+		expect(timeFrom(now, now, 'en-US')).toBe('now');
 	});
 });

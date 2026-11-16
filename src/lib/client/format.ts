@@ -59,6 +59,27 @@ function plain(word: string): string {
 		.toLowerCase();
 }
 
+const TIME_UNITS: [number, Intl.RelativeTimeFormatUnit][] = [
+	[60, 'second'],
+	[60, 'minute'],
+	[24, 'hour'],
+	[7, 'day'],
+	[4.348, 'week'],
+	[12, 'month'],
+	[Number.POSITIVE_INFINITY, 'year']
+];
+
+/** "12 min ago" or "in 48 min", in the browser's locale. */
+export function timeFrom(at: number, now: number = Date.now(), locale?: string): string {
+	const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' });
+	let value = (at - now) / 1000;
+	for (const [size, unit] of TIME_UNITS) {
+		if (Math.abs(value) < size) return format.format(Math.round(value), unit);
+		value /= size;
+	}
+	return format.format(Math.round(value), 'year');
+}
+
 /** Formats and readers for one locale; `undefined` is the browser's. */
 export function localeFormats(locale?: string) {
 	const shown = new Intl.NumberFormat(locale, { maximumFractionDigits: 2, useGrouping: 'min2' });
