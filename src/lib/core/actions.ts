@@ -189,7 +189,8 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 		: fields.find(
 				(field) => (field.type === 'text' || field.type === 'choice') && field.id !== group?.id
 			);
-	const cover = config.cover ? byId.get(config.cover) : undefined;
+	const picked = config.cover ? byId.get(config.cover) : undefined;
+	const cover = picked?.type === 'image' ? picked : undefined;
 	const show =
 		config.show === undefined
 			? fields
@@ -203,7 +204,7 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 		group,
 		title,
 		show: show.filter((field) => field.id !== cover?.id),
-		cover: cover?.type === 'image' ? cover : undefined
+		cover
 	};
 }
 
