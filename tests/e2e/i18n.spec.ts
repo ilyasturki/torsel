@@ -9,7 +9,7 @@ import login from '../../src/lib/i18n/login.ts';
 import names from '../../src/lib/i18n/names.ts';
 import shell from '../../src/lib/i18n/shell.ts';
 import views from '../../src/lib/i18n/views.ts';
-import { expect, freshEmail, test } from './harness.ts';
+import { expect, freshEmail, seedLifts, test } from './harness.ts';
 
 function pasteText(text: string): void {
 	const data = new DataTransfer();
@@ -127,6 +127,43 @@ test.describe('in fr-FR', () => {
 		await page.getByRole('button', { name: login.fr.createAccount }).click();
 		await expect(page.getByRole('heading', { name: login.fr.checkEmail })).toBeVisible();
 		await expect.poll(() => loggedSubject(address)).toBe(email.fr.verifySubject);
+	});
+
+	test('a view still under its English default name reads in French and keeps it', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await page.goto(await seedLifts(context.request));
+		if (test.info().project.name === 'phone') {
+			await expect(page.locator('[data-view-menu]')).toHaveText(names.fr.views.grid);
+		} else {
+			await expect(
+				page
+					.getByRole('group', { name: views.fr.views })
+					.getByRole('link', { name: names.fr.views.grid, exact: true })
+			).toHaveAttribute('aria-current', 'page');
+		}
+
+		if (test.info().project.name === 'phone') {
+			await page.getByRole('banner').getByRole('button', { name: common.fr.more }).click();
+			await page.getByRole('dialog').getByRole('button', { name: views.fr.viewSettings }).click();
+		} else {
+			await page.getByRole('button', { name: views.fr.viewSettings, exact: true }).click();
+		}
+		const sheet = page.getByRole('dialog', { name: views.fr.viewSettings });
+		await expect(sheet.getByLabel(views.fr.name, { exact: true })).toHaveValue(names.fr.views.grid);
+		await page.keyboard.press('Escape');
+		await expect(sheet).toBeHidden();
+
+		const pulled = await context.request.post('/api/sync', { data: { watermark: 0, push: [] } });
+		const { records } = (await pulled.json()) as {
+			records: { kind: string; data: { name?: unknown } }[];
+		};
+		const stored = records.filter((record) => record.kind === 'view').map((r) => r.data.name);
+		expect(stored).toContain(names.en.views.grid);
+		expect(stored).not.toContain(names.fr.views.grid);
 	});
 });
 
