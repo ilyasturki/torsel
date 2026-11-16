@@ -4,6 +4,7 @@ import { and, eq, gt, isNull, lt, notExists } from 'drizzle-orm';
 
 import { hashToken, mintToken } from '../auth/tokens.ts';
 import type { Database } from '../db/client.ts';
+import { WRITER } from '../db/client.ts';
 import type { OAuthGrant } from '../db/schema.ts';
 import {
 	authTokens,
@@ -252,7 +253,7 @@ export function decide(
 			.where(eq(oauthRequests.id, id))
 			.run();
 		return clientRedirect(row.redirectUri, origin, row.state, { code });
-	});
+	}, WRITER);
 }
 
 export type TokenAnswer = { status: number; body: Record<string, unknown> };
@@ -366,7 +367,7 @@ function exchangeCode(db: Database, form: URLSearchParams, now: Date): TokenAnsw
 			.where(and(eq(oauthClients.id, row.clientId), isNull(oauthClients.usedAt)))
 			.run();
 		return issue(tx, grant, grant.access, now);
-	});
+	}, WRITER);
 }
 
 function rotate(db: Database, form: URLSearchParams, now: Date): TokenAnswer {
@@ -418,7 +419,7 @@ function rotate(db: Database, form: URLSearchParams, now: Date): TokenAnswer {
 			.where(and(eq(authTokens.grantId, grant.id), lt(authTokens.expiresAt, now)))
 			.run();
 		return issue(tx, grant, access, now);
-	});
+	}, WRITER);
 }
 
 /** The token endpoint (form-encoded): a code with its PKCE verifier, or a refresh token, for a fresh pair. */
