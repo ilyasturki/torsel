@@ -40,9 +40,7 @@
 
 	const locked = $derived.by(() => {
 		void app.version;
-		return new Set(
-			fields.filter((field) => !app.canEditValues(tableId, field.id)).map((field) => field.id)
-		);
+		return app.lockedFields(tableId);
 	});
 	const adds = $derived.by(() => {
 		void app.version;
@@ -133,15 +131,7 @@
 
 {#snippet value(row: Rec, field: FieldDef)}
 	{@const current = valueOf(row, field)}
-	{#if locked.has(field.id) && field.type !== 'check'}
-		{#if !blank(current)}
-			<span class="inline-flex min-w-0 items-center gap-1.5">
-				{#if !wide.current && !BARE.has(field.type)}<span class="text-ink-3">{field.name}</span
-					>{/if}
-				<span class="min-w-0 text-ink"><CellValue {field} value={current} /></span>
-			</span>
-		{/if}
-	{:else if field.type === 'choice'}
+	{#if field.type === 'choice' && !locked.has(field.id)}
 		<Menu label={field.name}>
 			{#snippet trigger(props)}
 				<button
@@ -176,7 +166,7 @@
 				<MenuItem onSelect={() => change(row, field, null)}>{words.none}</MenuItem>
 			{/if}
 		</Menu>
-	{:else if field.type === 'rating'}
+	{:else if field.type === 'rating' && !locked.has(field.id)}
 		<Rating
 			{...ratingScale(field)}
 			size="sm"

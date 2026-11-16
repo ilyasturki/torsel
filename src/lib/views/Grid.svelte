@@ -180,9 +180,7 @@
 	// Fields whose values this device may not write: a source fills them.
 	const locked = $derived.by(() => {
 		void app.version;
-		return new Set(
-			fields.filter((field) => !app.canEditValues(tableId, field.id)).map((field) => field.id)
-		);
+		return app.lockedFields(tableId);
 	});
 
 	const writable = (row: Rec | undefined, field: FieldDef): boolean =>

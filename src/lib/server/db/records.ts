@@ -35,14 +35,14 @@ function clockOf(userId: string): Hlc {
 }
 
 /** Who writes inside one transaction, and the account's records as it reads them, each once. */
-export type Writer = {
+type Writer = {
 	tx: Executor;
 	actor: Actor;
 	get: Lookup;
 	held: Map<string, Rec | undefined>;
 };
 
-export function writerOf(tx: Executor, actor: Actor): Writer {
+function writerOf(tx: Executor, actor: Actor): Writer {
 	const held = new Map<string, Rec | undefined>();
 	const get = (id: string): Rec | undefined => {
 		if (!held.has(id)) {
@@ -61,10 +61,7 @@ function moving(existing: Rec | undefined, incoming: Rec): string[] {
 	});
 }
 
-/**
- * Merges what the actor may write; each refused key gets the stored value back under a clock above
- * the refused one, so the writer's merge converges on it. A record it may not create is tombstoned.
- */
+/** Refused keys get the stored value back under a newer clock so the writer converges; a refused creation is tombstoned. */
 function guarded(writer: Writer, existing: Rec | undefined, incoming: Rec, refused: string[]): Rec {
 	const hlc = clockOf(writer.actor.user);
 	for (const key of refused) {

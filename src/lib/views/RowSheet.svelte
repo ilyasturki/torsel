@@ -48,9 +48,7 @@
 	// Fields whose values come from a source, and whether its rows do too.
 	const locked = $derived.by(() => {
 		void app.version;
-		return new Set(
-			fields.filter((field) => !app.canEditValues(tableId, field.id)).map((field) => field.id)
-		);
+		return app.lockedFields(tableId);
 	});
 	const fixed = $derived.by(() => {
 		void app.version;

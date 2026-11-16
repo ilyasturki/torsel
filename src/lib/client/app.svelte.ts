@@ -182,8 +182,13 @@ class TorselApp {
 		return canAddRows(this.lookup, this.actor, tableId);
 	}
 
-	public canEditValues(tableId: string, fieldId: string): boolean {
-		return canEditValues(this.lookup, this.actor, tableId, fieldId);
+	public lockedFields(tableId: string): Set<string> {
+		return new Set(
+			this.ws
+				.fields(tableId)
+				.filter((field) => !canEditValues(this.lookup, this.actor, tableId, field.id))
+				.map((field) => field.id)
+		);
 	}
 
 	/** Stamps in order what the access check lets through; what takes it back, in the order to stamp it. */

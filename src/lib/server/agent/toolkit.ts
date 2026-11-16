@@ -30,6 +30,7 @@ import {
 	duplicateTable,
 	duplicateView
 } from '../../core/duplicate.ts';
+import { sameValue } from '../../core/entry.ts';
 import { BARE_AGGREGATE, FormulaError, toDisplay, toStored } from '../../core/formula.ts';
 import type {
 	Change,
@@ -1534,8 +1535,7 @@ export function inputProblem(schema: z.ZodType, error: z.ZodError): string {
 function changedKeys(ws: Workspace, change: Change): string[] {
 	const rec = ws.get(change.id);
 	return Object.keys(change.set).filter(
-		(key) =>
-			rec === undefined || JSON.stringify(rec.data[key] ?? null) !== JSON.stringify(change.set[key])
+		(key) => rec === undefined || !sameValue(rec.data[key], change.set[key])
 	);
 }
 

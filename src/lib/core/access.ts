@@ -42,10 +42,7 @@ function locked(
 	return stored === undefined || key === DELETED || key === CREATED || hasPath(get(key));
 }
 
-/**
- * The keys of `target` that `actor` may not write. A stored record answers for its own kind and
- * parent, whatever the write claims; one not stored yet is being created.
- */
+/** The keys of `target` that `actor` may not write; a stored record's own kind and parent override the write's. */
 export function lockedKeys(
 	get: Lookup,
 	actor: Actor,
