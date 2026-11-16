@@ -418,23 +418,25 @@ async function run(mode: Mode, message: Message | null): Promise<void> {
 				signal
 			},
 			(event) => {
-				if (event.type === 'done') settled();
-				else if (event.type === 'title') {
+				if (event.type === 'done') {
+					answered = true;
+					settled();
+				} else if (event.type === 'title') {
 					if (assistant.id === thread) assistant.title = event.title;
 				} else onEvent(event);
 			}
 		);
 		answered = true;
-		void app.delivered(decisions);
 	} catch (error) {
-		if (signal.aborted) {
-			pushEvent('stopped', words.stopped);
-		} else {
-			pushEvent('error', problemOf(error));
+		// A stream that breaks while it waits for the title has already answered.
+		if (!answered) {
+			if (signal.aborted) pushEvent('stopped', words.stopped);
+			else pushEvent('error', problemOf(error));
 		}
 	} finally {
 		settled();
 	}
+	if (answered) void app.delivered(decisions);
 	// The server's rows carry the seqs a later edit or retry names; a refused send left none there.
 	if (assistant.id !== null && answered) {
 		await refresh(assistant.id);
