@@ -26,7 +26,7 @@ const fr: typeof en = {
 	copyLink: 'Copier le lien',
 	linkCopied: 'Lien copié',
 	unpublish: 'Retirer du web',
-	unpublished: (view) => `${view} retirée du web`,
+	unpublished: (view) => `Vue « ${view} » retirée du web`,
 	notSynced: 'Cette vue n’est pas encore synchronisée',
 	failed: 'Serveur injoignable',
 	madeWith: 'Fait avec Torsel',
