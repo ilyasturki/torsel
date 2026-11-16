@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { PATH, hasPath } from '../../core/access.ts';
+import { PATH, SOURCE, hasPath } from '../../core/access.ts';
 import type { Actor } from '../../core/access.ts';
 import { updateRecord } from '../../core/actions.ts';
 import { sameValue } from '../../core/entry.ts';
@@ -192,7 +192,7 @@ function markChanges(
 	if (mark === null) return [];
 	const next = { ...mark, problem, at: at ?? mark.at };
 	if (next.problem === mark.problem && next.at === mark.at) return [];
-	return updateRecord(ws, tableId, { source: markValue(next) });
+	return updateRecord(ws, tableId, { [SOURCE]: markValue(next) });
 }
 
 function backoff(failures: number): number {
