@@ -39,6 +39,15 @@
 	</p>
 </LegalSection>
 
+<LegalSection title="Images">
+	<p>
+		Avec un compte, une image que tu ajoutes est copiée sur le serveur, pour que tes appareils la
+		voient. Si tu l’ajoutes depuis une adresse web, le serveur de Torsel la télécharge une fois : le
+		site voit le serveur, jamais ton appareil. Une image que plus aucune ligne n’utilise est
+		supprimée du serveur 30 jours plus tard.
+	</p>
+</LegalSection>
+
 <LegalSection title="L’assistant">
 	<p>
 		L’assistant s’exécute quand tu l’ouvres ou que tu lui demandes quelque chose. Tes messages et
@@ -64,14 +73,14 @@
 	</p>
 </LegalSection>
 
-<LegalSection title="Clients MCP">
+<LegalSection title="Clients MCP et API">
 	<p>
-		Avec un jeton créé dans les Réglages, le client MCP à qui tu le donnes peut lire tes données, ou
-		les lire et les modifier, selon ton choix. Une app que tu relies en te connectant à Torsel,
-		comme Claude ou ChatGPT, n’accède à tes données qu’une fois que tu l’as autorisée dans Torsel,
-		et tu peux alors limiter cet accès à la lecture. Ce qu’un client fait de tes données se règle
-		entre toi et son éditeur. Tu peux révoquer un jeton ou une app connectée dans les Réglages à
-		tout moment.
+		Avec un jeton créé dans les Réglages, le client MCP ou le programme qui utilise l’API à qui tu
+		le donnes peut lire tes données, ou les lire et les modifier, selon ton choix. Une app que tu
+		relies en te connectant à Torsel, comme Claude ou ChatGPT, n’accède à tes données qu’une fois
+		que tu l’as autorisée dans Torsel, et tu peux alors limiter cet accès à la lecture. Ce qu’un
+		client fait de tes données se règle entre toi et son éditeur. Tu peux révoquer un jeton ou une
+		app connectée dans les Réglages à tout moment.
 	</p>
 </LegalSection>
 
@@ -82,6 +91,15 @@
 		appareil. Une clé que tu donnes pour cette adresse est chiffrée sur le serveur et ne sert que
 		pour elle. Elle ne s’affiche plus jamais, et elle est supprimée quand tu arrêtes de synchroniser
 		la table ou supprimes ton compte.
+	</p>
+</LegalSection>
+
+<LegalSection title="Vues publiées">
+	<p>
+		Quand tu publies une vue, toute personne qui a son lien peut la voir sans compte, en lecture
+		seule : les lignes, les champs et les images que la vue montre, et rien d’autre de la table. Le
+		lien ne se devine pas, et les moteurs de recherche sont priés de ne pas l’indexer. Tu peux
+		arrêter la publication à tout moment, et le lien cesse alors de marcher.
 	</p>
 </LegalSection>
 

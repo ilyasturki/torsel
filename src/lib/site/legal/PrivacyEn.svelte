@@ -36,6 +36,14 @@
 	</p>
 </LegalSection>
 
+<LegalSection title="Images">
+	<p>
+		With an account, an image you add is copied to the server so your devices can show it. If you
+		add it from a web address, Torsel’s server downloads it once: the site sees the server, never
+		your device. An image no row uses anymore is deleted from the server 30 days later.
+	</p>
+</LegalSection>
+
 <LegalSection title="The assistant">
 	<p>
 		The assistant runs when you open it or ask it something. Your messages, and the table data it
@@ -62,13 +70,13 @@
 	</p>
 </LegalSection>
 
-<LegalSection title="MCP clients">
+<LegalSection title="MCP clients and the API">
 	<p>
-		A token you create in Settings lets the MCP client you give it to read your data, or read and
-		change it, as you chose. An app you connect by signing in to Torsel, such as Claude or ChatGPT,
-		gets access only once you allow it on Torsel’s consent screen, which can limit it to reading.
-		What a client does with the data is between you and whoever makes it. You can revoke a token or
-		a connected app in Settings at any time.
+		A token you create in Settings lets the MCP client, or the program using the API, that you give
+		it to read your data, or read and change it, as you chose. An app you connect by signing in to
+		Torsel, such as Claude or ChatGPT, gets access only once you allow it on Torsel’s consent
+		screen, which can limit it to reading. What a client does with the data is between you and
+		whoever makes it. You can revoke a token or a connected app in Settings at any time.
 	</p>
 </LegalSection>
 
@@ -78,6 +86,15 @@
 		the schedule you choose. The site you link sees Torsel’s server, never your device. A key you
 		give for that address is stored encrypted on the server and used for that address alone. It is
 		never shown again, and it is deleted when you stop syncing the table or delete your account.
+	</p>
+</LegalSection>
+
+<LegalSection title="Published views">
+	<p>
+		When you publish a view, anyone with its link can see it without an account, read only: the
+		rows, fields and images the view shows, and nothing else from the table. The link can’t be
+		guessed, and search engines are asked not to index it. You can stop publishing at any time, and
+		the link then stops working.
 	</p>
 </LegalSection>
 
