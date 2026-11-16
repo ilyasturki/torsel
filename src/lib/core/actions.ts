@@ -172,6 +172,7 @@ export type ListLayout = {
 	group: FieldDef | undefined;
 	title: FieldDef | undefined;
 	show: FieldDef[];
+	cover: FieldDef | undefined;
 };
 
 export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
@@ -188,16 +189,31 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 		: fields.find(
 				(field) => (field.type === 'text' || field.type === 'choice') && field.id !== group?.id
 			);
+	const cover = config.cover ? byId.get(config.cover) : undefined;
 	const show =
 		config.show === undefined
-			? fields.filter((field) => field.id !== group?.id && field.id !== title?.id).slice(0, 4)
+			? fields
+					.filter(
+						(field) => field.id !== group?.id && field.id !== title?.id && field.type !== 'image'
+					)
+					.slice(0, 4)
 			: config.show.map((id) => byId.get(id)).filter((field) => field !== undefined);
 
-	return { group, title, show };
+	return {
+		group,
+		title,
+		show: show.filter((field) => field.id !== cover?.id),
+		cover: cover?.type === 'image' ? cover : undefined
+	};
 }
 
 export function chartAxis(fields: FieldDef[], config: ViewConfig): string | null {
-	return config.x ?? fields.find((field) => isDated(field.type))?.id ?? fields[0]?.id ?? null;
+	return (
+		config.x ??
+		fields.find((field) => isDated(field.type))?.id ??
+		fields.find((field) => field.type !== 'image')?.id ??
+		null
+	);
 }
 
 /** The chart a view draws: its own settings over the defaults. */

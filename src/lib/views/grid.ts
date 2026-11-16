@@ -383,7 +383,8 @@ const FLOOR: Record<FieldDef['type'], { empty: number; filled: number }> = {
 	duration: { empty: 96, filled: 72 },
 	rating: { empty: 0, filled: 0 },
 	formula: { empty: 96, filled: 72 },
-	check: { empty: 64, filled: 64 }
+	check: { empty: 64, filled: 64 },
+	image: { empty: 112, filled: 112 }
 };
 const FIT_CEILING = 320;
 

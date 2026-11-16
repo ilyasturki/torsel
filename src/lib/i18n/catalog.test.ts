@@ -30,6 +30,8 @@ const SAME = new Set([
 	'changes.type',
 	'fields.types.url',
 	'fields.types.email',
+	'fields.types.image',
+	'images.more',
 	'fields.types.date',
 	'fields.groups.dates',
 	'fields.type',

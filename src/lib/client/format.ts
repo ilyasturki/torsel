@@ -1,5 +1,6 @@
 import type { Choice, DateStyleName, FieldFormat, Value } from '../core/model.ts';
 import { isDated } from '../core/model.ts';
+import { imagesText } from '../core/images.ts';
 import type { Workspace } from '../core/workspace.ts';
 import { fields as words } from '../i18n/fields.ts';
 import {
@@ -425,6 +426,9 @@ export function localeFormats(locale?: string) {
 		}
 		if (typeof value === 'boolean') {
 			return value ? words.yes : words.no;
+		}
+		if (field.type === 'image') {
+			return imagesText(value);
 		}
 		if (Array.isArray(value)) {
 			return value.filter((item) => typeof item === 'string').join(CHOICES_JOIN);

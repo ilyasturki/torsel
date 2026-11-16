@@ -51,6 +51,7 @@ export const FIELD_TYPES = [
 	'url',
 	'email',
 	'phone',
+	'image',
 	'formula'
 ] as const;
 
@@ -156,6 +157,7 @@ export const FORMAT_OF: Record<FieldType, readonly FormatKey[]> = {
 	url: [],
 	email: [],
 	phone: [],
+	image: [],
 	formula: ['result', 'decimals', 'currency', 'dateStyle']
 };
 
@@ -183,7 +185,13 @@ export type GridConfig = {
 
 export type EntryConfig = { fields?: string[]; match?: string[] };
 
-export type ListConfig = { group?: string | null; title?: string | null; show?: string[] };
+export type ListConfig = {
+	group?: string | null;
+	title?: string | null;
+	show?: string[];
+	// An image field: its first image tops each row, and the list lays out as cards.
+	cover?: string | null;
+};
 
 export type ChartConfig = {
 	kind?: 'bar' | 'line';

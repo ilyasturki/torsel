@@ -1,6 +1,7 @@
 import { hasPath } from './access.ts';
 import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from './model.ts';
 import { formatSet, hasChoices, isNumeric } from './model.ts';
+import { imagesText } from './images.ts';
 import { CHOICES_JOIN, coerce, durationUnit, formatDuration } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -47,6 +48,9 @@ function convert(
 ): Value {
 	if (to.type === 'formula') {
 		return null;
+	}
+	if (from.type === 'image') {
+		return to.type === 'image' ? value : coerce(to, imagesText(value));
 	}
 	if (from.type === 'duration' && to.type === 'duration') {
 		return coerce(to, value);

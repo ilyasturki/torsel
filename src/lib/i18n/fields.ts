@@ -22,6 +22,7 @@ const en = {
 		choices: 'Multiple choice',
 		check: 'Checkbox',
 		link: 'Link to a table',
+		image: 'Image',
 		formula: 'Formula'
 	} satisfies Record<FieldType, string>,
 	groups: {
@@ -29,7 +30,8 @@ const en = {
 		numbers: 'Numbers',
 		dates: 'Dates',
 		choices: 'Choices',
-		links: 'Links and formulas'
+		links: 'Links and formulas',
+		files: 'Files'
 	},
 	fromFirstValue: 'From the first value',
 	added: (name: string) => `Field "${name}" added`,
@@ -164,6 +166,7 @@ const fr: typeof en = {
 		choices: 'Choix multiple',
 		check: 'Case à cocher',
 		link: 'Lien vers une table',
+		image: 'Image',
 		formula: 'Formule'
 	},
 	groups: {
@@ -171,7 +174,8 @@ const fr: typeof en = {
 		numbers: 'Nombres',
 		dates: 'Dates',
 		choices: 'Choix',
-		links: 'Liens et formules'
+		links: 'Liens et formules',
+		files: 'Fichiers'
 	},
 	fromFirstValue: 'Automatique',
 	added: (name) => `Champ « ${name} » ajouté`,

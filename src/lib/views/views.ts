@@ -30,7 +30,9 @@ export function unusedName(tableId: string, label: string): string {
 
 export function addView(tableId: string, type: ViewType): void {
 	const name = unusedName(tableId, viewLabel(type));
-	const { id, changes } = createView(app.ws, tableId, { name, type, config: {} });
+	const cover = app.ws.fields(tableId).find((field) => field.type === 'image');
+	const config = type === 'list' && cover !== undefined ? { cover: cover.id } : {};
+	const { id, changes } = createView(app.ws, tableId, { name, type, config });
 	applyWithUndo(changes, words.viewAdded(name));
 	void goto(tableUrl(tableId, id));
 }

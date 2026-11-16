@@ -1,4 +1,5 @@
 import type { FieldFormat, FieldType, Value } from './model.ts';
+import { imagesOf, imagesValue } from './images.ts';
 
 const GROUPED = /^[-+]?\d{1,3}([,.])\d{3}(\1\d{3})*([,.]\d+)?$/u;
 
@@ -456,6 +457,8 @@ export function coerce(field: FieldFormat, raw: unknown): Value {
 		}
 		case 'formula':
 			return null;
+		case 'image':
+			return imagesValue(imagesOf(raw as Value));
 		case 'url': {
 			const value = trimmed(raw);
 			return value !== null && isUrl(value) ? value : null;

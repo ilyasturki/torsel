@@ -98,6 +98,9 @@
 		fields.filter((field) => isNumeric(field.type) || field.type === 'formula')
 	);
 	const choices = $derived(fields.filter((field) => field.type === 'choice'));
+	// An image can't be grouped on, titled by or charted.
+	const shown = $derived(fields.filter((field) => field.type !== 'image'));
+	const images = $derived(fields.filter((field) => field.type === 'image'));
 	const layout = $derived(listLayout(fields, config));
 	const autoLayout = $derived(
 		listLayout(fields, { ...config, group: undefined, title: undefined })
@@ -287,7 +290,7 @@
 					options={[
 						{ value: 'auto', label: words.automaticGroup(autoLayout.group?.name ?? null) },
 						{ value: '', label: words.nothing },
-						...fieldOptions(fields)
+						...fieldOptions(shown)
 					]}
 					value={config.group === undefined ? 'auto' : (config.group ?? '')}
 					onchange={setGroup}
@@ -302,12 +305,21 @@
 								listLayout(fields, { ...config, title: undefined }).title?.name ?? null
 							)
 						},
-						...fieldOptions(fields)
+						...fieldOptions(shown)
 					]}
 					value={config.title ?? ''}
 					onchange={(title) => (config.title = title || null)}
 				/>
 			</Field>
+			{#if images.length > 0}
+				<Field label={words.cover}>
+					<Select
+						options={[{ value: '', label: words.nothing }, ...fieldOptions(images)]}
+						value={layout.cover?.id ?? ''}
+						onchange={(cover) => (config.cover = cover || null)}
+					/>
+				</Field>
+			{/if}
 			<fieldset class="flex flex-col gap-1">
 				<legend class={legend}>{words.fieldsUnderTitle}</legend>
 				{#each fields as field (field.id)}
@@ -342,7 +354,7 @@
 			</div>
 			<Field label={words.xAxis}>
 				<Select
-					options={fieldOptions(fields)}
+					options={fieldOptions(shown)}
 					value={axis ?? ''}
 					onchange={(x) => setChart('x', x || null)}
 				/>

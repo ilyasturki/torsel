@@ -8,7 +8,8 @@ const TYPE_GROUPS: { group: keyof typeof words.groups; types: FieldType[] }[] = 
 	{ group: 'numbers', types: ['number', 'currency', 'percent', 'rating', 'duration'] },
 	{ group: 'dates', types: ['date', 'datetime'] },
 	{ group: 'choices', types: ['choice', 'choices', 'check'] },
-	{ group: 'links', types: ['link', 'formula'] }
+	{ group: 'links', types: ['link', 'formula'] },
+	{ group: 'files', types: ['image'] }
 ];
 
 export function typeLabel(type: FieldType): string {

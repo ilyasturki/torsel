@@ -100,7 +100,8 @@ describe('coerce', () => {
 		[{ type: 'email' }, 'ana@', null],
 		[{ type: 'phone' }, '+33 6 12 34 56 78', '+33 6 12 34 56 78'],
 		[{ type: 'phone' }, 'call me', null],
-		[{ type: 'formula' }, 3, null]
+		[{ type: 'formula' }, 3, null],
+		[{ type: 'image' }, 'poster.jpg', null]
 	];
 
 	it.each(cases)('%o reads %o as %o', (field, raw, expected) => {
