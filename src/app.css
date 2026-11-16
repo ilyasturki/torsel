@@ -353,6 +353,7 @@
 	--shadow-float: var(--elevation-2);
 
 	--spacing-row: var(--row);
+	--spacing-plan: calc(var(--row) * 5);
 	--spacing-thumb: var(--thumb);
 	--spacing-cell: var(--cell);
 	--spacing-picture: var(--picture);

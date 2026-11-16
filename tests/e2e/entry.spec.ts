@@ -257,3 +257,20 @@ test('the picked key scrolls into its strip, and the page stays put', async ({
 	await expect(picked).toBeInViewport({ ratio: 1 });
 	expect(await page.evaluate(() => scrollY)).toBe(0);
 });
+
+test('on a short screen the plan keeps its height and the page scrolls to the form', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	await page.setViewportSize({ width: onPhone() ? 390 : 520, height: 420 });
+	await page.goto(await seedSessions(context.request));
+	const lines = plan(page).getByRole('button', { name: /^(Logged )?\d/u });
+	await expect(lines.first()).toBeVisible();
+	const box = await plan(page).boundingBox();
+	expect(box?.height ?? 0).toBeGreaterThanOrEqual(150);
+	const add = page.getByRole('button', { name: 'Add row' });
+	await add.scrollIntoViewIfNeeded();
+	await expect(add).toBeInViewport();
+});

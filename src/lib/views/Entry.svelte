@@ -286,7 +286,7 @@
 	<Empty text={words.noEntryFields} />
 {:else}
 	<div
-		class="flex h-full min-h-0 flex-col lg:grid lg:grid-rows-[auto_minmax(0,1fr)] {adds
+		class="flex min-h-full flex-col lg:grid lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] {adds
 			? 'lg:grid-cols-[minmax(0,1fr)_var(--spacing-entry)]'
 			: 'lg:grid-cols-1'}"
 	>
@@ -305,7 +305,7 @@
 
 		{#if plan !== null}
 			<div
-				class="min-h-0 flex-1 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1"
+				class="min-h-plan flex-1 basis-0 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0"
 				role="group"
 				aria-label={words.lastTime}
 			>
@@ -382,7 +382,7 @@
 			</div>
 		{:else}
 			<div
-				class="min-h-0 flex-1 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1"
+				class="min-h-plan flex-1 basis-0 overflow-auto lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0"
 				role="group"
 				aria-label={words.lastTime}
 			>
