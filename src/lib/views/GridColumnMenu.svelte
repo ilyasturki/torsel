@@ -7,6 +7,7 @@
 		| 'hide'
 		| 'fit'
 		| 'find'
+		| 'duplicate'
 		| 'settings'
 		| 'delete';
 </script>
@@ -34,6 +35,8 @@
 		anchor,
 		field,
 		sorted,
+		hidden,
+		onshow,
 		addable,
 		filter,
 		onsort,
@@ -47,6 +50,8 @@
 		anchor: HTMLElement | null;
 		field: FieldDef | undefined;
 		sorted: 'asc' | 'desc' | null;
+		hidden: FieldDef[];
+		onshow: (ids: string[]) => void;
 		// The view sorts on other fields, which this one can follow.
 		addable: boolean;
 		filter: string;
@@ -72,6 +77,7 @@
 			: []),
 		{ action: 'insert-left', label: words.insertLeft, icon: 'arrow-left' },
 		{ action: 'insert-right', label: words.insertRight, icon: 'arrow-right' },
+		{ action: 'duplicate', label: words.duplicate, icon: 'plus' },
 		'gap',
 		{ action: 'hide', label: words.hide, icon: 'eye-off' },
 		{ action: 'fit', label: words.fitAll, icon: 'fit' },
@@ -136,6 +142,21 @@
 				>
 			{/each}
 		</MenuSub>
+		{#if hidden.length > 0}
+			<MenuSub label={words.hiddenFields(hidden.length)} icon="eye">
+				{#each hidden as other (other.id)}
+					<MenuItem icon={fieldIcon(other.type)} onSelect={() => onshow([other.id])}
+						>{other.name}</MenuItem
+					>
+				{/each}
+				{#if hidden.length > 1}
+					<MenuSeparator />
+					<MenuItem icon="eye" onSelect={() => onshow(hidden.map((other) => other.id))}
+						>{words.showAll}</MenuItem
+					>
+				{/if}
+			</MenuSub>
+		{/if}
 		{#each entries as entry, index (index)}
 			{#if entry === 'gap'}
 				<MenuSeparator />
@@ -171,6 +192,11 @@
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onaction('rename'))}
 				>{common.rename}</Button
 			>
+			{#each hidden as other (other.id)}
+				<Button variant="ghost" class="justify-start" onclick={() => run(() => onshow([other.id]))}
+					>{words.showField(other.name)}</Button
+				>
+			{/each}
 			{#each entries as entry, index (index)}
 				{#if entry !== 'gap'}
 					<Button

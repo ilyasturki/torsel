@@ -27,11 +27,13 @@
 		ViewDef
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
+	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
 	import { nameTaken } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { freshValue, nativeDateText, nowIso, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
+	import { names } from '#lib/i18n/names.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -141,6 +143,12 @@
 		void app.version;
 		const hidden = new Set(view.config.hidden ?? []);
 		return app.ws.fields(tableId).filter((field) => !hidden.has(field.id));
+	});
+
+	const hiddenFields = $derived.by(() => {
+		void app.version;
+		const hidden = new Set(view.config.hidden ?? []);
+		return app.ws.fields(tableId).filter((field) => hidden.has(field.id));
 	});
 
 	const computed = $derived.by(() => {
@@ -1201,6 +1209,9 @@
 			fitAll();
 		} else if (action === 'find') {
 			afterMenu = () => openFind(true);
+		} else if (action === 'duplicate') {
+			const name = names.copy(field.name);
+			applyWithUndo(duplicateField(app.ws, field.id, name).changes, fieldWords.duplicated(name));
 		} else {
 			const label = fieldWords.deleted(field.name);
 			applyWithUndo(deleteRecords(app.ws, [field.id]), label);
@@ -1288,6 +1299,15 @@
 		const at = next === undefined ? here + (below ? 1 : -1) : (here + next) / 2;
 		const made = insertRows(app.ws, tableId, [todayDates()], at);
 		applyWithUndo(made.changes, words.rowAdded);
+		flushSync();
+		selectPos(made.ids[0], fields[Math.max(0, headCol)]?.id ?? '');
+	}
+
+	function duplicateRange(): void {
+		const ids = rangeRows().map((row) => row.id);
+		const made = duplicateRows(app.ws, tableId, ids);
+		if (made.ids.length === 0) return;
+		applyWithUndo(made.changes, words.rowsDuplicated(made.ids.length));
 		flushSync();
 		selectPos(made.ids[0], fields[Math.max(0, headCol)]?.id ?? '');
 	}
@@ -2003,6 +2023,14 @@
 	anchor={menuAnchor}
 	field={menuFieldDef}
 	sorted={menuFieldDef === undefined ? null : (sortOf(menuFieldDef)?.dir ?? null)}
+	hidden={hiddenFields}
+	onshow={(ids) => {
+		const shown = new Set(ids);
+		setConfig(
+			{ hidden: (view.config.hidden ?? []).filter((id) => !shown.has(id)) },
+			fieldWords.shown(ids.length)
+		);
+	}}
 	addable={menuFieldDef !== undefined && sortKeys.length > 0 && sortOf(menuFieldDef) === null}
 	onaddsort={() => {
 		if (menuFieldDef) addSort(menuFieldDef);
@@ -2032,6 +2060,7 @@
 		rowOpen = rowId !== null;
 	}}
 	oninsert={insertRow}
+	onduplicate={duplicateRange}
 	ondelete={deleteRows}
 	oncopy={() => void copyRange()}
 	onCloseAutoFocus={onmenuclosed}

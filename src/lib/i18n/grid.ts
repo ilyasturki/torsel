@@ -45,6 +45,9 @@ const en = {
 	insertLeft: 'Insert left',
 	insertRight: 'Insert right',
 	hide: 'Hide',
+	hiddenFields: (count: number) => (count === 1 ? '1 hidden field' : `${count} hidden fields`),
+	showField: (name: string) => `Show ${name}`,
+	showAll: 'Show all',
 	fitAll: 'Fit all columns',
 	fieldSettings: 'Field settings',
 	filter: 'Filter',
@@ -77,7 +80,10 @@ const en = {
 	deleteRows: (count: number) => (count === 1 ? 'Delete row' : `Delete ${count} rows`),
 	copyCells: (count: number) => (count === 1 ? 'Copy' : `Copy ${count} cells`),
 	insertAbove: 'Insert row above',
-	insertBelow: 'Insert row below'
+	insertBelow: 'Insert row below',
+	duplicate: 'Duplicate',
+	duplicateRows: (count: number) => (count === 1 ? 'Duplicate row' : `Duplicate ${count} rows`),
+	rowsDuplicated: (count: number) => (count === 1 ? 'Row duplicated' : `${count} rows duplicated`)
 };
 
 const fr: typeof en = {
@@ -130,6 +136,10 @@ const fr: typeof en = {
 	insertLeft: 'Insérer à gauche',
 	insertRight: 'Insérer à droite',
 	hide: 'Masquer',
+	hiddenFields: (count) =>
+		plural('fr', count, { one: '# champ masqué', other: '# champs masqués' }),
+	showField: (name) => `Afficher ${name}`,
+	showAll: 'Tout afficher',
 	fitAll: 'Ajuster toutes les colonnes',
 	fieldSettings: 'Réglages du champ',
 	filter: 'Filtrer',
@@ -169,7 +179,12 @@ const fr: typeof en = {
 		plural('fr', count, { one: 'Supprimer la ligne', other: 'Supprimer # lignes' }),
 	copyCells: (count) => plural('fr', count, { one: 'Copier', other: 'Copier # cellules' }),
 	insertAbove: 'Insérer une ligne au-dessus',
-	insertBelow: 'Insérer une ligne en dessous'
+	insertBelow: 'Insérer une ligne en dessous',
+	duplicate: 'Dupliquer',
+	duplicateRows: (count) =>
+		plural('fr', count, { one: 'Dupliquer la ligne', other: 'Dupliquer # lignes' }),
+	rowsDuplicated: (count) =>
+		plural('fr', count, { one: 'Ligne dupliquée', other: '# lignes dupliquées' })
 };
 
 export default { en, fr };

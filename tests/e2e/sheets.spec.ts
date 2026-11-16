@@ -12,7 +12,18 @@ import {
 	insertRows
 } from '../../src/lib/core/actions.ts';
 import type { Rec } from '../../src/lib/core/model.ts';
-import { cell, columnMenu, expect, pick, seed, tablePath, test, undo } from './harness.ts';
+import {
+	cell,
+	columnMenu,
+	expect,
+	menuItem,
+	pick,
+	seed,
+	tableMenu,
+	tablePath,
+	test,
+	undo
+} from './harness.ts';
 
 type Lifts = { path: string; table: string; fields: string[] };
 
@@ -233,6 +244,51 @@ test.describe('find and replace', () => {
 		await expect(find).toHaveCount(0);
 		await undo(page);
 		await expect(cell(page, 'heavy bar 145')).toBeVisible();
+	});
+});
+
+test.describe('duplicate and unhide', () => {
+	test('duplicates a row, a field, a view and a table, and shows a hidden field again', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const lifts = await seedLifts(context.request);
+		await page.goto(lifts.path);
+		const onPhone = test.info().project.name === 'phone';
+
+		await cell(page, 'deep').click({ button: 'right' });
+		await menuItem(page, 'Duplicate row').click();
+		await expect(cell(page, 'deep')).toHaveCount(2);
+		await expect(column(page, 2)).toHaveText(['easy bar', 'deep', 'deep', 'bar path', 'belt']);
+
+		await columnMenu(page, 'Kg', 'Duplicate');
+		await expect(page.getByRole('columnheader', { name: 'Kg copy' })).toBeVisible();
+		await undo(page);
+		await expect(page.getByRole('columnheader', { name: 'Kg copy' })).toHaveCount(0);
+
+		await columnMenu(page, 'Kg', 'Hide');
+		await expect(page.getByRole('columnheader', { name: 'Kg', exact: true })).toHaveCount(0);
+		if (onPhone) {
+			await columnMenu(page, 'Note', 'Show Kg');
+		} else {
+			await page.getByRole('columnheader', { name: 'Note' }).getByRole('button').click();
+			await page.getByRole('menuitem', { name: '1 hidden field' }).click();
+			await page.getByRole('menuitem', { name: 'Kg', exact: true }).click();
+		}
+		await expect(page.getByRole('columnheader', { name: 'Kg', exact: true })).toBeVisible();
+
+		await page.getByRole('link', { name: 'Grid', exact: true }).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Duplicate view' }).click();
+		await expect(page.getByRole('link', { name: 'Grid copy' })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
+
+		await tableMenu(page, 'Duplicate table');
+		await expect(page).toHaveTitle(/Lifts copy/u);
+		await expect(cell(page, 'belt')).toBeVisible();
 	});
 });
 

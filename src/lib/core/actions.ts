@@ -34,6 +34,7 @@ export type DefaultNames = {
 	table: (number: number) => string;
 	column: (number: number) => string;
 	views: Record<ViewType, string>;
+	copy: (name: string) => string;
 };
 
 function fieldSet(spec: FieldSpec, order: number): Record<string, Value> {

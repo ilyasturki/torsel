@@ -91,6 +91,7 @@
 	"src/lib/server/agent/toolkit.ts\tDelete a base, table, field or view",
 	"src/lib/server/agent/toolkit.ts\tDelete rows",
 	"src/lib/server/agent/toolkit.ts\tDownload a backup",
+	"src/lib/server/agent/toolkit.ts\tDuplicate a table, field, view or rows",
 	"src/lib/server/agent/toolkit.ts\tImport a file",
 	"src/lib/server/agent/toolkit.ts\tList bases",
 	"src/lib/server/agent/toolkit.ts\tOpen a table or page",

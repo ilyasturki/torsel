@@ -3,12 +3,14 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
-	import { HOME, SETTINGS } from '#lib/client/nav.ts';
+	import { HOME, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { download, shell } from '#lib/client/shell.svelte.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
+	import { duplicateTable } from '#lib/core/duplicate.ts';
 	import { toCsv } from '#lib/core/csv.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
+	import { names } from '#lib/i18n/names.ts';
 	import { shell as shellWords } from '#lib/i18n/shell.ts';
 	import { table as words } from '#lib/i18n/table.ts';
 	import { views as viewWords } from '#lib/i18n/views.ts';
@@ -76,6 +78,13 @@
 		gridJump.fitAll += 1;
 	};
 
+	function duplicate(): void {
+		const name = names.copy(table.name);
+		const made = duplicateTable(app.ws, table.id, name);
+		applyWithUndo(made.changes, words.tableDuplicated(name));
+		void goto(tableUrl(made.id));
+	}
+
 	function remove(): void {
 		const label = words.tableDeleted(table.name);
 		const group = app.apply(deleteRecords(app.ws, [table.id]), label);
@@ -98,6 +107,7 @@
 			{/each}
 		</MenuSub>
 		<MenuItem icon="pencil" onSelect={rename}>{words.renameTable}</MenuItem>
+		<MenuItem icon="plus" onSelect={() => run(duplicate)}>{words.duplicateTable}</MenuItem>
 		{#if view?.type === 'grid'}
 			<MenuItem icon="fit" onSelect={() => run(fitAll)}>{words.fitAll}</MenuItem>
 		{/if}
@@ -131,6 +141,9 @@
 				{/each}
 			</div>
 			<Button variant="ghost" class="justify-start" onclick={rename}>{words.renameTable}</Button>
+			<Button variant="ghost" class="justify-start" onclick={() => run(duplicate)}
+				>{words.duplicateTable}</Button
+			>
 			{#if view?.type === 'grid'}
 				<Button variant="ghost" class="justify-start" onclick={() => run(fitAll)}
 					>{words.fitAll}</Button

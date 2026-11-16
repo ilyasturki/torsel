@@ -6,7 +6,8 @@ const en: DefaultNames = {
 	field: 'Name',
 	table: (number) => `Table ${number}`,
 	column: (number) => `Column ${number}`,
-	views: { grid: 'Grid', entry: 'Entry', list: 'List', chart: 'Chart' }
+	views: { grid: 'Grid', entry: 'Entry', list: 'List', chart: 'Chart' },
+	copy: (name) => `${name} copy`
 };
 
 const fr: DefaultNames = {
@@ -14,7 +15,8 @@ const fr: DefaultNames = {
 	field: 'Nom',
 	table: (number) => `Table ${number}`,
 	column: (number) => `Colonne ${number}`,
-	views: { grid: 'Grille', entry: 'Saisie', list: 'Liste', chart: 'Graphique' }
+	views: { grid: 'Grille', entry: 'Saisie', list: 'Liste', chart: 'Graphique' },
+	copy: (name) => `${name} (copie)`
 };
 
 export default { en, fr };

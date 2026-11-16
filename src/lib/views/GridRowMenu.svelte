@@ -15,6 +15,7 @@
 		cells,
 		onopen,
 		oninsert,
+		onduplicate,
 		ondelete,
 		oncopy,
 		onCloseAutoFocus
@@ -25,6 +26,7 @@
 		cells: number;
 		onopen: () => void;
 		oninsert: (below: boolean) => void;
+		onduplicate: () => void;
 		ondelete: () => void;
 		oncopy: () => void;
 		onCloseAutoFocus?: (event: Event) => void;
@@ -44,6 +46,7 @@
 		{#if rows === 1}<MenuItem icon="open" onSelect={onopen}>{words.openRow}</MenuItem>{/if}
 		<MenuItem icon="arrow-up" onSelect={() => oninsert(false)}>{words.insertAbove}</MenuItem>
 		<MenuItem icon="arrow-down" onSelect={() => oninsert(true)}>{words.insertBelow}</MenuItem>
+		<MenuItem icon="plus" onSelect={onduplicate}>{words.duplicateRows(rows)}</MenuItem>
 		<MenuItem icon="copy" shortcut={keys('mod', 'c')} onSelect={oncopy}>{copy}</MenuItem>
 		<MenuSeparator />
 		<MenuItem icon="x" onSelect={ondelete}>{remove}</MenuItem>
@@ -56,6 +59,9 @@
 			>
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(true))}
 				>{words.insertBelow}</Button
+			>
+			<Button variant="ghost" class="justify-start" onclick={() => run(onduplicate)}
+				>{words.duplicateRows(rows)}</Button
 			>
 			<Button variant="ghost" class="justify-start" onclick={() => run(oncopy)}>{copy}</Button>
 			<Button variant="ghost" class="justify-start" onclick={() => run(ondelete)}>{remove}</Button>

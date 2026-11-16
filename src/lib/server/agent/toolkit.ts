@@ -22,6 +22,12 @@ import {
 } from '../../core/actions.ts';
 import { restoreChanges } from '../../core/backup.ts';
 import { appendRows, guessColumns, guessTargets, importTable } from '../../core/csv.ts';
+import {
+	duplicateField,
+	duplicateRows,
+	duplicateTable,
+	duplicateView
+} from '../../core/duplicate.ts';
 import { BARE_AGGREGATE, FormulaError, toDisplay, toStored } from '../../core/formula.ts';
 import type {
 	Change,
@@ -103,6 +109,7 @@ const TITLES = {
 	create_view: 'Create a view',
 	update_view: 'Change a view',
 	rename: 'Rename a base, table or view',
+	duplicate: 'Duplicate a table, field, view or rows',
 	delete: 'Delete a base, table, field or view',
 	import_file: 'Import a file',
 	open: 'Open a table or page',
@@ -1228,6 +1235,75 @@ export const TOOLS: Tool[] = [
 				changes: updateRecord(ctx.ws, rec.id, { name })
 			});
 			return { renamed: rec.id };
+		}
+	},
+	{
+		name: 'duplicate',
+		title: TITLES.duplicate,
+		description:
+			'Copies a table with its fields, views and rows; or, given field, view or rows, that field with its values, that view with its settings, or those rows, each copy placed right after what it copies.',
+		input: z.object({
+			base: BASE,
+			table: TABLE,
+			field: z.string().optional().describe('name or id of the field to copy'),
+			view: z.string().optional().describe('name or id of the view to copy'),
+			rows: z.array(z.string()).optional().describe('ids of the rows to copy, from _id'),
+			name: z
+				.string()
+				.min(1)
+				.optional()
+				.describe('the name of a copied table, field or view; "<name> copy" when left out')
+		}),
+		kind: 'write',
+		run: (
+			ctx,
+			input: {
+				base: string;
+				table: string;
+				field?: string;
+				view?: string;
+				rows?: string[];
+				name?: string;
+			}
+		) => {
+			const base = findBase(ctx.ws, input.base);
+			const table = findTable(ctx.ws, base.id, input.table);
+			if (input.rows !== undefined) {
+				const unknown = input.rows.find((id) => {
+					const row = ctx.ws.live(id);
+					return row?.kind !== 'row' || row.parent !== table.id;
+				});
+				if (unknown !== undefined) throw new ToolError(`no row ${unknown} in ${table.name}`);
+				const made = duplicateRows(ctx.ws, table.id, input.rows);
+				commit(ctx, {
+					summary: words.addRows(made.ids.length, table.name),
+					changes: made.changes
+				});
+				return { added: made.ids };
+			}
+			if (input.field !== undefined) {
+				const field = findField(ctx.ws, table.id, input.field);
+				const name = input.name ?? names.copy(field.name);
+				const made = duplicateField(ctx.ws, field.id, name);
+				commit(ctx, { summary: words.newField(name, table.name), changes: made.changes });
+				return { created: made.id };
+			}
+			if (input.view !== undefined) {
+				const view = ctx.ws
+					.views(table.id)
+					.find(
+						(candidate) => candidate.id === input.view || same(candidate.name, input.view ?? '')
+					);
+				if (view === undefined) throw new ToolError(`no view "${input.view}" on ${table.name}`);
+				const name = input.name ?? names.copy(view.name);
+				const made = duplicateView(ctx.ws, view.id, name);
+				commit(ctx, { summary: words.newView(name, table.name), changes: made.changes });
+				return { created: made.id };
+			}
+			const name = input.name ?? names.copy(table.name);
+			const made = duplicateTable(ctx.ws, table.id, name);
+			commit(ctx, { summary: words.newTable(name), changes: made.changes });
+			return { created: made.id };
 		}
 	},
 	{

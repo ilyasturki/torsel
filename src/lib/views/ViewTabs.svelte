@@ -6,9 +6,11 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
+	import { duplicateView } from '#lib/core/duplicate.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
+	import { names } from '#lib/i18n/names.ts';
 	import { views as words } from '#lib/i18n/views.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -151,6 +153,13 @@
 		}
 	}
 
+	function duplicate(view: ViewDef): void {
+		const name = names.copy(view.name);
+		const made = duplicateView(app.ws, view.id, name);
+		applyWithUndo(made.changes, words.viewDuplicated(name));
+		void goto(tableUrl(table.id, made.id));
+	}
+
 	function remove(view: ViewDef): void {
 		const label = words.viewDeleted(view.name);
 		const group = app.apply(deleteRecords(app.ws, [view.id]), label);
@@ -230,6 +239,7 @@
 						<MenuItem icon="settings" onSelect={() => onsettings(view.id)}
 							>{words.viewSettings}</MenuItem
 						>
+						<MenuItem icon="plus" onSelect={() => duplicate(view)}>{words.duplicateView}</MenuItem>
 						<MenuItem
 							icon="arrow-left"
 							shortcut={keys('mod', 'shift', '←')}

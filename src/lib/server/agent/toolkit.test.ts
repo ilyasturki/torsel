@@ -241,6 +241,52 @@ describe('assistant tools', () => {
 		});
 	});
 
+	it('duplicates a table, a field, a view and rows, as the menus do', async () => {
+		const { call, ctx } = session();
+		const made = (await call('create_table', {
+			name: 'Movies',
+			fields: [
+				{ name: 'Title', type: 'text' },
+				{ name: 'Rating', type: 'number' }
+			]
+		})) as { id: string; base: string };
+		await call('add_rows', {
+			base: made.base,
+			table: made.id,
+			rows: [
+				{ Title: 'Dune', Rating: 8 },
+				{ Title: 'Heat', Rating: 9 }
+			]
+		});
+		const at = { base: made.base, table: made.id };
+
+		const field = (await call('duplicate', { ...at, field: 'Rating' })) as { created: string };
+		expect(ctx.ws.field(field.created)?.name).toBe('Rating copy');
+		expect(ctx.ws.rows(made.id).map((row) => row.data[field.created])).toEqual([8, 9]);
+
+		const view = (await call('duplicate', { ...at, view: 'Grid', name: 'Best' })) as {
+			created: string;
+		};
+		expect(ctx.ws.views(made.id).map((one) => one.name)).toEqual(['Grid', 'Best', 'Entry']);
+		expect(view.created).toMatch(/^v_/u);
+
+		const [dune] = ctx.ws.rows(made.id);
+		const rows = (await call('duplicate', { ...at, rows: [dune.id] })) as { added: string[] };
+		expect(rows.added).toHaveLength(1);
+		expect(ctx.ws.rows(made.id).map((row) => row.data[ctx.ws.fields(made.id)[0].id])).toEqual([
+			'Dune',
+			'Dune',
+			'Heat'
+		]);
+		expect(await call('duplicate', { ...at, rows: ['r_nothere000'] })).toEqual({
+			error: expect.stringMatching(/no row/u)
+		});
+
+		const table = (await call('duplicate', at)) as { created: string };
+		expect(ctx.ws.table(table.created)?.name).toBe('Movies copy');
+		expect(ctx.ws.rows(table.created)).toHaveLength(3);
+	});
+
 	it('renames, resorts a view and deletes a base, as the person can by hand', async () => {
 		const { call, actions, ctx } = session();
 		const made = (await call('create_table', {

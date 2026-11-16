@@ -2,6 +2,8 @@ import { area } from './runtime.ts';
 
 const en = {
 	tableDeleted: (name: string) => `Table "${name}" deleted`,
+	tableDuplicated: (name: string) => `Table "${name}" added`,
+	duplicateTable: 'Duplicate table',
 	renameTable: 'Rename table',
 	fitAll: 'Fit all columns',
 	importHere: 'Import into this table',
@@ -33,6 +35,8 @@ const en = {
 
 const fr: typeof en = {
 	tableDeleted: (name) => `Table « ${name} » supprimée`,
+	tableDuplicated: (name) => `Table « ${name} » ajoutée`,
+	duplicateTable: 'Dupliquer la table',
 	renameTable: 'Renommer la table',
 	fitAll: 'Ajuster toutes les colonnes',
 	importHere: 'Importer dans cette table',
