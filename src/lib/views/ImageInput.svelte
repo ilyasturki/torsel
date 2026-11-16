@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 
-	import { addImages } from '#lib/client/images.svelte.ts';
+	import { addImages, addLinks, fetchesLinks } from '#lib/client/images.svelte.ts';
 	import type { ImageRef } from '#lib/core/images.ts';
-	import { imagesOf, imagesValue } from '#lib/core/images.ts';
+	import { imageLinks, imagesOf, imagesValue } from '#lib/core/images.ts';
 	import type { FieldDef, Value } from '#lib/core/model.ts';
 	import { images as words } from '#lib/i18n/images.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
-	import { focus, secondary } from '#lib/ui/styles.ts';
+	import { focus, input, secondary } from '#lib/ui/styles.ts';
 
 	import ImageThumb from './ImageThumb.svelte';
 	import ImageViewer from './ImageViewer.svelte';
@@ -38,19 +38,50 @@
 	let viewing = $state(false);
 	let at = $state(0);
 	let dropping = $state(false);
+	let linking = $state(false);
+	let fetching = $state(false);
 	let mounted = true;
 
 	$effect(() => () => {
 		mounted = false;
 	});
 
-	async function add(files: File[]): Promise<void> {
-		const shown = files.filter((file) => file.type.startsWith('image/') || file.type === '');
-		if (shown.length === 0) return;
-		const added = await addImages(field.base, shown, images.length);
+	function settle(added: ImageRef[]): void {
 		if (added.length === 0) return;
 		if (onadd === undefined) value = imagesValue([...imagesOf(value), ...added]);
 		else onadd(added, mounted);
+	}
+
+	async function add(files: File[]): Promise<void> {
+		const shown = files.filter((file) => file.type.startsWith('image/') || file.type === '');
+		if (shown.length === 0) return;
+		settle(await addImages(field.base, shown, images.length));
+	}
+
+	async function fetchFrom(text: string): Promise<boolean> {
+		const links = imageLinks(text);
+		if (links.length === 0 || fetching) return false;
+		fetching = true;
+		try {
+			settle(await addLinks(field.base, links, images.length));
+		} finally {
+			fetching = false;
+		}
+		return true;
+	}
+
+	function onlinkkey(event: KeyboardEvent): void {
+		const box = event.currentTarget as HTMLInputElement;
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			void fetchFrom(box.value).then((fetched) => {
+				if (fetched) linking = false;
+			});
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			linking = false;
+		}
 	}
 
 	function remove(index: number): void {
@@ -81,6 +112,12 @@
 		if (files.length > 0) {
 			event.preventDefault();
 			void add(files);
+			return;
+		}
+		const text = event.clipboardData?.getData('text/plain') ?? '';
+		if (!linking && fetchesLinks() && imageLinks(text).length > 0) {
+			event.preventDefault();
+			void fetchFrom(text);
 		}
 	}}
 	ondragover={(event) => {
@@ -124,7 +161,22 @@
 		</div>
 	{/each}
 
-	{#if touch.current}
+	{#if linking}
+		<!-- svelte-ignore a11y_autofocus -->
+		<input
+			type="url"
+			class="{input} basis-60 self-center"
+			placeholder={words.imageLink}
+			aria-label={words.imageLink}
+			aria-busy={fetching}
+			disabled={fetching}
+			autofocus
+			onkeydown={onlinkkey}
+			onblur={(event) => {
+				if (!fetching && event.currentTarget.value.trim() === '') linking = false;
+			}}
+		/>
+	{:else if touch.current}
 		<Menu label={words.addImage}>
 			{#snippet trigger(props)}
 				<button {...props} type="button" class={tile}>
@@ -133,11 +185,23 @@
 			{/snippet}
 			<MenuItem icon="camera" onSelect={() => camera?.click()}>{words.takePhoto}</MenuItem>
 			<MenuItem icon="image" onSelect={() => picker?.click()}>{words.chooseImage}</MenuItem>
+			{#if fetchesLinks()}
+				<MenuItem icon="url" onSelect={() => (linking = true)}>{words.fromLink}</MenuItem>
+			{/if}
 		</Menu>
 	{:else}
 		<button type="button" class={tile} onclick={() => picker?.click()}>
 			<Icon name="plus" />{words.add}
 		</button>
+		{#if fetchesLinks()}
+			<IconButton
+				icon="url"
+				label={words.addFromLink}
+				variant="secondary"
+				class="self-center"
+				onclick={() => (linking = true)}
+			/>
+		{/if}
 	{/if}
 	<input
 		bind:this={picker}

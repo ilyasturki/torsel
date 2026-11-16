@@ -16,7 +16,7 @@
 		otherCurrency
 	} from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
-	import { addImages } from '#lib/client/images.svelte.ts';
+	import { addImages, addLinks, fetchesLinks } from '#lib/client/images.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
@@ -39,7 +39,7 @@
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
-	import { imagesOf, imagesValue } from '#lib/core/images.ts';
+	import { imageLinks, imagesOf, imagesValue } from '#lib/core/images.ts';
 	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { currencyOf, freshValue, ratingScale } from '#lib/core/values.ts';
@@ -1149,6 +1149,43 @@
 		);
 	}
 
+	type LinkedCell = { row: string; field: FieldDef; links: string[] };
+
+	/** Image cells of the paste that received links: the server fetches those, after the rest lands. */
+	function linkedCells(at: { row: number; col: number }, matrix: string[][]): LinkedCell[] {
+		if (!fetchesLinks()) return [];
+		const cells: LinkedCell[] = [];
+		matrix.forEach((line, offset) => {
+			const row = rows[at.row + offset] as Rec | undefined;
+			line.forEach((raw, index) => {
+				const field = fields[at.col + index] as FieldDef | undefined;
+				if (row === undefined || field?.type !== 'image' || !writable(row, field)) return;
+				const links = imageLinks(raw);
+				if (links.length > 0) cells.push({ row: row.id, field, links });
+			});
+		});
+		return cells;
+	}
+
+	async function pasteLinks(cells: LinkedCell[]): Promise<void> {
+		const fetched = await Promise.all(
+			cells.map(({ row, field, links }) =>
+				addLinks(field.base, links, imagesOf(app.ws.live(row)?.data[field.id]).length)
+			)
+		);
+		let count = 0;
+		const changes = cells.flatMap(({ row, field }, index) => {
+			const added = fetched[index];
+			const kept = app.ws.live(row);
+			if (added.length === 0 || kept === undefined) return [];
+			count += added.length;
+			return updateRow(app.ws, row, {
+				[field.id]: imagesValue([...imagesOf(kept.data[field.id]), ...added])
+			});
+		});
+		if (changes.length > 0) applyWithUndo(changes, imageWords.added(count));
+	}
+
 	function oncatcherpaste(event: ClipboardEvent): void {
 		backToGrid();
 		if (head === null || fields.length === 0) return;
@@ -1169,15 +1206,20 @@
 		event.preventDefault();
 		const at = { row: top, col: left };
 		const matrix = fillSelection(parseTsv(text), bottom - top + 1, right - left + 1);
+		const linked = linkedCells(at, matrix);
+		if (linked.length > 0) void pasteLinks(linked);
 		const paste = pasteChanges(app.ws, tableId, fields, rows, at, matrix, { locked, adds });
-		const count = paste.rows * paste.cols - paste.kept;
-		const group = app.apply(paste.changes, words.pasteLabel(count));
-		showToast(
-			paste.foreign === null
-				? words.pasted(count, paste.skipped, paste.kept)
-				: words.otherCurrency(currencyName(paste.foreign)),
-			group?.id ?? null
-		);
+		const skipped = paste.skipped - linked.length;
+		if (paste.changes.length > 0 || skipped > 0 || linked.length === 0) {
+			const count = paste.rows * paste.cols - paste.kept - linked.length;
+			const group = app.apply(paste.changes, words.pasteLabel(count));
+			showToast(
+				paste.foreign === null
+					? words.pasted(count, skipped, paste.kept)
+					: words.otherCurrency(currencyName(paste.foreign)),
+				group?.id ?? null
+			);
+		}
 		flushSync();
 		if (paste.rows > 0 && paste.cols > 0) {
 			select(at.row, at.col);

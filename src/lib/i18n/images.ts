@@ -30,7 +30,10 @@ const en = {
 	linkUnreachable: 'couldn’t reach this link',
 	linkStatus: 'the link answered with an error',
 	linkNotAnImage: 'this link isn’t a JPEG, PNG, WebP, GIF or AVIF image',
-	linkBusy: 'too many links at once, try again in a minute'
+	linkBusy: 'too many links at once, try again in a minute',
+	fromLink: 'From a link',
+	addFromLink: 'Add from a link',
+	imageLink: 'Image link'
 };
 
 const fr: typeof en = {
@@ -62,7 +65,10 @@ const fr: typeof en = {
 	linkUnreachable: 'impossible de joindre ce lien',
 	linkStatus: 'le lien a répondu par une erreur',
 	linkNotAnImage: 'ce lien n’est pas une image JPEG, PNG, WebP, GIF ou AVIF',
-	linkBusy: 'trop de liens d’un coup, réessaie dans une minute'
+	linkBusy: 'trop de liens d’un coup, réessaie dans une minute',
+	fromLink: 'Depuis un lien',
+	addFromLink: 'Ajouter depuis un lien',
+	imageLink: 'Lien de l’image'
 };
 
 export default { en, fr };

@@ -2,8 +2,9 @@ import type { ImageRef, ImageType } from '../core/images.ts';
 import { MAX_IMAGES, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS, isImageType } from '../core/images.ts';
 import { UPLOAD_PART } from '../core/thread.ts';
 import { images as words } from '../i18n/images.ts';
-import { ApiError, OFFLINE, request, requestBlob, sentence } from './api.ts';
+import { ApiError, OFFLINE, apiBase, request, requestBlob, sentence } from './api.ts';
 import { app } from './app.svelte.ts';
+import { me } from './session.svelte.ts';
 import type { LocalDb } from './local.ts';
 import { keepImage, readImage, readOutbox, sent } from './local.ts';
 import { showToast } from './toast.svelte.ts';
@@ -120,6 +121,66 @@ export async function addImages(base: string, files: File[], held: number): Prom
 		} catch (error) {
 			if (!(error instanceof ImageProblem)) throw error;
 			showToast(words.notKept(file.name || 'image', sentence(error.message)));
+		}
+	}
+	return refs;
+}
+
+/** Whether the server can fetch links for this device: it has one, and is signed in to it. */
+export function fetchesLinks(): boolean {
+	return apiBase() !== null && me.account != null;
+}
+
+const AT_ONCE = 4;
+
+/** Each distinct link fetched by the server into `base`, a few at a time; a failure maps to its message. */
+export async function fetchLinks(
+	base: string,
+	links: string[],
+	onEach?: (done: number) => void
+): Promise<Map<string, ImageRef | string>> {
+	const queue = [...new Set(links)];
+	const out = new Map<string, ImageRef | string>();
+	const one = async (link: string): Promise<ImageRef | string> => {
+		for (;;) {
+			try {
+				const answer = await request<{ ref: ImageRef }>(`/api/blobs/${base}/fetch`, {
+					method: 'POST',
+					body: { url: link }
+				});
+				return answer.ref;
+			} catch (error) {
+				if (!(error instanceof ApiError)) throw error;
+				if (error.status !== 429) return sentence(error.message);
+				await new Promise((settle) => setTimeout(settle, 5_000));
+			}
+		}
+	};
+	const worker = async (): Promise<void> => {
+		for (let link = queue.shift(); link !== undefined; link = queue.shift()) {
+			out.set(link, await one(link));
+			onEach?.(out.size);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(AT_ONCE, queue.length) }, worker));
+	return out;
+}
+
+/** The image each link names, up to a cell's room past the `held` it has; a link that fails is told and skipped. */
+export async function addLinks(base: string, links: string[], held: number): Promise<ImageRef[]> {
+	const room = Math.max(0, MAX_IMAGES - held);
+	if (links.length > room) {
+		showToast(words.cellFull(MAX_IMAGES));
+	}
+	const wanted = links.slice(0, room);
+	const fetched = await fetchLinks(base, wanted);
+	const refs: ImageRef[] = [];
+	for (const link of wanted) {
+		const got = fetched.get(link);
+		if (typeof got === 'string' || got === undefined) {
+			showToast(words.notKept(link, got ?? ''));
+		} else if (!refs.some((ref) => ref.id === got.id)) {
+			refs.push(got);
 		}
 	}
 	return refs;
