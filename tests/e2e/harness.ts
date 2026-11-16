@@ -8,13 +8,22 @@ import { DatabaseSync } from 'node:sqlite';
 import type { APIRequestContext, BrowserContext, Locator, Page } from '@playwright/test';
 import { test as base, expect } from '@playwright/test';
 
-import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
+import { PATH, SOURCE } from '../../src/lib/core/access.ts';
+import {
+	createBase,
+	createTable,
+	defaultViews,
+	insertRows,
+	updateRecord
+} from '../../src/lib/core/actions.ts';
 import { Hlc } from '../../src/lib/core/clock.ts';
 import { isId } from '../../src/lib/core/ids.ts';
 import type { Change, Rec } from '../../src/lib/core/model.ts';
 import { MAX_PUSH } from '../../src/lib/core/protocol.ts';
 import { slugify } from '../../src/lib/core/slug.ts';
 import { Workspace } from '../../src/lib/core/workspace.ts';
+import { createDatabase } from '../../src/lib/server/db/client.ts';
+import { loadWorkspace, writeChanges } from '../../src/lib/server/db/records.ts';
 import type { FakeStep } from './fake-anthropic.ts';
 
 export type Account = { email: string; password: string };
@@ -185,6 +194,31 @@ export async function mailTo(email: string): Promise<SignInMail> {
 		}, 'the server logs the mail')
 		.toBe(true);
 	return found as SignInMail;
+}
+
+/** What a connector run does to a table: it fills `fields` from a source, read-only from then on. */
+export function syncFromSource(account: Account, table: string, fields: string[]): void {
+	const db = createDatabase(base.info().project.metadata.database);
+	try {
+		const { id } = db.$client
+			.prepare('select id from users where email = ?')
+			.get(account.email) as {
+			id: string;
+		};
+		const ws = loadWorkspace(db, id);
+		const found = ws
+			.bases()
+			.flatMap((owned) => ws.tables(owned.id))
+			.find((candidate) => candidate.name === table);
+		if (found === undefined) throw new Error(`no table ${table}`);
+		const sourced = ws.fields(found.id).filter((field) => fields.includes(field.name));
+		writeChanges(db, { user: id, path: 'connector' }, ws, [
+			...updateRecord(ws, found.id, { [SOURCE]: { kind: 'e2e' } }),
+			...sourced.flatMap((field) => updateRecord(ws, field.id, { [PATH]: field.name }))
+		]);
+	} finally {
+		db.$client.close();
+	}
 }
 
 export function expireEmailTokens(): void {
