@@ -4,7 +4,7 @@ import type { Handle } from '@sveltejs/kit/hooks';
 import type { Credential } from '../auth/session.ts';
 import { SESSION_COOKIE, bearerToken, resolveCredential, secureCookies } from '../auth/session.ts';
 import type { Database } from '../db/client.ts';
-import { oauthOrigin } from '../config.ts';
+import { oauthOrigin, siteOrigin } from '../config.ts';
 import {
 	MCP_PATH,
 	REVOKE_PATH,
@@ -48,6 +48,7 @@ const FORMS_FROM_ANYWHERE = new Set([TOKEN_PATH, REVOKE_PATH]);
 /**
  * SvelteKit's cross-site form check, which runs before this hook and can't spare a path: the kit
  * config turns it off (`csrf.trustedOrigins: ['*']`) so this one can spare the OAuth endpoints.
+ * Self is the pinned ORIGIN: adapter-node calls a request https unless a proxy header says otherwise.
  */
 export function crossSiteForm(request: Request, url: URL, pathname: string): boolean {
 	const type = request.headers.get('content-type');
@@ -55,7 +56,7 @@ export function crossSiteForm(request: Request, url: URL, pathname: string): boo
 	return (
 		form &&
 		MUTATING.has(request.method) &&
-		request.headers.get('origin') !== url.origin &&
+		request.headers.get('origin') !== (siteOrigin(url) ?? url.origin) &&
 		!FORMS_FROM_ANYWHERE.has(pathname)
 	);
 }

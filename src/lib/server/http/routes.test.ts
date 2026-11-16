@@ -298,6 +298,17 @@ describe('a cross-site form', () => {
 		}
 	});
 
+	it('takes the pinned ORIGIN as this site, whatever scheme the adapter assumed', () => {
+		vi.stubEnv('ORIGIN', 'http://127.0.0.1:4173');
+		const url = new URL('https://127.0.0.1:4173/api/auth/login');
+		const own = new Request(url, {
+			method: 'POST',
+			headers: { 'content-type': 'text/plain', origin: 'http://127.0.0.1:4173' }
+		});
+		expect(crossSiteForm(own, url, '/api/auth/login')).toBe(false);
+		vi.unstubAllEnvs();
+	});
+
 	it('leaves JSON alone, which a browser cannot post across sites without CORS', () => {
 		const url = new URL('https://torsel.test/api/mcp');
 		const request = new Request(url, {
