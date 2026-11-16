@@ -245,6 +245,7 @@ test('an image reaches the phone with its device token, from a server on another
 	context
 }) => {
 	const poster = readFileSync(join(import.meta.dirname, 'images/poster.jpg'));
+	const still = readFileSync(join(import.meta.dirname, 'images/still.jpg'));
 	const id = createHash('sha256').update(poster).digest('hex');
 	await connectAndSignIn(page, newAccount());
 	const headers = await deviceHeaders(page);
@@ -300,6 +301,32 @@ test('an image reaches the phone with its device token, from a server on another
 		.getByRole('img', { name: 'dune.jpg' });
 	await expect(image).toBeVisible();
 	await expect(image).toHaveAttribute('src', /^blob:/u);
+
+	await page.getByRole('row').filter({ hasText: 'Dune' }).locator('td[aria-colindex="3"]').click();
+	await page.keyboard.press('Enter');
+	await page
+		.getByRole('dialog', { name: 'Poster' })
+		.locator('input[type="file"]:not([capture])')
+		.setInputFiles({ name: 'still.jpg', mimeType: 'image/jpeg', buffer: still });
+	await expect
+		.poll(async () => {
+			const response = await context.request.post(`${SERVER}/api/sync`, {
+				...RETRY_RESET,
+				headers,
+				data: { watermark: 0, push: [] }
+			});
+			const { records: rows } = (await response.json()) as { records: Rec[] };
+			const row = rows.find((record) => record.kind === 'row' && record.parent === table.id);
+			const refs = (row?.data[table.fieldIds[1]] ?? []) as { id: string }[];
+			const added = refs.find((item) => item.id !== id);
+			if (added === undefined) return 0;
+			const bytes = await context.request.get(`${SERVER}/api/blobs/${base.id}/${added.id}`, {
+				...RETRY_RESET,
+				headers
+			});
+			return bytes.status();
+		})
+		.toBe(200);
 });
 
 test.describe('on a phone in French', () => {
