@@ -106,4 +106,20 @@ describe('sql pool', () => {
 		const page = await pool.run(records, id, { kind: 'query', sql: 'select 7 as n', offset: 0 });
 		expect(page.rows).toEqual([[7]]);
 	});
+
+	it('kills a worker stuck in a regex, which SQLite cannot interrupt, and serves the next job', async () => {
+		const { records, base: id } = base();
+
+		await expect(
+			pool.run(
+				records,
+				id,
+				{ kind: 'query', sql: "select REGEXMATCH(REPT('a', 40) || 'b', '^(a+)+$')", offset: 0 },
+				{ ms: 500, length: 1_000_000, backstop: 300 }
+			)
+		).rejects.toThrow('interrupted');
+
+		const page = await pool.run(records, id, { kind: 'query', sql: 'select 8 as n', offset: 0 });
+		expect(page.rows).toEqual([[8]]);
+	});
 });
