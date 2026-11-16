@@ -314,18 +314,19 @@
 				aria-pressed={assistant.listing}
 				onclick={() => void showThreads()}>{words.history}</Button
 			>
-			<Button variant="ghost" class="max-lg:hidden" onclick={newThread}>{words.newThread}</Button>
-			<!-- The panel covers a phone: icons leave the title its width. -->
-			<IconButton icon="plus" label={words.newThread} class="lg:hidden" onclick={newThread} />
+			<IconButton icon="plus" label={words.newThread} onclick={newThread} />
 		{/if}
-		<Tooltip shortcut={keys('mod', 'k')}>
+		<Tooltip text={common.close} shortcut={keys('mod', 'k')}>
 			{#snippet children(props)}
-				<Button {...props} variant="ghost" class="max-lg:hidden" onclick={() => (open = false)}
-					>{common.close}</Button
-				>
+				<IconButton
+					{...props}
+					icon="x"
+					label={common.close}
+					tooltip={false}
+					onclick={() => (open = false)}
+				/>
 			{/snippet}
 		</Tooltip>
-		<IconButton icon="x" label={common.close} class="lg:hidden" onclick={() => (open = false)} />
 	</div>
 
 	{#if !me.account}

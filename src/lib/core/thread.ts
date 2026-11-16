@@ -8,7 +8,7 @@ export const MAX_CONTEXT_ROWS = 200;
 
 export const MAX_TITLE = 60;
 
-// What the History row and the panel header show whole, on a phone too.
+// Whole in the desktop header; a phone's header and History row cut it past about 20.
 export const MAX_GIVEN_TITLE = 32;
 
 export const MAX_FILES = 5;
