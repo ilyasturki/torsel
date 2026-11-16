@@ -253,6 +253,26 @@ describe('access on the server merge', () => {
 		).toEqual([s.row]);
 	});
 
+	it('tombstones a row added to a source table even when it carries no key', async () => {
+		const s = await sourced();
+		s.lock();
+		const answer = s.exchange(s.watermark);
+		const base = s.phone.ws.get(s.table)?.base as string;
+		const ghost: Rec = { id: 'r_ghost', kind: 'row', base, parent: s.table, data: {}, clocks: {} };
+		s.phone.ws.put(ghost);
+		s.phone.pending.set(ghost.id, ghost);
+
+		const refused = s.exchange(answer.watermark);
+
+		expect(refused.refused.map((refusal) => refusal.id)).toEqual([ghost.id]);
+		expect(isDeleted(s.phone.ws.get(ghost.id) as Rec)).toBe(true);
+		expect(
+			loadWorkspace(s.db, s.userId)
+				.rows(s.table)
+				.map((row) => row.id)
+		).toEqual([s.row]);
+	});
+
 	it('keeps a server write off a source field and lets a connector write it', async () => {
 		const s = await sourced();
 		s.lock();

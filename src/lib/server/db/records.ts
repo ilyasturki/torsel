@@ -1,11 +1,11 @@
 import { and, eq, gt, inArray } from 'drizzle-orm';
 
 import type { Actor, Lookup } from '../../core/access.ts';
-import { lockedKeys } from '../../core/access.ts';
+import { canWrite, lockedKeys } from '../../core/access.ts';
 import { Hlc } from '../../core/clock.ts';
 import { latestClock, merge, sameRec } from '../../core/merge.ts';
 import type { Change, Rec } from '../../core/model.ts';
-import { DELETED } from '../../core/model.ts';
+import { CREATED, DELETED } from '../../core/model.ts';
 import type { Refusal, SyncRequest, SyncResponse } from '../../core/protocol.ts';
 import { Workspace } from '../../core/workspace.ts';
 import type { Database } from './client.ts';
@@ -65,11 +65,15 @@ function moving(existing: Rec | undefined, incoming: Rec): string[] {
 function guarded(writer: Writer, existing: Rec | undefined, incoming: Rec, refused: string[]): Rec {
 	const hlc = clockOf(writer.actor.user);
 	for (const key of refused) {
-		hlc.observe(incoming.clocks[key]);
+		const refusedClock = incoming.clocks[key];
+		if (refusedClock !== undefined) hlc.observe(refusedClock);
 	}
 	const clock = hlc.tick();
 
-	if (existing === undefined && refused.length === Object.keys(incoming.clocks).length) {
+	if (
+		existing === undefined &&
+		Object.keys(incoming.clocks).every((key) => refused.includes(key))
+	) {
 		const { id, kind, base, parent } = incoming;
 		return { id, kind, base, parent, data: { [DELETED]: true }, clocks: { [DELETED]: clock } };
 	}
@@ -100,7 +104,14 @@ export function mergeRecord(
 		return { rec: existing, moved: false, refused: [] };
 	}
 
-	const refused = lockedKeys(writer.get, actor, incoming, moving(existing, incoming));
+	const keys = moving(existing, incoming);
+	// A record it may not create is refused whole, one that carries no key included.
+	const barred = existing === undefined && !canWrite(writer.get, actor, incoming, [CREATED]);
+	const refused = barred
+		? keys.length === 0
+			? [CREATED]
+			: keys
+		: lockedKeys(writer.get, actor, incoming, keys);
 	const rec =
 		refused.length === 0 ? merge(existing, incoming) : guarded(writer, existing, incoming, refused);
 
