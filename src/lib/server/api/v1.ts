@@ -348,7 +348,7 @@ export const OPERATIONS: Operation[] = [
 		id: 'listChanges',
 		method: 'GET',
 		path: '/changes',
-		summary: 'Read what changed in a base',
+		summary: 'Read the changes',
 		description:
 			'What changed in a base since a cursor, oldest first: rows added, changed or deleted, and the tables, fields and views whose schema changed (read the base again for those). Keep the cursor of each answer and pass it as since on the next call; without since, the feed starts from the beginning. A cursor belongs to its base.',
 		access: 'read',

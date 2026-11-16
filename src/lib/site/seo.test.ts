@@ -84,7 +84,7 @@ describe('sitemap.xml', () => {
 		expect(xml.match(/<url>/gu)).toHaveLength(PUBLIC_PAGES.length * 2);
 		expect(xml.match(/hreflang="x-default"/gu)).toHaveLength(PUBLIC_PAGES.length * 2);
 		expect(xml).not.toContain('/app');
-		expect(xml).not.toContain('/api');
+		expect(xml).not.toContain('.com/api');
 	});
 });
 

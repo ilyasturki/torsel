@@ -14,7 +14,7 @@ export const SITE_DESCRIPTION =
 /** What robots.txt keeps crawlers off and the sitemap leaves out. `/app$`: robots rules match by prefix. */
 export const PRIVATE_ROBOTS_RULES = ['/app$', '/app/', '/api/'];
 
-export const PUBLIC_PAGES = ['/', '/privacy', '/terms'];
+export const PUBLIC_PAGES = ['/', '/privacy', '/terms', '/docs/api'];
 
 export const SITE_LOCALES = LOCALES;
 

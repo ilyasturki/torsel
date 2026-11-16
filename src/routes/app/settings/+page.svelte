@@ -159,6 +159,7 @@
 	}
 
 	const mcpUrl = $derived(`${base ?? DEFAULT_SERVER}/api/mcp`);
+	const apiUrl = $derived(`${base ?? DEFAULT_SERVER}/api/v1`);
 	const addCommand = $derived(`claude mcp add --transport http torsel ${mcpUrl}`);
 	const command = $derived(
 		minted
@@ -238,6 +239,15 @@
 			<h2 class={rowName}>{words.agents}</h2>
 			<div class={rowBody}>
 				<code class="font-mono text-sm break-all text-ink-2">{mcpUrl}</code>
+				<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+					<code class="font-mono text-sm break-all text-ink-2">{apiUrl}</code>
+					<a
+						class="text-sm font-medium underline"
+						href="{base ?? DEFAULT_SERVER}/docs/api"
+						target="_blank"
+						rel="noopener">{words.apiDocs}</a
+					>
+				</div>
 				{#if signInConnects}
 					<div class="flex flex-col items-start gap-2">
 						<code class="font-mono text-sm break-all">{addCommand}</code>

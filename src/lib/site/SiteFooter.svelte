@@ -15,9 +15,10 @@
 	class="flex flex-wrap justify-between gap-x-5 gap-y-1.5 rounded-panel bg-glass px-4 py-3.5 text-sm text-ink-2 shadow-raised backdrop-blur-glass"
 >
 	<span>{LEGAL_NAME}, {LEGAL_REGISTRATION}. {t.licensed}</span>
-	<nav class="flex gap-4" aria-label={t.footerNav}>
+	<nav class="flex flex-wrap gap-x-4 gap-y-1.5" aria-label={t.footerNav}>
 		<a class={item} href={REPOSITORY} rel="me">{t.github}</a>
 		<a class={item} href="/llms.txt">{t.llms}</a>
+		<a class={item} href={localePath(locale, '/docs/api')}>{t.api}</a>
 		<a class={item} href={localePath(locale, '/privacy')}>{t.privacy}</a>
 		<a class={item} href={localePath(locale, '/terms')}>{t.terms}</a>
 		<a

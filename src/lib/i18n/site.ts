@@ -41,7 +41,18 @@ const en = {
 	privacyDescription:
 		'What stays on your device when you use Torsel, what leaves it, and who receives it.',
 	termsDescription: 'The terms for using Torsel at torsel.ilyasturki.com, and who runs it.',
-	updated: 'Last updated'
+	updated: 'Last updated',
+	api: 'API',
+	apiDescription: 'Read and change your Torsel tables from any script or service, with a token.',
+	apiAuth: 'Send a token from Settings, or one from an OAuth sign-in, in this header:',
+	apiNames: 'Bases, tables and fields go by name or by id. A refusal says what to change.',
+	apiSpec: 'OpenAPI document',
+	apiOperations: 'Operations',
+	apiParameters: 'Parameters',
+	apiBody: 'Body',
+	apiAnswer: 'Answer',
+	apiRequired: 'required',
+	apiWrite: 'read and write token'
 };
 
 const fr: typeof en = {
@@ -85,7 +96,20 @@ const fr: typeof en = {
 		'Ce qui reste sur ton appareil quand tu utilises Torsel, ce qui en sort et qui le reçoit.',
 	termsDescription:
 		'Les conditions d’utilisation de Torsel sur torsel.ilyasturki.com et qui l’édite.',
-	updated: 'Mis à jour le'
+	updated: 'Mis à jour le',
+	api: 'API',
+	apiDescription:
+		'Lis et modifie tes tables Torsel depuis n’importe quel script ou service, avec un jeton.',
+	apiAuth: 'Envoie un jeton créé dans les Réglages, ou obtenu par OAuth, dans cet en-tête :',
+	apiNames:
+		'Bases, tables et champs se désignent par leur nom ou leur id. Un refus dit quoi corriger.',
+	apiSpec: 'Document OpenAPI',
+	apiOperations: 'Opérations',
+	apiParameters: 'Paramètres',
+	apiBody: 'Corps',
+	apiAnswer: 'Réponse',
+	apiRequired: 'requis',
+	apiWrite: 'jeton en lecture et écriture'
 };
 
 export default { en, fr };

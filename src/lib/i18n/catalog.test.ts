@@ -22,6 +22,7 @@ const SAME = new Set([
 	'fields.args.expression',
 	'names.base',
 	'names.table',
+	'site.api',
 	'shell.tables',
 	'common.done',
 	'changes.labels.type',
