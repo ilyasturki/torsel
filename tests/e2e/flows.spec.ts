@@ -16,6 +16,7 @@ import {
 	expectAsk,
 	expectListed,
 	expectView,
+	homeMenu,
 	newAccount,
 	newView,
 	openAsk,
@@ -750,13 +751,11 @@ test.describe('fields and views', () => {
 		await expectView(page, 'Sheet');
 
 		await allTables(page).click();
-		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
-		await page.getByRole('menuitem', { name: 'New base' }).click();
+		await homeMenu(page, 'New base');
 		await dialog.getByRole('textbox', { name: 'New base' }).fill('Money');
 		await dialog.getByRole('textbox', { name: 'New base' }).press('Enter');
 		await expect(dialog).toHaveCount(0);
-		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
-		await expect(page.getByRole('menuitem', { name: 'Money' })).toBeVisible();
+		await expect(page.getByRole('status')).toContainText('Base "Money" created');
 	});
 });
 

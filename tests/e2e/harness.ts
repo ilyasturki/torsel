@@ -90,6 +90,22 @@ export async function tableMenu(page: Page, item: string): Promise<void> {
 		.click();
 }
 
+/** Picks from the home's "…": a menu from `sm` up, with a submenu per base; a sheet on a phone, a group per base. */
+export async function homeMenu(page: Page, item: string, baseName?: string): Promise<void> {
+	await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+	if (base.info().project.name === 'phone') {
+		const sheet = page.getByRole('dialog');
+		const scope = baseName === undefined ? sheet : sheet.getByRole('group', { name: baseName });
+		await scope
+			.getByRole('button', { name: item, exact: true })
+			.or(scope.getByRole('link', { name: item, exact: true }))
+			.click();
+	} else {
+		if (baseName !== undefined) await page.getByRole('menuitem', { name: baseName }).click();
+		await page.getByRole('menuitem', { name: item, exact: true }).click();
+	}
+}
+
 /** The view tabs, from `sm` up; a phone lists the views in a menu under the current one's name. */
 export const viewStrip = (page: Page): Locator => page.getByRole('group', { name: 'Views' });
 

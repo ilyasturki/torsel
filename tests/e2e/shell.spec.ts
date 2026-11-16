@@ -13,6 +13,7 @@ import {
 	expect,
 	expectListed,
 	expectView,
+	homeMenu,
 	newView,
 	openAsk,
 	openTable,
@@ -142,8 +143,7 @@ test('bases group the home only once there is more than one', async ({
 	await expect(lifts).toBeVisible();
 	await expect(lifts).not.toContainText('Tables');
 
-	await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
-	await page.getByRole('menuitem', { name: 'New base' }).click();
+	await homeMenu(page, 'New base');
 	await page.getByRole('textbox', { name: 'New base' }).fill('Money');
 	await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
 
@@ -429,8 +429,7 @@ test('settings opens from the home and a table, and its slot turns into Back in 
 
 	await page.goto('/app');
 	if (test.info().project.name === 'phone') {
-		await header.getByRole('button', { name: 'More' }).click();
-		await page.getByRole('menuitem', { name: 'Settings' }).click();
+		await homeMenu(page, 'Settings');
 		await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 		await header.getByRole('link', { name: 'Back' }).click();
 		await expect(page).toHaveURL(/\/app$/u);

@@ -14,6 +14,7 @@ import {
 	expectListed,
 	expectView,
 	expectViewListed,
+	homeMenu,
 	newView,
 	openAsk,
 	redo,
@@ -228,9 +229,7 @@ test('a table deleted, and a base deleted', async ({ page }) => {
 	await toastButton(page, 'Undo').click();
 	await expectListed(page, 'Lifts');
 
-	await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
-	await page.getByRole('menuitem', { name: 'Money' }).click();
-	await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+	await homeMenu(page, 'Delete', 'Money');
 	await expectListed(page, 'Expenses', 0);
 	await toastButton(page, 'Undo').click();
 	await expectListed(page, 'Expenses');

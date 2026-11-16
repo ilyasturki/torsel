@@ -8,7 +8,7 @@ import {
 	createView,
 	insertRows
 } from '../../src/lib/core/actions.ts';
-import { expect, seed, tablePath, test, toastButton } from './harness.ts';
+import { expect, homeMenu, seed, tablePath, test, toastButton } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -168,11 +168,7 @@ test("a base's actions sit in the home's menu", async ({ page, context, account 
 	await seedHome(context.request);
 	await page.goto('/app');
 
-	const baseMenu = async (item: string): Promise<void> => {
-		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
-		await page.getByRole('menuitem', { name: 'Shopping' }).click();
-		await page.getByRole('menuitem', { name: item, exact: true }).click();
-	};
+	const baseMenu = (item: string): Promise<void> => homeMenu(page, item, 'Shopping');
 
 	await baseMenu('Delete');
 	await expect(row(page, 'List')).toHaveCount(0);
