@@ -875,10 +875,13 @@
 			adds
 		});
 		editing = null;
-		applyWithUndo(
-			paste.changes,
-			words.filled(paste.rows * paste.cols - paste.skipped - paste.kept)
-		);
+		const filled = words.filled(paste.rows * paste.cols - paste.skipped - paste.kept);
+		if (paste.foreign === null) {
+			applyWithUndo(paste.changes, filled);
+		} else {
+			const group = app.apply(paste.changes, filled);
+			showToast(words.otherCurrency(currencyName(paste.foreign)), group?.id ?? null);
+		}
 		table?.focus({ preventScroll: true });
 	}
 
@@ -1161,7 +1164,12 @@
 		const paste = pasteChanges(app.ws, tableId, fields, rows, at, matrix, { locked, adds });
 		const count = paste.rows * paste.cols - paste.kept;
 		const group = app.apply(paste.changes, words.pasteLabel(count));
-		showToast(words.pasted(count, paste.skipped, paste.kept), group?.id ?? null);
+		showToast(
+			paste.foreign === null
+				? words.pasted(count, paste.skipped, paste.kept)
+				: words.otherCurrency(currencyName(paste.foreign)),
+			group?.id ?? null
+		);
 		flushSync();
 		if (paste.rows > 0 && paste.cols > 0) {
 			select(at.row, at.col);

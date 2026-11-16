@@ -241,6 +241,8 @@ export type Paste = {
 	skipped: number;
 	// Values left out because the cell, or a row past the end, is not this device's to write.
 	kept: number;
+	/** The currency of a column a value in another currency was refused from. */
+	foreign: string | null;
 	rows: number;
 	cols: number;
 };
@@ -271,6 +273,7 @@ export function pasteChanges(
 	const inserts: Record<string, Value>[] = [];
 	let skipped = 0;
 	let kept = 0;
+	let foreign: string | null = null;
 
 	matrix.forEach((line, offset) => {
 		const row: Rec | undefined = rows[at.row + offset];
@@ -283,6 +286,11 @@ export function pasteChanges(
 				(access.locked.has(field.id) || (row === undefined && !access.adds))
 			) {
 				kept += 1;
+				return;
+			}
+			if (field?.type === 'currency' && browserFormats.otherCurrency(raw, currencyOf(field))) {
+				foreign ??= currencyOf(field);
+				skipped += 1;
 				return;
 			}
 			let value = field === undefined ? undefined : read(field, raw);
@@ -329,6 +337,7 @@ export function pasteChanges(
 		added: written.ids.length,
 		skipped,
 		kept,
+		foreign,
 		rows: matrix.length,
 		cols: Math.min(
 			Math.max(0, ...matrix.map((line) => line.length)),

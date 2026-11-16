@@ -509,3 +509,35 @@ describe('reorder', () => {
 		).toEqual([note.id, day.id, kg.id]);
 	});
 });
+
+describe('pasting into a currency column', () => {
+	it('refuses an amount in another currency and names the column currency', () => {
+		const { ws, commit, tableId } = fixture();
+		const made = addField(ws, tableId, { name: 'Price', type: 'currency', currency: 'EUR' });
+		commit(made.changes);
+		commit(insertRows(ws, tableId, [{ [made.id]: 34 }, {}]).changes);
+		const price = ws.field(made.id) as FieldDef;
+
+		const paste = pasteChanges(ws, tableId, [price], ws.rows(tableId), { row: 0, col: 0 }, [
+			['$12'],
+			['14']
+		]);
+
+		expect(paste.foreign).toBe('EUR');
+		expect(paste.skipped).toBe(1);
+		commit(paste.changes);
+		expect(ws.rows(tableId).map((row) => row.data[made.id])).toEqual([34, 14]);
+	});
+
+	it('names nothing when every amount is in the column currency', () => {
+		const { ws, commit, tableId } = fixture();
+		const made = addField(ws, tableId, { name: 'Price', type: 'currency', currency: 'EUR' });
+		commit(made.changes);
+		const price = ws.field(made.id) as FieldDef;
+
+		const paste = pasteChanges(ws, tableId, [price], [], { row: 0, col: 0 }, [['12 €'], ['3']]);
+
+		expect(paste.foreign).toBeNull();
+		expect(paste.skipped).toBe(0);
+	});
+});
