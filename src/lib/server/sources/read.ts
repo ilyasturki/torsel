@@ -148,7 +148,23 @@ export function valueAt(value: Json, path: string): Json | undefined {
 	return at;
 }
 
-/** Arrays of objects within three levels, the longest first. */
+/** An object of lists that line up, one per column, as weather and statistics APIs send: its rows, else null. */
+function columnRows(value: Json | undefined): Json[] | null {
+	if (!isObject(value)) return null;
+	const lists = Object.entries(value).filter(
+		(entry): entry is [string, Json[]] =>
+			Array.isArray(entry[1]) &&
+			entry[1].length > 1 &&
+			entry[1].every((cell) => cell === null || typeof cell !== 'object')
+	);
+	const length = lists[0]?.[1].length ?? 0;
+	if (lists.length < 2 || lists.some(([, list]) => list.length !== length)) return null;
+	return Array.from({ length }, (_, at) =>
+		Object.fromEntries(lists.map(([name, list]) => [name, list[at]]))
+	);
+}
+
+/** Where rows are within three levels, the longest first: lists of objects, or objects of lists that line up. */
 function arraysOfObjects(value: Json): string[] {
 	const found: { path: string; length: number }[] = [];
 	const walk = (at: Json, path: string, depth: number): void => {
@@ -156,6 +172,11 @@ function arraysOfObjects(value: Json): string[] {
 			if (at.length > 0 && at.filter(isObject).length * 2 >= at.length) {
 				found.push({ path, length: at.length });
 			}
+			return;
+		}
+		const columns = columnRows(at);
+		if (columns !== null) {
+			found.push({ path, length: columns.length });
 			return;
 		}
 		if (!isObject(at) || depth >= 3) return;
@@ -199,8 +220,11 @@ function readJson(text: string, rows: string | null): Feed {
 	const chosen = rows ?? rowPaths[0] ?? '';
 	const at = valueAt(value, chosen);
 	let entries: Json[];
+	const columns = columnRows(at);
 	if (Array.isArray(at)) {
 		entries = at;
+	} else if (columns !== null) {
+		entries = columns;
 	} else if (isObject(at) && chosen === '') {
 		entries = [at];
 	} else {

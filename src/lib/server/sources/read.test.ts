@@ -133,6 +133,25 @@ describe('readBody', () => {
 		expect(readBody(text(JSON.stringify(body)), '', 'data.tags').items).toEqual([{ id: '1' }]);
 	});
 
+	it('reads lists that line up as one row each, as a weather forecast sends them', () => {
+		const forecast = {
+			latitude: 48.85,
+			hourly_units: { time: 'iso8601', temperature_2m: '°C' },
+			hourly: {
+				time: ['2026-11-16T00:00', '2026-11-16T01:00', '2026-11-16T02:00'],
+				temperature_2m: [7.1, 6.8, null]
+			}
+		};
+		const feed = readBody(text(JSON.stringify(forecast)), 'application/json');
+		expect(feed.rows).toBe('hourly');
+		expect(feed.items).toEqual([
+			{ time: '2026-11-16T00:00', temperature_2m: '7.1' },
+			{ time: '2026-11-16T01:00', temperature_2m: '6.8' },
+			{ time: '2026-11-16T02:00', temperature_2m: '' }
+		]);
+		expect(readBody(text(JSON.stringify({ a: [1, 2], b: [1] })), '').items).toHaveLength(1);
+	});
+
 	it('reads a root array, a single object, and refuses a path with no rows', () => {
 		expect(readBody(text('[{"a":1},{"a":2}]'), '').items).toHaveLength(2);
 		expect(readBody(text('{"rates":{"EUR":1,"USD":1.08}}'), '').items).toEqual([
