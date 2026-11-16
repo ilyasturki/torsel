@@ -13,7 +13,7 @@ export function sameValue(a: Value | undefined, b: Value | undefined): boolean {
 export const blank = (value: Value | undefined): boolean =>
 	value === null || value === undefined || value === '';
 
-const WORDS = new Set(['text', 'longtext', 'url', 'email', 'phone']);
+const WORDS = new Set(['text', 'longtext', 'url', 'email', 'phone', 'image']);
 
 /** Whether a field's past values are worth copying into the next row: a title or a note, unique to each row, is not. */
 export function repeats(field: FieldDef, rows: Rec[]): boolean {

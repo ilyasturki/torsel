@@ -91,4 +91,10 @@ describe('repeated values', () => {
 		expect(repeats(title, shops)).toBe(true);
 		expect(repeats(session, titles)).toBe(true);
 	});
+
+	it('leaves each row its own images', () => {
+		const poster = { id: 'poster', name: 'Poster', type: 'image' } as FieldDef;
+		const posters = ['a', 'b', 'c'].map((id) => row({ poster: [{ id: id.repeat(64) }] }));
+		expect(repeats(poster, posters)).toBe(false);
+	});
 });
