@@ -105,6 +105,24 @@ export function siteOrigin(url: URL): string | null {
 	return import.meta.env?.DEV === true ? url.origin : null;
 }
 
+// The MCP SDK refuses any other http issuer.
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
+
+/** This server as an OAuth issuer: its pinned origin when served over https, or on loopback; else OAuth is off. */
+export function oauthOrigin(url: URL): string | null {
+	const origin = siteOrigin(url);
+	if (origin === null) {
+		return null;
+	}
+	const { protocol, hostname } = new URL(origin);
+	return protocol === 'https:' || LOOPBACK_HOSTS.has(hostname) ? origin : null;
+}
+
+/** Server-side fetches of URLs a caller chose may reach loopback and private addresses. */
+export function fetchesPrivate(): boolean {
+	return envFlag('TORSEL_FETCH_PRIVATE');
+}
+
 export function googleClient(url: URL): GoogleClient | null {
 	const id = envText('GOOGLE_CLIENT_ID', '');
 	const secret = envText('GOOGLE_CLIENT_SECRET', '');

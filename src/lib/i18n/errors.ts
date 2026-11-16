@@ -16,7 +16,9 @@ const en = {
 	noNewAccounts: 'this server does not take new accounts',
 	noSuchCredential: 'no such credential',
 	badCode: 'invalid or expired code',
-	badLink: 'invalid or expired link'
+	badLink: 'invalid or expired link',
+	consentInBrowser: 'connect apps from Torsel in your browser',
+	requestExpired: 'this request expired, start again from the app'
 };
 
 const fr: typeof en = {
@@ -34,7 +36,9 @@ const fr: typeof en = {
 	noNewAccounts: 'ce serveur n’accepte pas de nouveaux comptes',
 	noSuchCredential: 'jeton introuvable',
 	badCode: 'code invalide ou expiré',
-	badLink: 'lien invalide ou expiré'
+	badLink: 'lien invalide ou expiré',
+	consentInBrowser: 'connecte tes apps depuis Torsel dans ton navigateur',
+	requestExpired: 'cette demande a expiré, recommence depuis l’app'
 };
 
 export default { en, fr };

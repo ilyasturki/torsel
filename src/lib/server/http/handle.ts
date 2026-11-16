@@ -4,6 +4,15 @@ import type { Handle } from '@sveltejs/kit/hooks';
 import type { Credential } from '../auth/session.ts';
 import { SESSION_COOKIE, bearerToken, resolveCredential, secureCookies } from '../auth/session.ts';
 import type { Database } from '../db/client.ts';
+import { oauthOrigin } from '../config.ts';
+import {
+	MCP_PATH,
+	REVOKE_PATH,
+	TOKEN_PATH,
+	discoveryResponse,
+	mcpChallenge,
+	mcpResource
+} from '../oauth/metadata.ts';
 import { applyCors, preflightResponse } from './cors.ts';
 import { PUBLIC_API_ROUTES } from './public-routes.ts';
 import { errors } from '../../i18n/errors.ts';
@@ -23,6 +32,48 @@ function routedPath(pathname: string): string {
 	} catch {
 		return pathname;
 	}
+}
+
+const FORM_TYPES = new Set([
+	'application/x-www-form-urlencoded',
+	'multipart/form-data',
+	'text/plain',
+	'application/x-sveltekit-formdata'
+]);
+const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+// OAuth clients post these forms from their own servers, with no Origin at all.
+const FORMS_FROM_ANYWHERE = new Set([TOKEN_PATH, REVOKE_PATH]);
+
+/**
+ * SvelteKit's cross-site form check, which runs before this hook and can't spare a path: the kit
+ * config turns it off (`csrf.trustedOrigins: ['*']`) so this one can spare the OAuth endpoints.
+ */
+export function crossSiteForm(request: Request, url: URL, pathname: string): boolean {
+	const type = request.headers.get('content-type');
+	const form = !type || FORM_TYPES.has(type.split(';')[0].trim().toLowerCase());
+	return (
+		form &&
+		MUTATING.has(request.method) &&
+		request.headers.get('origin') !== url.origin &&
+		!FORMS_FROM_ANYWHERE.has(pathname)
+	);
+}
+
+/** Web and device credentials reach the whole API; a token for agents reaches only MCP, and an OAuth one only its own audience. */
+function reaches(credential: Credential, pathname: string, url: URL): boolean {
+	const { kind, resource } = credential.token;
+	if (kind === 'web' || kind === 'device') {
+		return true;
+	}
+	if (pathname !== MCP_PATH) {
+		return false;
+	}
+	if (kind === 'oauth') {
+		const origin = oauthOrigin(url);
+		return origin !== null && resource === mcpResource(origin);
+	}
+	return true;
 }
 
 // The page CSP comes from `csp` in vite.config.ts, which alone can nonce SvelteKit's inline boot script. Prerendered pages and static files skip this: the reverse proxy adds these for them.
@@ -45,6 +96,18 @@ function harden(response: Response, url: URL): Response {
 export function createHandle(database: () => Database): Handle {
 	const respond: Handle = async ({ event, resolve }) => {
 		const pathname = routedPath(event.url.pathname);
+
+		if (crossSiteForm(event.request, event.url, pathname)) {
+			return json(
+				{ message: `Cross-site ${event.request.method} form submissions are forbidden` },
+				{ status: 403 }
+			);
+		}
+
+		const discovery = discoveryResponse(event.request, event.url);
+		if (discovery !== undefined) {
+			return discovery;
+		}
 
 		const api =
 			isApiPath(pathname) || isApiPath(event.url.pathname) || isApiPath(event.route.id ?? '');
@@ -74,20 +137,26 @@ export function createHandle(database: () => Database): Handle {
 			return applyCors(json({ message: errors.databaseUnavailable }, { status: 503 }), origin);
 		}
 
+		// An OAuth token for another audience is no token here: the client is told to sign in again.
+		if (
+			credential?.token.kind === 'oauth' &&
+			pathname === MCP_PATH &&
+			!reaches(credential, pathname, event.url)
+		) {
+			credential = null;
+		}
+
 		event.locals.credential = credential;
 
 		if (credential === null && !(pathname in PUBLIC_API_ROUTES)) {
 			const refused = json({ message: errors.authRequired }, { status: 401 });
-			if (pathname === '/api/mcp') {
-				refused.headers.set(
-					'www-authenticate',
-					secret === null ? 'Bearer realm="torsel"' : 'Bearer realm="torsel", error="invalid_token"'
-				);
+			if (pathname === MCP_PATH) {
+				refused.headers.set('www-authenticate', mcpChallenge(event.url, secret !== null));
 			}
 			return applyCors(refused, origin);
 		}
 
-		if (credential?.token.kind === 'api' && pathname !== '/api/mcp') {
+		if (credential !== null && !reaches(credential, pathname, event.url)) {
 			return applyCors(
 				json({ message: 'an API token reaches only /api/mcp' }, { status: 403 }),
 				origin

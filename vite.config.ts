@@ -33,6 +33,8 @@ export default defineConfig({
 					filename.split(/[/\\]/u).includes('node_modules') ? undefined : true
 			},
 			adapter,
+			// `crossSiteForm` in handle.ts redoes this check, sparing the OAuth endpoints that servers post forms to.
+			csrf: { trustedOrigins: ['*'] },
 			// Registered from /app's layout: the landing must not pay for the precache.
 			serviceWorker: { register: false },
 			// Not on the app build: its meta tag would pin connect-src to the webview, away from the chosen server.

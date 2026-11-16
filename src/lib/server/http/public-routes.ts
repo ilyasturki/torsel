@@ -9,5 +9,8 @@ export const PUBLIC_API_ROUTES: Record<string, string> = {
 	'/api/auth/login-link': 'requests an emailed sign-in, rate limited',
 	'/api/auth/verify-code': 'the emailed code is the credential, capped per code',
 	'/api/auth/verify-link': 'the emailed token is the credential',
-	'/api/auth/google': 'the OAuth round trip, which starts with no session'
+	'/api/auth/google': 'the OAuth round trip, which starts with no session',
+	'/api/oauth/token': 'OAuth clients trade a code or a refresh token, which is the credential',
+	'/api/oauth/register': 'OAuth clients register before anyone signs in, rate limited',
+	'/api/oauth/revoke': 'OAuth clients hand back a token, which is the credential'
 };

@@ -59,7 +59,8 @@ const CODE_CALLS = new Set([
 	'console',
 	'ToolError',
 	'QueryError',
-	'SqlRefusal'
+	'SqlRefusal',
+	'FetchRefused'
 ]);
 
 // Object keys whose string values are for the model or the protocol.

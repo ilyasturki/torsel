@@ -10,7 +10,12 @@ const serve: RequestHandler = ({ request, locals }) => {
 
 	return serveMcp(
 		getDatabase(),
-		{ userId: user.id, tokenId: token.id, access: token.kind === 'api' ? token.access : 'write' },
+		{
+			userId: user.id,
+			// A connected app's access token changes hourly: its call budget follows the grant.
+			tokenId: token.grantId ?? token.id,
+			access: token.kind === 'web' || token.kind === 'device' ? 'write' : token.access
+		},
 		request,
 		import.meta.env.APP_VERSION
 	);

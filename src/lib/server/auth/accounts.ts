@@ -2,7 +2,7 @@ import { and, eq, ne } from 'drizzle-orm';
 
 import type { Database } from '../db/client.ts';
 import type { AuthToken, User } from '../db/schema.ts';
-import { authTokens, syncCounters, users } from '../db/schema.ts';
+import { authTokens, oauthGrants, syncCounters, users } from '../db/schema.ts';
 import { decoyHash, hashPassword, passwordProblem, verifyPassword } from './password.ts';
 import { mintToken } from './tokens.ts';
 import { errors } from '../../i18n/errors.ts';
@@ -148,11 +148,17 @@ export function revokeToken(db: Database, userId: string, tokenId: string): bool
 	return removed !== undefined;
 }
 
+/** Every credential but `keep`, connected apps included: their refresh tokens would mint new ones. */
 export function revokeOtherTokens(db: Database, userId: string, keep: string | null): number {
 	const scope =
 		keep === null
 			? eq(authTokens.userId, userId)
 			: and(eq(authTokens.userId, userId), ne(authTokens.id, keep));
 
-	return db.delete(authTokens).where(scope).returning({ id: authTokens.id }).all().length;
+	const grants = db
+		.delete(oauthGrants)
+		.where(eq(oauthGrants.userId, userId))
+		.returning({ id: oauthGrants.id })
+		.all().length;
+	return grants + db.delete(authTokens).where(scope).returning({ id: authTokens.id }).all().length;
 }

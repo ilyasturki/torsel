@@ -27,8 +27,8 @@ export const authTokens = sqliteTable(
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 		label: text('label').notNull(),
-		kind: text('kind', { enum: ['web', 'device', 'api'] }).notNull(),
-		// What an api token may do over MCP: `read` lists and reads, `write` changes data too.
+		kind: text('kind', { enum: ['web', 'device', 'api', 'oauth'] }).notNull(),
+		// What an api or oauth token may do over MCP: `read` lists and reads, `write` changes data too.
 		access: text('access', { enum: ['read', 'write'] })
 			.notNull()
 			.default('write'),
@@ -36,12 +36,94 @@ export const authTokens = sqliteTable(
 		tokenPrefix: text('token_prefix').notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 		lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
-		expiresAt: integer('expires_at', { mode: 'timestamp_ms' })
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }),
+		// An oauth token's consent and audience: it works only on `resource`, and dies with its grant.
+		grantId: text('grant_id').references(() => oauthGrants.id, { onDelete: 'cascade' }),
+		resource: text('resource')
 	},
-	(table) => [primaryKey({ columns: [table.id] }), index('auth_tokens_user_idx').on(table.userId)]
+	(table) => [
+		primaryKey({ columns: [table.id] }),
+		index('auth_tokens_user_idx').on(table.userId),
+		index('auth_tokens_grant_idx').on(table.grantId)
+	]
 );
 
 export type AuthToken = typeof authTokens.$inferSelect;
+
+/** Clients that registered themselves (RFC 7591); a client known by its metadata URL has no row. */
+export const oauthClients = sqliteTable(
+	'oauth_clients',
+	{
+		id: text('id').notNull(),
+		name: text('name').notNull(),
+		redirectUris: text('redirect_uris', { mode: 'json' }).notNull().$type<string[]>(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.id] })]
+);
+
+/** One consent: a client's standing access to an account, which its tokens and refresh tokens hang off. */
+export const oauthGrants = sqliteTable(
+	'oauth_grants',
+	{
+		id: text('id').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		clientId: text('client_id').notNull(),
+		clientName: text('client_name').notNull(),
+		access: text('access', { enum: ['read', 'write'] }).notNull(),
+		resource: text('resource').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+		lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' })
+	},
+	(table) => [primaryKey({ columns: [table.id] }), index('oauth_grants_user_idx').on(table.userId)]
+);
+
+export type OAuthGrant = typeof oauthGrants.$inferSelect;
+
+// A used row stays until it expires: presenting it again is the reuse that revokes the grant.
+export const oauthRefreshTokens = sqliteTable(
+	'oauth_refresh_tokens',
+	{
+		tokenHash: text('token_hash').notNull(),
+		grantId: text('grant_id')
+			.notNull()
+			.references(() => oauthGrants.id, { onDelete: 'cascade' }),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+		usedAt: integer('used_at', { mode: 'timestamp_ms' })
+	},
+	(table) => [
+		primaryKey({ columns: [table.tokenHash] }),
+		index('oauth_refresh_tokens_grant_idx').on(table.grantId)
+	]
+);
+
+/** An authorization request from the client's redirect to the consent, then the code it earned. */
+export const oauthRequests = sqliteTable(
+	'oauth_requests',
+	{
+		id: text('id').notNull(),
+		clientId: text('client_id').notNull(),
+		clientName: text('client_name').notNull(),
+		clientHost: text('client_host'),
+		redirectUri: text('redirect_uri').notNull(),
+		loopbackOnly: integer('loopback_only', { mode: 'boolean' }).notNull(),
+		state: text('state'),
+		codeChallenge: text('code_challenge').notNull(),
+		resource: text('resource').notNull(),
+		access: text('access', { enum: ['read', 'write'] }).notNull(),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+		decidedAt: integer('decided_at', { mode: 'timestamp_ms' }),
+		userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+		codeHash: text('code_hash').unique(),
+		usedAt: integer('used_at', { mode: 'timestamp_ms' }),
+		grantId: text('grant_id')
+	},
+	(table) => [primaryKey({ columns: [table.id] })]
+);
+
+export type OAuthRequest = typeof oauthRequests.$inferSelect;
 
 export const emailTokens = sqliteTable(
 	'email_tokens',

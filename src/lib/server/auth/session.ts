@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import type { Database } from '../db/client.ts';
 import type { AuthToken, User } from '../db/schema.ts';
-import { authTokens, users } from '../db/schema.ts';
+import { authTokens, oauthGrants, users } from '../db/schema.ts';
 import { settings } from '../../i18n/settings.ts';
 import { envText } from '../env.ts';
 import { issueToken, revokeToken } from './accounts.ts';
@@ -61,6 +61,9 @@ function touch(db: Database, token: AuthToken, now: Date): void {
 	}
 
 	db.update(authTokens).set({ lastUsedAt: now }).where(eq(authTokens.id, token.id)).run();
+	if (token.grantId !== null) {
+		db.update(oauthGrants).set({ lastUsedAt: now }).where(eq(oauthGrants.id, token.grantId)).run();
+	}
 }
 
 export function resolveCredential(db: Database, secret: string | null): Credential | null {
