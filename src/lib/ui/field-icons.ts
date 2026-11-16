@@ -17,7 +17,8 @@ const BY_TYPE: Record<string, IconName> = {
 	formula: 'formula',
 	url: 'url',
 	email: 'email',
-	phone: 'phone'
+	phone: 'phone',
+	image: 'image'
 };
 
 export const FIELD_ICON_TYPES = Object.keys(BY_TYPE);

@@ -17,6 +17,7 @@
 	import { DATA_COLORS } from '#lib/ui/colors.ts';
 	import ContextMenu from '#lib/ui/ContextMenu.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
+	import Lightbox from '#lib/ui/Lightbox.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import { FIELD_ICON_TYPES, fieldIcon } from '#lib/ui/field-icons.ts';
@@ -81,6 +82,7 @@
 				'Menu',
 				'ContextMenu',
 				'Dialog',
+				'Lightbox',
 				'Segmented',
 				'Stepper',
 				'PasswordInput',
@@ -173,6 +175,19 @@
 	let code = $state('');
 	let kg = $state('102.5');
 	let dialogOpen = $state(false);
+	let lightboxOpen = $state(false);
+	let lightboxAt = $state(0);
+
+	const sketch = (w: number, h: number, fill: string, label: string): string =>
+		`data:image/svg+xml,${encodeURIComponent(
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="${fill}"/><text x="50%" y="50%" fill="#fff" font-family="sans-serif" font-size="${w / 8}" text-anchor="middle">${label}</text></svg>`
+		)}`;
+
+	const pictures = [
+		{ src: sketch(342, 513, '#7a3b17', 'Poster'), alt: 'A 2:3 poster', w: 342, h: 513 },
+		{ src: sketch(600, 338, '#24486b', 'Still'), alt: 'A 16:9 still', w: 600, h: 338 },
+		{ src: null, alt: 'Not here yet', w: 342, h: 513 }
+	];
 	let dirtyName = $state('');
 	let rowOpen = $state(false);
 	let newRowOpen = $state(false);
@@ -808,6 +823,34 @@
 						<Button variant="primary" onclick={() => (dialogOpen = false)}>Rename</Button>
 					{/snippet}
 				</Dialog>
+			</Specimen>
+		</Section>
+
+		<Section name="Lightbox" from="ui/Lightbox.svelte">
+			<Specimen
+				label="never cropped; arrows, swipe or the buttons step through, Space or Esc closes"
+			>
+				<div class="flex items-end gap-2">
+					{#each pictures as picture, index (index)}
+						<button
+							type="button"
+							class="flex h-picture cursor-zoom-in overflow-hidden rounded-box bg-band"
+							style="aspect-ratio: {picture.w} / {picture.h}"
+							aria-label={picture.alt}
+							onclick={() => {
+								lightboxAt = index;
+								lightboxOpen = true;
+							}}
+						>
+							{#if picture.src}<img
+									src={picture.src}
+									alt=""
+									class="size-full object-contain"
+								/>{/if}
+						</button>
+					{/each}
+				</div>
+				<Lightbox bind:open={lightboxOpen} bind:at={lightboxAt} items={pictures} label="Poster" />
 			</Specimen>
 		</Section>
 

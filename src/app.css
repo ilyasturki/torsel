@@ -27,6 +27,10 @@
 	--selected: #e1e9fa;
 	--frame: #cfd0d2;
 	--scrim: rgb(0 0 0 / 0.3);
+	/* Behind an image shown whole: dark in both themes, so a photo reads as it was taken. */
+	--shade: rgb(8 8 10 / 0.92);
+	--on-shade: #ffffff;
+	--shade-2: rgb(255 255 255 / 0.14);
 	--focus: var(--accent);
 	--field: rgb(17 18 22 / 0.06);
 	--field-hover: rgb(17 18 22 / 0.09);
@@ -39,6 +43,9 @@
 
 	--corner: 2px;
 	--row: 34px;
+	/* An image in a cell, a row's height less its breathing room; in a sheet, large enough to tell posters apart. */
+	--thumb: calc(var(--row) - 8px);
+	--picture: 120px;
 	--control: 32px;
 	--cta: 44px;
 	--size-xs: 12px;
@@ -152,6 +159,8 @@
 @media (pointer: coarse), (max-width: 40rem) {
 	:root {
 		--row: 44px;
+		--thumb: calc(var(--row) - 8px);
+		--picture: 96px;
 		--control: 44px;
 		--cta: 56px;
 		--size-xs: 12.5px;
@@ -207,6 +216,7 @@
 	--spacing-entry: 420px;
 	--spacing-prose: 640px;
 	--spacing-mark: 8px;
+	--spacing-card: 9.5rem;
 	--spacing-sheet-max: 92dvh;
 	--spacing-ask-clear: 416px;
 }
@@ -225,6 +235,8 @@
 	--shadow-float: var(--elevation-2);
 
 	--spacing-row: var(--row);
+	--spacing-thumb: var(--thumb);
+	--spacing-picture: var(--picture);
 	--spacing-control: var(--control);
 	--spacing-cta: var(--cta);
 	--spacing-gutter: var(--gutter);
@@ -256,6 +268,9 @@
 	--color-selected: var(--selected);
 	--color-frame: var(--frame);
 	--color-scrim: var(--scrim);
+	--color-shade: var(--shade);
+	--color-on-shade: var(--on-shade);
+	--color-shade-2: var(--shade-2);
 	--color-glass: var(--glass);
 	--color-glass-strong: var(--glass-strong);
 	--color-focus: var(--focus);
@@ -280,6 +295,10 @@
 
 @utility grid-cols-props {
 	grid-template-columns: 9rem minmax(0, 1fr);
+}
+
+@utility grid-cols-cards {
+	grid-template-columns: repeat(auto-fill, minmax(var(--spacing-card), 1fr));
 }
 
 @utility hide-scrollbar {
