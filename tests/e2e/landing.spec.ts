@@ -2,14 +2,6 @@ import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './harness.ts';
 
-// A prerendered button ignores clicks until the page hydrates.
-async function press(button: Locator): Promise<void> {
-	await expect(async () => {
-		await button.click();
-		await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 500 });
-	}).toPass();
-}
-
 function wasmRequests(page: Page): string[] {
 	const seen: string[] = [];
 	page.on('request', (request) => {
@@ -98,16 +90,14 @@ test('composes the demo for the width it gets', async ({ page, isMobile }) => {
 	await demo.scrollIntoViewIfNeeded();
 	await expect(demo.getByRole('columnheader', { name: /Per year/u })).toBeInViewport();
 	const category = demo.getByRole('columnheader', { name: 'Category' });
-	const examples = demo.getByRole('group', { name: 'Examples' });
+	await expect(demo.getByRole('button', { name: 'Budget', exact: true })).toBeVisible();
 	if (isMobile) {
 		await expect(category).toBeHidden();
-		await expect(examples).toBeHidden();
 		const thread = await demo.getByTestId('thread').boundingBox();
 		const grid = await demo.getByRole('grid').boundingBox();
 		expect((thread?.y ?? 0) + (thread?.height ?? 0)).toBeLessThanOrEqual(grid?.y ?? 0);
 	} else {
 		await expect(category).toBeVisible();
-		await expect(examples).toBeVisible();
 	}
 });
 
@@ -215,16 +205,21 @@ test('the changes made ahead are real: they undo, and a prompt adds more', async
 	await expect(prompt(page, 'Add what each one costs per year.')).toBeVisible();
 });
 
-test('each example keeps its own table and thread', async ({ page, isMobile }) => {
-	test.skip(isMobile, 'a phone shows the first example only');
+test('the table name switches between the examples, each keeping its table and thread', async ({
+	page
+}) => {
 	await page.goto('/');
 	const demo = page.getByTestId('demo');
-	const examples = demo.getByRole('group', { name: 'Examples' });
-	await press(examples.getByRole('button', { name: 'Clients' }));
-	await expect(examples.getByRole('button', { name: 'Budget' })).toHaveAttribute(
-		'aria-pressed',
-		'false'
-	);
+	await expect(demo.getByRole('gridcell', { name: 'Rent' })).toBeVisible();
+	const open = async (from: string, to: string): Promise<void> => {
+		await expect(async () => {
+			await demo.getByRole('button', { name: from, exact: true }).click();
+			await expect(page.getByRole('menu', { name: 'Examples' })).toBeVisible({ timeout: 500 });
+		}).toPass();
+		await page.getByRole('menuitem', { name: to }).click();
+		await expect(demo.getByRole('button', { name: to, exact: true })).toBeVisible();
+	};
+	await open('Budget', 'Clients');
 	await expect(demo.getByRole('gridcell', { name: 'Delta' })).toBeVisible();
 
 	await prompt(page, 'Delta signed. Mark it won.').click();
@@ -233,9 +228,9 @@ test('each example keeps its own table and thread', async ({ page, isMobile }) =
 	await expect(card).toContainText('Talking');
 	await expect(card).toContainText('Won');
 
-	await press(examples.getByRole('button', { name: 'Budget' }));
+	await open('Clients', 'Budget');
 	await expect(demo.getByTestId('change')).toHaveCount(2);
-	await press(examples.getByRole('button', { name: 'Clients' }));
+	await open('Budget', 'Clients');
 	await expect(card).toBeVisible();
 });
 

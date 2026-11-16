@@ -6,7 +6,10 @@
 	import { shell } from '#lib/i18n/shell.ts';
 	import { site as t } from '#lib/i18n/site.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import Logo from '#lib/ui/Logo.svelte';
+	import Menu from '#lib/ui/Menu.svelte';
+	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import { focus } from '#lib/ui/styles.ts';
 
 	import type { Example } from './examples.ts';
@@ -127,10 +130,6 @@
 				? 'text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-ink'
 				: 'text-ink-2 hover:text-ink'
 		}`;
-	const chip = (active: boolean): string =>
-		`inline-flex h-control shrink-0 items-center rounded-box px-3 font-medium transition-colors motion ${focus} ${
-			active ? 'bg-tint-2 text-ink' : 'text-ink-2 hover:bg-tint hover:text-ink'
-		}`;
 </script>
 
 <section
@@ -145,23 +144,30 @@
 >
 	<div class="flex min-h-13 shrink-0 items-center gap-x-3 px-gutter py-2.5 max-sm:gap-x-2">
 		<Logo class="size-4 shrink-0" />
-		<span class="min-w-0 truncate font-semibold">{example.table}</span>
+		<Menu label={t.examples} align="start">
+			{#snippet trigger(props)}
+				<button
+					{...props}
+					type="button"
+					class="-mx-1.5 flex h-control min-w-0 items-center gap-1 rounded-box px-1.5 font-semibold transition-colors motion hover:bg-tint aria-expanded:bg-tint {focus}"
+				>
+					<span class="truncate">{example.table}</span>
+					<Icon name="chevron-down" class="size-3 shrink-0 text-ink-3" />
+				</button>
+			{/snippet}
+			{#each samples.examples as item (item.id)}
+				<MenuItem
+					checked={item.id === example.id}
+					onSelect={() => {
+						samples.example = item;
+						typed = '';
+					}}>{item.table}</MenuItem
+				>
+			{/each}
+		</Menu>
 		<span class="shrink-0 text-ink-3" data-testid="row-count"
 			>{shell.rowCount(samples.rowCount)}</span
 		>
-		<div class="ml-auto flex shrink-0 gap-1 max-lg:hidden" role="group" aria-label={t.examples}>
-			{#each samples.examples as item (item.id)}
-				<button
-					type="button"
-					class={chip(item.id === example.id)}
-					aria-pressed={item.id === example.id}
-					onclick={() => {
-						samples.example = item;
-						typed = '';
-					}}>{item.label}</button
-				>
-			{/each}
-		</div>
 	</div>
 	<div
 		class="flex shrink-0 hide-scrollbar gap-1 overflow-x-auto border-b border-rule px-gutter max-sm:pr-2"
