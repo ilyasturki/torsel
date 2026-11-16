@@ -652,6 +652,23 @@ describe('assistant tools', () => {
 	});
 });
 
+describe('query functions', () => {
+	it('lists every function the query worker adds, and each one runs', async () => {
+		const { call } = session();
+		await call('create_base', { name: 'B' });
+		const description = toolNamed('query')?.description ?? '';
+		for (const name of ['DAYS(endDate, startDate)', 'TODAY()', 'COUNTIF(', 'REGEXMATCH(']) {
+			expect(description).toContain(name);
+		}
+		expect(
+			await call('query', {
+				base: 'B',
+				sql: "select DAYS('2026-11-16', '2026-08-28') as days, length(TODAY()) as today"
+			})
+		).toMatchObject({ rows: [[80, 10]] });
+	});
+});
+
 describe('query limits', () => {
 	it('stops a runaway query at its deadline', async () => {
 		const { call } = session();

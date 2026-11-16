@@ -45,6 +45,7 @@ import {
 	totalsFor
 } from '../../core/conditions.ts';
 import { sameValue } from '../../core/entry.ts';
+import { REGISTERED } from '../../core/functions.ts';
 import {
 	BARE_AGGREGATE,
 	FormulaError,
@@ -1250,7 +1251,7 @@ export const TOOLS: Tool[] = [
 	{
 		name: 'query',
 		title: TITLES.query,
-		description: `A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. One page holds at most 200 rows and about 48 KB, text cut at 2,000 characters (cut counts the cells cut); next is the offset of the following page, null on the last. A query stops after ${QUERY_MS} ms: aggregate or filter rather than page through a whole table.`,
+		description: `A read-only SQLite SELECT on a base. Each table is a view named like the table, its columns named like its fields: select "Exercise", max("Weight") from "Sets" group by 1. The columns "_id" and "_created" (ms) exist too. Dates are YYYY-MM-DD text (YYYY-MM-DDTHH:MM with a time), checks are 0 or 1, a percent is its points (25 for 25%), a duration is seconds, a choices field is a JSON array of names (read it with json_each), a link reads as the text of the linked row. One page holds at most 200 rows and about 48 KB, text cut at 2,000 characters (cut counts the cells cut); next is the offset of the following page, null on the last. A query stops after ${QUERY_MS} ms: aggregate or filter rather than page through a whole table. Beside SQLite's own functions, these Sheets ones work here as in a formula, dates as YYYY-MM-DD: ${REGISTERED.join(', ')}.`,
 		input: z.strictObject({
 			base: BASE,
 			sql: z.string().min(1),

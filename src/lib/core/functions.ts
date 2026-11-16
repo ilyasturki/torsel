@@ -752,6 +752,17 @@ export const FUNCTIONS: FormulaFunction[] = [...NATIVE, ...SCALARS, ...AGGREGATE
 	.map(({ name, args }) => ({ name, args }))
 	.sort((left, right) => left.name.localeCompare(right.name));
 
+function signature({ name, args }: FormulaFunction): string {
+	const list = args.map((arg) => `${arg.name}${arg.repeats ? '…' : ''}${arg.optional ? '?' : ''}`);
+	return `${name}(${list.join(', ')})`;
+}
+
+/** What `registerFunctions` adds to SQLite, as NAME(args): the SQL a query may call beside SQLite's own. */
+export const REGISTERED: string[] = [...SCALARS, ...AGGREGATES]
+	.filter((fn, index, all) => all.findIndex((other) => other.name === fn.name) === index)
+	.map(signature)
+	.sort();
+
 /** The functions that fold rows into one: a rollup over linked rows needs one of these. */
 export const AGGREGATE_NAMES = new Set([
 	'SUM',
