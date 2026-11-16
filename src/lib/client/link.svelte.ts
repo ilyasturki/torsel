@@ -41,6 +41,13 @@ export class LinkImport {
 		this.problem = '';
 	}
 
+	/** Another link: the key typed for the last one is never sent to it. */
+	retyped(): void {
+		this.needsKey = false;
+		this.secret = '';
+		this.problem = '';
+	}
+
 	private body() {
 		const keyed = this.needsKey && this.secret.trim() !== '';
 		const auth = keyed ? { auth: this.auth, secret: this.secret.trim() } : {};

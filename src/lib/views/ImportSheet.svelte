@@ -266,6 +266,7 @@
 					autocapitalize="off"
 					spellcheck="false"
 					bind:value={link.link}
+					oninput={() => link.retyped()}
 					onpaste={(event) => {
 						const text = event.clipboardData?.getData('text/plain') ?? '';
 						// Cells copied from a sheet hold tabs or lines; a link never does.
