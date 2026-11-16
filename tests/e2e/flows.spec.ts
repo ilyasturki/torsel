@@ -896,7 +896,7 @@ test.describe('importing', () => {
 		await expect(page).toHaveURL(/\/app$/u);
 		await expectListed(page, 'Lifts', 0);
 
-		await page.getByRole('button', { name: 'Import a file' }).click();
+		await page.getByRole('button', { name: 'Import', exact: true }).click();
 		const sheet = page.getByRole('dialog', { name: 'Import' });
 		await sheet.getByLabel('File to import').setInputFiles(file);
 		await expect(sheet.getByText('This export holds 1 table, 2 rows.')).toBeVisible();
@@ -1103,7 +1103,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		await expect(page.getByText('No tables yet.')).toBeVisible();
 		const taps = await countTaps(page);
 
-		await page.getByRole('button', { name: 'Import a file' }).click();
+		await page.getByRole('button', { name: 'Import', exact: true }).click();
 		await page.getByLabel('File to import').setInputFiles({
 			name: 'weigh-ins.csv',
 			mimeType: 'text/csv',

@@ -4,11 +4,12 @@
 	import { goto } from '$app/navigation';
 
 	import { app } from '#lib/client/app.svelte.ts';
+	import { LinkImport } from '#lib/client/link.svelte.ts';
 	import { tableUrl } from '#lib/client/nav.ts';
 	import type { ImportStart } from '#lib/client/shell.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
-	import { showToast } from '#lib/client/toast.svelte.ts';
-	import { homeBase, nextTableName } from '#lib/core/actions.ts';
+	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
+	import { deleteRecords, homeBase, nextTableName } from '#lib/core/actions.ts';
 	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { parseExport, restoreChanges } from '#lib/core/backup.ts';
 	import { names } from '#lib/i18n/names.ts';
@@ -25,16 +26,20 @@
 	} from '#lib/core/csv.ts';
 	import { readXlsx } from '#lib/core/xlsx.ts';
 	import type { Rec } from '#lib/core/model.ts';
+	import { common } from '#lib/i18n/common.ts';
 	import { importing as words } from '#lib/i18n/importing.ts';
 	import { table as tableWords } from '#lib/i18n/table.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Field from '#lib/ui/Field.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import { fieldIcon } from '#lib/ui/field-icons.ts';
 	import Select from '#lib/ui/Select.svelte';
-	import { input, textarea } from '#lib/ui/styles.ts';
+	import { input } from '#lib/ui/styles.ts';
 
 	import { typeOptions } from './field-types.ts';
+	import LinkKey from './LinkKey.svelte';
+	import LinkPreview from './LinkPreview.svelte';
 
 	const TYPES = typeOptions((type) => type !== 'link' && type !== 'formula');
 
@@ -51,9 +56,13 @@
 	let problem = $state('');
 	let body: HTMLElement | undefined = $state();
 	let picker: HTMLInputElement | undefined = $state();
+	const link = new LinkImport();
+	// A link read: the second step, its preview.
+	let linked = $state(false);
 
 	const hasColumns = $derived(columns.length > 0);
 	const ready = $derived(hasColumns || records !== null);
+	const typed = $derived(link.link.trim() !== '');
 
 	// Only tables that take new rows: a source fills the others.
 	const tables = $derived.by(() => {
@@ -95,6 +104,8 @@
 			base = bases.length > 1 ? homeBase(app.ws, names).id : '';
 			into = start.into ?? NEW_TABLE;
 			tableName = '';
+			link.reset();
+			linked = false;
 			open = true;
 			if (start.file !== undefined || start.text !== undefined) void read(start);
 		}
@@ -188,17 +199,50 @@
 		void goto(tableUrl(made.id));
 	}
 
+	/** What was typed: a link reads into a preview, anything else as pasted cells. */
+	async function proceed(): Promise<void> {
+		const text = link.link.trim();
+		if (!/^\S+\.\S+$/u.test(text)) {
+			await read({ text: link.link, into: into || null });
+			return;
+		}
+		if (!/^https?:\/\//iu.test(text)) link.link = `https://${text}`;
+		linked = await link.read();
+	}
+
+	async function createLinked(): Promise<void> {
+		const made = await link.create(base === '' ? null : base);
+		if (made === null) return;
+		const name = app.ws.table(made.table)?.name ?? link.name;
+		showToast(words.imported(made.added, name), () =>
+			applyWithUndo(deleteRecords(app.ws, [made.table]), tableWords.tableDeleted(name))
+		);
+		open = false;
+		void goto(tableUrl(made.table));
+	}
+
 	function run(): void {
-		if (records !== null) restore();
-		else if (!hasColumns) return;
-		else if (into === NEW_TABLE) create();
+		if (linked) void createLinked();
+		else if (records !== null) restore();
+		else if (!hasColumns) {
+			if (typed) void proceed();
+		} else if (into === NEW_TABLE) create();
 		else append();
 	}
 </script>
 
-<Dialog bind:open title={words.title} dirty={ready} typeOnOpen={false} onsubmit={run}>
+<Dialog
+	bind:open
+	title={linked ? (link.preview?.suggested.label ?? words.title) : words.title}
+	wide={linked}
+	dirty={ready || linked || typed}
+	typeOnOpen={false}
+	onsubmit={run}
+>
 	<div class="flex flex-col gap-3" bind:this={body}>
-		{#if !ready}
+		{#if linked}
+			<LinkPreview {link} {bases} bind:base />
+		{:else if !ready}
 			<input
 				bind:this={picker}
 				type="file"
@@ -211,19 +255,37 @@
 					if (file) void read({ file, into: into || null });
 				}}
 			/>
-			<Button class="self-start" onclick={() => picker?.click()}>{words.chooseFile}</Button>
-			<textarea
-				class="{textarea} h-24"
-				aria-label={words.cellsToImport}
-				placeholder={words.pasteHere}
-				spellcheck="false"
-				onpaste={(event) => {
-					const text = event.clipboardData?.getData('text/plain') ?? '';
-					if (text !== '') {
-						event.preventDefault();
-						void read({ text, into: into || null });
-					}
-				}}></textarea>
+			<div class="relative">
+				<span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-ink-3"
+					><Icon name="url" /></span
+				>
+				<input
+					class="{input} px-control"
+					aria-label={words.fileOrLink}
+					placeholder={words.fileOrLink}
+					autocapitalize="off"
+					spellcheck="false"
+					bind:value={link.link}
+					onpaste={(event) => {
+						const text = event.clipboardData?.getData('text/plain') ?? '';
+						// Cells copied from a sheet hold tabs or lines; a link never does.
+						if (/[\t\n]/u.test(text.trim())) {
+							event.preventDefault();
+							void read({ text, into: into || null });
+						}
+					}}
+				/>
+				<button
+					type="button"
+					class="absolute inset-y-0 right-0 flex w-control items-center justify-center text-ink-3 transition-colors motion hover:text-ink"
+					aria-label={words.chooseFile}
+					onclick={() => picker?.click()}><Icon name="attach" /></button
+				>
+			</div>
+			{#if link.needsKey}
+				<p class="text-sm text-ink-2">{words.keyNeeded}</p>
+				<LinkKey {link} onretry={() => void link.read().then((read) => (linked = read))} />
+			{/if}
 		{/if}
 
 		{#if records !== null}
@@ -302,15 +364,24 @@
 			</div>
 		{/if}
 
-		{#if problem}
-			<p class="rounded-box bg-tint p-2" role="alert">{problem}</p>
+		{#if problem || link.problem}
+			<p class="rounded-box bg-tint p-2" role="alert">{problem || link.problem}</p>
 		{/if}
 	</div>
 
 	{#snippet footer()}
 		<div class="flex-1"></div>
-		<Button variant="primary" disabled={!ready} onclick={run}
-			>{records === null ? words.import : words.restore}</Button
-		>
+		{#if linked}
+			<Button variant="ghost" onclick={() => (linked = false)}>{common.back}</Button>
+			<Button variant="primary" disabled={link.busy} onclick={run}>{common.create}</Button>
+		{:else if !ready}
+			<Button variant="primary" disabled={!typed || link.busy || link.needsKey} onclick={run}
+				>{words.continue}</Button
+			>
+		{:else}
+			<Button variant="primary" onclick={run}
+				>{records === null ? words.import : words.restore}</Button
+			>
+		{/if}
 	{/snippet}
 </Dialog>

@@ -79,7 +79,7 @@ export class LinkImport {
 	}
 
 	/** Makes the table on the server and pulls it; a one-time import then stops syncing at once. */
-	async create(base: string | null): Promise<string | null> {
+	async create(base: string | null): Promise<{ table: string; added: number } | null> {
 		const preview = this.preview;
 		const columns = this.columns.filter((column) => !this.dropped.has(column.path));
 		if (preview === null || this.busy) return null;
@@ -102,7 +102,7 @@ export class LinkImport {
 				columns
 			});
 			if (this.refresh === 'never') await unlink(made.table);
-			return made.table;
+			return { table: made.table, added: made.outcome?.ok === true ? made.outcome.added : 0 };
 		} catch (error) {
 			this.problem = messageOf(error);
 			return null;

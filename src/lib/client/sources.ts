@@ -1,3 +1,5 @@
+import { SvelteSet } from 'svelte/reactivity';
+
 import type { Column, Every, Missing, RunOutcome, SourceState } from '../core/source.ts';
 import type { PresetId } from '../core/presets.ts';
 import { request } from './api.ts';
@@ -64,20 +66,34 @@ export function readLinked(table: string): Promise<SourceState> {
 	return request(path(table));
 }
 
+/** Tables whose refresh this device started and hasn't heard back from. */
+export const refreshing = new SvelteSet<string>();
+
 export async function refreshLinked(table: string): Promise<Ran> {
-	const ran = await request<Ran>(`${path(table)}/refresh`, { method: 'POST' });
-	await syncNow();
-	return ran;
+	refreshing.add(table);
+	try {
+		const ran = await request<Ran>(`${path(table)}/refresh`, { method: 'POST' });
+		await syncNow();
+		return ran;
+	} finally {
+		refreshing.delete(table);
+	}
 }
 
 /** A new key runs the source at once. */
 export async function changeLinked(
 	table: string,
-	patch: { every?: Every; missing?: Missing; secret?: string }
+	patch: { every?: Every; missing?: Missing; secret?: string; url?: string }
 ): Promise<Ran> {
-	const ran = await request<Ran>(path(table), { method: 'PATCH', body: patch });
-	if (patch.secret !== undefined) await syncNow();
-	return ran;
+	const runs = patch.secret !== undefined || patch.url !== undefined;
+	if (runs) refreshing.add(table);
+	try {
+		const ran = await request<Ran>(path(table), { method: 'PATCH', body: patch });
+		if (runs) await syncNow();
+		return ran;
+	} finally {
+		if (runs) refreshing.delete(table);
+	}
 }
 
 /** Stops syncing: the rows stay, every field editable again. */

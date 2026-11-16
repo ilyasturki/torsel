@@ -10,6 +10,7 @@
 	import { table as words } from '#lib/i18n/table.ts';
 	import { fieldFill, fieldFocus } from '#lib/ui/styles.ts';
 
+	import SourceGlyph from './SourceGlyph.svelte';
 	import TableSwitcher from './TableSwitcher.svelte';
 
 	let { table, rows }: { table: TableDef; rows: number } = $props();
@@ -94,5 +95,6 @@
 		/>
 	{:else}
 		<TableSwitcher name={table.name} current={table.id} />
+		<SourceGlyph table={table.id} />
 	{/if}
 </h1>

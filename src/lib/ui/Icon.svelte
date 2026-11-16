@@ -1,6 +1,8 @@
 <script lang="ts" module>
 	const PATHS = {
 		plus: 'M8 3v10M3 8h10',
+		sync: 'M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5M11.6 2v2.5H9.1M4.4 14v-2.5h2.5',
+		warn: 'M8 2.5l6 11H2zM8 6.5v3.5M8 11.75v.01',
 		minus: 'M3 8h10',
 		x: 'M4 4l8 8M12 4l-8 8',
 		check: 'M3 8.5l3.5 3.5L13 4.5',

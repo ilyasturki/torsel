@@ -23,7 +23,7 @@ for (const scheme of SCHEMES) {
 		await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 		await page.goto('/app');
 
-		for (const name of ['New table', 'Import a file', 'New base']) {
+		for (const name of ['New table', 'Import', 'New base']) {
 			expect(await fill(page.getByRole('button', { name, exact: true }))).not.toBe(
 				'rgba(0, 0, 0, 0)'
 			);

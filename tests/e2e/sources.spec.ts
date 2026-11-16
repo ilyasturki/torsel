@@ -1,11 +1,21 @@
 import { randomUUID } from 'node:crypto';
 
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import type { Rec } from '../../src/lib/core/model.ts';
 
 import type { FakeAnswer, FakeHit } from './fake-sources.ts';
-import { askButton, cell, expect, script, tablePath, test, workbook } from './harness.ts';
+import {
+	askButton,
+	cell,
+	expect,
+	expectListed,
+	script,
+	tablePath,
+	test,
+	toastButton,
+	workbook
+} from './harness.ts';
 
 const LINKS = process.env.TORSEL_TEST_SOURCES ?? '';
 
@@ -336,5 +346,167 @@ test.describe('tables from a link', () => {
 		await card.getByRole('link', { name: 'Show' }).click();
 		await expect(cell(page, 'Alien')).toHaveAttribute('aria-readonly', 'true');
 		await expect(page.getByRole('columnheader', { name: 'Title', exact: true })).toBeVisible();
+	});
+});
+
+test.describe('importing from a link', () => {
+	async function openImport(page: Page): Promise<Locator> {
+		await page.goto('/app');
+		await page.getByRole('button', { name: 'Import', exact: true }).click();
+		return page.getByRole('dialog');
+	}
+
+	test('reads a link into a preview, drops a column and makes a synced table', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const links = await serve(context.request, { '/movies.csv': { body: MOVIES } });
+		const sheet = await openImport(page);
+		await sheet.getByLabel('File or link').fill(links.url('/movies.csv'));
+		await sheet.getByRole('button', { name: 'Continue' }).click();
+
+		await expect(sheet.getByText('CSV · 2 rows')).toBeVisible();
+		await expect(sheet.getByRole('cell', { name: 'Heat' })).toBeVisible();
+		await sheet.getByRole('checkbox', { name: 'Rating' }).uncheck();
+		await sheet.getByLabel('Table name').fill('Watched');
+		await expect(sheet.getByRole('checkbox', { name: 'Keep in sync' })).toBeChecked();
+		await sheet.getByRole('button', { name: 'Create' }).click();
+
+		await expect(page.getByRole('heading', { name: 'Watched' })).toBeVisible();
+		await expect(cell(page, 'Alien')).toHaveAttribute('aria-readonly', 'true');
+		await expect(page.getByRole('columnheader', { name: 'Rating', exact: true })).toHaveCount(0);
+		await expect(page.getByRole('status')).toContainText('2 rows imported into "Watched"');
+		await toastButton(page, 'Undo').click();
+		await expectListed(page, 'Watched', 0);
+	});
+
+	test('asks for a key when the link refuses, then reads it', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const links = await serve(context.request, {
+			'/private.csv': { body: MOVIES, need: { header: 'authorization', value: 'Bearer tok-7' } }
+		});
+		const sheet = await openImport(page);
+		await sheet.getByLabel('File or link').fill(links.url('/private.csv'));
+		await sheet.getByRole('button', { name: 'Continue' }).click();
+
+		await expect(sheet.getByText('Key needed')).toBeVisible();
+		await expect(sheet.getByRole('button', { name: 'Continue' })).toBeDisabled();
+		await sheet.getByLabel('Key').fill('tok-7');
+		await sheet.getByRole('button', { name: 'Retry' }).click();
+		await expect(sheet.getByText('CSV · 2 rows')).toBeVisible();
+		await sheet.getByRole('button', { name: 'Create' }).click();
+
+		await expect(cell(page, 'Alien')).toBeVisible();
+		expect((await links.hits()).at(-1)?.authorization).toBe('Bearer tok-7');
+	});
+
+	test('a one-time import leaves the table the person’s own', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const links = await serve(context.request, { '/movies.csv': { body: MOVIES } });
+		const sheet = await openImport(page);
+		await sheet.getByLabel('File or link').fill(links.url('/movies.csv'));
+		await sheet.getByRole('button', { name: 'Continue' }).click();
+		await sheet.getByRole('checkbox', { name: 'Keep in sync' }).uncheck();
+		await expect(sheet.getByRole('button', { name: 'Hourly' })).toHaveCount(0);
+		await sheet.getByRole('button', { name: 'Create' }).click();
+
+		await expect(cell(page, 'Alien')).toBeVisible();
+		await expect(cell(page, 'Alien')).not.toHaveAttribute('aria-readonly', 'true');
+	});
+});
+
+test.describe('a synced table’s glyph', () => {
+	async function openSource(page: Page): Promise<Locator> {
+		await page.getByRole('button', { name: 'Source', exact: true }).click();
+		const panel = page.getByTestId('source');
+		await expect(panel.getByRole('button', { name: 'Refresh' })).toBeVisible();
+		return panel;
+	}
+
+	test('opens the source: schedule, refresh, a new link, then stop syncing', async ({
+		page,
+		context,
+		account,
+		isMobile
+	}) => {
+		void account;
+		const links = await serve(context.request, {
+			'/movies.csv': { body: MOVIES },
+			'/more.csv': { body: 'id,Title,Rating\n3,Ran,5\n' }
+		});
+		const made = await link(context.request, links.url('/movies.csv'));
+		await openTable(page, made.table);
+
+		const glyph = page.getByRole('button', { name: 'Source', exact: true });
+		if (!isMobile) {
+			await glyph.hover();
+			await expect(page.getByRole('tooltip')).toContainText('Refreshed');
+		}
+		const panel = await openSource(page);
+		await panel.getByRole('button', { name: 'Daily' }).click();
+		await expect
+			.poll(
+				async () => (await (await context.request.get(`/api/sources/${made.table}`)).json()).every
+			)
+			.toBe('day');
+
+		await panel.getByRole('button', { name: 'Edit link' }).click();
+		await panel.getByLabel('Link').fill(links.url('/more.csv'));
+		await panel.getByRole('button', { name: 'Save' }).click();
+		await expect(cell(page, 'Ran')).toBeVisible();
+		await expect(cell(page, 'Alien')).toHaveCount(0);
+
+		await panel.getByRole('button', { name: 'Stop syncing' }).click();
+		await panel.getByRole('button', { name: 'Stop syncing for good' }).click();
+		await expect(glyph).toHaveCount(0);
+		await expect(cell(page, 'Ran')).not.toHaveAttribute('aria-readonly', 'true');
+	});
+
+	test('turns amber on a lasting problem, and takes a key that ends it', async ({
+		page,
+		context,
+		account,
+		isMobile
+	}) => {
+		void account;
+		const links = await serve(context.request, {
+			'/private.csv': { body: MOVIES, need: { header: 'authorization', value: 'Bearer good' } }
+		});
+		const made = await link(context.request, links.url('/private.csv'), {
+			auth: { kind: 'bearer', name: null },
+			secret: 'good'
+		});
+		await links.set({
+			'/private.csv': { body: MOVIES, need: { header: 'authorization', value: 'Bearer rotated' } }
+		});
+		const refreshed = await context.request.post(`/api/sources/${made.table}/refresh`, {
+			data: {}
+		});
+		expect((await refreshed.json()).outcome).toEqual({ ok: false, problem: 'auth' });
+
+		await openTable(page, made.table);
+		const glyph = page.getByRole('button', { name: 'Source', exact: true });
+		await expect(glyph).toHaveClass(/text-warn/u);
+		if (!isMobile) {
+			await glyph.hover();
+			await expect(page.getByRole('tooltip')).toContainText('Key refused');
+		}
+		const panel = await openSource(page);
+		await expect(panel.getByRole('alert')).toContainText('Key refused');
+		await panel.getByLabel('Key').fill('rotated');
+		await panel.getByRole('button', { name: 'Save' }).click();
+		await expect(panel.getByRole('alert')).toHaveCount(0);
+		await expect(glyph).not.toHaveClass(/text-warn/u);
+		expect((await links.hits()).at(-1)?.authorization).toBe('Bearer rotated');
 	});
 });

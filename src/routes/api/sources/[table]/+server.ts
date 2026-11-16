@@ -21,7 +21,7 @@ export const GET: RequestHandler = ({ locals, params }) => {
 	return source === undefined ? failure(new SourceRefused('gone')) : json(publicSource(source));
 };
 
-/** A new key runs the source at once: the person typed it to see the rows. */
+/** A new key or link runs the source at once: the person typed it to see the rows. */
 export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 	const { user } = requireCredential(locals);
 	const db = getDatabase();
@@ -29,7 +29,7 @@ export const PATCH: RequestHandler = async ({ request, locals, params }) => {
 		const patch = patchBody(await readJsonBody(request));
 		patchSource(db, user.id, params.table, patch);
 		let outcome = null;
-		if (patch.secret !== undefined) {
+		if (patch.secret !== undefined || patch.url !== undefined) {
 			limit('refresh', user.id);
 			outcome = await runSource(db, user.id, params.table);
 		}

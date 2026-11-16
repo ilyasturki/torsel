@@ -50,6 +50,19 @@ export function sheetCsv(link: string): string | null {
 	return out.href;
 }
 
+/** The preset a pasted link belongs to: a Letterboxd page, a Google Sheet, a GitHub repository. */
+export function presetFor(link: string): PresetId | null {
+	let host: string;
+	try {
+		host = new URL(link.trim()).hostname.replace(/^www\./u, '');
+	} catch {
+		return null;
+	}
+	if (host === 'letterboxd.com') return 'letterboxd';
+	if (host === 'docs.google.com' && sheetCsv(link) !== null) return 'sheet';
+	return host === 'github.com' ? 'github' : null;
+}
+
 /** The source a preset makes of what the person typed, or null when it can't read it. */
 export function presetSource(id: PresetId, value: string, words: SourceWords): PresetSource | null {
 	const typed = value.trim();

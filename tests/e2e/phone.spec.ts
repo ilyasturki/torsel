@@ -116,6 +116,6 @@ test('the keyboard stays down until a field is tapped', async ({ page, context, 
 	await page.getByRole('button', { name: 'Import' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Import' });
 	await expect(sheet).toBeFocused();
-	await expect(sheet.getByRole('textbox', { name: 'Cells to import' })).not.toBeFocused();
+	await expect(sheet.getByRole('textbox', { name: 'File or link' })).not.toBeFocused();
 	await sheet.getByRole('button', { name: 'Close' }).click();
 });

@@ -279,6 +279,8 @@
 	--color-added-ink: var(--d-green-fg);
 	--color-removed: var(--d-pink-bg);
 	--color-removed-ink: var(--d-pink-fg);
+	/* Something to look at, not an error: a linked table that couldn't refresh. */
+	--color-warn: var(--d-amber);
 }
 
 @utility pt-safe {

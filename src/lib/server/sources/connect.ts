@@ -203,6 +203,7 @@ export async function previewSource(input: {
 	auth: Auth;
 	secret: string | null;
 	rows: string | null;
+	filter?: string | null;
 }): Promise<Preview> {
 	const auth = checkAuth(input.auth);
 	const { url, secret } = splitKey(input.url, auth, input.secret);
@@ -220,12 +221,15 @@ export async function previewSource(input: {
 		const { name, type, choices, ...format } = guess;
 		return { ...format, path: paths[at], name, type, choices };
 	});
+	const filter = input.filter ?? null;
+	const items =
+		filter === null ? pulled.items : pulled.items.filter((item) => (item[filter] ?? '') !== '');
 	return {
 		format: pulled.format,
 		url,
 		columns,
-		items: pulled.items.slice(0, PREVIEW_ROWS),
-		count: pulled.items.length,
+		items: items.slice(0, PREVIEW_ROWS),
+		count: items.length,
 		more: !pulled.complete,
 		rowPaths: pulled.rowPaths,
 		rows: pulled.rows,
@@ -237,6 +241,7 @@ export type SourcePatch = {
 	every?: Every;
 	missing?: Missing;
 	secret?: string;
+	url?: string;
 };
 
 /** Changes a source's schedule, its handling of missing rows, or its key; a new key or schedule wakes a paused source. */
@@ -257,6 +262,17 @@ export function patchSource(
 	if (patch.missing !== undefined) {
 		if (!MISSING.includes(patch.missing)) throw new SourceRefused('columns');
 		set.missing = patch.missing;
+	}
+	if (patch.url !== undefined) {
+		const auth = { kind: source.auth, name: source.authName };
+		const moved = splitKey(patch.url, auth, null);
+		set.url = moved.url;
+		set.failures = 0;
+		// A query key typed inside the new link replaces the one kept.
+		if (moved.secret !== null && source.auth === 'query') {
+			set.secret = seal(moved.secret, bound(source));
+			set.hint = hintOf(moved.secret);
+		}
 	}
 	if (patch.secret !== undefined) {
 		if (source.auth === 'none' || patch.secret.trim() === '') throw new SourceRefused('auth');

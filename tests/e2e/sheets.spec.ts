@@ -337,7 +337,7 @@ test.describe('excel import', () => {
 	test('imports an .xlsx by hand into a new table', async ({ page, account }) => {
 		void account;
 		await page.goto('/app');
-		await page.getByRole('button', { name: 'Import a file' }).click();
+		await page.getByRole('button', { name: 'Import', exact: true }).click();
 		await page.getByLabel('File to import').setInputFiles({
 			name: 'weigh-ins.xlsx',
 			mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

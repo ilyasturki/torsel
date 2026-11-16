@@ -195,7 +195,7 @@ test('an empty home is one line and one row: name a table, or import a file', as
 	).toBeVisible();
 	await expect(page.getByRole('textbox', { name: 'Table name' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'New table' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Import a file' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
 	await expect(page.locator('main').getByRole('button')).toHaveCount(2);
 	await expect(page.locator('main a[data-home-row]')).toHaveCount(0);
 });

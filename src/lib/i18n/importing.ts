@@ -21,8 +21,6 @@ const en = {
 	restore: 'Restore',
 	fileToImport: 'File to import',
 	chooseFile: 'Choose a file',
-	cellsToImport: 'Cells to import',
-	pasteHere: 'Or paste cells here',
 	holds: (tables: number, rows: number) =>
 		`This export holds ${plural('en', tables, { one: '# table', other: '# tables' })}, ${plural('en', rows, { one: '# row', other: '# rows' })}.`,
 	replaces:
@@ -36,7 +34,13 @@ const en = {
 	typeOf: (column: string) => `Type of ${column}`,
 	newField: 'New field',
 	skip: 'Skip',
-	fieldFor: (column: string) => `Field for ${column}`
+	fieldFor: (column: string) => `Field for ${column}`,
+	fileOrLink: 'File or link',
+	continue: 'Continue',
+	keyNeeded: 'Key needed',
+	keepInSync: 'Keep in sync',
+	found: (format: string, rows: number, more: boolean) =>
+		`${format} · ${plural('en', rows, { one: '# row', other: '# rows' })}${more ? ' +' : ''}`
 };
 
 const fr: typeof en = {
@@ -59,8 +63,6 @@ const fr: typeof en = {
 	restore: 'Restaurer',
 	fileToImport: 'Fichier à importer',
 	chooseFile: 'Choisir un fichier',
-	cellsToImport: 'Cellules à importer',
-	pasteHere: 'Ou colle des cellules ici',
 	holds: (tables, rows) =>
 		`Cet export contient ${plural('fr', tables, { one: '# table', other: '# tables' })} et ${plural('fr', rows, { one: '# ligne', other: '# lignes' })}.`,
 	replaces:
@@ -74,7 +76,13 @@ const fr: typeof en = {
 	typeOf: (column) => `Type de ${column}`,
 	newField: 'Nouveau champ',
 	skip: 'Ignorer',
-	fieldFor: (column) => `Champ pour ${column}`
+	fieldFor: (column) => `Champ pour ${column}`,
+	fileOrLink: 'Fichier ou lien',
+	continue: 'Continuer',
+	keyNeeded: 'Clé requise',
+	keepInSync: 'Synchroniser',
+	found: (format, rows, more) =>
+		`${format} · ${plural('fr', rows, { one: '# ligne', other: '# lignes' })}${more ? ' +' : ''}`
 };
 
 export default { en, fr };

@@ -5,7 +5,8 @@
 	import Select from '#lib/ui/Select.svelte';
 	import { input } from '#lib/ui/styles.ts';
 
-	let { link }: { link: LinkImport } = $props();
+	// `onretry` reads the link again with the key; the import moves on when it answers.
+	let { link, onretry }: { link: LinkImport; onretry: () => void } = $props();
 
 	const KINDS = ['bearer', 'header', 'query', 'basic'] as const;
 
@@ -49,7 +50,7 @@
 			disabled={link.secret.trim() === '' ||
 				(named && (link.auth.name ?? '').trim() === '') ||
 				link.busy}
-			onclick={() => void link.read()}>{words.retry}</Button
+			onclick={onretry}>{words.retry}</Button
 		>
 	</div>
 </div>

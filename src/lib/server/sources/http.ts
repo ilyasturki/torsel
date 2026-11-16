@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 
-import { PRESETS, presetSource } from '../../core/presets.ts';
+import { PRESETS, presetFor, presetSource } from '../../core/presets.ts';
 import type { PresetSource } from '../../core/presets.ts';
 import { EVERY, MISSING } from '../../core/source.ts';
 import { DATE_STYLES, FIELD_TYPES, RESULT_TYPES } from '../../core/model.ts';
@@ -99,7 +99,8 @@ const CREATE = z.strictObject({
 const PATCH = z.strictObject({
 	every: z.enum(EVERY).optional(),
 	missing: z.enum(MISSING).optional(),
-	secret: z.string().min(1).max(4000).optional()
+	secret: z.string().min(1).max(4000).optional(),
+	url: z.string().min(1).max(4000).optional()
 });
 
 function parsed<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {
@@ -119,8 +120,10 @@ export type PreviewBody = {
 /** A link, or a preset and the one thing it asks for. */
 export function previewBody(body: unknown): PreviewBody {
 	const input = parsed(PREVIEW, body);
-	const preset =
-		input.preset === undefined ? null : presetSource(input.preset, input.value ?? '', words);
+	// A link to a site a preset knows reads as that preset: a Google Sheet's page becomes its CSV.
+	const id =
+		input.preset ?? (input.url === undefined ? undefined : (presetFor(input.url) ?? undefined));
+	const preset = id === undefined ? null : presetSource(id, input.value ?? input.url ?? '', words);
 	if (input.preset !== undefined && preset === null) throw new SourceRefused('url');
 	const url = preset?.url ?? input.url;
 	if (url === undefined) throw new SourceRefused('url');

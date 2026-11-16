@@ -1,22 +1,33 @@
 <script lang="ts">
 	import { ApiError } from '#lib/client/api.ts';
 	import { timeFrom } from '#lib/client/format.ts';
-	import { changeLinked, readLinked, refreshLinked, unlink } from '#lib/client/sources.ts';
+	import {
+		changeLinked,
+		readLinked,
+		refreshing,
+		refreshLinked,
+		unlink
+	} from '#lib/client/sources.ts';
 	import { showToast } from '#lib/client/toast.svelte.ts';
 	import type { Every, Missing, SourceState } from '#lib/core/source.ts';
-	import { EVERY, MISSING } from '#lib/core/source.ts';
+	import { EVERY, MISSING, sourceName } from '#lib/core/source.ts';
 	import { sources as words } from '#lib/i18n/sources.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
-	import { input } from '#lib/ui/styles.ts';
+	import { focus, input, menuItem } from '#lib/ui/styles.ts';
 
-	let { table, onstop }: { table: string; onstop?: () => void } = $props();
+	// `name` heads the panel where nothing else names the source, as in the popover.
+	let { table, name, onstop }: { table: string; name?: string; onstop?: () => void } = $props();
 
 	let source = $state<SourceState | null>(null);
-	let running = $state(false);
 	let key = $state('');
+	let link = $state('');
+	let editing = $state(false);
 	let problem = $state('');
 	let sure = $state(false);
+
+	const running = $derived(refreshing.has(table));
 
 	$effect(() => {
 		readLinked(table).then(
@@ -40,26 +51,16 @@
 		}
 	}
 
-	async function refresh(): Promise<void> {
-		running = true;
-		await act(() => refreshLinked(table));
-		running = false;
-	}
-
-	function schedule(every: Every): void {
-		void act(() => changeLinked(table, { every }));
-	}
-
-	function gone(missing: Missing): void {
-		void act(() => changeLinked(table, { missing }));
-	}
-
 	async function saveKey(): Promise<void> {
 		if (key.trim() === '') return;
-		running = true;
 		await act(() => changeLinked(table, { secret: key.trim() }));
 		key = '';
-		running = false;
+	}
+
+	async function saveLink(): Promise<void> {
+		if (link.trim() === '') return;
+		await act(() => changeLinked(table, { url: link.trim() }));
+		editing = problem !== '';
 	}
 
 	async function stop(): Promise<void> {
@@ -74,51 +75,33 @@
 		});
 	}
 
-	const when = $derived(
-		running
-			? words.refreshing
-			: source?.lastOkAt != null
-				? words.refreshed(timeFrom(source.lastOkAt))
-				: words.never
-	);
+	const when = $derived.by(() => {
+		if (running) return words.refreshing;
+		if (source?.lastOkAt == null) return words.never;
+		const last = words.refreshed(timeFrom(source.lastOkAt));
+		return source.nextAt == null ? last : words.refreshedNext(last, timeFrom(source.nextAt));
+	});
 </script>
 
 <div class="flex flex-col gap-3" data-testid="source">
 	{#if source !== null}
 		<div class="flex items-center gap-2">
-			<span class="min-w-0 flex-1 truncate text-sm text-ink-2" title={source.url}>{when}</span>
-			<Button onclick={refresh} disabled={running}>{words.refresh}</Button>
+			<div class="flex min-w-0 flex-1 flex-col">
+				{#if name !== undefined}
+					<span class="truncate font-semibold" title={source.url}>{sourceName(source.url)}</span>
+				{/if}
+				<span class="truncate text-sm text-ink-2">{when}</span>
+			</div>
+			<Button onclick={() => void act(() => refreshLinked(table))} disabled={running}
+				><Icon name="sync" />{words.refresh}</Button
+			>
 		</div>
 
-		{#if source.problem !== null && problemText(source.problem) !== ''}
-			<p class="text-sm text-ink-2" role="alert">{problemText(source.problem)}</p>
+		{#if !running && source.problem !== null && problemText(source.problem) !== ''}
+			<p class="flex items-center gap-2 rounded-box bg-tint p-2 text-sm" role="alert">
+				<Icon name="warn" class="size-4 text-warn" />{problemText(source.problem)}
+			</p>
 		{/if}
-
-		<div class="flex flex-col gap-1">
-			<span class="text-sm font-medium text-ink-2">{words.every}</span>
-			<Segmented
-				label={words.every}
-				items={EVERY.map((every) => ({
-					id: every,
-					label: words.schedule[every],
-					active: source?.every === every,
-					onclick: () => schedule(every)
-				}))}
-			/>
-		</div>
-
-		<div class="flex flex-col gap-1">
-			<span class="text-sm font-medium text-ink-2">{words.missing}</span>
-			<Segmented
-				label={words.missing}
-				items={MISSING.map((missing) => ({
-					id: missing,
-					label: words.gone[missing],
-					active: source?.missing === missing,
-					onclick: () => gone(missing)
-				}))}
-			/>
-		</div>
 
 		{#if source.auth !== 'none'}
 			<form
@@ -147,9 +130,64 @@
 			</form>
 		{/if}
 
-		<Button variant="ghost" class="self-start" onclick={stop}
-			>{sure ? words.stopSure : words.stop}</Button
-		>
+		<div class="flex flex-col gap-1">
+			<span class="text-sm font-medium text-ink-2">{words.every}</span>
+			<Segmented
+				label={words.every}
+				items={EVERY.map((every: Every) => ({
+					id: every,
+					label: words.schedule[every],
+					active: source?.every === every,
+					onclick: () => void act(() => changeLinked(table, { every }))
+				}))}
+			/>
+		</div>
+
+		<div class="flex flex-col gap-1">
+			<span class="text-sm font-medium text-ink-2">{words.missing}</span>
+			<Segmented
+				label={words.missing}
+				items={MISSING.map((missing: Missing) => ({
+					id: missing,
+					label: words.gone[missing],
+					active: source?.missing === missing,
+					onclick: () => void act(() => changeLinked(table, { missing }))
+				}))}
+			/>
+		</div>
+
+		<div class="-mx-1 flex flex-col border-t border-rule pt-2">
+			{#if editing}
+				<form
+					class="flex gap-2 px-1"
+					onsubmit={(event) => {
+						event.preventDefault();
+						void saveLink();
+					}}
+				>
+					<input
+						class={input}
+						aria-label={words.link}
+						autocapitalize="off"
+						spellcheck="false"
+						bind:value={link}
+					/>
+					<Button type="submit" disabled={link.trim() === '' || running}>{words.save}</Button>
+				</form>
+			{:else}
+				<button
+					type="button"
+					class="{menuItem} hover:bg-tint-2 {focus}"
+					onclick={() => {
+						link = source?.url ?? '';
+						editing = true;
+					}}><Icon name="url" />{words.editLink}</button
+				>
+			{/if}
+			<button type="button" class="{menuItem} hover:bg-tint-2 {focus}" onclick={() => void stop()}
+				><Icon name="x" />{sure ? words.stopSure : words.stop}</button
+			>
+		</div>
 	{/if}
 
 	{#if problem}

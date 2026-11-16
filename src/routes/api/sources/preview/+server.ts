@@ -15,7 +15,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	limit('preview', user.id);
 	try {
 		const body = previewBody(await readJsonBody(request));
-		const preview = await previewSource(body);
+		const preview = await previewSource({ ...body, filter: body.preset?.filter ?? null });
 		const preset = body.preset;
 		const label = preset?.label ?? sourceName(preview.url);
 		return json({
