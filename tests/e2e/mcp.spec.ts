@@ -8,31 +8,9 @@ import { join } from 'node:path';
 
 import type { APIRequestContext } from '@playwright/test';
 
-import { expect, test } from './harness.ts';
+import { expect, mint, rpc, test } from './harness.ts';
 
 test.skip(({ isMobile }) => isMobile, 'the protocol is the same whatever the screen');
-
-async function mint(request: APIRequestContext): Promise<string> {
-	const minted = await request.post('/api/auth/tokens', { data: { label: 'e2e' } });
-	expect(minted.status()).toBe(201);
-	return ((await minted.json()) as { token: string }).token;
-}
-
-async function rpc(
-	request: APIRequestContext,
-	token: string,
-	name: string,
-	args: unknown
-): Promise<{ isError?: boolean; content: { text: string }[] }> {
-	const answer = await request.post('/api/mcp', {
-		headers: { authorization: `Bearer ${token}`, accept: 'application/json, text/event-stream' },
-		data: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }
-	});
-	const body = await answer.text();
-	const json = body.startsWith('{') ? body : (/^data: (.*)$/mu.exec(body)?.[1] ?? '');
-	return (JSON.parse(json) as { result: { isError?: boolean; content: { text: string }[] } })
-		.result;
-}
 
 async function health(request: APIRequestContext): Promise<number> {
 	const started = performance.now();

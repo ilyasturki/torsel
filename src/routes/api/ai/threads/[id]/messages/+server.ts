@@ -87,6 +87,9 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	if (thread === undefined) {
 		error(404, words.noThread);
 	}
+	if (thread.kind === 'tool') {
+		error(409, words.toolThread);
+	}
 
 	const body = await readJsonBody(request);
 	const mode = body.mode === 'retry' || body.mode === 'edit' ? body.mode : 'send';

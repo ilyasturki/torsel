@@ -18,22 +18,28 @@ import { z } from 'zod';
 
 import type { Actor } from '../../core/access.ts';
 import type { Database } from '../db/client.ts';
-import { loadWorkspace, writeChanges } from '../db/records.ts';
+import { loadWorkspace, writeUndoable } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
 import type { Window } from '../auth/rate-limit.ts';
 import { slidingWindow } from '../auth/rate-limit.ts';
 import { allowedOrigins, mcpCallsPerMinute, siteOrigin } from '../config.ts';
+import { recordToolChange } from './threads.ts';
 import type { Tool, ToolContext } from './toolkit.ts';
 import { TOOLS, runTool } from './toolkit.ts';
 
 export const INSTRUCTIONS = `Torsel holds a person's data as bases of typed tables shown through views (grid, entry, list, chart). Table names are unique in a base, field names in a table; ids work wherever a name does.
 
-Read describe_base before writing: names, types and choices come from there. Read data with query, a read-only SQLite SELECT over views named like the tables and fields. Every write applies at once on the server and reaches the person's devices at their next sync; what they typed on a device in the last minute may not show here yet. Nothing written here can be undone from the app, so resolve what you mean before you change or delete it. A refused call says what to change; nothing of it was written.`;
+Read describe_base before writing: names, types and choices come from there. Read data with query, a read-only SQLite SELECT over views named like the tables and fields. Every write applies at once on the server and reaches the person's devices at their next sync; what they typed on a device in the last minute may not show here yet. The person sees each write in the app, in a conversation named after this token, and can undo it there; still resolve what you mean before you change or delete it. A refused call says what to change; nothing of it was written.`;
 
 const READ_ONLY = `This token reads only: the tools that change data are not here. A read and write token, from Settings, Agents (MCP), can change data.`;
 
 /** Who calls: the account, the credential that reached the endpoint, and what that credential may do. */
-export type McpCaller = { userId: string; tokenId: string; access: 'read' | 'write' };
+export type McpCaller = {
+	userId: string;
+	tokenId: string;
+	label: string;
+	access: 'read' | 'write';
+};
 
 // No screen here to show a table on, and no attachment to import.
 const SERVED = TOOLS.filter((tool) => tool.kind !== 'screen' && tool.name !== 'import_file');
@@ -76,7 +82,19 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 			ws,
 			actor,
 			commit(action) {
-				writeChanges(db, actor, ws, action.changes);
+				const before = writeUndoable(db, actor, ws, action.changes);
+				try {
+					recordToolChange(
+						db,
+						caller.userId,
+						{ id: caller.tokenId, label: caller.label },
+						{ name: tool.name, input },
+						{ ...action, before }
+					);
+				} catch (thrown) {
+					// The write stands; only its card in the app is missing.
+					console.error('mcp change record:', thrown instanceof Error ? thrown.message : thrown);
+				}
 			}
 		};
 		return runTool(ctx, tool, input);

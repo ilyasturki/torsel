@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { and, desc, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 
+import type { Change } from '../../core/model.ts';
 import type {
 	ActionStatus,
 	Attachment,
@@ -71,6 +72,61 @@ export function giveTitle(db: Database, threadId: string, title: string): boolea
 			.where(and(eq(threads.id, threadId), eq(threads.named, false)))
 			.run().changes > 0
 	);
+}
+
+/** A change a connected tool wrote, as a card in that tool's own thread, made at its first write. */
+export function recordToolChange(
+	db: Database,
+	userId: string,
+	source: { id: string; label: string },
+	use: { name: string; input: unknown },
+	change: { summary: string; changes: Change[]; before: Change[] }
+): void {
+	db.transaction((tx) => {
+		let threadId = tx
+			.select({ id: threads.id })
+			.from(threads)
+			.where(and(eq(threads.userId, userId), eq(threads.source, source.id)))
+			.get()?.id;
+		if (threadId === undefined) {
+			const now = new Date();
+			threadId = randomUUID();
+			tx.insert(threads)
+				.values({
+					id: threadId,
+					userId,
+					title: titleOf(source.label),
+					source: source.id,
+					createdAt: now,
+					updatedAt: now
+				})
+				.run();
+		}
+		const id = randomUUID();
+		const turn = append(
+			tx,
+			threadId,
+			'assistant',
+			[{ type: 'tool_use', id, name: use.name, input: use.input }],
+			null
+		);
+		const last = tx
+			.select({ last: sql<number | null>`max(${threadActions.seq})` })
+			.from(threadActions)
+			.where(eq(threadActions.threadId, threadId))
+			.get();
+		tx.insert(threadActions)
+			.values({
+				...change,
+				id,
+				turn,
+				status: 'applied',
+				reported: true,
+				threadId,
+				seq: (last?.last ?? 0) + 1
+			})
+			.run();
+	}, WRITER);
 }
 
 export function listThreads(db: Database, userId: string): ThreadSummary[] {

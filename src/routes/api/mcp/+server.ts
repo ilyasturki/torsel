@@ -12,8 +12,9 @@ const serve: RequestHandler = ({ request, locals }) => {
 		getDatabase(),
 		{
 			userId: user.id,
-			// A connected app's access token changes hourly: its call budget follows the grant.
+			// A connected app's access token changes hourly: its call budget and its conversation follow the grant.
 			tokenId: token.grantId ?? token.id,
+			label: token.label,
 			access: token.kind === 'web' || token.kind === 'device' ? 'write' : token.access
 		},
 		request,

@@ -79,6 +79,7 @@ const en = {
 	serverWrong: 'Something went wrong on the server. Try again.',
 
 	noThread: 'no such thread',
+	toolThread: 'This conversation belongs to a connected tool. Start a new one to ask.',
 	promptTooLong: 'prompt is too long',
 	noAssistant: 'this server has no assistant configured',
 	alreadyAnswering: 'this thread is already answering',
@@ -199,6 +200,8 @@ const fr: typeof en = {
 	serverWrong: 'Un problème est survenu sur le serveur. Réessaie.',
 
 	noThread: 'conversation introuvable',
+	toolThread:
+		'Cette conversation est celle d’un outil connecté. Ouvre-en une nouvelle pour demander.',
 	promptTooLong: 'message trop long',
 	noAssistant: 'ce serveur n’a pas d’assistant configuré',
 	alreadyAnswering: 'cette conversation répond déjà',

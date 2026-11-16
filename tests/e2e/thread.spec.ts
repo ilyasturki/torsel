@@ -2,7 +2,7 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, openTable, script, seed, tablePath, test } from './harness.ts';
+import { expect, mint, openTable, rpc, script, seed, tablePath, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -392,6 +392,109 @@ test('a title call that fails leaves the first message, cut to fit', async ({
 	expect(listed.title.length).toBeLessThanOrEqual(32);
 	expect(listed.title).not.toContain('…');
 });
+
+test("a connected tool's changes show in its own conversation, each one undone from there", async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const token = await mint(context.request, 'Claude Code');
+	expect(
+		await rpc(context.request, token, 'add_rows', {
+			base: 'Tables',
+			table: 'Lifts',
+			rows: [{ Exercise: 'Deadlift', Reps: 3, Kg: 140 }]
+		})
+	).not.toHaveProperty('isError', true);
+	await rpc(context.request, token, 'describe_base', { base: 'Tables' });
+
+	await page.goto(tablePath(table));
+	await openAsk(page);
+	await panel(page).getByRole('button', { name: 'History' }).click();
+	await panel(page).getByRole('list', { name: 'Threads' }).getByText('Claude Code').click();
+	await expect(panel(page).getByTestId('thread-title')).toHaveText('Claude Code');
+	await expect(cards(page)).toHaveCount(1);
+	await expect(cards(page)).toContainText('Add 1 row to Lifts');
+	await expect(cards(page)).toContainText('Deadlift');
+	await expect(composer(page)).toHaveCount(0);
+
+	await cards(page).getByRole('button', { name: 'Undo' }).click();
+	await expect(cards(page)).toHaveAttribute('data-status', 'undone');
+	await seeTable(page);
+	await expect(page.getByText('2 rows')).toBeVisible();
+	await expect(page.getByRole('gridcell', { name: 'Deadlift', exact: true })).toHaveCount(0);
+
+	await openAsk(page);
+	await cards(page).getByRole('button', { name: 'Redo' }).click();
+	await expect(cards(page)).toHaveAttribute('data-status', 'applied');
+	await seeTable(page);
+	await expect(page.getByRole('gridcell', { name: 'Deadlift', exact: true })).toBeVisible();
+
+	expect(
+		(
+			await context.request.post(
+				`/api/ai/threads/${await toolThreadId(context.request)}/messages`,
+				{
+					data: { prompt: 'hello' }
+				}
+			)
+		).status()
+	).toBe(409);
+});
+
+async function toolThreadId(request: APIRequestContext): Promise<string> {
+	const listed = (await (await request.get('/api/ai/threads')).json()) as {
+		id: string;
+		kind: string;
+	}[];
+	return listed.find((thread) => thread.kind === 'tool')?.id ?? '';
+}
+
+for (const [locale, reading, working] of [
+	['en-US', 'Reading the data…', 'Ask'],
+	['fr-FR', 'Lecture des données…', 'Demander']
+] as const) {
+	test.describe(locale, () => {
+		test.use({ locale });
+
+		test(`the step line names the tool at work (${locale})`, async ({ page, context, account }) => {
+			void account;
+			const { table } = await seedLifts(context.request);
+			const key = await script(context.request, [
+				{
+					blocks: [
+						{
+							type: 'tool',
+							id: 'toolu_read',
+							name: 'query',
+							input: { base: 'Tables', sql: 'select count(*) from "Lifts"' }
+						}
+					],
+					holdAt: 'toolu_read'
+				},
+				{ blocks: [{ type: 'text', text: '2' }] }
+			]);
+			await page.goto(tablePath(table));
+			const asker = page.locator('#ask-input');
+			if (!(await asker.isVisible())) {
+				await page.getByRole('button', { name: new RegExp(`^${working}`, 'u') }).click();
+			}
+			await asker.fill(`${key} how many lifts`);
+			await asker.press('Enter');
+
+			await expect(page.getByTestId('step')).toHaveText(reading);
+			await context.request.post(`${FAKE}/__release?key=${key}`);
+			await expect(page.getByTestId('step')).toHaveCount(0);
+			await expect(thread(page).getByText('2', { exact: true })).toBeVisible();
+			const { requests } = await seen(context.request, key);
+			expect(JSON.stringify(requests[0].messages.at(-1))).toContain(
+				`Their screen (${locale}) writes today as`
+			);
+		});
+	});
+}
 
 test('a reply that failed or was stopped runs again from where it was', async ({
 	page,

@@ -13,7 +13,7 @@ async function connect(mode: Mode, access: McpCaller['access'] = 'write'): Promi
 	const db = createDatabase(':memory:');
 	runMigrations(db);
 	const user = await createUser(db, 'me@example.com', 'correct horse');
-	const caller: McpCaller = { userId: user.id, tokenId: crypto.randomUUID(), access };
+	const caller: McpCaller = { userId: user.id, tokenId: crypto.randomUUID(), label: 'Client', access };
 
 	const client = new Client(
 		{ name: 'protocol-test', version: '1.0.0' },

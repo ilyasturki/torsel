@@ -516,8 +516,11 @@ export async function openThread(id: string): Promise<void> {
 	const thread = await request<ThreadSummary & { rows: ThreadRow[]; actions: ThreadAction[] }>(
 		`/api/ai/threads/${id}`
 	);
+	// A connected tool wrote on the server: its records must be here before a card reads or undoes them.
+	if (thread.kind === 'tool') await syncNow().catch(() => undefined);
 	assistant.id = thread.id;
 	assistant.title = thread.title;
+	assistant.kind = thread.kind;
 	assistant.rows = thread.rows;
 	assistant.actions = thread.actions.map((action) => ({
 		...action,
@@ -533,6 +536,7 @@ export function newThread(): void {
 	void flushDecisions();
 	assistant.id = null;
 	assistant.title = '';
+	assistant.kind = 'assistant';
 	assistant.rows = [];
 	assistant.actions = [];
 	assistant.listing = false;

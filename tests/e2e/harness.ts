@@ -383,3 +383,27 @@ export const test = base.extend<Fixtures>({
 });
 
 export { expect };
+
+/** A read and write API token of the signed-in account. */
+export async function mint(request: APIRequestContext, label = 'e2e'): Promise<string> {
+	const minted = await request.post('/api/auth/tokens', { data: { label } });
+	expect(minted.status()).toBe(201);
+	return ((await minted.json()) as { token: string }).token;
+}
+
+/** One MCP tool call with `token`, as a connected tool makes it. */
+export async function rpc(
+	request: APIRequestContext,
+	token: string,
+	name: string,
+	args: unknown
+): Promise<{ isError?: boolean; content: { text: string }[] }> {
+	const answer = await request.post('/api/mcp', {
+		headers: { authorization: `Bearer ${token}`, accept: 'application/json, text/event-stream' },
+		data: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }
+	});
+	const body = await answer.text();
+	const json = body.startsWith('{') ? body : (/^data: (.*)$/mu.exec(body)?.[1] ?? '');
+	return (JSON.parse(json) as { result: { isError?: boolean; content: { text: string }[] } })
+		.result;
+}

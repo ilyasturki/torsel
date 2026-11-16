@@ -6,8 +6,10 @@ import { createUser } from '../auth/accounts.ts';
 import { createDatabase } from '../db/client.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
+import { toItems } from '../../core/thread.ts';
 import type { McpCaller } from './mcp.ts';
 import { serveMcp } from './mcp.ts';
+import { listThreads, readActions, readRows } from './threads.ts';
 
 type Database = ReturnType<typeof createDatabase>;
 
@@ -31,8 +33,15 @@ async function account(): Promise<{ db: Database; userId: string; caller: McpCal
 	);
 	writeChanges(db, { user: user.id, path: 'mcp' }, ws, table.changes);
 
-	return { db, userId: user.id, caller: { userId: user.id, tokenId: 'test', access: 'write' } };
+	return {
+		db,
+		userId: user.id,
+		caller: { userId: user.id, tokenId: 'test', label: 'Test', access: 'write' }
+	};
 }
+
+const titleOf = (ws: ReturnType<typeof loadWorkspace>, table: string): string =>
+	ws.fields(table).find((field) => field.name === 'Title')?.id ?? '';
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -112,6 +121,49 @@ describe('mcp', () => {
 		expect(ws.rows(table.id)).toHaveLength(12);
 	});
 
+	it("shows each write as an undoable change in the token's own conversation, reads none", async () => {
+		const { db, userId, caller } = await account();
+		await serveMcp(db, caller, call('list_bases', {}), 'test');
+		expect(listThreads(db, userId)).toEqual([]);
+
+		await serveMcp(
+			db,
+			caller,
+			call('add_rows', { base: 'Films', table: 'Movies', rows: [{ Title: 'Heat' }] }),
+			'test'
+		).then(result);
+		const ws = loadWorkspace(db, userId);
+		const table = ws.tables(ws.bases()[0].id)[0];
+		const [row] = ws.rows(table.id);
+		await serveMcp(
+			db,
+			caller,
+			call('update_rows', {
+				base: 'Films',
+				table: 'Movies',
+				updates: [{ id: row.id, values: { Title: 'Ronin' } }]
+			}),
+			'test'
+		).then(result);
+
+		const [listed] = listThreads(db, userId);
+		expect(listed).toMatchObject({ title: 'Test', kind: 'tool' });
+		expect(listThreads(db, userId)).toHaveLength(1);
+		const actions = readActions(db, listed.id);
+		expect(actions.map((action) => [action.summary, action.status])).toEqual([
+			['Add 1 row to Movies', 'applied'],
+			['Change 1 row in Movies', 'applied']
+		]);
+		const items = toItems(readRows(db, listed.id), actions);
+		expect(items.map((item) => item.kind)).toEqual(['change', 'change']);
+		expect(actions[1].before).toEqual([
+			expect.objectContaining({
+				id: row.id,
+				set: expect.objectContaining({ [titleOf(ws, table.id)]: 'Heat' })
+			})
+		]);
+	});
+
 	it('lets a quick call through while a slow one is still uploading', async () => {
 		const { db, caller } = await account();
 		const finished: string[] = [];
@@ -180,7 +232,7 @@ describe('mcp', () => {
 
 	it('shows a read token only the tools that read, and refuses it the rest', async () => {
 		const { db, userId } = await account();
-		const reader: McpCaller = { userId, tokenId: 'reader', access: 'read' };
+		const reader: McpCaller = { userId, tokenId: 'reader', label: 'Reader', access: 'read' };
 
 		const listed = await serveMcp(db, reader, rpc('tools/list', {}), 'test');
 		const { tools } = (await message(listed)).result as { tools: { name: string }[] };
@@ -201,7 +253,7 @@ describe('mcp', () => {
 		const { db, userId } = await account();
 		vi.stubEnv('TORSEL_MCP_CALLS_PER_MINUTE', '2');
 		try {
-			const caller: McpCaller = { userId, tokenId: 'busy', access: 'write' };
+			const caller: McpCaller = { userId, tokenId: 'busy', label: 'Busy', access: 'write' };
 			const answers = [];
 			for (let index = 0; index < 3; index += 1) {
 				answers.push(await result(await serveMcp(db, caller, call('list_bases', {}), 'test')));
@@ -209,7 +261,7 @@ describe('mcp', () => {
 
 			expect(answers.map((answer) => answer.isError ?? false)).toEqual([false, false, true]);
 			expect(answers[2].text).toMatch(/more than 2 calls in the last minute; wait/u);
-			const other: McpCaller = { userId, tokenId: 'calm', access: 'write' };
+			const other: McpCaller = { userId, tokenId: 'calm', label: 'Calm', access: 'write' };
 			expect(await result(await serveMcp(db, other, call('list_bases', {}), 'test'))).toMatchObject(
 				{
 					isError: undefined

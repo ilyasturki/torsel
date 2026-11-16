@@ -3,6 +3,7 @@ import { and, eq, gt, inArray } from 'drizzle-orm';
 import type { Actor, Lookup } from '../../core/access.ts';
 import { canWrite, lockedKeys } from '../../core/access.ts';
 import { Hlc } from '../../core/clock.ts';
+import { stampAll } from '../../core/diff.ts';
 import { latestClock, merge, sameRec } from '../../core/merge.ts';
 import type { Change, Rec } from '../../core/model.ts';
 import { CREATED, DELETED } from '../../core/model.ts';
@@ -183,6 +184,25 @@ export function loadWorkspace(db: Database, userId: string, baseId?: string): Wo
 	}
 
 	return ws;
+}
+
+/** Writes as `writeChanges` does, and returns what takes it back, in the order to stamp it. */
+export function writeUndoable(
+	db: Database,
+	actor: Actor,
+	ws: Workspace,
+	changes: Change[]
+): Change[] {
+	const before = stampAll(ws, clockOf(actor.user), changes);
+	const touched = [...new Set(changes.map((change) => change.id))].flatMap((id) => {
+		const rec = ws.get(id);
+		return rec === undefined ? [] : [rec];
+	});
+	db.transaction((tx) => {
+		const writer = writerOf(tx, actor);
+		for (const rec of touched) mergeRecord(writer, rec);
+	}, WRITER);
+	return before;
 }
 
 /** Writes changes made on the server — an MCP call, a connector run — stamped later than anything they touch. */
