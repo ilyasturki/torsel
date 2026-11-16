@@ -1,5 +1,12 @@
 import { SOURCE } from './access.ts';
 import type { FieldDef, FieldType, FormatKey, Rec, Value } from './model.ts';
+import { FIELD_TYPES } from './model.ts';
+
+// A link's text can't name another row, a formula, or an image uploaded here.
+export const SOURCE_TYPES = FIELD_TYPES.filter(
+	(type): type is Exclude<FieldType, 'link' | 'formula' | 'image'> =>
+		type !== 'link' && type !== 'formula' && type !== 'image'
+);
 
 export const EVERY = ['manual', 'hour', 'day'] as const;
 

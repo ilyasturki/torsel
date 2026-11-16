@@ -2201,6 +2201,7 @@ exports[`lists the same tools in every era 1`] = `
                   "url",
                   "email",
                   "phone",
+                  "image",
                   "formula",
                 ],
                 "type": "string",

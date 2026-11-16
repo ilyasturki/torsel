@@ -2,11 +2,11 @@ import { PATH, SOURCE } from '../../core/access.ts';
 import type { FieldSpec } from '../../core/actions.ts';
 import { createTable, homeBase, updateRecord } from '../../core/actions.ts';
 import { guessColumns } from '../../core/csv.ts';
-import type { Change, FieldType } from '../../core/model.ts';
-import { FIELD_TYPES, FORMAT_KEYS, hasChoices } from '../../core/model.ts';
+import type { Change } from '../../core/model.ts';
+import { FORMAT_KEYS, hasChoices } from '../../core/model.ts';
 import { numberedName } from '../../core/names.ts';
 import type { Column, Every, Missing, SourceState } from '../../core/source.ts';
-import { EVERY, MISSING, markValue } from '../../core/source.ts';
+import { EVERY, MISSING, SOURCE_TYPES, markValue } from '../../core/source.ts';
 import { names } from '../../i18n/names.ts';
 import { sourceLimits } from '../config.ts';
 import type { Database } from '../db/client.ts';
@@ -20,10 +20,6 @@ import { cellsOf, guessKey, pathName } from './read.ts';
 import { CONNECTOR, authOf, bound, nextRun } from './run.ts';
 import { hintOf, seal } from './secrets.ts';
 import { deleteSource, insertSource, readSource, sourceTables, updateSource } from './store.ts';
-
-export const SOURCE_TYPES: readonly FieldType[] = FIELD_TYPES.filter(
-	(type) => type !== 'link' && type !== 'formula'
-);
 
 export type SourceSpec = {
 	base: string | null;
@@ -113,7 +109,9 @@ export async function createSource(
 	if (
 		spec.columns.length === 0 ||
 		spec.columns.length > MAX_COLUMNS ||
-		spec.columns.some((column) => !SOURCE_TYPES.includes(column.type) || column.path === '')
+		spec.columns.some(
+			(column) => !(SOURCE_TYPES as readonly string[]).includes(column.type) || column.path === ''
+		)
 	) {
 		throw new SourceRefused('columns');
 	}

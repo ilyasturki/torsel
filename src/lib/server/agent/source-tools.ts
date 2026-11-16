@@ -5,7 +5,7 @@ import type { PresetId } from '../../core/presets.ts';
 import type { Change, TableDef } from '../../core/model.ts';
 import { FIELD_TYPES } from '../../core/model.ts';
 import type { Column, Every, Missing } from '../../core/source.ts';
-import { EVERY, MISSING, sourceMark, sourceName } from '../../core/source.ts';
+import { EVERY, MISSING, SOURCE_TYPES, sourceMark, sourceName } from '../../core/source.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { sources as words } from '../../i18n/sources.ts';
 import type { Auth, AuthKind } from '../sources/fetch.ts';
@@ -268,7 +268,7 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 						z.strictObject({
 							from: z.string().describe('the path the values come from'),
 							name: z.string(),
-							type: z.enum(FIELD_TYPES.filter((type) => type !== 'link' && type !== 'formula'))
+							type: z.enum(SOURCE_TYPES)
 						})
 					)
 					.optional(),
