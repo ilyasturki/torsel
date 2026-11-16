@@ -159,7 +159,7 @@
 	"src/lib/server/agent/threads.ts\tmax({threadActions.seq})",
 	"src/lib/server/agent/threads.ts\tmax({threadMessages.seq})",
 	"src/lib/server/agent/title.ts\t<screen>{where}</screen> <message>{prompt}</message>",
-	"src/lib/server/agent/title.ts\tName this conversation for a history list. Reply with the name only: 2 to 4 words, at most 32 characters, a noun phrase for its subject. Write it in the language of the person's message, never the language of their data or of the screen line: an English message gets an English name even when every table on screen is named in French. Copy their own names for tables and things exactly as written, never a near word. Sentence case. No quotes, no final punctuation, no emoji, no verb such as \"help with\" or \"question about\".",
+	"src/lib/server/agent/title.ts\tName this conversation for a history list. Give the language the person wrote their message in, then the name: 2 to 4 words, at most 32 characters, a noun phrase for its subject. Write it in the language of the person's message, never the language of their data or of the screen line: an English message gets an English name even when every table on screen is named in French. Copy their own names for tables and things exactly as written, never a near word. Sentence case. No quotes, no final punctuation, no emoji, no verb such as \"help with\" or \"question about\".",
 	"src/lib/server/agent/toolkit.ts\t; it takes {known.join(', ')}",
 	"src/lib/server/agent/toolkit.ts\tAdd a field",
 	"src/lib/server/agent/toolkit.ts\tAdd rows",
