@@ -435,6 +435,57 @@ describe('materialize', () => {
 		expect(bare('SUM("Poids") OVER ()')).toBeNull();
 		expect(bare('max("Poids", "Reps")')).toBeNull();
 		expect(bare('"Poids" * 2')).toBeNull();
+		expect(bare('AVERAGE("Poids")')).toBe(BARE_AGGREGATE);
+		expect(bare('COUNTIF("Exercice", \'dips\')')).toBe(BARE_AGGREGATE);
+		expect(bare('AVERAGE("Poids") OVER ()')).toBeNull();
+		expect(bare('AVERAGE("Poids", "Reps")')).toBeNull();
+		engine.close();
+	});
+
+	it('computes the Sheets functions inside the table', async () => {
+		const ws = new Workspace();
+		const hlc = new Hlc('a');
+		const base = createBase(ws, 'Muscu');
+		apply(ws, hlc, base.changes);
+		const table = createTable(
+			ws,
+			base.id,
+			'Séries',
+			[
+				{ name: 'Exercice', type: 'text' },
+				{ name: 'Date', type: 'date' }
+			],
+			() => defaultViews(defaultNames.en)
+		);
+		apply(ws, hlc, table.changes);
+		const [exercice, date] = table.fieldIds;
+		apply(
+			ws,
+			hlc,
+			addField(ws, table.id, {
+				name: 'Code',
+				type: 'formula',
+				expr: toStored(
+					'UPPER(LEFT("Exercice", 3)) || MONTH("Date") || \'/\' || COUNTIF("Exercice", \'b*\') OVER ()',
+					ws.fields(table.id)
+				)
+			}).changes
+		);
+		apply(
+			ws,
+			hlc,
+			insertRows(ws, table.id, [
+				{ [exercice]: 'bench press', [date]: '2026-11-16' },
+				{ [exercice]: 'dips', [date]: '2026-10-02' }
+			]).changes
+		);
+
+		const engine = await openEngine();
+		expect(materializeBase(engine, ws, base.id, true).get(table.id)?.size).toBe(0);
+		expect(readQuery(engine, 'select "Code" from "Séries" order by 1').rows).toEqual([
+			['BEN11/1'],
+			['DIP10/1']
+		]);
 		engine.close();
 	});
 

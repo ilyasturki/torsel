@@ -1,5 +1,6 @@
 import type init from '@sqlite.org/sqlite-wasm';
 
+import { registerFunctions } from './functions.ts';
 import type { Engine, SqlRow, SqlValue } from './sql.ts';
 
 export type Sqlite3 = Awaited<ReturnType<typeof init>>;
@@ -18,6 +19,7 @@ const PROGRESS_STEPS = 1000;
 export function memoryEngine(sqlite3: Sqlite3): MemoryEngine {
 	const { capi } = sqlite3;
 	const db = new sqlite3.oo1.DB(':memory:');
+	registerFunctions(sqlite3, db);
 
 	let budget: number | null = null;
 	let deadline = Infinity;
