@@ -150,11 +150,9 @@ async function inflated(raw: Uint8Array): Promise<Uint8Array> {
 
 /** The workbook's first sheet, inflated with the platform's `DecompressionStream`; null when it is no workbook. */
 export async function readXlsx(data: Uint8Array): Promise<string[][] | null> {
-	const entries = zipEntries(data);
-	if (entries === null) return null;
 	const texts = new Map<string, string>();
 	try {
-		for (const [name, { method, raw }] of entries) {
+		for (const [name, { method, raw }] of zipEntries(data) ?? []) {
 			if (!name.endsWith('.xml') && !name.endsWith('.rels')) continue;
 			texts.set(name, decoder.decode(method === 0 ? raw : await inflated(raw)));
 		}

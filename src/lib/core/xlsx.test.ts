@@ -61,5 +61,8 @@ describe('a workbook read in the browser', () => {
 
 	it('reads anything else as no workbook', async () => {
 		expect(await readXlsx(new TextEncoder().encode('Date,Kg\n2026-10-01,78.4'))).toBeNull();
+		const book = zip(BOOK);
+		expect(await readXlsx(book.slice(0, book.length - 30))).toBeNull();
+		expect(await readXlsx(book.slice(40))).toBeNull();
 	});
 });
