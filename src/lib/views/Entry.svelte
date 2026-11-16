@@ -284,7 +284,9 @@
 	<Empty text={words.noEntryFields} />
 {:else}
 	<div
-		class="flex h-full min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_var(--spacing-entry)] lg:grid-rows-[auto_minmax(0,1fr)]"
+		class="flex h-full min-h-0 flex-col lg:grid lg:grid-rows-[auto_minmax(0,1fr)] {adds
+			? 'lg:grid-cols-[minmax(0,1fr)_var(--spacing-entry)]'
+			: 'lg:grid-cols-1'}"
 	>
 		{#if grouping !== undefined}
 			<section
@@ -378,7 +380,9 @@
 			</div>
 		{:else}
 			<div
-				class="flex min-h-0 flex-1 flex-col justify-end overflow-hidden lg:col-start-1 lg:row-span-2 lg:row-start-1"
+				class="flex min-h-0 flex-1 flex-col overflow-hidden lg:col-start-1 lg:row-span-2 lg:row-start-1 {adds
+					? 'justify-end'
+					: ''}"
 			>
 				<ul class="flex flex-col">
 					{#each history as { row, day } (row.id)}
