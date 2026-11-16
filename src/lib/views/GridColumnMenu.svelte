@@ -15,7 +15,11 @@
 
 <script lang="ts">
 	import { canFill } from '#lib/core/autofill.ts';
+	import type { Total } from '#lib/core/conditions.ts';
+	import { totalsFor } from '#lib/core/conditions.ts';
 	import type { FieldDef, FieldType } from '#lib/core/model.ts';
+	import { rules as ruleWords } from '#lib/i18n/rules.ts';
+	import Select from '#lib/ui/Select.svelte';
 	import { common } from '#lib/i18n/common.ts';
 	import { assistant as assistantWords } from '#lib/i18n/assistant.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
@@ -42,6 +46,8 @@
 		onshow,
 		addable,
 		filter,
+		total,
+		ontotal,
 		onsort,
 		onaddsort,
 		onfilter,
@@ -59,6 +65,8 @@
 		// The view sorts on other fields, which this one can follow.
 		addable: boolean;
 		filter: string;
+		total: Total | null;
+		ontotal: (total: Total | null) => void;
 		onsort: (dir: 'asc' | 'desc' | null) => void;
 		onaddsort: () => void;
 		onfilter: (text: string) => void;
@@ -136,6 +144,16 @@
 			<MenuItem icon="x" onSelect={() => onsort(null)}>{words.clearSort}</MenuItem>
 		{/if}
 		<div class="p-1">{@render filterInput(field)}</div>
+		<MenuSub label={ruleWords.calculate} icon="sigma">
+			<MenuItem checked={total === null} onSelect={() => ontotal(null)}
+				>{ruleWords.noTotal}</MenuItem
+			>
+			{#each totalsFor(field) as option (option)}
+				<MenuItem checked={total === option} onSelect={() => ontotal(option)}
+					>{ruleWords.totals[option]}</MenuItem
+				>
+			{/each}
+		</MenuSub>
 		<MenuSeparator />
 		<MenuItem icon="pencil" onSelect={() => onaction('rename')}>{common.rename}</MenuItem>
 		{#if retypable}
@@ -199,6 +217,21 @@
 				>
 			{/if}
 			<div class="px-2 py-1">{@render filterInput(field)}</div>
+			<div class="px-2 py-1">
+				<Select
+					aria-label={ruleWords.calculate}
+					placeholder={ruleWords.calculate}
+					options={[
+						{ value: '', label: ruleWords.noTotal },
+						...totalsFor(field).map((option) => ({
+							value: option,
+							label: ruleWords.totals[option]
+						}))
+					]}
+					value={total ?? ''}
+					onchange={(picked) => run(() => ontotal(picked === '' ? null : (picked as Total)))}
+				/>
+			</div>
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onaction('rename'))}
 				>{common.rename}</Button
 			>

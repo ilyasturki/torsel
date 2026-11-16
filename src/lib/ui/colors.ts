@@ -34,6 +34,15 @@ export function tag(color: string | null | undefined): string {
 	return `background: var(--d-${name}-bg); color: var(--d-${name}-fg)`;
 }
 
+/** A row a colour rule matched: a step lighter than a tag, so the tag still reads on it. */
+export function rowTint(color: string | null | undefined): string {
+	return `background: var(--d-${isDataColor(color) ? color : 'gray'}-tint)`;
+}
+
+export function scaleStep(color: string | null | undefined, step: number): string {
+	return `background: var(--d-${isDataColor(color) ? color : 'gray'}-${step})`;
+}
+
 export function strongColor(color: string | null | undefined, index: number): string {
 	const name = isDataColor(color) ? color : AUTO_COLORS[index % AUTO_COLORS.length];
 	return `var(--d-${name})`;

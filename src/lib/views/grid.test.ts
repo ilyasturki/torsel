@@ -19,6 +19,7 @@ import { Workspace } from '#lib/core/workspace.ts';
 import {
 	cellReader,
 	clearChanges,
+	columnTotals,
 	copyText,
 	fillSelection,
 	fitWidth,
@@ -467,6 +468,44 @@ describe('the rows a grid shows', () => {
 				]
 			})
 		).toEqual(['c10']);
+	});
+});
+
+describe('the totals row', () => {
+	it('totals the shown rows as each column reads', () => {
+		const { ws, commit, tableId, note, kg, day, done } = fixture();
+		commit(
+			insertRows(ws, tableId, [
+				{ [note.id]: 'a', [kg.id]: 80, [day.id]: '2026-10-28', [done.id]: true },
+				{ [note.id]: 'b', [kg.id]: 70.5, [day.id]: '2026-10-26' },
+				{ [note.id]: '', [kg.id]: null, [done.id]: true },
+				{ [note.id]: 'd', [kg.id]: 30, [done.id]: false }
+			]).changes
+		);
+		const rows = ws.rows(tableId);
+		const fields = ws.fields(tableId);
+		const totals = columnTotals(
+			rows,
+			fields,
+			{ [kg.id]: 'sum', [note.id]: 'count', [done.id]: 'checked', [day.id]: 'max' },
+			new Map()
+		);
+		expect(Object.fromEntries(totals)).toEqual({
+			[note.id]: '3',
+			[kg.id]: '180.5',
+			[day.id]: 'Oct 28',
+			[done.id]: '50%'
+		});
+		expect(columnTotals(rows.slice(0, 2), fields, { [kg.id]: 'avg' }, new Map()).get(kg.id)).toBe(
+			'75.25'
+		);
+	});
+
+	it('leaves out a total its field cannot take', () => {
+		const { ws, tableId, note } = fixture();
+		expect(
+			columnTotals(ws.rows(tableId), ws.fields(tableId), { [note.id]: 'sum' }, new Map()).size
+		).toBe(0);
 	});
 });
 

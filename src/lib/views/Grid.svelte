@@ -38,7 +38,8 @@
 		Value,
 		ViewDef
 	} from '#lib/core/model.ts';
-	import type { Condition } from '#lib/core/conditions.ts';
+	import type { Condition, Paint, Total } from '#lib/core/conditions.ts';
+	import { colorTest, totalsFor } from '#lib/core/conditions.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
 	import { MAX_IMAGES, imageLinks, imagesOf, imagesValue } from '#lib/core/images.ts';
@@ -49,14 +50,17 @@
 	import { images as imageWords } from '#lib/i18n/images.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import { names } from '#lib/i18n/names.ts';
+	import { rules as ruleWords } from '#lib/i18n/rules.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import CalendarPopover from '#lib/ui/CalendarPopover.svelte';
 	import Drawer from '#lib/ui/Drawer.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
-	import { nextChoice } from '#lib/ui/colors.ts';
+	import { nextChoice, rowTint, scaleStep, swatch, tag } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import { keys } from '#lib/ui/keys.ts';
+	import Menu from '#lib/ui/Menu.svelte';
+	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import { wide } from '#lib/ui/media.svelte.ts';
 	import Rating from '#lib/ui/Rating.svelte';
 	import { focus, input as inputStyle } from '#lib/ui/styles.ts';
@@ -77,12 +81,14 @@
 		cellReader,
 		cellText,
 		cellValue,
+		columnTotals,
 		clearChanges,
 		copyText,
 		fillSelection,
 		fitWidth,
 		gridRows,
 		linkOptions,
+		screenReading,
 		parseTsv,
 		pasteChanges,
 		sampleRows,
@@ -227,6 +233,53 @@
 	});
 
 	const rowIndex = $derived(new Map(rows.map((row, index) => [row.id, index])));
+
+	// Until the pick, a matching row is tinted whole.
+	const PAINT = 'row' as 'row' | 'cell' | 'gutter';
+
+	const paintOf = $derived.by((): ((row: Rec) => Paint) | null => {
+		void app.version;
+		const rules = view.config.colors ?? [];
+		if (rules.length === 0) return null;
+		return colorTest(
+			new Map(fields.map((field) => [field.id, field])),
+			rules,
+			(row, field) => cellValue(row, field, computed),
+			screenReading(app.ws),
+			hits,
+			rows
+		);
+	});
+
+	const totals = $derived(columnTotals(rows, fields, view.config.totals ?? {}, computed));
+	const totalled = $derived(totals.size > 0);
+
+	let totalOpen = $state(false);
+	let totalAnchor = $state<HTMLElement | null>(null);
+	let totalField = $state<string | null>(null);
+
+	function setTotal(fieldId: string, total: Total | null): void {
+		const next = { ...view.config.totals };
+		if (total === null) delete next[fieldId];
+		else next[fieldId] = total;
+		setConfig({ totals: next }, ruleWords.totalChanged);
+	}
+
+	const paints = $derived(
+		paintOf === null ? null : new Map(rows.map((row) => [row.id, paintOf(row)]))
+	);
+
+	function cellPaint(row: Rec | null, field: FieldDef, first: boolean): string | undefined {
+		const paint = row === null ? undefined : paints?.get(row.id);
+		if (paint === undefined) return undefined;
+		const scale = paint.scales.get(field.id);
+		if (scale !== undefined) return scaleStep(scale.color, scale.step);
+		if (paint.color === null) return undefined;
+		if (PAINT === 'row') return rowTint(paint.color);
+		if (PAINT === 'cell' && (paint.field === field.id || (paint.field === null && first)))
+			return tag(paint.color);
+		return undefined;
+	}
 	const fieldIndex = $derived(new Map(fields.map((field, index) => [field.id, index])));
 
 	const filters = $derived(config.filters ?? []);
@@ -1780,10 +1833,13 @@
 	{@const isEditing = editing?.row === key && editing.field === field.id}
 	{@const value = row === null ? null : cellValue(row, field, computed)}
 	{@const numeric = (isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
+	{@const painted = cellPaint(row, field, c === 0)}
 	<td
 		id={cellId(r, c)}
 		data-r={r}
 		data-c={c}
+		data-paint={painted === undefined ? undefined : ''}
+		style={painted}
 		aria-colindex={c + 2}
 		aria-selected={inRange}
 		aria-readonly={locked.has(field.id) || undefined}
@@ -2187,12 +2243,22 @@
 					{/if}
 					{#each visible as row, offset (row.id)}
 						{@const r = start + offset}
-						<tr class="group" aria-rowindex={r + 2} data-fresh={fresh.has(row.id) || undefined}>
+						{@const paint = paints?.get(row.id)}
+						<tr
+							class="group"
+							aria-rowindex={r + 2}
+							data-fresh={fresh.has(row.id) || undefined}
+							data-color={paint?.color ?? undefined}
+						>
 							<td
 								role="rowheader"
 								data-r={r}
 								class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
+								style={PAINT === 'row' && paint?.color ? rowTint(paint.color) : undefined}
 							>
+								{#if PAINT === 'gutter' && paint?.color}
+									<span class="absolute inset-y-0 left-0 w-1" style={swatch(paint.color)}></span>
+								{/if}
 								{#if readOnly}
 									<span
 										class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3"
@@ -2268,6 +2334,57 @@
 						</tr>
 					{/if}
 				</tbody>
+				{#if totalled}
+					<tfoot>
+						<tr>
+							<td
+								class="sticky bottom-0 left-0 z-30 h-row border-t border-r border-t-rule-strong border-r-rule-col bg-band p-0"
+								aria-hidden="true"
+							></td>
+							{#each fields as field, index (field.id)}
+								{@const numeric =
+									(isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
+								{@const total = view.config.totals?.[field.id]}
+								{@const figure = totals.get(field.id)}
+								<td
+									class="sticky bottom-0 h-row border-t border-r border-t-rule-strong bg-band p-0 {index ===
+									0
+										? 'left-11 z-30 border-r-rule-strong'
+										: 'z-20 border-r-rule-col'}"
+								>
+									<button
+										type="button"
+										data-total={field.name}
+										class="group/total flex size-full min-w-0 items-center gap-1.5 px-3 text-sm text-ink-3 transition-colors motion hover:text-ink {numeric
+											? 'justify-end'
+											: ''} {focus}"
+										aria-label={total === undefined
+											? `${ruleWords.calculate} ${field.name}`
+											: undefined}
+										onclick={(event) => {
+											totalAnchor = event.currentTarget;
+											totalField = field.id;
+											totalOpen = true;
+										}}
+									>
+										{#if total !== undefined && figure !== undefined}
+											<span class="truncate">{ruleWords.totals[total]}</span>
+											<span class="font-medium text-ink tabular-nums">{figure}</span>
+										{:else}
+											<span
+												class="flex items-center gap-1 opacity-0 group-hover/total:opacity-100 group-focus-visible/total:opacity-100 pointer-coarse:opacity-100"
+												><Icon name="sigma" class="size-3.5" /><span class="pointer-coarse:hidden"
+													>{ruleWords.calculate}</span
+												></span
+											>
+										{/if}
+									</button>
+								</td>
+							{/each}
+							<td colspan="2" class="sticky bottom-0 z-20 border-t border-rule-strong bg-band"></td>
+						</tr>
+					</tfoot>
+				{/if}
 			</table>
 			{#if isRange && head !== null}
 				<div
@@ -2321,6 +2438,10 @@
 		if (menuFieldDef) addSort(menuFieldDef);
 	}}
 	filter={liveFilter ?? quickText(menuField)}
+	total={menuField === null ? null : (view.config.totals?.[menuField] ?? null)}
+	ontotal={(total) => {
+		if (menuField !== null) setTotal(menuField, total);
+	}}
 	onsort={(dir) => {
 		if (menuFieldDef) sortBy(menuFieldDef, dir);
 	}}
@@ -2330,6 +2451,23 @@
 	onaction={columnAction}
 	onCloseAutoFocus={onmenuclosed}
 />
+{#if totalField !== null}
+	{@const field = fields.find((item) => item.id === totalField)}
+	{#if field !== undefined}
+		<Menu bind:open={totalOpen} anchor={totalAnchor} label={field.name} side="top">
+			<MenuItem
+				checked={view.config.totals?.[field.id] === undefined}
+				onSelect={() => setTotal(field.id, null)}>{ruleWords.noTotal}</MenuItem
+			>
+			{#each totalsFor(field) as option (option)}
+				<MenuItem
+					checked={view.config.totals?.[field.id] === option}
+					onSelect={() => setTotal(field.id, option)}>{ruleWords.totals[option]}</MenuItem
+				>
+			{/each}
+		</Menu>
+	{/if}
+{/if}
 <div
 	bind:this={pointAnchor}
 	aria-hidden="true"

@@ -4,7 +4,8 @@ import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
 import type { FormulaHits, Reading } from '#lib/core/conditions.ts';
-import { conditionTest, reading } from '#lib/core/conditions.ts';
+import type { Total } from '#lib/core/conditions.ts';
+import { conditionTest, reading, totalOf, totalsFor } from '#lib/core/conditions.ts';
 import type {
 	Change,
 	Choice,
@@ -142,6 +143,36 @@ export function toHtml(cells: string[][]): string {
 			)
 			.join('')
 	);
+}
+
+/** Each totalled field's figure over the shown rows, as its column reads; a share checked reads as a percent. */
+export function columnTotals(
+	rows: readonly Rec[],
+	fields: readonly FieldDef[],
+	totals: Record<string, Total>,
+	computed: Computed
+): Map<string, string> {
+	const out = new Map<string, string>();
+	for (const field of fields) {
+		const total = totals[field.id];
+		if (total === undefined || !totalsFor(field).includes(total)) continue;
+		const figure = totalOf(
+			total,
+			rows.map((row) => cellValue(row, field, computed))
+		);
+		if (figure === null) {
+			out.set(field.id, '');
+		} else if (total === 'count') {
+			out.set(field.id, formatValue({ type: 'number' }, figure as number));
+		} else if (total === 'checked') {
+			out.set(field.id, formatValue({ type: 'percent', decimals: 0 }, (figure as number) * 100));
+		} else {
+			const look: FieldDef =
+				field.type === 'formula' && field.result === null ? { ...field, type: 'number' } : field;
+			out.set(field.id, formatValue(look, figure));
+		}
+	}
+	return out;
 }
 
 export type Summary = { sum: number; average: number; count: number; field: FieldDef | null };

@@ -99,6 +99,8 @@ test('the assistant filters a grid and sets a colour rule, both undone from its 
 	await expect(page.getByText(/: 2 of 4$/u)).toBeVisible();
 	await expect(grid.getByRole('gridcell', { name: 'Squat' })).toHaveCount(0);
 	await expect(grid.getByRole('gridcell', { name: '85', exact: true })).toBeVisible();
+	await expect(grid.locator('tr[data-color="red"]')).toHaveCount(1);
+	await expect(grid.locator('tr[data-color="red"]')).toContainText('85');
 
 	if (isPhone()) await tapAsk(page);
 	await card.getByRole('button', { name: 'Undo' }).click();
@@ -172,4 +174,37 @@ test('a chart and a list show only the rows their filters keep', async ({
 	await expect(page.getByText('82.5')).toBeVisible();
 	await expect(page.getByText('145')).toHaveCount(0);
 	await expect(page.getByText('squat')).toHaveCount(0);
+});
+
+test('a column totals the shown rows from its menu, and the totals row takes it back', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedSets(context.request);
+	await page.goto(tablePath(table));
+	const grid = page.getByRole('grid');
+	await expect(grid.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
+	await expect(grid.locator('tfoot')).toHaveCount(0);
+
+	await grid.getByRole('columnheader', { name: 'Kg', exact: true }).getByRole('button').click();
+	if (isPhone()) {
+		await page.getByRole('combobox', { name: 'Calculate' }).click();
+		await page.getByRole('option', { name: 'Sum' }).click();
+	} else {
+		await page.getByRole('menuitem', { name: 'Calculate' }).click();
+		await page.getByRole('menuitem', { name: 'Sum' }).click();
+	}
+	const total = grid.locator('[data-total="Kg"]');
+	await expect(total).toHaveText(/Sum\s*265/u);
+
+	await grid.getByRole('columnheader', { name: 'Exercise', exact: true }).getByRole('button').click();
+	await page.getByRole('textbox', { name: 'Filter Exercise' }).fill('bench');
+	await page.keyboard.press('Enter');
+	await expect(total).toHaveText(/Sum\s*165/u);
+
+	await total.click();
+	await page.getByRole('menuitem', { name: 'None' }).click();
+	await expect(grid.locator('tfoot')).toHaveCount(0);
 });
