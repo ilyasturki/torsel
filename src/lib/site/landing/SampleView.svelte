@@ -24,7 +24,7 @@
 			{:else if view.type === 'list'}
 				<List {tableId} {view} />
 			{:else}
-				<Chart {tableId} {view} />
+				<Chart {tableId} {view} still />
 			{/if}
 		</div>
 	{/key}

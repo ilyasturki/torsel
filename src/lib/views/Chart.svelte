@@ -7,7 +7,7 @@
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { chartSetup, updateRecord } from '#lib/core/actions.ts';
 	import type { Aggregate } from '#lib/core/chart.ts';
-	import { axisTicks, headline } from '#lib/core/chart.ts';
+	import { axisTicks, headline, totalled } from '#lib/core/chart.ts';
 	import type { ChartConfig, Value, ViewDef } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import Rich from '#lib/i18n/Rich.svelte';
@@ -21,7 +21,15 @@
 
 	import ChartToken from './ChartToken.svelte';
 
-	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
+	let {
+		tableId,
+		view,
+		still = false
+	}: {
+		tableId: string;
+		view: ViewDef;
+		/** Shown, not set: the landing's showcase. */ still?: boolean;
+	} = $props();
 
 	let width = $state(720);
 	let active = $state<number | null>(null);
@@ -180,6 +188,20 @@
 	}
 
 	const byDate = $derived(isDated(xField?.type ?? 'text'));
+
+	const per = $derived(
+		!still
+			? ''
+			: byDate && config.bucket === 'week'
+				? words.perWeek
+				: byDate && config.bucket === 'month'
+					? words.perMonth
+					: byDate
+						? ''
+						: totalled(config, byDate)
+							? words.byField(data?.xName ?? '')
+							: words.perField(data?.xName ?? '')
+	);
 	const valueName = $derived(data === null ? '' : words.chartValue[data.agg](data.yName));
 
 	const xTicks = $derived.by(() => {
@@ -236,84 +258,89 @@
 	{#if data === null}
 		<Empty text={words.chartUnset} />
 	{:else}
-		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-			<p class="flex flex-wrap items-center gap-1 text-ink-3" data-testid="chart-line">
-				<Rich text={words.chartLine(config.agg !== 'count', byDate, yField?.name ?? '')}>
-					{#snippet agg(_: string)}
-						<ChartToken
-							bind:open={firstOpen}
-							label={words.calculation}
-							text={words.aggregates[config.agg ?? 'count']}
-							options={aggregates.map((value) => ({ value, label: words.aggregates[value] }))}
-							value={config.agg ?? 'count'}
-							onpick={setAgg}
-						/>
-					{/snippet}
-					{#snippet y(_: string)}
-						<ChartToken
-							label={words.of}
-							text={yField?.name ?? ''}
-							options={fieldOptions(numeric)}
-							value={config.y ?? ''}
-							onpick={(field) => setChart({ y: field })}
-						/>
-					{/snippet}
-					{#snippet x(_: string)}
-						<ChartToken
-							label={words.xAxis}
-							text={xField?.name ?? ''}
-							options={fieldOptions(fields)}
-							value={config.x ?? ''}
-							onpick={(field) => setChart({ x: field })}
-						/>
-					{/snippet}
-					{#snippet bucketToken(_: string)}
-						<ChartToken
-							label={words.groupDatesBy}
-							text={bucket?.label.toLocaleLowerCase() ?? ''}
-							options={buckets}
-							value={config.bucket ?? 'day'}
-							onpick={(value) => setChart({ bucket: value as ChartConfig['bucket'] })}
-						/>
-					{/snippet}
-				</Rich>
-			</p>
-			<div class="flex items-center gap-2">
-				<Segmented
-					label={words.chartKind}
-					items={[
-						{
-							id: 'bar',
-							label: words.bars,
-							active: config.kind === 'bar',
-							onclick: () => setChart({ kind: 'bar' })
-						},
-						{
-							id: 'line',
-							label: words.line,
-							active: config.kind === 'line',
-							onclick: () => setChart({ kind: 'line' })
-						}
-					]}
-				/>
-				<ChartToken
-					label={words.colourBy}
-					text={words.chartColour(colorField?.name ?? null)}
-					options={[
-						{ value: '', label: words.oneSeries },
-						...fieldOptions(fields.filter((field) => field.type === 'choice'))
-					]}
-					value={config.color ?? ''}
-					onpick={(field) => setChart({ color: field || null })}
-				/>
+		{#if still}
+			<span class="font-medium text-ink-3">{valueName}</span>
+		{:else}
+			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+				<p class="flex flex-wrap items-center gap-1 text-ink-3" data-testid="chart-line">
+					<Rich text={words.chartLine(config.agg !== 'count', byDate, yField?.name ?? '')}>
+						{#snippet agg(_: string)}
+							<ChartToken
+								bind:open={firstOpen}
+								label={words.calculation}
+								text={words.aggregates[config.agg ?? 'count']}
+								options={aggregates.map((value) => ({ value, label: words.aggregates[value] }))}
+								value={config.agg ?? 'count'}
+								onpick={setAgg}
+							/>
+						{/snippet}
+						{#snippet y(_: string)}
+							<ChartToken
+								label={words.of}
+								text={yField?.name ?? ''}
+								options={fieldOptions(numeric)}
+								value={config.y ?? ''}
+								onpick={(field) => setChart({ y: field })}
+							/>
+						{/snippet}
+						{#snippet x(_: string)}
+							<ChartToken
+								label={words.xAxis}
+								text={xField?.name ?? ''}
+								options={fieldOptions(fields)}
+								value={config.x ?? ''}
+								onpick={(field) => setChart({ x: field })}
+							/>
+						{/snippet}
+						{#snippet bucketToken(_: string)}
+							<ChartToken
+								label={words.groupDatesBy}
+								text={bucket?.label.toLocaleLowerCase() ?? ''}
+								options={buckets}
+								value={config.bucket ?? 'day'}
+								onpick={(value) => setChart({ bucket: value as ChartConfig['bucket'] })}
+							/>
+						{/snippet}
+					</Rich>
+				</p>
+				<div class="flex items-center gap-2">
+					<Segmented
+						label={words.chartKind}
+						items={[
+							{
+								id: 'bar',
+								label: words.bars,
+								active: config.kind === 'bar',
+								onclick: () => setChart({ kind: 'bar' })
+							},
+							{
+								id: 'line',
+								label: words.line,
+								active: config.kind === 'line',
+								onclick: () => setChart({ kind: 'line' })
+							}
+						]}
+					/>
+					<ChartToken
+						label={words.colourBy}
+						text={words.chartColour(colorField?.name ?? null)}
+						options={[
+							{ value: '', label: words.oneSeries },
+							...fieldOptions(fields.filter((field) => field.type === 'choice'))
+						]}
+						value={config.color ?? ''}
+						onpick={(field) => setChart({ color: field || null })}
+					/>
+				</div>
 			</div>
-		</div>
+		{/if}
 		{#if latest !== null}
 			<p class="text-hero-lg leading-none font-semibold tighter">{amount(latest.y)}</p>
 		{/if}
 		<p class="mb-3 text-ink-2">
 			{[
 				latest === null ? '' : latest.x === '' ? '' : label(latest.x),
+				per,
 				config.rolling ? words.rolling(config.rolling) : ''
 			]
 				.filter((part) => part !== '')

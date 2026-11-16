@@ -73,6 +73,10 @@ const en = {
 		min: (field: string) => `Lowest ${field.toLowerCase()}`
 	} satisfies Record<Aggregate, (field: string) => string>,
 	chartName: (value: string, x: string) => `${value} per ${x}`,
+	perWeek: 'per week',
+	perMonth: 'per month',
+	perField: (x: string) => `per ${x.toLowerCase()}`,
+	byField: (x: string) => `by ${x.toLowerCase()}`,
 	rolling: (days: number) => `${days}-day rolling average`,
 	/** A chart's settings as its sentence: each tag is a menu, `measured` when it sums a field, `dated` when its axis is a date. */
 	chartLine: (measured: boolean, dated: boolean, _field: string) =>
@@ -168,6 +172,10 @@ const fr: typeof en = {
 		min: (field) => `Minimum ${deFr(field.toLowerCase())}`
 	},
 	chartName: (value, x) => `${value} par ${x}`,
+	perWeek: 'par semaine',
+	perMonth: 'par mois',
+	perField: (x) => `par ${x.toLowerCase()}`,
+	byField: (x) => `par ${x.toLowerCase()}`,
 	rolling: (days) =>
 		plural('fr', days, {
 			one: 'moyenne glissante sur # jour',

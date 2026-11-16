@@ -34,7 +34,7 @@ export function showPostersEarly(list: Poster[], placed: Record<PosterId, Placed
 		const { table, view } = placed[poster.id];
 		const config = app.ws.view(view)?.config;
 		if (data !== null && config !== undefined) {
-			app.chartEarly(table, chartSetup(app.ws.fields(table), config), data);
+			app.chartEarly(table, chartSetup(app.ws.fields(table), config, app.ws.rows(table)), data);
 		}
 	}
 }
