@@ -261,7 +261,9 @@ describe('the REST API', () => {
 		]);
 		[squat, bench] = added.body.rows.map((row: { id: string }) => row.id);
 		const schema = await call('GET', '/api/v1/bases/Training');
-		expect(schema.body.tables[0].fields[2].choices).toEqual(['Legs', 'Chest']);
+		expect(
+			schema.body.tables[0].fields[2].choices.map((choice: { name: string }) => choice.name)
+		).toEqual(['Legs', 'Chest']);
 	});
 
 	it('refuses what the fields cannot hold, and writes none of it', async () => {
