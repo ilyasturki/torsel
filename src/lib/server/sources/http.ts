@@ -20,7 +20,6 @@ export function limit(kind: Limited, userId: string): void {
 
 export function problemText(problem: SourceProblem | SourceRefused['reason']): string {
 	const text = words.problems;
-	if (problem === 'cap') return text.cap(sourceLimits().rows);
 	if (problem === 'count') return text.count(sourceLimits().sources);
 	return text[problem];
 }

@@ -17,7 +17,7 @@ const en = {
 		html: 'A web page, not data',
 		format: 'Unreadable data',
 		rows: 'No rows there',
-		cap: (rows: number) => `Over ${rows.toLocaleString('en')} rows`,
+		cap: 'More rows than a table takes: the first ones came in',
 		empty: 'The source returned no rows',
 		count: (sources: number) =>
 			plural('en', sources, { one: '# linked table at most', other: '# linked tables at most' }),
@@ -89,7 +89,7 @@ const fr: typeof en = {
 		html: 'Une page web, pas des données',
 		format: 'Données illisibles',
 		rows: 'Aucune ligne à cet endroit',
-		cap: (rows) => `Plus de ${rows.toLocaleString('fr')} lignes`,
+		cap: 'Plus de lignes qu’une table n’en prend : les premières sont arrivées',
 		empty: 'La source n’a renvoyé aucune ligne',
 		count: (sources) =>
 			plural('fr', sources, { one: '# table liée au plus', other: '# tables liées au plus' }),
