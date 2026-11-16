@@ -1084,10 +1084,15 @@
 		event.clipboardData.setData('text/plain', catcher?.value ?? '');
 		event.clipboardData.setData('text/html', toHtml(rangeCells()));
 		event.preventDefault();
-		const count = (bottom - top + 1) * rangeFields().length;
+		const height = bottom - top + 1;
+		const count = height * rangeFields().length;
+		// Synced cells are copied, never cleared: a cut of only those is a copy.
+		const cleared = cut
+			? height * rangeFields().filter((field) => !locked.has(field.id)).length
+			: 0;
 		backToGrid();
-		const undo = cut ? clearRange() : null;
-		showToast(cut ? words.cut(count) : words.copied(count), undo);
+		const undo = cleared > 0 ? clearRange() : null;
+		showToast(cleared > 0 ? words.cut(cleared) : words.copied(count), undo);
 	}
 
 	function oncatcherpaste(event: ClipboardEvent): void {
