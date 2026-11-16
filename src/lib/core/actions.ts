@@ -11,7 +11,7 @@ import type {
 	ViewConfig,
 	ViewType
 } from './model.ts';
-import { CREATED, DELETED, FORMAT_OF, hasChoices, isDated } from './model.ts';
+import { CREATED, DELETED, FORMAT_OF, hasChoices, isDated, isNumeric } from './model.ts';
 import { coerce, typeOfValues } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -212,19 +212,46 @@ export function chartAxis(fields: FieldDef[], config: ViewConfig): string | null
 	return (
 		config.x ??
 		fields.find((field) => isDated(field.type))?.id ??
+		fields.find((field) => field.type === 'choice')?.id ??
 		fields.find((field) => field.type !== 'image')?.id ??
 		null
 	);
 }
 
-/** The chart a view draws: its own settings over the defaults. */
-export function chartSetup(fields: FieldDef[], config: ViewConfig): ChartConfig {
-	return {
-		...config,
-		x: chartAxis(fields, config),
-		kind: config.kind ?? 'bar',
-		agg: config.agg ?? 'count'
-	};
+const DAY = 86_400_000;
+const BUCKETS = 40;
+
+function chartGuess(fields: FieldDef[], rows: Rec[], x: string | null): ChartConfig {
+	const axis = fields.find((field) => field.id === x);
+	if (axis === undefined || !isDated(axis.type)) return {};
+	const days = rows
+		.map((row) => row.data[axis.id])
+		.filter((value) => typeof value === 'string' && value !== '')
+		.map((value) => String(value).slice(0, 10))
+		.sort();
+	if (days.length === 0) return {};
+
+	const span = (Date.parse(days.at(-1) ?? '') - Date.parse(days[0])) / DAY;
+	const bucket = span < BUCKETS ? 'day' : span < BUCKETS * 7 ? 'week' : 'month';
+	const money = fields.find((field) => field.type === 'currency');
+	const numbers = fields.filter((field) => isNumeric(field.type));
+	const daily = new Set(days).size === days.length;
+
+	if (money !== undefined) return { kind: 'bar', agg: 'sum', y: money.id, bucket };
+	if (numbers.length === 1 && daily) {
+		return { kind: 'line', agg: 'avg', y: numbers[0].id, bucket: 'day' };
+	}
+	return { kind: 'bar', agg: 'count', bucket };
+}
+
+/** The chart a view draws: its own settings over a guess read from the table's rows. */
+export function chartSetup(fields: FieldDef[], config: ViewConfig, rows: Rec[] = []): ChartConfig {
+	const x = chartAxis(fields, config);
+	const set = Object.fromEntries(
+		Object.entries(config).filter(([, value]) => value !== undefined)
+	) as ChartConfig;
+	const merged = { ...chartGuess(fields, rows, x), ...set };
+	return { ...merged, x, kind: merged.kind ?? 'bar', agg: merged.agg ?? 'count' };
 }
 
 export function createTable(

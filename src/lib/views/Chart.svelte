@@ -22,7 +22,7 @@
 
 	const config = $derived.by(() => {
 		void app.version;
-		return chartSetup(app.ws.fields(tableId), view.config);
+		return chartSetup(app.ws.fields(tableId), view.config, app.ws.rows(tableId));
 	});
 
 	const data = $derived.by(() => {

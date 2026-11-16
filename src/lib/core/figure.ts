@@ -47,7 +47,7 @@ export function tableFigure(
 	const fields = ws.fields(tableId);
 	for (const view of ws.views(tableId)) {
 		if (view.type !== 'chart') continue;
-		const config = chartSetup(fields, view.config);
+		const config = chartSetup(fields, view.config, rows);
 		const data = chart(config);
 		const byDate = isDated(ws.field(config.x ?? '')?.type ?? 'text');
 		const lead = data === null ? null : headline(data, config, byDate);
