@@ -11,8 +11,7 @@ function dataOf(rec: Rec): Record<string, Value> {
 
 // Ids are random and prefixed, so no text a person typed holds one by chance.
 function remap<T extends Value>(value: T, ids: Map<string, string>): T {
-	let text = JSON.stringify(value);
-	for (const [from, to] of ids) text = text.replaceAll(from, to);
+	const text = JSON.stringify(value).replace(/[tfr]_[0-9a-z]{6,32}/gu, (id) => ids.get(id) ?? id);
 	return JSON.parse(text) as T;
 }
 
