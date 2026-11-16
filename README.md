@@ -66,6 +66,8 @@ The assistant takes 30 messages per account and 300 across the instance in any 2
 
 Each account keeps up to 1 GB of images, in the database: `storageMB` (0 lifts it).
 
+A table can fill itself from a link (CSV, TSV, JSON, Excel, RSS, Atom), refreshed by the server: 20 per account and 5,000 rows each, `sourceLimit` and `sourceRowLimit`. The keys those links need are encrypted with `TORSEL_SECRETS_KEY` from the environment file, or with `/var/lib/torsel/secrets.key`, which the server makes on first start: back it up with the database.
+
 Every option is documented in [`nix/module.nix`](nix/module.nix).
 
 ## Run without Nix

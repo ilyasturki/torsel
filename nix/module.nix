@@ -173,7 +173,27 @@ in
         sends the sign-in mail; `GOOGLE_CLIENT_ID=...` and
         `GOOGLE_CLIENT_SECRET=...` turn on Google sign-in, with
         `<origin>/api/auth/google` as the redirect URI.
+        `TORSEL_SECRETS_KEY=...` (32 bytes, hex or base64) encrypts the keys of
+        tables filled from a link; without it the server makes `secrets.key`
+        beside the database on first start. Lose that key and every source's
+        key has to be typed again: back it up with the database.
       '';
+    };
+
+    sourceRowLimit = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 5000;
+      description = ''
+        Rows a table filled from a link holds at most: a run takes the first
+        ones in the source's order and removes none past them. Zero lifts the
+        cap.
+      '';
+    };
+
+    sourceLimit = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 20;
+      description = "Tables filled from a link one account can keep; zero lifts the cap.";
     };
   };
 
@@ -200,6 +220,8 @@ in
         TORSEL_AI_DAILY_LIMIT = toString cfg.aiDailyLimit;
         TORSEL_AI_INSTANCE_DAILY_LIMIT = toString cfg.aiInstanceDailyLimit;
         TORSEL_STORAGE_MB = toString cfg.storageMB;
+        TORSEL_SOURCE_ROWS = toString cfg.sourceRowLimit;
+        TORSEL_SOURCES = toString cfg.sourceLimit;
       }
       // lib.optionalAttrs (cfg.aiUnlimited != [ ]) {
         TORSEL_AI_UNLIMITED = lib.concatStringsSep "," cfg.aiUnlimited;
