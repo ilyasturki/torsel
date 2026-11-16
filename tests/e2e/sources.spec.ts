@@ -506,8 +506,12 @@ test.describe('a synced table’s glyph', () => {
 		await panel.getByLabel('Key').fill('rotated');
 		await panel.getByRole('button', { name: 'Save' }).click();
 		await expect(panel.getByRole('alert')).toHaveCount(0);
+		// A running refresh hides the warning, so the glyph is read once the new key's run is over.
+		await expect
+			.poll(async () => (await links.hits()).at(-1)?.authorization)
+			.toBe('Bearer rotated');
+		await expect(glyph.locator('[class*="animate-spin"]')).toHaveCount(0);
 		await expect(glyph).not.toHaveClass(/text-warn/u);
-		expect((await links.hits()).at(-1)?.authorization).toBe('Bearer rotated');
 	});
 });
 
