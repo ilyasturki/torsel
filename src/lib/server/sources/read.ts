@@ -355,7 +355,8 @@ export function guessKey(items: Item[], paths: string[]): string | null {
 /** What identifies an item across runs: its key, or all of its values when there is none. */
 export function itemKey(item: Item, key: string | null, paths: string[]): string {
 	if (key !== null) return item[key] ?? '';
-	const values = paths.map((path) => item[path] ?? '');
+	// Sorted: the paths come in the order items first hold them, which moves as the source does.
+	const values = paths.toSorted().map((path) => item[path] ?? '');
 	return createHash('sha256').update(JSON.stringify(values)).digest('hex');
 }
 
