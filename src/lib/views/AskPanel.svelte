@@ -142,7 +142,7 @@
 				locale: new Intl.NumberFormat().resolvedOptions().locale,
 				today: formatDate(todayIso()),
 				past: formatDate(`${new Date().getFullYear() - 1}-05-07`),
-				number: formatNumber(1234.5)
+				number: formatNumber(12345.5)
 			}
 		};
 	}
@@ -314,13 +314,18 @@
 				aria-pressed={assistant.listing}
 				onclick={() => void showThreads()}>{words.history}</Button
 			>
-			<Button variant="ghost" onclick={newThread}>{words.newThread}</Button>
+			<Button variant="ghost" class="max-lg:hidden" onclick={newThread}>{words.newThread}</Button>
+			<!-- The panel covers a phone: icons leave the title its width. -->
+			<IconButton icon="plus" label={words.newThread} class="lg:hidden" onclick={newThread} />
 		{/if}
 		<Tooltip shortcut={keys('mod', 'k')}>
 			{#snippet children(props)}
-				<Button {...props} variant="ghost" onclick={() => (open = false)}>{common.close}</Button>
+				<Button {...props} variant="ghost" class="max-lg:hidden" onclick={() => (open = false)}
+					>{common.close}</Button
+				>
 			{/snippet}
 		</Tooltip>
+		<IconButton icon="x" label={common.close} class="lg:hidden" onclick={() => (open = false)} />
 	</div>
 
 	{#if !me.account}

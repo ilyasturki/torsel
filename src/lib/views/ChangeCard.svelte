@@ -114,7 +114,7 @@
 			const values = list.map((row) => JSON.stringify(valueOf(row, field.id, tone) ?? null));
 			if (values.every((value) => value === values[0])) {
 				const value = valueOf(list[0], field.id, tone);
-				if (value != null && value !== '') same.push({ field, value });
+				if (value != null && value !== '' && value !== false) same.push({ field, value });
 			} else {
 				varying.push(field);
 			}
