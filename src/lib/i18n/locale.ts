@@ -17,9 +17,11 @@ export function pickLocale(tags: readonly string[]): Locale {
 	return BASE_LOCALE;
 }
 
+// Language and region only: the server caches formats per tag, and Accept-Language is the visitor's to fill.
 function canonical(tag: string): string | undefined {
 	try {
-		return Intl.getCanonicalLocales(tag.trim().replaceAll('_', '-'))[0];
+		const { language, region } = new Intl.Locale(tag.trim().replaceAll('_', '-'));
+		return region === undefined ? language : `${language}-${region}`;
 	} catch {
 		return undefined;
 	}

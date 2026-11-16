@@ -153,6 +153,7 @@ describe('locale', () => {
 		expect(formatTag(['en-US', 'fr-CA', 'fr-FR'], 'fr')).toBe('fr-CA');
 		expect(formatTag(['fr', 'en-US'], 'fr')).toBe('fr');
 		expect(formatTag(['en_GB'], 'en')).toBe('en-GB');
+		expect(formatTag(['fr-Latn-FR-x-anything'], 'fr')).toBe('fr-FR');
 		expect(formatTag(['de-DE', 'en-GB'], 'en')).toBe('en-GB');
 		expect(formatTag(['de-DE'], 'en')).toBe('de-DE');
 		expect(formatTag(['not a tag'], 'fr')).toBe('fr-FR');
