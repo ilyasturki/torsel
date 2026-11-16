@@ -21,6 +21,7 @@
 		undoTurn,
 		upload
 	} from '#lib/client/assistant.svelte.ts';
+	import { formatDate, formatNumber } from '#lib/client/format.ts';
 	import { LOGIN, SETTINGS } from '#lib/client/nav.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { me } from '#lib/client/session.svelte.ts';
@@ -136,7 +137,13 @@
 			view: view?.id ?? null,
 			rows: selected.slice(0, MAX_CONTEXT_ROWS),
 			fields: table !== null && selection.table === table.id ? selection.fields : [],
-			today: todayIso()
+			today: todayIso(),
+			shows: {
+				locale: new Intl.NumberFormat().resolvedOptions().locale,
+				today: formatDate(todayIso()),
+				past: formatDate(`${new Date().getFullYear() - 1}-05-07`),
+				number: formatNumber(1234.5)
+			}
 		};
 	}
 

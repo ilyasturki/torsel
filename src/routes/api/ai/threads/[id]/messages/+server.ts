@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 
 import { assistant as words } from '#lib/i18n/assistant.ts';
 import { locale } from '#lib/i18n/runtime.ts';
-import type { Screen, ThreadContext, TurnEvent } from '#lib/core/thread.ts';
+import type { Screen, Shows, ThreadContext, TurnEvent } from '#lib/core/thread.ts';
 import { MAX_CONTEXT_ROWS, MAX_FILES, MAX_PROMPT } from '#lib/core/thread.ts';
 import type { Ask } from '#lib/server/agent/assistant.ts';
 import { runTurn } from '#lib/server/agent/assistant.ts';
@@ -37,11 +37,26 @@ function strings(value: unknown, limit: number): string[] {
 		: [];
 }
 
+// A formatted date or number is a few words; past this it is not one.
+const SHOWN_MAX = 40;
+
+function showsOf(value: unknown): Shows | null {
+	if (typeof value !== 'object' || value === null) return null;
+	const { locale, today, past, number } = value as Record<string, unknown>;
+	const texts = [locale, today, past, number];
+	if (!texts.every((text) => typeof text === 'string' && text !== '' && text.length <= SHOWN_MAX)) {
+		return null;
+	}
+	return { locale, today, past, number } as Shows;
+}
+
 function contextOf(value: unknown): ThreadContext {
 	const context =
 		typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 	const today = optional(context.today);
+	const shows = showsOf(context.shows);
 	return {
+		...(shows === null ? {} : { shows }),
 		screen: SCREENS.has(context.screen as Screen) ? (context.screen as Screen) : 'home',
 		base: optional(context.base),
 		table: optional(context.table),

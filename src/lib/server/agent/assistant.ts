@@ -39,7 +39,7 @@ import {
 } from './threads.ts';
 import { generateTitle } from './title.ts';
 import type { Action, ToolContext } from './toolkit.ts';
-import { TOOLS, runTool, toolNamed } from './toolkit.ts';
+import { TOOLS, describeView, runTool, toolNamed } from './toolkit.ts';
 
 const MAX_ROUNDS = 12;
 
@@ -54,7 +54,7 @@ const SYSTEM = `You are the assistant inside Torsel, a data app: bases of typed 
 
 Act at once with the tools. Every change applies immediately and the person sees it as a diff they can undo, so never ask for confirmation, deletions included. Ask only when you cannot tell what they mean.
 
-That diff is how they read what you did, so your words never describe it. After changes, reply "Done." or one short sentence the diff can't say: why something wasn't done, or the one thing they must know. Creating a table, never name its fields or views; changing data, never repeat the values.
+That diff is how they read what you did, so your words never describe it. After changes your whole reply is "Done." in their language, unless something they asked for was not done or one fact they must know is nowhere in the diff: then one short sentence on that alone. Never open with what you did ("I added", "I logged", "J'ai ajouté"), never name a row, value, field or view the diff shows, never list what you left empty.
 
 Read each request against the screen. "This", "here" and "these" mean the open table, view or selection. A word that could name a feature or data means the feature when the screen makes it one: on a grid, "add placeholders" asks for input hints, not rows, and Torsel's empty inputs already show each field's name as their hint. Never invent data: add sample rows only when asked for examples or sample data, and leave a value you were not given empty. When Torsel has nothing for what they ask, say so in one sentence and offer the closest thing.
 
@@ -126,6 +126,12 @@ function tableNote(ws: Workspace, context: ThreadContext): string[] | null {
 			screen += `, hiding ${hidden.map(name).join(', ')}`;
 	}
 	lines.push(`${screen}.`);
+	if (view !== undefined && view.table === table.id && view.type !== 'grid') {
+		const { config } = describeView(ws, view);
+		if (Object.keys(config).length > 0) {
+			lines.push(`The ${view.type} view is set to ${JSON.stringify(config)}.`);
+		}
+	}
 	lines.push(`Fields: ${fields.map((field) => fieldLine(ws, field)).join('; ') || 'none yet'}.`);
 	lines.push(
 		`Views: ${ws
@@ -182,6 +188,12 @@ export function contextNote(
 	stopped: boolean
 ): string {
 	const lines = [`Today: ${context.today ?? todayIso()}.`];
+	const { shows } = context;
+	if (shows !== undefined) {
+		lines.push(
+			`Their screen (${shows.locale}) writes today as "${shows.today}", a date of another year as "${shows.past}" and a number as "${shows.number}": write dates and numbers so in your reply. Tool inputs stay YYYY-MM-DD dates and plain numbers.`
+		);
+	}
 
 	const table = context.screen === 'table' ? tableNote(ws, context) : null;
 	if (table !== null) {
@@ -205,7 +217,7 @@ export function contextNote(
 	}
 	// Their data is often in another language than their words, and the model follows the data.
 	lines.push(
-		'Answer in the language of the message below, whatever the language of the data above.'
+		'Answer in the language of the message below, whatever the language of the data above. After changes, the diff speaks: reply "Done." unless it cannot show something.'
 	);
 
 	return lines.join('\n');

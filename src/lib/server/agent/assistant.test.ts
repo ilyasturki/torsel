@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	createBase,
 	createTable,
+	createView,
 	defaultViews,
 	insertRows,
 	updateRecord
@@ -92,6 +93,41 @@ describe('contextNote', () => {
 		expect(home).toContain(`"Movies" (${table.id}, 2 rows)`);
 		expect(contextNote(ws, at({ screen: 'settings' }), [], false)).toContain(
 			'Screen: the settings page'
+		);
+	});
+
+	it("gives a chart's settings by field name, and how the screen writes dates and numbers", () => {
+		const { ws, base, table } = movies();
+		const hlc = new Hlc('c');
+		const made = createView(ws, table.id, {
+			name: 'Per month',
+			type: 'chart',
+			config: {
+				kind: 'bar',
+				x: table.fieldIds[0],
+				agg: 'avg',
+				y: table.fieldIds[2],
+				bucket: 'month'
+			}
+		});
+		for (const change of made.changes) ws.stamp(change, hlc.tick());
+		const note = contextNote(
+			ws,
+			at({
+				screen: 'table',
+				base: base.id,
+				table: table.id,
+				view: made.id,
+				shows: { locale: 'fr-FR', today: '2 nov.', past: '7 mai 2025', number: '1 234,5' }
+			}),
+			[],
+			false
+		);
+		expect(note).toContain(
+			'The chart view is set to {"x":"Title","y":"Rating","kind":"bar","bucket":"month","agg":"avg"}.'
+		);
+		expect(note).toContain(
+			'Their screen (fr-FR) writes today as "2 nov.", a date of another year as "7 mai 2025" and a number as "1 234,5"'
 		);
 	});
 

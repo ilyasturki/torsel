@@ -47,7 +47,11 @@ export type ThreadContext = {
 	fields: string[];
 	// The person's own date, which the server's time zone can't tell.
 	today?: string;
+	// How their screen writes a date and a number, for the reply to write them alike.
+	shows?: Shows;
 };
+
+export type Shows = { locale: string; today: string; past: string; number: string };
 
 export type Attachment = { id: string; name: string; type: string; size: number };
 

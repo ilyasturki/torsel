@@ -251,6 +251,7 @@ test('the request says what is on screen, and the assistant can open what it mad
 	expect(note).toContain('Selected: 2 rows, in Exercise, Reps.');
 	expect(note).toContain(`- ${rows[0]}: {\\"Exercise\\":\\"Bench\\",\\"Reps\\":8}`);
 	expect(note).toMatch(/Today: \d{4}-\d{2}-\d{2}\./u);
+	expect(note).toContain('a number as \\"1,234.5\\"');
 	expect(requests[0].body.system).not.toContain(table);
 
 	await page.goto('/app/settings');

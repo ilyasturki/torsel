@@ -714,7 +714,7 @@ const VIEW_OUT = z.strictObject({
 	})
 });
 
-function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_OUT> {
+export function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_OUT> {
 	const { config } = view;
 	const name = (id: string): string => ws.field(id)?.name ?? id;
 	const out: z.infer<typeof VIEW_OUT>['config'] = {};
