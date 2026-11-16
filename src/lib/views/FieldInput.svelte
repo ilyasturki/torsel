@@ -15,6 +15,7 @@
 
 	import AmountInput from './AmountInput.svelte';
 	import ContactInput from './ContactInput.svelte';
+	import ImageInput from './ImageInput.svelte';
 
 	let {
 		field,
@@ -110,6 +111,8 @@
 		placeholder={field.name}
 		onchange={(picked) => (value = picked || null)}
 	/>
+{:else if field.type === 'image'}
+	<ImageInput {id} {field} bind:value />
 {:else if field.type === 'formula'}
 	<p class="flex h-control items-center px-2 text-ink-2">
 		{formatValue(field, computed ?? null)}

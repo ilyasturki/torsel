@@ -269,6 +269,7 @@
 	"src/lib/views/Grid.svelte\ttd[role=\"rowheader\"]",
 	"src/lib/views/Grid.svelte\tth[aria-colindex=\"{headCol + 2}\"]",
 	"src/lib/views/GridPicker.svelte\toption {option.id}",
+	"src/lib/views/ImageInput.svelte\tFiles",
 	"src/lib/views/ImportSheet.svelte\t[role=\"dialog\"]",
 	"src/lib/views/List.svelte\tminmax(0, 1fr)",
 	"src/lib/views/ViewTabs.svelte\t[aria-current=\"page\"]",

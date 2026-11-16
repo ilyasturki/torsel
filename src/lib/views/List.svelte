@@ -8,6 +8,7 @@
 	import type { FieldDef, Rec, Value, ViewDef } from '#lib/core/model.ts';
 	import { isDated, isNumeric } from '#lib/core/model.ts';
 	import { ratingScale } from '#lib/core/values.ts';
+	import { imagesOf } from '#lib/core/images.ts';
 	import { createdAt } from '#lib/core/workspace.ts';
 	import { table as tableWords } from '#lib/i18n/table.ts';
 	import { views as words } from '#lib/i18n/views.ts';
@@ -22,6 +23,8 @@
 	import { checkbox, focus } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
+	import ImageCell from './ImageCell.svelte';
+	import ImageThumb from './ImageThumb.svelte';
 	import RowSheet from './RowSheet.svelte';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
@@ -38,6 +41,23 @@
 		return app.ws.fields(tableId);
 	});
 
+	const { group, title, show, cover } = $derived(listLayout(fields, view.config));
+
+	// The middle shape of the covers, kept between a landscape 16:9 and a 2:3 poster: posters fill it, the rest sit inside.
+	const coverRatio = $derived.by(() => {
+		void app.version;
+		if (cover === undefined) return 1.5;
+		const ratios = app.ws
+			.rows(tableId)
+			.map((row) => imagesOf(row.data[cover.id])[0])
+			.filter((image) => image !== undefined)
+			.map((image) => image.h / image.w)
+			.sort((a, b) => a - b);
+		const middle = ratios[Math.floor(ratios.length / 2)] ?? 1.5;
+		return Math.min(1.5, Math.max(9 / 16, middle));
+	});
+
+	let viewing = $state<{ row: string; field: FieldDef } | null>(null);
 	const locked = $derived.by(() => {
 		void app.version;
 		return app.lockedFields(tableId);
@@ -46,8 +66,6 @@
 		void app.version;
 		return app.canAddRows(tableId);
 	});
-
-	const { group, title, show } = $derived(listLayout(fields, view.config));
 	const checks = $derived(show.filter((field) => field.type === 'check'));
 	const meta = $derived(show.filter((field) => field.type !== 'check'));
 
@@ -221,62 +239,152 @@
 	{/if}
 {/snippet}
 
-<div
-	class="pb-4 {wide.current ? 'grid gap-x-6' : 'flex min-h-full flex-col'}"
-	style={wide.current ? `grid-template-columns: ${columns}` : undefined}
->
-	{#each groups.entries as [key, rows], at (key)}
-		{#if group !== undefined || (at === 0 && wide.current && meta.length > 0)}
-			<svelte:element
-				this={group === undefined ? 'div' : 'h2'}
-				class="sticky top-0 z-10 flex h-row items-center gap-2 border-b border-rule bg-band px-4 text-sm font-medium text-ink-2 {wide.current
-					? 'col-span-full grid grid-cols-subgrid'
-					: ''}"
-			>
-				<span class="flex min-w-0 items-center gap-2" style="grid-column: span {lead}">
-					{#if group === undefined}
-						<span></span>
-					{:else if group.type === 'choice' && key !== ''}
+{#snippet card(row: Rec, coverField: FieldDef)}
+	{@const images = imagesOf(row.data[coverField.id])}
+	<div class="flex min-w-0 flex-col gap-1.5" data-fresh={fresh.has(row.id) || undefined}>
+		<button
+			type="button"
+			class="flex w-full overflow-hidden rounded-box bg-band {images.length > 0
+				? 'cursor-zoom-in'
+				: ''} {focus}"
+			style="aspect-ratio: 1 / {coverRatio}"
+			aria-label={images.length > 0 ? coverField.name : words.untitled}
+			onclick={() => {
+				if (images.length > 0) viewing = { row: row.id, field: coverField };
+				else open(row);
+			}}
+		>
+			{#if images.length > 0}
+				<ImageThumb base={coverField.base} image={images[0]} fill />
+			{/if}
+		</button>
+		<button
+			type="button"
+			class="min-w-0 truncate rounded-box text-left font-medium {focus}"
+			onclick={() => open(row)}
+		>
+			{#if title !== undefined && !blank(valueOf(row, title))}
+				<CellValue field={title} value={valueOf(row, title)} />
+			{:else}
+				<span class="font-normal text-ink-3">{words.untitled}</span>
+			{/if}
+		</button>
+		{#if meta.length > 0 || checks.length > 0}
+			<span class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
+				{#each checks as field (field.id)}
+					<input
+						type="checkbox"
+						class={checkbox}
+						aria-label={field.name}
+						checked={valueOf(row, field) === true}
+						disabled={locked.has(field.id)}
+						onchange={() => change(row, field, valueOf(row, field) !== true)}
+					/>
+				{/each}
+				{#each meta as field (field.id)}
+					{@render value(row, field)}
+				{/each}
+			</span>
+		{/if}
+	</div>
+{/snippet}
+
+{#if cover !== undefined}
+	<div class="flex min-h-full flex-col pb-4">
+		{#each groups.entries as [key, rows] (key)}
+			{#if group !== undefined}
+				<h2
+					class="sticky top-0 z-10 flex h-row items-center gap-2 border-b border-rule bg-band px-4 text-sm font-medium text-ink-2"
+				>
+					{#if group.type === 'choice' && key !== ''}
 						<Chip name={key} color={colorOf(group, key)} />
 					{:else}
 						{groupLabel(key)}
 					{/if}
-					{#if group !== undefined}<span class="text-ink-3 tabular-nums">{rows.length}</span>{/if}
-				</span>
-				{#if wide.current}
-					{#each meta as field (field.id)}
-						<span class="truncate text-ink-3 {isNumeric(field.type) ? 'text-right' : ''}"
-							>{field.name}</span
-						>
-					{/each}
-				{/if}
-			</svelte:element>
-		{/if}
-		{#each rows as row (row.id)}
+					<span class="text-ink-3 tabular-nums">{rows.length}</span>
+				</h2>
+			{/if}
 			<div
-				class="min-h-row items-center border-b border-rule px-4 py-1.5 transition-colors motion-slow {wide.current
-					? 'col-span-full grid grid-cols-subgrid'
-					: 'flex flex-wrap gap-x-4 gap-y-1'} {fresh.has(row.id) ? 'bg-tint-2' : 'hover:bg-tint'}"
-				data-fresh={fresh.has(row.id) || undefined}
+				class="grid grid-cols-cards gap-x-4 gap-y-5 p-4 max-sm:grid-cols-2 max-sm:gap-x-3 max-sm:p-3"
 			>
-				{@render row_(row)}
+				{#each rows as row (row.id)}
+					{@render card(row, cover)}
+				{/each}
 			</div>
-		{/each}
-	{:else}
-		<div class="col-span-full">
+		{:else}
 			<Empty text={words.noRows}>
 				{#if adds}
 					<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
 				{/if}
 			</Empty>
-		</div>
-	{/each}
+		{/each}
+		{#if groups.total > limit}
+			<div class="p-2">
+				<Button variant="ghost" onclick={() => (limit += PAGE)}>{words.showMore}</Button>
+			</div>
+		{/if}
+	</div>
+{:else}
+	<div
+		class="pb-4 {wide.current ? 'grid gap-x-6' : 'flex min-h-full flex-col'}"
+		style={wide.current ? `grid-template-columns: ${columns}` : undefined}
+	>
+		{#each groups.entries as [key, rows], at (key)}
+			{#if group !== undefined || (at === 0 && wide.current && meta.length > 0)}
+				<svelte:element
+					this={group === undefined ? 'div' : 'h2'}
+					class="sticky top-0 z-10 flex h-row items-center gap-2 border-b border-rule bg-band px-4 text-sm font-medium text-ink-2 {wide.current
+						? 'col-span-full grid grid-cols-subgrid'
+						: ''}"
+				>
+					<span class="flex min-w-0 items-center gap-2" style="grid-column: span {lead}">
+						{#if group === undefined}
+							<span></span>
+						{:else if group.type === 'choice' && key !== ''}
+							<Chip name={key} color={colorOf(group, key)} />
+						{:else}
+							{groupLabel(key)}
+						{/if}
+						{#if group !== undefined}<span class="text-ink-3 tabular-nums">{rows.length}</span>{/if}
+					</span>
+					{#if wide.current}
+						{#each meta as field (field.id)}
+							<span class="truncate text-ink-3 {isNumeric(field.type) ? 'text-right' : ''}"
+								>{field.name}</span
+							>
+						{/each}
+					{/if}
+				</svelte:element>
+			{/if}
+			{#each rows as row (row.id)}
+				<div
+					class="min-h-row items-center border-b border-rule px-4 py-1.5 transition-colors motion-slow {wide.current
+						? 'col-span-full grid grid-cols-subgrid'
+						: 'flex flex-wrap gap-x-4 gap-y-1'} {fresh.has(row.id) ? 'bg-tint-2' : 'hover:bg-tint'}"
+					data-fresh={fresh.has(row.id) || undefined}
+				>
+					{@render row_(row)}
+				</div>
+			{/each}
+		{:else}
+			<div class="col-span-full">
+				<Empty text={words.noRows}>
+					{#if adds}
+						<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
+					{/if}
+				</Empty>
+			</div>
+		{/each}
 
-	{#if groups.total > limit}
-		<div class="col-span-full p-2">
-			<Button variant="ghost" onclick={() => (limit += PAGE)}>{words.showMore}</Button>
-		</div>
-	{/if}
-</div>
+		{#if groups.total > limit}
+			<div class="col-span-full p-2">
+				<Button variant="ghost" onclick={() => (limit += PAGE)}>{words.showMore}</Button>
+			</div>
+		{/if}
+	</div>
+{/if}
 
+{#if viewing !== null}
+	<ImageCell {...viewing} edit={false} onclose={() => (viewing = null)} />
+{/if}
 <RowSheet bind:open={rowOpen} {tableId} {rowId} {order} />

@@ -33,7 +33,7 @@
 		order?: string[];
 	} = $props();
 
-	const PICKED = new Set(['check', 'choice', 'choices', 'link', 'rating']);
+	const PICKED = new Set(['check', 'choice', 'choices', 'link', 'rating', 'image']);
 
 	let current = $state<string | null>(null);
 	let values = $state<Record<string, Value>>({});

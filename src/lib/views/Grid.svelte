@@ -15,6 +15,7 @@
 		otherCurrency
 	} from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
+	import { addImages } from '#lib/client/images.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
@@ -37,6 +38,7 @@
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
+	import { imagesOf, imagesValue } from '#lib/core/images.ts';
 	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import {
@@ -48,6 +50,7 @@
 		todayIso
 	} from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
+	import { images as imageWords } from '#lib/i18n/images.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import { names } from '#lib/i18n/names.ts';
 	import { common } from '#lib/i18n/common.ts';
@@ -66,6 +69,7 @@
 	import type { Box } from './fill.ts';
 	import { fillChanges, fillTarget } from './fill.ts';
 	import FormulaEditor from './FormulaEditor.svelte';
+	import ImageCell from './ImageCell.svelte';
 	import {
 		cellReader,
 		cellText,
@@ -139,6 +143,7 @@
 	let renaming = $state<string | null>(null);
 	let renameDraft = $state('');
 	let formulaEdit = $state.raw<{ field: string; anchor: HTMLElement; typed: string } | null>(null);
+	let imageCell = $state.raw<{ row: string; field: FieldDef; edit: boolean } | null>(null);
 	let inserting = $state(false);
 	let insertAt = $state.raw<{ anchor: HTMLElement; at: number } | null>(null);
 	let rowMenuOpen = $state(false);
@@ -644,6 +649,10 @@
 		if (field === undefined) return;
 		const row = rows[headRow] as Rec | undefined;
 		const key = row?.id ?? BLANK;
+		if (field.type === 'image') {
+			if (row !== undefined) imageCell = { row: row.id, field, edit: true };
+			return;
+		}
 		if (field.type === 'formula') {
 			const cell = document.getElementById(cellId(headRow, headCol));
 			if (cell !== null) formulaEdit = { field: field.id, anchor: cell, typed: typed ?? '' };
@@ -800,6 +809,12 @@
 			if (text === null) return;
 			event.preventDefault();
 			beginEdit(text);
+		} else if (event.key === ' ' && fields[headCol]?.type === 'image') {
+			event.preventDefault();
+			const row = rows[headRow] as Rec | undefined;
+			if (row !== undefined && imagesOf(row.data[fields[headCol].id]).length > 0) {
+				imageCell = { row: row.id, field: fields[headCol], edit: false };
+			}
 		} else if (event.key === ' ' && fields[headCol]?.type === 'check') {
 			event.preventDefault();
 			beginEdit();
@@ -807,7 +822,9 @@
 			beginEdit('');
 		} else if (event.key.length === 1 && !command && !event.altKey) {
 			event.preventDefault();
-			if (fields[headCol]?.type !== 'check') beginEdit(event.key);
+			if (fields[headCol]?.type !== 'check' && fields[headCol]?.type !== 'image') {
+				beginEdit(event.key);
+			}
 		}
 	}
 
@@ -1099,9 +1116,28 @@
 		showToast(cleared > 0 ? words.cut(cleared) : words.copied(count), undo);
 	}
 
+	async function pasteImages(row: Rec, field: FieldDef, files: File[]): Promise<void> {
+		const added = await addImages(field.base, files);
+		if (added.length === 0) return;
+		const kept = imagesOf(app.ws.live(row.id)?.data[field.id]);
+		const label = imageWords.added(added.length);
+		const group = app.apply(
+			updateRow(app.ws, row.id, { [field.id]: imagesValue([...kept, ...added]) }),
+			label
+		);
+		showToast(label, group?.id ?? null);
+	}
+
 	function oncatcherpaste(event: ClipboardEvent): void {
 		backToGrid();
 		if (head === null || fields.length === 0) return;
+		const files = [...(event.clipboardData?.files ?? [])];
+		const target = rows[headRow] as Rec | undefined;
+		if (files.length > 0 && fields[headCol]?.type === 'image' && target !== undefined) {
+			event.preventDefault();
+			void pasteImages(target, fields[headCol], files);
+			return;
+		}
 		const text = event.clipboardData?.getData('text/plain') ?? '';
 		if (text === '') return;
 		event.preventDefault();
@@ -2195,6 +2231,15 @@
 			}}
 		/>
 	{/if}
+{/if}
+{#if imageCell !== null}
+	<ImageCell
+		{...imageCell}
+		onclose={() => {
+			imageCell = null;
+			table?.focus({ preventScroll: true });
+		}}
+	/>
 {/if}
 <RowSheet bind:open={rowOpen} {tableId} {rowId} order={rows.map((row) => row.id)} />
 <FieldSheet
