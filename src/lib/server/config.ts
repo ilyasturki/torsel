@@ -87,6 +87,14 @@ export function storageLimit(): number {
 	return envCount('TORSEL_STORAGE_MB', 1024) * 1024 * 1024;
 }
 
+/** Rows one source fills a table with, and sources one account keeps; 0 lifts either cap. */
+export function sourceLimits(): { rows: number; sources: number } {
+	return {
+		rows: envCount('TORSEL_SOURCE_ROWS', 5000) || Number.POSITIVE_INFINITY,
+		sources: envCount('TORSEL_SOURCES', 20) || Number.POSITIVE_INFINITY
+	};
+}
+
 export function brevoKey(): string | undefined {
 	const key = envText('BREVO_API_KEY', '');
 	return key === '' ? undefined : key;

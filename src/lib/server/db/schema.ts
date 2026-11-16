@@ -295,3 +295,40 @@ export const blobUploads = sqliteTable(
 	},
 	(table) => [primaryKey({ columns: [table.userId, table.baseId, table.id] })]
 );
+
+// A table that fills itself from a link; the field each path lands in is the field record's `path`.
+export const sources = sqliteTable(
+	'sources',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		tableId: text('table_id').notNull(),
+		baseId: text('base_id').notNull(),
+		// Never holds a key: a query key lives in `secret` and is put back just before sending.
+		url: text('url').notNull(),
+		auth: text('auth', { enum: ['none', 'header', 'query', 'bearer', 'basic'] })
+			.notNull()
+			.default('none'),
+		authName: text('auth_name'),
+		secret: text('secret'),
+		hint: text('hint'),
+		rows: text('rows'),
+		key: text('key'),
+		filter: text('filter'),
+		every: text('every', { enum: ['manual', 'hour', 'day'] }).notNull(),
+		missing: text('missing', { enum: ['remove', 'keep'] }).notNull(),
+		nextAt: integer('next_at', { mode: 'timestamp_ms' }),
+		lastAt: integer('last_at', { mode: 'timestamp_ms' }),
+		lastOkAt: integer('last_ok_at', { mode: 'timestamp_ms' }),
+		failures: integer('failures').notNull().default(0),
+		problem: text('problem'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.tableId] }),
+		index('sources_next_idx').on(table.nextAt)
+	]
+);
+
+export type Source = typeof sources.$inferSelect;
