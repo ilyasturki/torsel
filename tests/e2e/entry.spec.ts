@@ -270,7 +270,12 @@ test('on a short screen the plan keeps its height and the page scrolls to the fo
 	await expect(lines.first()).toBeVisible();
 	const box = await plan(page).boundingBox();
 	expect(box?.height ?? 0).toBeGreaterThanOrEqual(150);
-	const add = page.getByRole('button', { name: 'Add row' });
-	await add.scrollIntoViewIfNeeded();
-	await expect(add).toBeInViewport();
+	const main = page.getByRole('main');
+	expect(await main.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+	const date = page.getByLabel('Date', { exact: true });
+	await expect(date).not.toBeInViewport();
+	await date.scrollIntoViewIfNeeded();
+	await expect(date).toBeInViewport({ ratio: 1 });
+	await date.click({ trial: true });
+	await expect(page.getByRole('button', { name: 'Add row' })).toBeInViewport({ ratio: 1 });
 });
