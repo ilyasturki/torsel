@@ -30,9 +30,13 @@ export function tick(db: Database, now: Date = new Date()): Promise<void>[] {
 				await runSource(db, source.userId, source.tableId);
 			} catch (error) {
 				console.error('source run failed:', error);
-				updateSource(db, source.userId, source.tableId, {
-					nextAt: new Date(Date.now() + 60 * TICK_MS)
-				});
+				try {
+					updateSource(db, source.userId, source.tableId, {
+						nextAt: new Date(Date.now() + 60 * TICK_MS)
+					});
+				} catch (stuck) {
+					console.error('source reschedule failed:', stuck);
+				}
 			} finally {
 				running.delete(id);
 			}
