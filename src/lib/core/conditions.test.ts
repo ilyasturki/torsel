@@ -195,6 +195,18 @@ describe('colour rules', () => {
 		expect(movies.map((row) => paint(row).color)).toEqual(['amber', 'red', null]);
 	});
 
+	it('skips a rule still being set up', () => {
+		const paint = colorTest(
+			fields,
+			[{ when: { field: 'rating', op: 'gte' }, color: 'red' }],
+			cells,
+			read,
+			() => new Map(),
+			movies
+		);
+		expect(movies.map((row) => paint(row).color)).toEqual([null, null, null]);
+	});
+
 	it('scales a field over the shown rows', () => {
 		const paint = colorTest(
 			fields,

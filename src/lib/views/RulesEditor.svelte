@@ -19,6 +19,7 @@
 	function save(patch: ViewConfig, label: string): void {
 		if (view === undefined) return;
 		const config = JSON.parse(JSON.stringify({ ...view.config, ...patch })) as Value;
+		if (JSON.stringify(config) === JSON.stringify(view.config)) return;
 		applyWithUndo(updateRecord(app.ws, view.id, { config }), label);
 	}
 </script>

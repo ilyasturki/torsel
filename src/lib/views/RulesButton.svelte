@@ -44,6 +44,7 @@
 			sideOffset={4}
 			collisionPadding={8}
 			bind:ref={panel}
+			role="dialog"
 			aria-label={label}
 			tabindex={-1}
 			onOpenAutoFocus={(event) => {

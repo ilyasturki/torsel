@@ -206,7 +206,8 @@ test('a column totals the shown rows from its menu, and the totals row takes it 
 		await page.getByRole('menuitem', { name: 'Sum' }).click();
 	}
 	const total = grid.locator('[data-total="Kg"]');
-	await expect(total).toHaveText(/Sum\s*265/u);
+	await expect(total).toHaveText(/265/u);
+	await expect(total).toHaveAttribute('title', 'Sum of Kg');
 
 	await grid
 		.getByRole('columnheader', { name: 'Exercise', exact: true })
@@ -214,7 +215,7 @@ test('a column totals the shown rows from its menu, and the totals row takes it 
 		.click();
 	await page.getByRole('textbox', { name: 'Filter Exercise' }).fill('bench');
 	await page.keyboard.press('Enter');
-	await expect(total).toHaveText(/Sum\s*165/u);
+	await expect(total).toHaveText(/165/u);
 
 	await total.click();
 	await page.getByRole('menuitem', { name: 'None' }).click();
@@ -250,7 +251,7 @@ test('the last row stays above the totals row when the keyboard reaches it', asy
 	});
 	await page.goto(tablePath(table));
 	const grid = page.getByRole('grid');
-	await expect(grid.locator('[data-total="Reps"]')).toContainText('1,830');
+	await expect(grid.locator('[data-total="Reps"]')).toContainText('1830');
 
 	await grid.locator('td[data-r="0"][data-c="0"]').click();
 	await page.keyboard.press('ControlOrMeta+End');
@@ -343,7 +344,9 @@ test.describe('in French', () => {
 				'Exercise contient «\u00a0ench\u00a0», Kg supérieur ou égal à 80\u00a0: 2 sur 4'
 			)
 		).toBeVisible();
-		await expect(page.getByRole('grid').locator('[data-total="Kg"]')).toHaveText(/Moyenne\s*82,5/u);
+		const total = page.getByRole('grid').locator('[data-total="Kg"]');
+		await expect(total).toHaveText(/82,5/u);
+		await expect(total).toHaveAttribute('title', 'Moyenne de Kg');
 
 		const editor = await openRules(page, 'Couleurs', 'Plus');
 		await editor.getByRole('button', { name: 'Ajouter une règle' }).click();

@@ -303,7 +303,6 @@ export function truthy(value: unknown): boolean {
 
 export type Cells = (row: Rec, field: FieldDef) => unknown;
 
-/** A test for one row against every condition; a condition on a field that is gone, or a bare formula, is left out. */
 export function conditionTest(
 	fields: Map<string, FieldDef>,
 	conditions: readonly Condition[],
@@ -312,17 +311,24 @@ export function conditionTest(
 	hits: FormulaHits
 ): (row: Rec, at?: number) => boolean {
 	const tests = conditions.flatMap((condition): ((row: Rec) => boolean)[] => {
+		if (!complete(fields, condition)) return [];
 		if (condition.op === 'formula') {
-			if (typeof condition.value !== 'string' || condition.value.trim() === '') return [];
-			const values = hits(condition.value);
+			const values = hits(String(condition.value));
 			return [(row) => truthy(values.get(row.id))];
 		}
-		const field = condition.field === null ? undefined : fields.get(condition.field);
-		if (field === undefined) return [];
-		if (arity(condition.op) !== 'none' && isBlank(condition.value)) return [];
+		const field = fields.get(condition.field ?? '') as FieldDef;
 		return [(row) => meets(field, cells(row, field), condition, read)];
 	});
 	return (row) => tests.every((test) => test(row));
+}
+
+/** A condition being set up, or on a field that is gone, tests nothing. */
+export function complete(fields: Map<string, FieldDef>, condition: Condition): boolean {
+	if (condition.op === 'formula') {
+		return typeof condition.value === 'string' && condition.value.trim() !== '';
+	}
+	if (condition.field === null || !fields.has(condition.field)) return false;
+	return arity(condition.op) === 'none' || !isBlank(condition.value);
 }
 
 export function reading(text: Reading['text']): Reading {
@@ -363,10 +369,9 @@ export function colorTest(
 	const scales: { field: FieldDef; color: string; low: number; high: number }[] = [];
 	for (const rule of rules) {
 		if ('when' in rule) {
+			if (!complete(fields, rule.when)) continue;
 			const test = conditionTest(fields, [rule.when], cells, read, hits);
-			const field = rule.when.field;
-			const valid = rule.when.op === 'formula' || (field !== null && fields.has(field));
-			if (valid) matches.push((row) => (test(row) ? rule.color : null));
+			matches.push((row) => (test(row) ? rule.color : null));
 		} else if ('choices' in rule) {
 			const field = fields.get(rule.choices);
 			if (field === undefined) continue;
