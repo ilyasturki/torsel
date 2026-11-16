@@ -7,6 +7,7 @@ import {
 	fillInputs,
 	fillOf,
 	fillValue,
+	newRows,
 	promptFields,
 	promptToDisplay,
 	promptToStored,
@@ -53,7 +54,7 @@ function movies() {
 	apply(rows.changes);
 	const prompt = `IMDb rating of {{${title}}} ({{${year}}})`;
 	apply(updateRecord(ws, imdb, { fill: { prompt, web: true, auto: false, since: 0 } }));
-	return { ws, table: table.id, title, year, imdb, genre, rows: rows.ids, prompt };
+	return { ws, hlc, table: table.id, title, year, imdb, genre, rows: rows.ids, prompt };
 }
 
 describe('fill prompts', () => {
@@ -108,5 +109,25 @@ describe('fill rows', () => {
 		expect(fillValue({ ...field, type: 'date' }, '2024-03-01')).toBe('2024-03-01');
 		expect(fillValue({ ...field, type: 'check' }, 'true')).toBe(true);
 		expect(fillValue(field, 'eight')).toBeUndefined();
+	});
+
+	it('fills a new row once: an undone fill stays empty after a reload, a newer row still fills', () => {
+		const { ws, hlc, table, title, year, imdb, rows } = movies();
+		const field = ws.field(imdb) as FieldDef;
+		const spec = { ...field.fill!, auto: true };
+		const auto = (on: Workspace): string[] =>
+			waitingRows(on, field, spec, newRows(field, spec, on.rows(table))).map((row) => row.id);
+		expect(auto(ws)).toEqual([rows[0]]);
+
+		const [filled] = fillChanges(ws, field, [{ row: rows[0], value: '8.5' }]);
+		const { inverse } = ws.stamp(filled, hlc.tick());
+		ws.stamp(inverse, hlc.tick());
+		expect(ws.live(rows[0])?.data[imdb]).toBeNull();
+
+		const reloaded = new Workspace();
+		for (const rec of ws.records.values()) reloaded.put(structuredClone(rec));
+		const later = insertRows(reloaded, table, [{ [title]: 'Heat', [year]: 1995, [imdb]: null }]);
+		for (const change of later.changes) reloaded.stamp(change, hlc.tick());
+		expect(auto(reloaded)).toEqual(later.ids);
 	});
 });

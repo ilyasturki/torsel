@@ -1,3 +1,4 @@
+import { CREATED } from './model.ts';
 import type { Change, FieldDef, FieldType, FillSpec, Rec, Value } from './model.ts';
 import { CHOICES_JOIN, coerce, currencyOf, ratingScale } from './values.ts';
 import type { Workspace } from './workspace.ts';
@@ -93,6 +94,18 @@ export function waitingRows(ws: Workspace, field: FieldDef, spec: FillSpec, rows
 	return rows.filter(
 		(row) => empty(row.data[field.id]) && needs.every((id) => !empty(row.data[id]))
 	);
+}
+
+/** Rows made since the fill turned on whose cell nobody wrote after creating it: a fill undone or a cell emptied stays empty. */
+export function newRows(field: FieldDef, spec: FillSpec, rows: Rec[]): Rec[] {
+	return rows.filter((row) => {
+		const at = row.data[CREATED];
+		const written = row.clocks[field.id];
+		return (
+			(typeof at === 'number' ? at : 0) >= spec.since &&
+			(written === undefined || written === row.clocks[CREATED])
+		);
+	});
 }
 
 export function typeText(field: FieldDef): string {

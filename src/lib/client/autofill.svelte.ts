@@ -5,12 +5,12 @@ import {
 	canFill,
 	fillChanges,
 	fillInputs,
+	newRows,
 	promptToDisplay,
 	typeText,
 	waitingRows
 } from '../core/autofill.ts';
 import type { Change, FieldDef, FillSpec, Rec } from '../core/model.ts';
-import { createdAt } from '../core/workspace.ts';
 import { assistant as words } from '../i18n/assistant.ts';
 import { ApiError, request } from './api.ts';
 import { app } from './app.svelte.ts';
@@ -82,12 +82,7 @@ async function fillNewRows(): Promise<void> {
 		for (const field of app.ws.fields(table.id)) {
 			const spec = field.fill;
 			if (spec === null || !spec.auto || !canFill(field.type) || filling.has(field.id)) continue;
-			const rows = waitingRows(
-				app.ws,
-				field,
-				spec,
-				app.ws.rows(table.id).filter((row) => createdAt(row) >= spec.since)
-			)
+			const rows = waitingRows(app.ws, field, spec, newRows(field, spec, app.ws.rows(table.id)))
 				.filter((row) => !asked.has(`${field.id}:${row.id}`))
 				.slice(0, FILL_BATCH);
 			if (rows.length === 0) continue;
