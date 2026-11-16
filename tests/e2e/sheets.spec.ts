@@ -136,6 +136,7 @@ test.describe('grid keys', () => {
 
 		await keys.press('Escape');
 		for (let step = 0; step < 3; step += 1) await keys.press('ArrowUp');
+		await keys.press('ArrowRight');
 		await keys.press('Shift+ArrowDown');
 		await keys.type('50');
 		await keys.press('Control+Enter');
@@ -247,6 +248,21 @@ test.describe('find and replace', () => {
 		await undo(page);
 		await expect(cell(page, 'heavy bar 145')).toBeVisible();
 	});
+
+	test('opens with Ctrl+F after a menu has closed, not the browser find', async ({
+		page,
+		context,
+		account
+	}) => {
+		test.skip(test.info().project.name === 'phone', 'a phone has no Ctrl+F');
+		void account;
+		await page.goto(await seedLong(context.request));
+		await columnMenu(page, 'Kg', 'Sort descending');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		await page.keyboard.press('Control+f');
+		await expect(page.getByRole('textbox', { name: 'Find' })).toBeFocused();
+		await expect(page.getByRole('textbox', { name: 'Replace with' })).toHaveCount(0);
+	});
 });
 
 test.describe('duplicate and unhide', () => {
@@ -281,12 +297,14 @@ test.describe('duplicate and unhide', () => {
 		}
 		await expect(page.getByRole('columnheader', { name: 'Kg', exact: true })).toBeVisible();
 
-		await page.getByRole('link', { name: 'Grid', exact: true }).click({ button: 'right' });
-		await page.getByRole('menuitem', { name: 'Duplicate view' }).click();
-		await expect(page.getByRole('link', { name: 'Grid copy' })).toHaveAttribute(
-			'aria-current',
-			'page'
-		);
+		if (!onPhone) {
+			await page.getByRole('link', { name: 'Grid', exact: true }).click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Duplicate view' }).click();
+			await expect(page.getByRole('link', { name: 'Grid copy' })).toHaveAttribute(
+				'aria-current',
+				'page'
+			);
+		}
 
 		await tableMenu(page, 'Duplicate table');
 		await expect(page).toHaveTitle(/Lifts copy/u);
@@ -331,6 +349,23 @@ function workbook(sheet: string): Buffer {
 	end.writeUInt32LE(offset, 16);
 	return Buffer.concat([...parts, directory, end]);
 }
+
+test.describe('formula guard', () => {
+	test('refuses a column total as a row formula', async ({ page, context, account }) => {
+		void account;
+		const lifts = await seedLifts(context.request);
+		await page.goto(lifts.path);
+		await columnMenu(page, 'ƒ Pounds', 'Field settings');
+		const sheet = page.getByRole('dialog', { name: 'Field', exact: true });
+		await sheet.getByRole('textbox', { name: 'Formula' }).fill('SUM("Kg")');
+		await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(sheet.getByRole('alert')).toHaveText("a column total isn't a row formula");
+		await sheet.getByRole('textbox', { name: 'Formula' }).fill('SUM("Kg") OVER ()');
+		await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(sheet).toHaveCount(0);
+		await expect(cell(page, '340')).toHaveCount(4);
+	});
+});
 
 test.describe('excel import', () => {
 	test('imports an .xlsx by hand into a new table', async ({ page, account }) => {
@@ -397,7 +432,7 @@ for (const { locale, fields: words, grid: gridWords, saveWord, day, pounds } of 
 			await save.click();
 			await expect(cell(page, day)).toBeVisible();
 
-			await columnMenu(page, 'Pounds', gridWords.fieldSettings);
+			await columnMenu(page, 'ƒ Pounds', gridWords.fieldSettings);
 			await pick(sheet.getByRole('combobox', { name: words.shownAs }), words.types.number);
 			await pick(sheet.getByRole('combobox', { name: words.decimals }), '1');
 			await save.click();
