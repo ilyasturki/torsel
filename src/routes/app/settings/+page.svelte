@@ -93,7 +93,7 @@
 			await setPassword(newPassword);
 			newPassword = '';
 			if (me.account) me.account.hasPassword = true;
-			await refreshTokens();
+			await Promise.all([refreshTokens(), refreshApps()]);
 			showToast(words.passwordSaved);
 		} catch (error) {
 			passwordProblem = error instanceof ApiError ? error.message : words.passwordFailed;
