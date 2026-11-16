@@ -127,7 +127,9 @@ function alreadyApplied(action: ThreadAction): boolean {
 		return (
 			rec !== undefined &&
 			Object.entries(change.set).every(
-				([key, value]) => JSON.stringify(rec.data[key] ?? null) === JSON.stringify(value)
+				([key, value]) =>
+					!app.canWrite(change, [key]) ||
+					JSON.stringify(rec.data[key] ?? null) === JSON.stringify(value)
 			)
 		);
 	});
