@@ -151,6 +151,16 @@ in
       '';
     };
 
+    storageMB = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 1024;
+      description = ''
+        Megabytes of images one account can keep, uploads under way included;
+        zero lifts the cap. A full account's next image is refused and stays
+        on the device that took it.
+      '';
+    };
+
     environmentFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
@@ -189,6 +199,7 @@ in
         DATABASE_PATH = cfg.databasePath;
         TORSEL_AI_DAILY_LIMIT = toString cfg.aiDailyLimit;
         TORSEL_AI_INSTANCE_DAILY_LIMIT = toString cfg.aiInstanceDailyLimit;
+        TORSEL_STORAGE_MB = toString cfg.storageMB;
       }
       // lib.optionalAttrs (cfg.aiUnlimited != [ ]) {
         TORSEL_AI_UNLIMITED = lib.concatStringsSep "," cfg.aiUnlimited;

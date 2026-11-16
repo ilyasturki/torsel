@@ -260,3 +260,38 @@ export const aiPrompts = sqliteTable(
 		index('ai_prompts_at_idx').on(table.at)
 	]
 );
+
+// Kept under the base that holds them; base ids repeat across accounts (`b_home`), so the account keys them too.
+export const blobs = sqliteTable(
+	'blobs',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		baseId: text('base_id').notNull(),
+		id: text('id').notNull(),
+		type: text('type').notNull(),
+		size: integer('size').notNull(),
+		w: integer('w').notNull(),
+		h: integer('h').notNull(),
+		data: blob('data', { mode: 'buffer' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.baseId, table.id] })]
+);
+
+// `size` is what the image will weigh, held against the account's storage from its first part.
+export const blobUploads = sqliteTable(
+	'blob_uploads',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		baseId: text('base_id').notNull(),
+		id: text('id').notNull(),
+		size: integer('size').notNull(),
+		data: blob('data', { mode: 'buffer' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.baseId, table.id] })]
+);

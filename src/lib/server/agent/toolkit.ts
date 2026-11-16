@@ -599,6 +599,8 @@ function expected(field: FieldDef): string {
 			return 'an email address';
 		case 'phone':
 			return 'a phone number';
+		case 'image':
+			return 'images, which only the person adds, from the app';
 		case 'text':
 		case 'longtext':
 		case 'formula':

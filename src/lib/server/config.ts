@@ -82,6 +82,11 @@ export function apiCallsPerMinute(): number {
 	return envCount('TORSEL_API_CALLS_PER_MINUTE', 300);
 }
 
+/** Bytes of images one account may keep, 0 for no cap. */
+export function storageLimit(): number {
+	return envCount('TORSEL_STORAGE_MB', 1024) * 1024 * 1024;
+}
+
 export function brevoKey(): string | undefined {
 	const key = envText('BREVO_API_KEY', '');
 	return key === '' ? undefined : key;
