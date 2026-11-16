@@ -13,7 +13,12 @@ async function connect(mode: Mode, access: McpCaller['access'] = 'write'): Promi
 	const db = createDatabase(':memory:');
 	runMigrations(db);
 	const user = await createUser(db, 'me@example.com', 'correct horse');
-	const caller: McpCaller = { userId: user.id, tokenId: crypto.randomUUID(), label: 'Client', access };
+	const caller: McpCaller = {
+		userId: user.id,
+		tokenId: crypto.randomUUID(),
+		label: 'Client',
+		access
+	};
 
 	const client = new Client(
 		{ name: 'protocol-test', version: '1.0.0' },
@@ -154,7 +159,8 @@ it('marks each tool for what it does to the data', async () => {
 		delete: [false, true, true, false],
 		rename: [false, true, true, false],
 		duplicate: [false, false, false, false],
-		update_view: [false, true, true, false]
+		update_view: [false, true, true, false],
+		move: [false, false, true, false]
 	});
 	for (const tool of tools) {
 		expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);

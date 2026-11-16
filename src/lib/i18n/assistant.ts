@@ -33,7 +33,10 @@ const en = {
 		delete: 'Deleting…',
 		import_file: 'Importing the file…',
 		open: 'Opening…',
-		export: 'Preparing the backup…'
+		export: 'Preparing the backup…',
+		export_table: 'Exporting the table…',
+		move: 'Moving…',
+		duplicate: 'Duplicating…'
 	} as Record<string, string>,
 	editingLast: 'Editing your last message',
 	attachedFiles: 'Attached files',
@@ -111,7 +114,9 @@ const en = {
 	renameBase: (before: string, after: string) => `Rename base "${before}" to "${after}"`,
 	renameTable: (before: string, after: string) => `Rename table "${before}" to "${after}"`,
 	renameView: (before: string, after: string) => `Rename view "${before}" to "${after}"`,
-	restore: (name: string) => `Restore ${name}`
+	restore: (name: string) => `Restore ${name}`,
+	moveField: (name: string, table: string) => `Move field "${name}" in ${table}`,
+	moveView: (name: string, table: string) => `Move view "${name}" on ${table}`
 };
 
 const q = (text: string): string => `« ${text} »`;
@@ -147,7 +152,10 @@ const fr: typeof en = {
 		delete: 'Suppression…',
 		import_file: 'Import du fichier…',
 		open: 'Ouverture…',
-		export: 'Préparation de la sauvegarde…'
+		export: 'Préparation de la sauvegarde…',
+		export_table: 'Export de la table…',
+		move: 'Déplacement…',
+		duplicate: 'Duplication…'
 	},
 	editingLast: 'Tu modifies ton dernier message',
 	attachedFiles: 'Fichiers joints',
@@ -245,7 +253,9 @@ const fr: typeof en = {
 	renameBase: (before, after) => `Base ${q(before)} renommée en ${q(after)}`,
 	renameTable: (before, after) => `Table ${q(before)} renommée en ${q(after)}`,
 	renameView: (before, after) => `Vue ${q(before)} renommée en ${q(after)}`,
-	restore: (name) => `Restauration de ${name}`
+	restore: (name) => `Restauration de ${name}`,
+	moveField: (name, table) => `Champ ${q(name)} déplacé dans ${table}`,
+	moveView: (name, table) => `Vue ${q(name)} déplacée sur ${table}`
 };
 
 export default { en, fr };

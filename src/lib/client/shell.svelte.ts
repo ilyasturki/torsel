@@ -2,11 +2,13 @@ import { goto } from '$app/navigation';
 
 import { blankTable } from '../core/actions.ts';
 import { exportOf } from '../core/backup.ts';
+import { toCsv } from '../core/csv.ts';
 import { names } from '../i18n/names.ts';
 import { shell as words } from '../i18n/shell.ts';
 import { app } from './app.svelte.ts';
 import { tableUrl } from './nav.ts';
 import { applyWithUndo } from './toast.svelte.ts';
+import { viewCells } from '../views/grid.ts';
 
 export type ImportStart = { file?: File; text?: string; into: string | null };
 
@@ -56,6 +58,19 @@ export function download(name: string, content: string, type: string): void {
 	link.download = name;
 	link.click();
 	URL.revokeObjectURL(url);
+}
+
+/** A table as its grid view shows it, the first grid when no view is given. */
+export function downloadCsv(tableId: string, viewId: string | null): void {
+	const table = app.ws.table(tableId);
+	const views = app.ws.views(tableId);
+	const view =
+		views.find((candidate) => candidate.id === viewId) ??
+		views.find((candidate) => candidate.type === 'grid');
+	if (table === undefined || view === undefined) return;
+	const cells = viewCells(app.ws, table.id, view, app.computed(table.id));
+	// A byte-order mark is how Excel knows the file is UTF-8.
+	download(`${table.name.replace(/[\\/:*?"<>|]/gu, '-')}.csv`, `﻿${toCsv(cells)}`, 'text/csv');
 }
 
 export function downloadBackup(): void {

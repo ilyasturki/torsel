@@ -115,7 +115,37 @@ exports[`lists the same tools in every era 1`] = `
                   "properties": {
                     "choices": {
                       "items": {
-                        "type": "string",
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "gray",
+                                  "orange",
+                                  "amber",
+                                  "green",
+                                  "teal",
+                                  "blue",
+                                  "violet",
+                                  "pink",
+                                ],
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "color",
+                        ],
+                        "type": "object",
                       },
                       "type": "array",
                     },
@@ -283,7 +313,10 @@ exports[`lists the same tools in every era 1`] = `
                           ],
                         },
                         "group": {
-                          "type": "string",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
                         },
                         "hidden": {
                           "items": {
@@ -502,13 +535,21 @@ exports[`lists the same tools in every era 1`] = `
       "openWorldHint": false,
       "readOnlyHint": false,
     },
-    "description": "Adds rows to a table. Values are given by field name; a choice not seen before is added to its field. A value the field cannot hold refuses the whole call.",
+    "description": "Adds rows to a table, last unless placed with after or before. Values are given by field name; a choice not seen before is added to its field. A value the field cannot hold refuses the whole call.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
+        "after": {
+          "description": "the "_id" of the row they go right after",
+          "type": "string",
+        },
         "base": {
           "description": "name or id of the base",
+          "type": "string",
+        },
+        "before": {
+          "description": "the "_id" of the row they go right before",
           "type": "string",
         },
         "rows": {
@@ -778,9 +819,40 @@ exports[`lists the same tools in every era 1`] = `
             "additionalProperties": false,
             "properties": {
               "choices": {
-                "description": "for a choice or choices field",
+                "description": "for a choice or choices field, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink); a name alone keeps the colour it has, a new one takes the next",
                 "items": {
-                  "type": "string",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "color": {
+                          "enum": [
+                            "gray",
+                            "orange",
+                            "amber",
+                            "green",
+                            "teal",
+                            "blue",
+                            "violet",
+                            "pink",
+                          ],
+                          "type": "string",
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "color",
+                      ],
+                      "type": "object",
+                    },
+                  ],
                 },
                 "type": "array",
               },
@@ -926,7 +998,7 @@ exports[`lists the same tools in every era 1`] = `
       "openWorldHint": false,
       "readOnlyHint": false,
     },
-    "description": "Adds a field to a table, a computed one (formula) included. SQLite checks a formula first. Field names are unique in a table.",
+    "description": "Adds a field to a table, a computed one (formula) included, last unless a position is given. SQLite checks a formula first. Field names are unique in a table.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -936,9 +1008,40 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "choices": {
-          "description": "for a choice or choices field",
+          "description": "for a choice or choices field, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink); a name alone keeps the colour it has, a new one takes the next",
           "items": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "enum": [
+                      "gray",
+                      "orange",
+                      "amber",
+                      "green",
+                      "teal",
+                      "blue",
+                      "violet",
+                      "pink",
+                    ],
+                    "type": "string",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "name",
+                  "color",
+                ],
+                "type": "object",
+              },
+            ],
           },
           "type": "array",
         },
@@ -991,6 +1094,12 @@ exports[`lists the same tools in every era 1`] = `
         "name": {
           "minLength": 1,
           "type": "string",
+        },
+        "position": {
+          "description": "where it goes among the fields, 1 for first",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
         },
         "result": {
           "description": "formula: how its result reads; percent reads the result as points, 25 for 25%; automatic when left out",
@@ -1088,8 +1197,40 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "choices": {
+          "description": "every choice, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink); a name alone keeps the colour it has; one left out is removed",
           "items": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "enum": [
+                      "gray",
+                      "orange",
+                      "amber",
+                      "green",
+                      "teal",
+                      "blue",
+                      "violet",
+                      "pink",
+                    ],
+                    "type": "string",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "name",
+                  "color",
+                ],
+                "type": "object",
+              },
+            ],
           },
           "type": "array",
         },
@@ -1245,7 +1386,7 @@ exports[`lists the same tools in every era 1`] = `
         },
         "config": {
           "additionalProperties": false,
-          "description": "the view settings, fields given by name",
+          "description": "the view settings, fields given by name; null clears a setting",
           "properties": {
             "agg": {
               "description": "chart",
@@ -1259,17 +1400,27 @@ exports[`lists the same tools in every era 1`] = `
               "type": "string",
             },
             "bucket": {
-              "description": "chart: how dates are grouped",
-              "enum": [
-                "day",
-                "week",
-                "month",
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                  ],
+                  "type": "string",
+                },
+                {
+                  "type": "null",
+                },
               ],
-              "type": "string",
+              "description": "chart: how dates are grouped",
             },
             "color": {
-              "description": "chart: a choice field that splits the series",
-              "type": "string",
+              "description": "chart: a choice field that splits the series; null for one series",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "fields": {
               "description": "entry: the fields to fill, in order",
@@ -1300,11 +1451,14 @@ exports[`lists the same tools in every era 1`] = `
                   "type": "null",
                 },
               ],
-              "description": "grid: rows whose field contains the text",
+              "description": "grid: rows whose field contains the text; null clears it",
             },
             "group": {
-              "description": "list: the field to group by",
-              "type": "string",
+              "description": "list: the field to group by; null for no groups",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "hidden": {
               "description": "grid: hidden fields",
@@ -1329,10 +1483,17 @@ exports[`lists the same tools in every era 1`] = `
               "type": "array",
             },
             "rolling": {
-              "description": "line chart: rolling average over N days",
-              "maximum": 90,
-              "minimum": 2,
-              "type": "integer",
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": 2,
+                  "type": "integer",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "line chart: rolling average over N days; null for none",
             },
             "show": {
               "description": "list: the fields shown under the title",
@@ -1373,16 +1534,25 @@ exports[`lists the same tools in every era 1`] = `
               "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
             "title": {
-              "description": "list: the field shown as the title",
-              "type": "string",
+              "description": "list: the field shown as the title; null for the first text field",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "x": {
               "description": "chart: the x field, often a date",
-              "type": "string",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "y": {
               "description": "chart: the aggregated field, except for count",
-              "type": "string",
+              "type": [
+                "string",
+                "null",
+              ],
             },
           },
           "type": "object",
@@ -1603,7 +1773,7 @@ exports[`lists the same tools in every era 1`] = `
         },
         "config": {
           "additionalProperties": false,
-          "description": "the view settings, fields given by name",
+          "description": "the view settings, fields given by name; null clears a setting",
           "properties": {
             "agg": {
               "description": "chart",
@@ -1617,17 +1787,27 @@ exports[`lists the same tools in every era 1`] = `
               "type": "string",
             },
             "bucket": {
-              "description": "chart: how dates are grouped",
-              "enum": [
-                "day",
-                "week",
-                "month",
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                  ],
+                  "type": "string",
+                },
+                {
+                  "type": "null",
+                },
               ],
-              "type": "string",
+              "description": "chart: how dates are grouped",
             },
             "color": {
-              "description": "chart: a choice field that splits the series",
-              "type": "string",
+              "description": "chart: a choice field that splits the series; null for one series",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "fields": {
               "description": "entry: the fields to fill, in order",
@@ -1658,11 +1838,14 @@ exports[`lists the same tools in every era 1`] = `
                   "type": "null",
                 },
               ],
-              "description": "grid: rows whose field contains the text",
+              "description": "grid: rows whose field contains the text; null clears it",
             },
             "group": {
-              "description": "list: the field to group by",
-              "type": "string",
+              "description": "list: the field to group by; null for no groups",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "hidden": {
               "description": "grid: hidden fields",
@@ -1687,10 +1870,17 @@ exports[`lists the same tools in every era 1`] = `
               "type": "array",
             },
             "rolling": {
-              "description": "line chart: rolling average over N days",
-              "maximum": 90,
-              "minimum": 2,
-              "type": "integer",
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": 2,
+                  "type": "integer",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "line chart: rolling average over N days; null for none",
             },
             "show": {
               "description": "list: the fields shown under the title",
@@ -1731,16 +1921,25 @@ exports[`lists the same tools in every era 1`] = `
               "description": "grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]",
             },
             "title": {
-              "description": "list: the field shown as the title",
-              "type": "string",
+              "description": "list: the field shown as the title; null for the first text field",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "x": {
               "description": "chart: the x field, often a date",
-              "type": "string",
+              "type": [
+                "string",
+                "null",
+              ],
             },
             "y": {
               "description": "chart: the aggregated field, except for count",
-              "type": "string",
+              "type": [
+                "string",
+                "null",
+              ],
             },
           },
           "type": "object",
@@ -1780,6 +1979,67 @@ exports[`lists the same tools in every era 1`] = `
       "type": "object",
     },
     "title": "Change a view",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Moves a field among the fields of its table, or a view among the tabs of its table, to a position: 1 for first.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "description": "name or id of the base",
+          "type": "string",
+        },
+        "field": {
+          "description": "name or id of the field to move",
+          "type": "string",
+        },
+        "position": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "table": {
+          "description": "name or id of the table",
+          "type": "string",
+        },
+        "view": {
+          "description": "name or id of the view to move",
+          "type": "string",
+        },
+      },
+      "required": [
+        "base",
+        "table",
+        "position",
+      ],
+      "type": "object",
+    },
+    "name": "move",
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "moved": {
+          "type": "string",
+        },
+        "position": {
+          "type": "number",
+        },
+      },
+      "required": [
+        "moved",
+        "position",
+      ],
+      "type": "object",
+    },
+    "title": "Move a field or view",
   },
 ]
 `;

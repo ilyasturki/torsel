@@ -91,7 +91,8 @@ export type Effect =
 	| { kind: 'open'; table: string; view: string | null }
 	| { kind: 'home' }
 	| { kind: 'settings' }
-	| { kind: 'export' };
+	| { kind: 'export' }
+	| { kind: 'csv'; table: string; view: string | null };
 
 export type TurnEvent =
 	| { type: 'ping' }

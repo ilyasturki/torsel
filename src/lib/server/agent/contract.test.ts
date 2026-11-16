@@ -340,6 +340,30 @@ const CONTRACTS: Record<string, Contract> = {
 		valid: () => ({}),
 		check: (g) => expect(g.shown.at(-1)).toEqual({ kind: 'export' }),
 		refused: []
+	},
+	export_table: {
+		valid: () => ({ table: 'Sets', view: 'Grid' }),
+		check: (g) => expect(g.shown.at(-1)).toEqual({ kind: 'csv', table: g.sets, view: g.grid }),
+		refused: [
+			[
+				() => ({ table: 'Sets', view: 'Entry' }),
+				/^"Entry" is not a grid view; give a grid view or none$/u
+			]
+		]
+	},
+	move: {
+		valid: () => ({ base: 'Gym', table: 'Sets', field: 'Reps', position: 1 }),
+		check: (g, result) => {
+			expect(result).toEqual({ moved: repsOf(g), position: 1 });
+			expect(g.ctx.ws.fields(g.sets)[0].name).toBe('Reps');
+		},
+		refused: [
+			[
+				() => ({ base: 'Gym', table: 'Sets', field: 'Reps', view: 'Grid', position: 1 }),
+				/^give field or view, one of them$/u
+			],
+			[() => ({ base: 'Gym', table: 'Sets', view: 'Grid', position: 0 }), /^position: /u]
+		]
 	}
 };
 
@@ -411,6 +435,74 @@ describe('tool contracts', () => {
 		expect(await g.call('add_rows', { base: 'Gym', table: g.sets, rows: [{}] })).toMatchObject({
 			added: [expect.any(String)]
 		});
+	});
+
+	it('places rows and fields where a person can, and moves a view', async () => {
+		const g = await gym();
+		const { added } = (await g.call('add_rows', {
+			base: 'Gym',
+			table: 'Sets',
+			rows: [{ Reps: 1 }, { Reps: 2 }],
+			before: g.row
+		})) as { added: string[] };
+		expect(g.ctx.ws.rows(g.sets).map((row) => row.id)).toEqual([...added, g.row]);
+		const [after] = (
+			(await g.call('add_rows', {
+				base: 'Gym',
+				table: 'Sets',
+				rows: [{ Reps: 3 }],
+				after: added[0]
+			})) as { added: string[] }
+		).added;
+		expect(g.ctx.ws.rows(g.sets).map((row) => row.id)).toEqual([added[0], after, added[1], g.row]);
+
+		await g.call('add_field', {
+			base: 'Gym',
+			table: 'Sets',
+			name: 'RPE',
+			type: 'number',
+			position: 2
+		});
+		expect(g.ctx.ws.fields(g.sets)[1].name).toBe('RPE');
+
+		await g.call('move', { base: 'Gym', table: 'Sets', view: 'Entry', position: 1 });
+		expect(g.ctx.ws.views(g.sets).map((view) => view.name)).toEqual(['Entry', 'Grid']);
+	});
+
+	it('sets choice colours and reads them back', async () => {
+		const g = await gym();
+		await g.call('update_field', {
+			base: 'Gym',
+			table: 'Sets',
+			field: 'Side',
+			choices: ['Left', { name: 'Right', color: 'pink' }]
+		});
+		const schema = (await g.call('describe_base', { base: 'Gym' })) as {
+			tables: { fields: { name: string; choices?: unknown }[] }[];
+		};
+		const side = schema.tables[1].fields.find((field) => field.name === 'Side');
+		expect(side?.choices).toEqual([
+			{ name: 'Left', color: expect.any(String) },
+			{ name: 'Right', color: 'pink' }
+		]);
+	});
+
+	it('clears a chart or list setting with null', async () => {
+		const g = await gym();
+		const { id } = (await g.call('create_view', {
+			base: 'Gym',
+			table: 'Sets',
+			name: 'Trend',
+			type: 'chart',
+			config: { kind: 'line', x: 'Date', agg: 'max', y: 'Weight', color: 'Side', rolling: 7 }
+		})) as { id: string };
+		await g.call('update_view', {
+			base: 'Gym',
+			table: 'Sets',
+			view: id,
+			config: { color: null, rolling: null }
+		});
+		expect(g.ctx.ws.view(id)?.config).toMatchObject({ color: null, rolling: null, agg: 'max' });
 	});
 
 	it('refuses a formula value given to a row', async () => {

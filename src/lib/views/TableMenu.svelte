@@ -4,12 +4,11 @@
 	import { app } from '#lib/client/app.svelte.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { HOME, SETTINGS, tableUrl } from '#lib/client/nav.ts';
-	import { download, shell } from '#lib/client/shell.svelte.ts';
+	import { downloadCsv, shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import { deleteRecords } from '#lib/core/actions.ts';
 	import { duplicateTable } from '#lib/core/duplicate.ts';
 	import { numberedName } from '#lib/core/names.ts';
-	import { toCsv } from '#lib/core/csv.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import { names } from '#lib/i18n/names.ts';
 	import { shell as shellWords } from '#lib/i18n/shell.ts';
@@ -24,7 +23,6 @@
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
 	import MenuSub from '#lib/ui/MenuSub.svelte';
 
-	import { viewCells } from './grid.ts';
 	import { VIEW_TYPES, addView, viewLabel } from './views.ts';
 
 	let {
@@ -72,13 +70,7 @@
 
 	function exportHere(): void {
 		if (view === undefined) return;
-		const cells = viewCells(app.ws, table.id, view, app.computed(table.id));
-		// A byte-order mark is how Excel knows the file is UTF-8.
-		download(
-			`${table.name.replace(/[\\/:*?"<>|]/gu, '-')}.csv`,
-			`\uFEFF${toCsv(cells)}`,
-			'text/csv'
-		);
+		downloadCsv(table.id, view.id);
 	}
 
 	const fitAll = (): void => {

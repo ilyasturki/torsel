@@ -25,7 +25,7 @@ import { limitMessage, limitOf } from './limit.ts';
 import type { Decision } from './local.ts';
 import { HOME, SETTINGS, tableUrl } from './nav.ts';
 import { me } from './session.svelte.ts';
-import { downloadBackup } from './shell.svelte.ts';
+import { downloadBackup, downloadCsv } from './shell.svelte.ts';
 import { syncNow } from './sync.svelte.ts';
 import { showToast } from './toast.svelte.ts';
 
@@ -260,6 +260,8 @@ function perform(effect: Effect): void {
 		void goto(HOME);
 	} else if (effect.kind === 'settings') {
 		void goto(SETTINGS);
+	} else if (effect.kind === 'csv') {
+		downloadCsv(effect.table, effect.view);
 	} else {
 		downloadBackup();
 	}

@@ -211,6 +211,30 @@ test('a card puts what the rows share on one line and shows every value typed', 
 	expect(box?.width ?? 0).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
 });
 
+test('the assistant downloads a table as CSV, as the table menu does', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedLifts(context.request);
+	const key = await script(context.request, [
+		{
+			blocks: [{ type: 'tool', id: 'toolu_csv', name: 'export_table', input: { table: 'Lifts' } }]
+		},
+		{ blocks: [{ type: 'text', text: 'Done.' }] }
+	]);
+	await page.goto(tablePath(table));
+	const downloading = page.waitForEvent('download');
+	await ask(page, `${key} give me lifts as a csv`);
+	const download = await downloading;
+	expect(download.suggestedFilename()).toBe('Lifts.csv');
+	const text = (await (await download.createReadStream()).toArray()).join('');
+	expect(text).toContain('Exercise,Reps,Kg');
+	expect(text).toContain('Squat,5,100');
+	await expect(cards(page)).toHaveCount(0);
+});
+
 test('the request says what is on screen, and the assistant can open what it made', async ({
 	page,
 	context,

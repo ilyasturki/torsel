@@ -19,6 +19,8 @@ import {
 	deleteRecords,
 	homeBase,
 	insertRows,
+	reorder,
+	shifted,
 	updateRecord,
 	updateRow
 } from '../../core/actions.ts';
@@ -67,7 +69,7 @@ import type { SqlValue } from '../../core/sql.ts';
 import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
-import { nextChoice } from '../../ui/colors.ts';
+import { DATA_COLORS, isDataColor, nextChoice } from '../../ui/colors.ts';
 import type { SqlResult, SqlTask } from '../sql/jobs.ts';
 import { SQL_LIMITS, SqlRefusal, sqlPool } from '../sql/pool.ts';
 import type { Sheet } from './files.ts';
@@ -127,7 +129,9 @@ const TITLES = {
 	delete: 'Delete a base, table, field or view',
 	import_file: 'Import a file',
 	open: 'Open a table or page',
-	export: 'Download a backup'
+	export: 'Download a backup',
+	export_table: 'Download a table as CSV',
+	move: 'Move a field or view'
 };
 
 const LISTED = 30;
@@ -205,10 +209,18 @@ function findView(ws: Workspace, table: TableDef, ref: string): ViewDef {
 	return resolve(ws.views(table.id), ref, 'view', `on ${table.name}`);
 }
 
-function choicesOf(names: string[] | undefined, previous: Choice[] = []): Choice[] {
+type ChoiceInput = string | { name: string; color: (typeof DATA_COLORS)[number] };
+
+/** A choice keeps its colour unless one is given; a new one without takes the next. */
+function choicesOf(given: ChoiceInput[] | undefined, previous: Choice[] = []): Choice[] {
 	const choices: Choice[] = [];
-	for (const name of names ?? []) {
-		choices.push(previous.find((choice) => choice.name === name) ?? nextChoice(choices, name));
+	for (const item of given ?? []) {
+		const name = typeof item === 'string' ? item : item.name;
+		if (choices.some((choice) => choice.name === name)) {
+			throw new ToolError(`the choice "${name}" is given twice`);
+		}
+		const kept = previous.find((choice) => choice.name === name) ?? nextChoice(choices, name);
+		choices.push(typeof item === 'string' ? kept : { name, color: item.color });
 	}
 	return choices;
 }
@@ -371,11 +383,19 @@ const TYPE = z
 		'text; longtext for notes over several lines; number for counts, measures and years (a year without grouping); currency for money; percent; rating for a score on a scale, such as stars or out of 10; duration for a length of time; date; datetime when the time of day matters; choice for one label out of a few; choices for several labels, such as tags; check for yes or no; link to a row of another table; url; email; phone; formula for a computed value'
 	);
 
+const CHOICES = z
+	.array(
+		z.union([z.string(), z.strictObject({ name: z.string().min(1), color: z.enum(DATA_COLORS) })])
+	)
+	.describe(
+		`for a choice or choices field, in order: a name, or {name, color} to set its colour (${DATA_COLORS.join(', ')}); a name alone keeps the colour it has, a new one takes the next`
+	);
+
 const FIELD = z.strictObject({
 	name: z.string().min(1),
 	type: TYPE,
 	...FORMAT,
-	choices: z.array(z.string()).optional().describe('for a choice or choices field'),
+	choices: CHOICES.optional(),
 	target: z.string().optional().describe('for a link field: the linked table'),
 	formula: z
 		.string()
@@ -429,7 +449,7 @@ const VIEW_CONFIG = z
 			.strictObject({ field: z.string(), text: z.string() })
 			.nullable()
 			.optional()
-			.describe('grid: rows whose field contains the text'),
+			.describe('grid: rows whose field contains the text; null clears it'),
 		fields: z.array(z.string()).optional().describe('entry: the fields to fill, in order'),
 		match: z
 			.array(z.string())
@@ -437,32 +457,49 @@ const VIEW_CONFIG = z
 			.describe(
 				'entry: the fields that identify "last time" for prefilling, in order, such as ["Exercise"]; with two or more, the first repeats its last occurrence row by row, such as ["Session", "Exercise"]'
 			),
-		group: z.string().optional().describe('list: the field to group by'),
-		title: z.string().optional().describe('list: the field shown as the title'),
+		group: z
+			.string()
+			.nullable()
+			.optional()
+			.describe('list: the field to group by; null for no groups'),
+		title: z
+			.string()
+			.nullable()
+			.optional()
+			.describe('list: the field shown as the title; null for the first text field'),
 		show: z.array(z.string()).optional().describe('list: the fields shown under the title'),
 		kind: z.enum(['bar', 'line']).optional().describe('chart'),
-		x: z.string().optional().describe('chart: the x field, often a date'),
-		bucket: z.enum(['day', 'week', 'month']).optional().describe('chart: how dates are grouped'),
+		x: z.string().nullable().optional().describe('chart: the x field, often a date'),
+		bucket: z
+			.enum(['day', 'week', 'month'])
+			.nullable()
+			.optional()
+			.describe('chart: how dates are grouped'),
 		agg: z.enum(['count', 'sum', 'avg', 'max', 'min']).optional().describe('chart'),
-		y: z.string().optional().describe('chart: the aggregated field, except for count'),
-		color: z.string().optional().describe('chart: a choice field that splits the series'),
+		y: z.string().nullable().optional().describe('chart: the aggregated field, except for count'),
+		color: z
+			.string()
+			.nullable()
+			.optional()
+			.describe('chart: a choice field that splits the series; null for one series'),
 		rolling: z
 			.number()
 			.int()
 			.min(2)
 			.max(90)
+			.nullable()
 			.optional()
-			.describe('line chart: rolling average over N days')
+			.describe('line chart: rolling average over N days; null for none')
 	})
-	.describe('the view settings, fields given by name');
+	.describe('the view settings, fields given by name; null clears a setting');
 
 function viewConfig(
 	ws: Workspace,
 	tableId: string,
 	input: z.infer<typeof VIEW_CONFIG>
 ): ViewConfig {
-	const id = (name: string | undefined): string | null =>
-		name === undefined ? null : findField(ws, tableId, name).id;
+	const id = (name: string | null | undefined): string | null =>
+		name == null ? null : findField(ws, tableId, name).id;
 	const ids = (names: string[] | undefined): string[] | undefined =>
 		names?.map((name) => findField(ws, tableId, name).id);
 
@@ -505,6 +542,32 @@ function requireRow(ws: Workspace, table: TableDef, id: string): void {
 		);
 	}
 	throw new ToolError(`no row ${id} in ${table.name}; rows are the "_id" column of query`);
+}
+
+function createdAt(rec: Rec | undefined): number | undefined {
+	const at = rec?.data[CREATED];
+	return typeof at === 'number' ? at : undefined;
+}
+
+/** The creation times new rows fit between to sit after or before a row, as the grid's Insert row does. */
+function rowSpan(
+	ws: Workspace,
+	table: TableDef,
+	after: string | undefined,
+	before: string | undefined
+): { from: number; to: number } | null {
+	if (after !== undefined && before !== undefined) {
+		throw new ToolError('give after or before, not both');
+	}
+	const anchor = after ?? before;
+	if (anchor === undefined) return null;
+	requireRow(ws, table, anchor);
+	const rows = ws.rows(table.id);
+	const index = rows.findIndex((row) => row.id === anchor);
+	const here = createdAt(rows[index]) ?? Date.now();
+	const next = createdAt(rows[index + (after !== undefined ? 1 : -1)]);
+	const other = next ?? here + (after !== undefined ? 1 : -1);
+	return after !== undefined ? { from: here, to: other } : { from: other, to: here };
 }
 
 function expected(field: FieldDef): string {
@@ -665,7 +728,9 @@ const FIELD_OUT = z.strictObject({
 	seconds: z.boolean().optional(),
 	dateStyle: z.enum(DATE_STYLES).optional(),
 	result: z.enum(RESULT_TYPES).optional(),
-	choices: z.array(z.string()).optional(),
+	choices: z
+		.array(z.strictObject({ name: z.string(), color: z.enum(DATA_COLORS).nullable() }))
+		.optional(),
 	target: z.string().optional(),
 	formula: z.string().optional(),
 	description: z.string().optional()
@@ -677,7 +742,11 @@ function describeField(ws: Workspace, field: FieldDef): z.infer<typeof FIELD_OUT
 	for (const key of FORMAT_OF[field.type]) {
 		if (field[key] !== null && !(key === 'grouping' && field[key])) out[key] = field[key];
 	}
-	if (hasChoices(field.type)) out.choices = field.choices.map((choice) => choice.name);
+	if (hasChoices(field.type))
+		out.choices = field.choices.map((choice) => ({
+			name: choice.name,
+			color: isDataColor(choice.color) ? choice.color : null
+		}));
 	const target =
 		field.type === 'link' && field.target !== null ? ws.table(field.target) : undefined;
 	if (target !== undefined) out.target = target.name;
@@ -701,7 +770,7 @@ const VIEW_OUT = z.strictObject({
 		filter: z.strictObject({ field: z.string(), text: z.string() }).nullable().optional(),
 		fields: z.array(z.string()).optional(),
 		match: z.array(z.string()).optional(),
-		group: z.string().optional(),
+		group: z.string().nullable().optional(),
 		title: z.string().optional(),
 		show: z.array(z.string()).optional(),
 		kind: z.enum(['bar', 'line']).optional(),
@@ -727,6 +796,8 @@ export function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_
 		const id = config[key];
 		if (typeof id === 'string') out[key] = name(id);
 	}
+	// A list with no groups chose it; one with no setting groups on its own.
+	if (config.group === null) out.group = null;
 	if (config.sort !== undefined)
 		out.sort =
 			config.sort === null
@@ -853,15 +924,31 @@ export const TOOLS: Tool[] = [
 		name: 'add_rows',
 		title: TITLES.add_rows,
 		description:
-			'Adds rows to a table. Values are given by field name; a choice not seen before is added to its field. A value the field cannot hold refuses the whole call.',
-		input: z.strictObject({ base: BASE, table: TABLE, rows: z.array(ROW_VALUES).min(1).max(500) }),
+			'Adds rows to a table, last unless placed with after or before. Values are given by field name; a choice not seen before is added to its field. A value the field cannot hold refuses the whole call.',
+		input: z.strictObject({
+			base: BASE,
+			table: TABLE,
+			rows: z.array(ROW_VALUES).min(1).max(500),
+			after: z.string().optional().describe('the "_id" of the row they go right after'),
+			before: z.string().optional().describe('the "_id" of the row they go right before')
+		}),
 		output: z.strictObject({ added: z.array(z.string()) }),
 		kind: 'write',
 		destructive: false,
 		idempotent: false,
-		run: (ctx, input: { base: string; table: string; rows: Record<string, unknown>[] }) => {
+		run: (
+			ctx,
+			input: {
+				base: string;
+				table: string;
+				rows: Record<string, unknown>[];
+				after?: string;
+				before?: string;
+			}
+		) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
+			const span = rowSpan(ctx.ws, table, input.after, input.before);
 			const { rows, fieldChanges } = rowsByName(
 				ctx.ws,
 				table.id,
@@ -869,6 +956,13 @@ export const TOOLS: Tool[] = [
 				(index) => `rows[${index}]`
 			);
 			const inserted = insertRows(ctx.ws, table.id, rows);
+			if (span !== null) {
+				const step = (span.to - span.from) / (inserted.ids.length + 1);
+				for (const change of inserted.changes) {
+					const at = inserted.ids.indexOf(change.id);
+					if (at !== -1) change.set[CREATED] = span.from + step * (at + 1);
+				}
+			}
 			ctx.commit({
 				summary: words.addRows(rows.length, table.name),
 				changes: [...fieldChanges, ...inserted.changes]
@@ -1009,21 +1103,36 @@ export const TOOLS: Tool[] = [
 		name: 'add_field',
 		title: TITLES.add_field,
 		description:
-			'Adds a field to a table, a computed one (formula) included. SQLite checks a formula first. Field names are unique in a table.',
-		input: FIELD.extend({ base: BASE, table: TABLE }),
+			'Adds a field to a table, a computed one (formula) included, last unless a position is given. SQLite checks a formula first. Field names are unique in a table.',
+		input: FIELD.extend({
+			base: BASE,
+			table: TABLE,
+			position: z
+				.number()
+				.int()
+				.min(1)
+				.optional()
+				.describe('where it goes among the fields, 1 for first')
+		}),
 		output: ID,
 		kind: 'write',
 		destructive: false,
 		idempotent: false,
-		run: async (ctx, input: FieldInput & { base: string; table: string }) => {
+		run: async (ctx, input: FieldInput & { base: string; table: string; position?: number }) => {
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			const name = freeName(ctx.ws.fields(table.id), input.name, 'field', table.name);
-			const spec = fieldSpec(ctx.ws, base.id, { ...input, name }, table.id);
+			const { position, ...field } = input;
+			const spec = fieldSpec(ctx.ws, base.id, { ...field, name }, table.id);
 			if (spec.expr != null) {
 				await validateFormula(ctx.ws, table.id, spec.expr);
 			}
-			const made = addField(ctx.ws, table.id, spec);
+			const made = addField(
+				ctx.ws,
+				table.id,
+				spec,
+				position === undefined ? undefined : position - 1
+			);
 			ctx.commit({
 				summary: words.newField(name, table.name),
 				changes: made.changes
@@ -1047,7 +1156,9 @@ export const TOOLS: Tool[] = [
 			type: TYPE.optional(),
 			...FORMAT,
 			target: z.string().optional().describe('for a field becoming a link: the linked table'),
-			choices: z.array(z.string()).optional(),
+			choices: CHOICES.optional().describe(
+				`every choice, in order: a name, or {name, color} to set its colour (${DATA_COLORS.join(', ')}); a name alone keeps the colour it has; one left out is removed`
+			),
 			formula: z.string().optional(),
 			description: z.string().optional()
 		}),
@@ -1061,7 +1172,7 @@ export const TOOLS: Tool[] = [
 				name?: string;
 				type?: FieldDef['type'];
 				target?: string;
-				choices?: string[];
+				choices?: ChoiceInput[];
 				formula?: string;
 				description?: string;
 			}
@@ -1480,6 +1591,80 @@ export const TOOLS: Tool[] = [
 		run: (ctx) => {
 			ctx.show?.({ kind: 'export' });
 			return { downloading: true };
+		}
+	},
+	{
+		name: 'export_table',
+		title: TITLES.export_table,
+		description:
+			"Downloads a table to the person's device as a CSV file, as its menu's Export as CSV does: the fields, sort and filter of a grid view, the first grid when no view is given.",
+		input: z.strictObject({
+			table: z.string().describe('name or id of the table'),
+			view: z.string().optional().describe('name or id of one of its grid views')
+		}),
+		output: z.strictObject({ downloading: z.string() }),
+		kind: 'screen',
+		destructive: false,
+		idempotent: true,
+		run: (ctx, input: { table: string; view?: string }) => {
+			const table = resolve(
+				ctx.ws.bases().flatMap((base) => ctx.ws.tables(base.id)),
+				input.table,
+				'table',
+				''
+			);
+			const view = input.view === undefined ? undefined : findView(ctx.ws, table, input.view);
+			if (view !== undefined && view.type !== 'grid') {
+				throw new ToolError(`"${view.name}" is not a grid view; give a grid view or none`);
+			}
+			ctx.show?.({ kind: 'csv', table: table.id, view: view?.id ?? null });
+			return { downloading: table.id };
+		}
+	},
+	{
+		name: 'move',
+		title: TITLES.move,
+		description:
+			'Moves a field among the fields of its table, or a view among the tabs of its table, to a position: 1 for first.',
+		input: z.strictObject({
+			base: BASE,
+			table: TABLE,
+			field: z.string().optional().describe('name or id of the field to move'),
+			view: z.string().optional().describe('name or id of the view to move'),
+			position: z.number().int().min(1)
+		}),
+		output: z.strictObject({ moved: z.string(), position: z.number() }),
+		kind: 'write',
+		destructive: false,
+		idempotent: true,
+		run: (
+			ctx,
+			input: { base: string; table: string; field?: string; view?: string; position: number }
+		) => {
+			const base = findBase(ctx.ws, input.base);
+			const table = findTable(ctx.ws, base.id, input.table);
+			if ((input.field === undefined) === (input.view === undefined)) {
+				throw new ToolError('give field or view, one of them');
+			}
+			const moved =
+				input.field === undefined
+					? findView(ctx.ws, table, input.view as string)
+					: findField(ctx.ws, table.id, input.field);
+			const ids = (
+				input.field === undefined ? ctx.ws.views(table.id) : ctx.ws.fields(table.id)
+			).map((item) => item.id);
+			const to = Math.min(input.position, ids.length) - 1;
+			const changes = reorder(ctx.ws, shifted(ids, moved.id, to - ids.indexOf(moved.id)));
+			if (changes.length > 0) {
+				ctx.commit({
+					summary:
+						input.field === undefined
+							? words.moveView(moved.name, table.name)
+							: words.moveField(moved.name, table.name),
+					changes
+				});
+			}
+			return { moved: moved.id, position: to + 1 };
 		}
 	}
 ];
