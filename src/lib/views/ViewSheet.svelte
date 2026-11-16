@@ -109,7 +109,10 @@
 			(field) => field.type === 'choice' || field.type === 'link' || field.type === 'text'
 		)
 	);
-	const fallbackMatch = $derived(defaultMatch(entryFields(fields, config)));
+	const fallbackMatch = $derived.by(() => {
+		void app.version;
+		return defaultMatch(entryFields(fields, config), app.ws.rows(tableId));
+	});
 	const numeric = $derived(
 		fields.filter((field) => isNumeric(field.type) || field.type === 'formula')
 	);

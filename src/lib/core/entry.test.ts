@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { defaultMatch } from './actions.ts';
 import { entryPlan, nextLine, repeats } from './entry.ts';
-import type { FieldDef, Rec } from './model.ts';
+import type { FieldDef, Rec, Value } from './model.ts';
 
 const field = (id: string): FieldDef => ({ id, name: id, type: 'choice' }) as FieldDef;
 const session = field('session');
@@ -96,5 +97,50 @@ describe('repeated values', () => {
 		const poster = { id: 'poster', name: 'Poster', type: 'image' } as FieldDef;
 		const posters = ['a', 'b', 'c'].map((id) => row({ poster: [{ id: id.repeat(64) }] }));
 		expect(repeats(poster, posters)).toBe(false);
+	});
+});
+
+describe('what "the last time" matches on by default', () => {
+	const typed = (id: string, type: FieldDef['type'], choices = 0): FieldDef =>
+		({
+			id,
+			name: id,
+			type,
+			choices: Array.from({ length: choices }, (_, at) => ({ name: `${id}${at}`, color: null }))
+		}) as FieldDef;
+	const gym = [
+		typed('session', 'choice', 6),
+		typed('date', 'date'),
+		typed('exercise', 'choice', 56),
+		typed('muscle', 'choice', 8),
+		typed('reps', 'number')
+	];
+	const set = (date: string, name: string, lift: string, muscle: string): Rec => {
+		const data: Record<string, Value> = { date, session: name, exercise: lift, muscle, reps: 8 };
+		return { id: `${date}-${lift}`, data } as Rec;
+	};
+
+	it('reads a gym log as sessions of exercises', () => {
+		const rows = [
+			set('2026-10-29', 'push b', 'bench', 'chest'),
+			set('2026-10-29', 'push b', 'dips', 'triceps'),
+			set('2026-10-30', 'pull a', 'row', 'back'),
+			set('2026-10-30', 'pull a', 'curl', 'biceps'),
+			set('2026-10-31', 'legs a', 'squat', 'legs')
+		];
+		expect(defaultMatch(gym, rows)).toEqual(['session', 'exercise']);
+	});
+
+	it('keeps one key when the rows come one a day', () => {
+		const rows = [
+			set('2026-10-29', 'push b', 'bench', 'chest'),
+			set('2026-10-30', 'pull a', 'row', 'back'),
+			set('2026-10-31', 'legs a', 'squat', 'legs')
+		];
+		expect(defaultMatch(gym, rows)).toEqual(['exercise']);
+	});
+
+	it('keeps one key with no rows yet', () => {
+		expect(defaultMatch(gym)).toEqual(['exercise']);
 	});
 });

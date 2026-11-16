@@ -132,11 +132,42 @@ export function blankTable(
 	};
 }
 
-/** The field "the last time" is read on when a view does not say: the choice with the most values. */
-export function defaultMatch(fields: FieldDef[]): string[] {
+/** What "the last time" is read on when a view does not say: a session and its items when the rows log several a day, else the choice with the most values. */
+export function defaultMatch(fields: FieldDef[], rows: Rec[] = []): string[] {
 	const keys = fields.filter((field) => field.type === 'choice' || field.type === 'link');
-	const best = keys.sort((a, b) => b.choices.length - a.choices.length)[0];
+	const plan = sessionKeys(fields, keys, rows);
+	if (plan !== null) return plan;
+	const best = keys.toSorted((a, b) => b.choices.length - a.choices.length)[0];
 	return best === undefined ? [] : [best.id];
+}
+
+function sessionKeys(fields: FieldDef[], keys: FieldDef[], rows: Rec[]): string[] | null {
+	const date = fields.find((field) => isDated(field.type));
+	if (date === undefined || keys.length < 2) return null;
+
+	const days = new Map<string, Rec[]>();
+	for (const row of rows) {
+		const value = row.data[date.id];
+		if (typeof value !== 'string' || value === '') continue;
+		const day = value.slice(0, 10);
+		days.set(day, [...(days.get(day) ?? []), row]);
+	}
+	const busy = [...days.values()].filter((list) => list.length > 1);
+	if (busy.length < 2 || busy.length * 2 < days.size) return null;
+
+	const valuesOn = (field: FieldDef, list: Rec[]): number =>
+		new Set(list.map((row) => row.data[field.id]).filter((value) => !blank(value))).size;
+	const share = (field: FieldDef, test: (count: number) => boolean): number =>
+		busy.filter((list) => test(valuesOn(field, list))).length / busy.length;
+	const spread = (field: FieldDef): number => valuesOn(field, rows);
+
+	const group = keys
+		.filter((field) => spread(field) > 1 && share(field, (count) => count === 1) >= 0.8)
+		.toSorted((a, b) => spread(a) - spread(b))[0];
+	const item = keys
+		.filter((field) => field !== group && share(field, (count) => count > 1) >= 0.5)
+		.toSorted((a, b) => spread(b) - spread(a))[0];
+	return group === undefined || item === undefined ? null : [group.id, item.id];
 }
 
 export function defaultViews(names: DefaultNames): ViewSpec[] {

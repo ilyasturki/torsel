@@ -37,8 +37,13 @@
 
 	const fields = $derived(entryFields(all, view.config));
 
+	const logged = $derived.by(() => {
+		void app.version;
+		return app.ws.rows(tableId);
+	});
+
 	const keys = $derived(
-		(view.config.match ?? defaultMatch(fields))
+		(view.config.match ?? defaultMatch(fields, logged))
 			.map((id) => fields.find((field) => field.id === id))
 			.filter((field) => field !== undefined)
 	);
@@ -66,11 +71,6 @@
 	let rowId = $state<string | null>(null);
 
 	const today = todayIso();
-
-	const logged = $derived.by(() => {
-		void app.version;
-		return app.ws.rows(tableId);
-	});
 
 	function dayOf(row: Rec): string {
 		const value = dateField === undefined ? undefined : row.data[dateField.id];

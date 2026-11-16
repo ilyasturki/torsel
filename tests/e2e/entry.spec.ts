@@ -14,7 +14,7 @@ const onPhone = (): boolean => test.info().project.name === 'phone';
 const press = (target: Locator): Promise<void> => (onPhone() ? target.tap() : target.click());
 
 /** Two sessions, push on Oct 30 and legs on Oct 31, logged in an Entry keyed by session then exercise. */
-function seedSessions(request: APIRequestContext, oneKey = false) {
+function seedSessions(request: APIRequestContext, keys: 'two' | 'one' | 'none' = 'two') {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
@@ -46,13 +46,16 @@ function seedSessions(request: APIRequestContext, oneKey = false) {
 				set('2026-10-30', 'push', 'bench', 8, 60),
 				set('2026-10-30', 'push', 'bench', 6, 65),
 				set('2026-10-30', 'push', 'dips', 10, 0),
-				set('2026-10-31', 'legs', 'squat', 5, 100)
+				set('2026-10-31', 'legs', 'squat', 5, 100),
+				...(keys === 'none'
+					? [set('2026-10-28', 'legs', 'squat', 5, 95), set('2026-10-28', 'legs', 'squat', 5, 95)]
+					: [])
 			]).changes
 		);
 		const entry = createView(ws, sets.id, {
 			name: 'Log',
 			type: 'entry',
-			config: { match: oneKey ? [exercise] : [session, exercise] }
+			config: keys === 'none' ? {} : { match: keys === 'one' ? [exercise] : [session, exercise] }
 		});
 		commit(entry.changes);
 		return tablePath(sets.id, entry.id);
@@ -67,7 +70,7 @@ test('with one key, the rows on the left sit at the top under heads and a line n
 	account
 }) => {
 	void account;
-	await page.goto(await seedSessions(context.request, true));
+	await page.goto(await seedSessions(context.request, 'one'));
 	const history = plan(page);
 	const filter = page.getByTestId('entry-filter');
 
@@ -86,6 +89,14 @@ test('with one key, the rows on the left sit at the top under heads and a line n
 	const top = (await history.boundingBox())?.y ?? 0;
 	const first = (await rows.first().boundingBox())?.y ?? 0;
 	expect(first - top, 'the first row sits under the filter line and the heads').toBeLessThan(120);
+});
+
+test('a log of sessions opens in the plan by itself', async ({ page, context, account }) => {
+	void account;
+	await page.goto(await seedSessions(context.request, 'none'));
+	await expect(page.getByRole('button', { name: 'legs', pressed: true })).toBeVisible();
+	await expect(plan(page).getByRole('button', { pressed: true })).toContainText('5');
+	await expect(page.getByTestId('entry-filter')).toHaveCount(0);
 });
 
 test('Entry repeats the last session, set by set, and moves to the next', async ({
