@@ -152,10 +152,8 @@
 				>
 					<span class="min-w-0 flex-1 font-medium sm:flex-none">{words.discardYours}</span>
 					<Button onclick={() => (open = false)}>{words.discard}</Button>
-					<Button
-						variant="primary"
-						{@attach (node: HTMLButtonElement) => node.focus()}
-						onclick={keepEditing}>{words.keepEditing}</Button
+					<Button {@attach (node: HTMLButtonElement) => node.focus()} onclick={keepEditing}
+						>{words.keepEditing}</Button
 					>
 				</div>
 			{/if}
