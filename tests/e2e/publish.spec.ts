@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { APIRequestContext, Browser, Page } from '@playwright/test';
+import type { APIRequestContext, Browser, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, createView, insertRows } from '../../src/lib/core/actions.ts';
 import { newId } from '../../src/lib/core/ids.ts';
@@ -236,9 +236,21 @@ test('a published list shows its covers, and no image it doesn’t show', async 
 	expect(errors).toEqual([]);
 });
 
-test('a link that opens nothing says so', async ({ page }) => {
+async function expectCentred(page: Page, heading: Locator): Promise<void> {
+	const box = await heading.boundingBox();
+	const width = page.viewportSize()?.width ?? 0;
+	expect(box).not.toBeNull();
+	expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - width / 2)).toBeLessThan(2);
+}
+
+test('a link that opens nothing says so, centred, with a way to Torsel', async ({ page }) => {
 	await page.goto('/v/AAAAAAAAAAAAAAAAAAAAAA');
-	await expect(page.getByText('This link no longer works')).toBeVisible();
+	const heading = page.getByRole('heading', { name: 'This link no longer works' });
+	await expect(heading).toBeVisible();
+	await expect(page.getByText('Its owner stopped sharing it.')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Go to Torsel' })).toHaveAttribute('href', '/');
+	await expect(page).toHaveTitle('This link no longer works');
+	await expectCentred(page, heading);
 });
 
 test.describe('in French', () => {
@@ -255,5 +267,17 @@ test.describe('in French', () => {
 			.click();
 		const dialog = page.getByRole('dialog', { name: 'Publier sur le web' });
 		await expect(dialog.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
+	});
+
+	test('a dead link says so in French', async ({ page }) => {
+		await page.goto('/v/AAAAAAAAAAAAAAAAAAAAAA');
+		const heading = page.getByRole('heading', { name: 'Ce lien ne fonctionne plus' });
+		await expect(heading).toBeVisible();
+		await expect(page.getByText('Son propriétaire a arrêté de le partager.')).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Aller sur Torsel' })).toHaveAttribute(
+			'href',
+			'/fr'
+		);
+		await expectCentred(page, heading);
 	});
 });
