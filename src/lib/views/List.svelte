@@ -45,9 +45,10 @@
 
 	// The middle shape of the covers, kept between a landscape 16:9 and a 2:3 poster: posters fill it, the rest sit inside.
 	const coverRatio = $derived.by(() => {
+		void app.version;
 		if (cover === undefined) return 1.5;
-		const ratios = groups.entries
-			.flatMap(([, rows]) => rows)
+		const ratios = app.ws
+			.rows(tableId)
 			.map((row) => imagesOf(row.data[cover.id])[0])
 			.filter((image) => image !== undefined)
 			.map((image) => image.h / image.w)
