@@ -2,7 +2,16 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, createView } from '../../src/lib/core/actions.ts';
-import { expect, newView, seed, tablePath, test, toastButton, viewSettings } from './harness.ts';
+import {
+	expect,
+	expectView,
+	newView,
+	seed,
+	tablePath,
+	test,
+	toastButton,
+	viewSettings
+} from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -43,6 +52,7 @@ test('view tabs reorder by drag, by keyboard and from their menu, each undoable'
 	context,
 	account
 }) => {
+	test.skip(onPhone(), 'a phone lists the views in a menu, which keeps their order');
 	void account;
 	await page.goto(await seedViews(context.request));
 	await expect(tabs(page)).toHaveText(['Grid', 'Entry', 'Trend', 'Log']);
@@ -60,11 +70,9 @@ test('view tabs reorder by drag, by keyboard and from their menu, each undoable'
 	await expect(tabs(page)).toHaveText(['Grid', 'Log', 'Entry', 'Trend']);
 	await expect(tabs(page).getByText('Log')).toBeFocused();
 
-	if (!onPhone()) {
-		await tabs(page).getByText('Grid').click({ button: 'right' });
-		await page.getByRole('menuitem', { name: 'Move right' }).click();
-		await expect(tabs(page)).toHaveText(['Log', 'Grid', 'Entry', 'Trend']);
-	}
+	await tabs(page).getByText('Grid').click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Move right' }).click();
+	await expect(tabs(page)).toHaveText(['Log', 'Grid', 'Entry', 'Trend']);
 });
 
 test('a view is added in two taps and its settings hold no type hints', async ({
@@ -76,8 +84,8 @@ test('a view is added in two taps and its settings hold no type hints', async ({
 	await page.goto(await seedViews(context.request));
 
 	await newView(page, 'Chart');
-	await expect(tabs(page)).toHaveText(['Grid', 'Entry', 'Trend', 'Log', 'Chart']);
-	await expect(tabs(page).getByText('Chart')).toHaveAttribute('aria-current', 'page');
+	await expectView(page, 'Chart');
+	if (!onPhone()) await expect(tabs(page)).toHaveText(['Grid', 'Entry', 'Trend', 'Log', 'Chart']);
 	await expect(page.getByRole('status')).toContainText('View "Chart" added');
 	await page.keyboard.press('Escape');
 

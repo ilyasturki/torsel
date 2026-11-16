@@ -13,9 +13,12 @@ import {
 	cell,
 	columnMenu,
 	expect,
+	expectAsk,
 	expectListed,
+	expectView,
 	newAccount,
 	newView,
+	openAsk,
 	openTable,
 	pick,
 	redo,
@@ -23,6 +26,7 @@ import {
 	script,
 	seed,
 	signIn,
+	switchView,
 	tableMenu,
 	tablePath,
 	test,
@@ -121,9 +125,9 @@ async function pasteText(page: Page, text: string): Promise<void> {
 	}, text);
 }
 
-/** From an empty home: New table, then its name typed into the title. */
+/** From an empty home: New table in the header, then its name typed into the title. */
 async function nameFirstTable(page: Page, name: string): Promise<void> {
-	await page.locator('main').getByRole('button', { name: 'New table' }).click();
+	await page.getByRole('banner').getByRole('button', { name: 'New table' }).click();
 	const title = page.getByRole('textbox', { name: 'Table name' });
 	await expect(title).toBeFocused();
 	await title.fill(name);
@@ -389,16 +393,12 @@ test.describe('opening where you left off', () => {
 		void account;
 		const { table, list } = await seedGym(context.request);
 		await page.goto(tablePath(table, list));
-		await expect(
-			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sets' })
-		).toHaveAttribute('aria-current', 'page');
+		await expectView(page, 'Sets');
 
 		await allTables(page).click();
 		await openTable(page, 'Lifts');
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Sets')}$`, 'u'));
-		await expect(
-			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sets' })
-		).toHaveAttribute('aria-current', 'page');
+		await expectView(page, 'Sets');
 	});
 
 	test('on a phone, a cold open logs a set in four taps at most', async ({
@@ -585,6 +585,7 @@ test.describe('fields and views', () => {
 		await undo(page);
 		await expect.poll(names).toEqual(['Date', 'Exercise', 'Kg', 'Reps']);
 
+		if (onPhone()) return;
 		await page.goto(tablePath(table, list));
 		const views = page.getByRole('group', { name: 'Views' }).getByRole('link');
 		await expect(views).toHaveText(['Grid', 'Entry', 'Volume', 'Sets']);
@@ -720,9 +721,7 @@ test.describe('fields and views', () => {
 		await page.goto(path);
 		await newView(page, 'Grid');
 
-		await expect(
-			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Grid 2' })
-		).toBeVisible();
+		await expectView(page, 'Grid 2');
 	});
 
 	test('Enter submits every sheet', async ({ page, context, account }) => {
@@ -748,15 +747,16 @@ test.describe('fields and views', () => {
 		await settings.getByLabel('Name').fill('Sheet');
 		await settings.getByLabel('Name').press('Enter');
 		await expect(dialog).toHaveCount(0);
-		await expect(
-			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Sheet' })
-		).toBeVisible();
+		await expectView(page, 'Sheet');
 
 		await allTables(page).click();
-		await page.getByRole('button', { name: 'New base' }).click();
+		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+		await page.getByRole('menuitem', { name: 'New base' }).click();
 		await dialog.getByRole('textbox', { name: 'New base' }).fill('Money');
 		await dialog.getByRole('textbox', { name: 'New base' }).press('Enter');
-		await expect(page.getByRole('heading', { name: 'Money', level: 2 })).toBeVisible();
+		await expect(dialog).toHaveCount(0);
+		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+		await expect(page.getByRole('menuitem', { name: 'Money' })).toBeVisible();
 	});
 });
 
@@ -951,7 +951,7 @@ test.describe('importing', () => {
 
 		await expect(header(page, 'load_mode')).toBeAttached();
 
-		await page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Entry' }).click();
+		await switchView(page, 'Entry');
 		const plan = page.getByRole('group', { name: 'Last time' });
 		const lines = plan.getByRole('button', { name: /^(Logged )?\d/u });
 		await expect(page.getByRole('button', { name: 'Push A', exact: true })).toHaveAttribute(
@@ -1085,16 +1085,20 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		expect(await taps()).toBeLessThanOrEqual(5);
 	});
 
-	test('switch view: was 1', async ({ page, context, account }) => {
+	test('switch view: was 1, two on a phone where the views are a menu', async ({
+		page,
+		context,
+		account
+	}) => {
 		void account;
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
 		await expect(cell(page, '100')).toBeVisible();
 		const taps = await countTaps(page);
 
-		await page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Entry' }).click();
+		await switchView(page, 'Entry');
 		await expect(page.getByRole('button', { name: 'Add row' })).toBeVisible();
-		expect(await taps()).toBe(1);
+		expect(await taps()).toBe(onPhone() ? 2 : 1);
 	});
 
 	test('create a view: was 3', async ({ page, context, account }) => {
@@ -1111,9 +1115,7 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 			await page.getByRole('button', { name: 'New view' }).click();
 			await page.getByRole('menuitem', { name: 'Grid', exact: true }).click();
 		}
-		await expect(
-			page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'Grid 2' })
-		).toBeVisible();
+		await expectView(page, 'Grid 2');
 		expect(await taps()).toBeLessThanOrEqual(3);
 	});
 
@@ -1134,19 +1136,23 @@ test.describe('the audit’s core jobs, at or below their old count', () => {
 		expect(await taps()).toBeLessThanOrEqual(5);
 	});
 
-	test('ask the assistant: was 2', async ({ page, context, account }) => {
+	test('ask the assistant: was 2, three on a phone where Ask sits in the table sheet', async ({
+		page,
+		context,
+		account
+	}) => {
 		void account;
 		const { path } = await seedGym(context.request);
 		const key = await script(context.request, [{ blocks: [{ type: 'text', text: 'Two sets.' }] }]);
 		await page.goto(path);
-		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
+		await expectAsk(page, true);
 		const taps = await countTaps(page);
 
-		await page.getByRole('button', { name: /^Ask/u }).click();
+		await openAsk(page);
 		await page.getByPlaceholder('Ask about your tables').fill(`${key} how many sets`);
 		await page.getByRole('button', { name: 'Send' }).click();
 		await expect(page.getByTestId('thread').getByText('Two sets.')).toBeVisible();
-		expect(await taps()).toBeLessThanOrEqual(2);
+		expect(await taps()).toBeLessThanOrEqual(onPhone() ? 3 : 2);
 	});
 
 	test('undo: one tap in the toast on a phone, Ctrl+Z on a desktop', async ({
@@ -1186,7 +1192,7 @@ test.describe('a boot the server does not answer', () => {
 		await page.route('**/api/sync', (route) => route.abort('internetdisconnected'));
 		await page.reload();
 		await expect(cell(page, '100')).toBeVisible();
-		await expect(page.getByRole('button', { name: /^Ask/u })).toHaveCount(0);
+		await expectAsk(page, false);
 
 		await editCell(page, '100', '123.5');
 		await expect(page.getByRole('status').filter({ hasText: 'Offline' })).toHaveText(
@@ -1197,8 +1203,8 @@ test.describe('a boot the server does not answer', () => {
 		await page.unroute('**/api/sync');
 		await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 
-		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
 		await expect(page.getByRole('status')).toHaveCount(0);
+		await expectAsk(page, true);
 		await expect
 			.poll(async () => {
 				const response = await context.request.post('/api/sync', {
@@ -1214,7 +1220,7 @@ test.describe('a boot the server does not answer', () => {
 		void account;
 		const { path } = await seedGym(context.request);
 		await page.goto(path);
-		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
+		await expectAsk(page, true);
 
 		await page.route('**/api/auth/session', (route) => route.fulfill({ status: 400, json: {} }));
 		await page.reload();
@@ -1223,7 +1229,7 @@ test.describe('a boot the server does not answer', () => {
 		await page.unroute('**/api/auth/session');
 		await page.evaluate(() => window.dispatchEvent(new Event('online')));
 		await expect(page.getByRole('status')).toHaveCount(0);
-		await expect(page.getByRole('button', { name: /^Ask/u })).toBeVisible();
+		await expectAsk(page, true);
 	});
 
 	test('with no account the app runs, reopens and stays quiet about the server', async ({

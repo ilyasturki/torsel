@@ -12,7 +12,7 @@ import {
 } from '../../src/lib/core/actions.ts';
 import { toStored } from '../../src/lib/core/formula.ts';
 import type { Rec, Value } from '../../src/lib/core/model.ts';
-import { columnMenu, expect, script, seed, tablePath, test } from './harness.ts';
+import { columnMenu, expect, openAsk, script, seed, tablePath, test } from './harness.ts';
 
 const FIELDS: FieldSpec[] = [
 	{ name: 'Title', type: 'text' },
@@ -525,7 +525,7 @@ test.describe('the assistant', () => {
 			{ blocks: [{ type: 'text', text: 'Ready.' }] }
 		]);
 		await page.goto('/app');
-		await page.getByRole('button', { name: /^Ask/u }).click();
+		await openAsk(page);
 		await page.getByPlaceholder('Ask about your tables').fill(`${key} my films`);
 		await page.locator('aside[aria-label="Ask"]').getByRole('button', { name: 'Send' }).click();
 		// On a phone the panel gives way to the table the assistant opens.

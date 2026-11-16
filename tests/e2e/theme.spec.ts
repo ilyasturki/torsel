@@ -23,12 +23,15 @@ for (const scheme of SCHEMES) {
 		await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 		await page.goto('/app');
 
-		for (const name of ['New table', 'Import', 'New base']) {
+		const actions = test.info().project.name === 'phone' ? ['New table'] : ['New table', 'Import'];
+		for (const name of actions) {
 			expect(await fill(page.getByRole('button', { name, exact: true }))).not.toBe(
 				'rgba(0, 0, 0, 0)'
 			);
 		}
-		expect(await fill(page.getByRole('link', { name: 'Settings' }))).not.toBe('rgba(0, 0, 0, 0)');
+		if (test.info().project.name !== 'phone') {
+			expect(await fill(page.getByRole('link', { name: 'Settings' }))).not.toBe('rgba(0, 0, 0, 0)');
+		}
 
 		const left = page.locator('main a[data-home-row][aria-current="true"]');
 		await expect(left).toContainText('Lifts');

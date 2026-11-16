@@ -1,8 +1,19 @@
+import common from '../../src/lib/i18n/common.ts';
 import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, mint, openTable, rpc, script, seed, tablePath, test } from './harness.ts';
+import {
+	expect,
+	mint,
+	openAsk as tapAsk,
+	openTable,
+	rpc,
+	script,
+	seed,
+	tablePath,
+	test
+} from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -60,7 +71,7 @@ const isPhone = (): boolean => test.info().project.name === 'phone';
 
 async function openAsk(page: Page): Promise<void> {
 	if (!(await panel(page).isVisible())) {
-		await page.getByRole('button', { name: /^Ask/u }).click();
+		await tapAsk(page);
 	}
 }
 
@@ -504,7 +515,7 @@ for (const [locale, reading, working] of [
 			await page.goto(tablePath(table));
 			const asker = page.locator('#ask-input');
 			if (!(await asker.isVisible())) {
-				await page.getByRole('button', { name: new RegExp(`^${working}`, 'u') }).click();
+				await tapAsk(page, working, locale === 'fr-FR' ? common.fr.more : common.en.more);
 			}
 			await asker.fill(`${key} how many lifts`);
 			await asker.press('Enter');

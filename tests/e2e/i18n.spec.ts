@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import common from '../../src/lib/i18n/common.ts';
 import email from '../../src/lib/i18n/email.ts';
 import errors from '../../src/lib/i18n/errors.ts';
 import home from '../../src/lib/i18n/home.ts';
@@ -49,7 +50,11 @@ test.describe('in fr-FR', () => {
 			page.getByRole('banner').getByText(shell.fr.rowCount(2), { exact: true })
 		).toBeVisible();
 		await expect(page.getByRole('columnheader', { name: names.fr.column(2) })).toBeVisible();
-		await expect(page.getByRole('link', { name: names.fr.views.grid })).toBeVisible();
+		if (test.info().project.name === 'phone') {
+			await expect(page.locator('[data-view-menu]')).toHaveText(names.fr.views.grid);
+		} else {
+			await expect(page.getByRole('link', { name: names.fr.views.grid })).toBeVisible();
+		}
 		await expect(page).toHaveTitle(`${name} · Torsel`);
 
 		const controls = page.locator('header a, header button, [role="group"] a');
@@ -66,7 +71,12 @@ test.describe('in fr-FR', () => {
 		void account;
 		await page.goto('/app');
 		await page.getByRole('button', { name: home.fr.newTable }).first().click();
-		await page.getByRole('button', { name: views.fr.viewSettings, exact: true }).click();
+		if (test.info().project.name === 'phone') {
+			await page.getByRole('banner').getByRole('button', { name: common.fr.more }).click();
+			await page.getByRole('dialog').getByRole('button', { name: views.fr.viewSettings }).click();
+		} else {
+			await page.getByRole('button', { name: views.fr.viewSettings, exact: true }).click();
+		}
 		const picker = page.getByRole('group', { name: views.fr.viewType });
 		await expect(picker.getByRole('button')).toHaveCount(4);
 		const clipped = await picker

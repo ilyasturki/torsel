@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, test } from './harness.ts';
+import { expect, switchView, test } from './harness.ts';
 
 function wasmRequests(page: Page): string[] {
 	const seen: string[] = [];
@@ -122,7 +122,7 @@ test.describe('with its worker', () => {
 		await page.goto('/app');
 		await page.getByRole('button', { name: 'New table' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
-		await page.getByRole('link', { name: 'Entry' }).click();
+		await switchView(page, 'Entry');
 		await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
 
 		await context.setOffline(true);

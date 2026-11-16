@@ -13,21 +13,25 @@
 	import { AUTHORIZE, HOME, LOGIN, SETTINGS, tableUrl } from '#lib/client/nav.ts';
 	import { visitTable } from '#lib/client/place.ts';
 	import { me } from '#lib/client/session.svelte.ts';
-	import { isTyping, pastedCells, shell } from '#lib/client/shell.svelte.ts';
+	import { isTyping, pastedCells, shell, startTable } from '#lib/client/shell.svelte.ts';
 	import { followOtherTabs, sync } from '#lib/client/sync.svelte.ts';
 	import { redoChange, undoChange } from '#lib/client/toast.svelte.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import { markDocumentLocale } from '#lib/i18n/runtime.ts';
 	import { shell as words } from '#lib/i18n/shell.ts';
+	import { home as homeWords } from '#lib/i18n/home.ts';
 	import { views as viewWords } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Logo from '#lib/ui/Logo.svelte';
+	import Menu from '#lib/ui/Menu.svelte';
+	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import { focus, secondary } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 	import AskPanel from '#lib/views/AskPanel.svelte';
+	import HomeMenu from '#lib/views/HomeMenu.svelte';
 	import ImportSheet from '#lib/views/ImportSheet.svelte';
 	import { shownView } from '#lib/views/pin.svelte.ts';
 	import RowSheet from '#lib/views/RowSheet.svelte';
@@ -126,6 +130,11 @@
 	});
 
 	const onTable = $derived(table !== undefined);
+
+	const noTables = $derived.by(() => {
+		void app.version;
+		return app.ws.bases().every((base) => app.ws.tables(base.id).length === 0);
+	});
 	// Entry and a source table keep New row's slot, empty, so the tools beside it stay put.
 	const noNewRow = $derived(view?.type === 'entry' || !adds);
 
@@ -236,106 +245,136 @@
 	{@render children()}
 {:else}
 	<div class="relative flex h-dvh flex-col overflow-clip pt-safe">
-		<header
-			class="flex min-h-13 shrink-0 items-center gap-x-3 gap-y-1 px-gutter py-2.5 max-lg:flex-wrap max-sm:gap-x-2 max-sm:pr-2"
-		>
-			<a
-				href={HOME}
-				class="shrink-0 rounded-box text-ink transition-colors motion hover:text-ink-2"
-				aria-label={words.allTables}
-			>
-				<Logo class="size-4" />
-			</a>
-			<div class="flex min-w-0 items-center gap-2 max-lg:flex-1">
-				{#if table !== undefined}
-					<TableTitle {table} rows={rowCount} />
-				{:else}
-					<h1 class="flex min-w-0" aria-label={heading}>
-						<TableSwitcher name={heading} current={null} />
-					</h1>
-				{/if}
-				{#if table !== undefined}
-					<span class="shrink-0 text-ink-3">{words.rowCount(rowCount)}</span>
-				{/if}
-			</div>
-			<SyncStatus />
-			<div class="ml-auto flex shrink-0 items-center gap-1">
-				{#if assistant.available && me.account && sync.status !== 'offline'}
-					<Tooltip shortcut={keys('mod', 'k')}>
-						{#snippet children(props)}
-							<Button
-								{...props}
-								class={asking ? 'bg-button-hover' : ''}
-								aria-pressed={asking}
-								onclick={() => (asking = !asking)}>{words.ask}</Button
-							>
-						{/snippet}
-					</Tooltip>
-				{/if}
+		<header class="flex shrink-0 flex-col px-gutter max-sm:pr-2">
+			<div class="flex min-h-13 items-center gap-x-3 py-2.5 max-sm:gap-x-1">
 				<a
-					href={onSettings ? beforeSettings : SETTINGS}
-					class="inline-grid h-control items-center rounded-box px-3 font-medium transition-colors motion {secondary} {focus} {onTable
-						? 'max-sm:hidden'
-						: ''}"
-					onclick={(event) => {
-						// The second click of a double-click lands here once Settings has opened.
-						if (onSettings && event.detail > 1) event.preventDefault();
-					}}
+					href={HOME}
+					class="shrink-0 rounded-box text-ink transition-colors motion hover:text-ink-2 max-sm:mr-1"
+					aria-label={words.allTables}
 				>
-					<span class="col-start-1 row-start-1 {onSettings ? 'invisible' : ''}"
-						>{words.settings}</span
-					>
-					<span class="col-start-1 row-start-1 {onSettings ? '' : 'invisible'}">{common.back}</span>
+					<Logo class="size-4" />
 				</a>
+				<div class="flex min-w-0 shrink items-center gap-2">
+					{#if table !== undefined}
+						<TableTitle {table} rows={rowCount} />
+						<span class="shrink-0 text-ink-3 max-sm:sr-only">{words.rowCount(rowCount)}</span>
+					{:else}
+						<h1 class="flex min-w-0" aria-label={heading}>
+							<TableSwitcher name={heading} current={null} />
+						</h1>
+					{/if}
+				</div>
 				{#if table !== undefined}
-					<IconButton
-						icon="more"
-						label={common.more}
-						tooltip={false}
-						class="sm:hidden"
-						onclick={() => (menuOpen = true)}
-					/>
+					<span class="h-4 w-px shrink-0 bg-rule max-sm:hidden"></span>
+					<div class="flex min-w-0 max-sm:hidden">
+						<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
+					</div>
+					<div class="flex min-w-0 sm:hidden">
+						<Menu label={viewWords.views}>
+							{#snippet trigger(props)}
+								<button
+									{...props}
+									type="button"
+									data-view-menu
+									class="flex h-control min-w-0 items-center gap-1 rounded-box px-2 font-medium text-ink-2 transition-colors motion hover:text-ink {focus}"
+								>
+									<span class="truncate">{view?.name}</span>
+									<Icon name="chevron-down" class="size-3.5 shrink-0 text-ink-3" />
+								</button>
+							{/snippet}
+							{#each views as option (option.id)}
+								<MenuItem
+									checked={option.id === view?.id}
+									onSelect={() => void goto(tableUrl(table.id, option.id))}>{option.name}</MenuItem
+								>
+							{/each}
+						</Menu>
+					</div>
 				{/if}
-			</div>
-		</header>
-
-		{#if table !== undefined}
-			<div
-				class="box-content flex h-10 shrink-0 items-center gap-1 border-b border-rule px-gutter max-sm:h-11 max-sm:pr-2"
-			>
-				<ViewTabs {table} {views} current={view} onsettings={openViewSettings} />
+				<span class="contents max-lg:hidden"><SyncStatus /></span>
 				<div class="ml-auto flex shrink-0 items-center gap-1">
-					<IconButton
-						icon="settings"
-						label={viewWords.viewSettings}
-						onclick={() => openViewSettings(view?.id ?? null)}
-					/>
-					<IconButton
-						icon="more"
-						label={common.more}
-						class="max-sm:hidden"
-						onclick={(event) => {
-							menuAnchor = event.currentTarget;
-							menuOpen = !menuOpen;
-						}}
-					/>
-					<Button
-						variant="primary"
-						class="max-sm:w-control max-sm:px-0 {noNewRow ? 'invisible' : ''}"
-						aria-label={words.newRow}
-						aria-hidden={noNewRow ? 'true' : undefined}
-						tabindex={noNewRow ? -1 : undefined}
-						onclick={() => {
-							if (view?.type === 'grid') gridJump.blankRow += 1;
-							else shell.newRow = true;
-						}}
-					>
-						<Icon name="plus" class="size-4 sm:hidden" />
-						<span class="max-sm:hidden">{words.newRow}</span>
-					</Button>
+					{#if table !== undefined}
+						<IconButton
+							icon="settings"
+							label={viewWords.viewSettings}
+							class="max-sm:hidden"
+							onclick={() => openViewSettings(view?.id ?? null)}
+						/>
+						<IconButton
+							icon="more"
+							label={common.more}
+							onclick={(event) => {
+								menuAnchor = event.currentTarget;
+								menuOpen = !menuOpen;
+							}}
+						/>
+						<Button
+							variant="primary"
+							class="max-sm:w-control max-sm:px-0 {noNewRow ? 'invisible' : ''}"
+							aria-label={words.newRow}
+							aria-hidden={noNewRow ? 'true' : undefined}
+							tabindex={noNewRow ? -1 : undefined}
+							onclick={() => {
+								if (view?.type === 'grid') gridJump.blankRow += 1;
+								else shell.newRow = true;
+							}}
+						>
+							<Icon name="plus" class="size-4 sm:hidden" />
+							<span class="max-sm:hidden">{words.newRow}</span>
+						</Button>
+					{:else if !onSettings}
+						{#if !noTables}
+							<Button class="max-sm:hidden" onclick={() => (shell.importing = { into: null })}
+								>{homeWords.importFile}</Button
+							>
+						{/if}
+						<Button
+							variant={noTables ? 'secondary' : 'primary'}
+							class="max-sm:w-control max-sm:px-0"
+							aria-label={homeWords.newTable}
+							onclick={() => startTable()}
+						>
+							<Icon name="plus" class="size-4 sm:hidden" />
+							<span class="max-sm:hidden">{homeWords.newTable}</span>
+						</Button>
+						<HomeMenu />
+					{/if}
+					{#if !onSettings}<span class="mx-1 h-4 w-px shrink-0 bg-rule max-sm:hidden"></span>{/if}
+					<div class="contents {onTable ? 'max-sm:hidden' : ''}">
+						{#if assistant.available && me.account && sync.status !== 'offline'}
+							<Tooltip shortcut={keys('mod', 'k')}>
+								{#snippet children(props)}
+									<Button
+										{...props}
+										class={asking ? 'bg-button-hover' : ''}
+										aria-pressed={asking}
+										onclick={() => (asking = !asking)}>{words.ask}</Button
+									>
+								{/snippet}
+							</Tooltip>
+						{/if}
+						<a
+							href={onSettings ? beforeSettings : SETTINGS}
+							class="inline-grid h-control items-center rounded-box px-3 font-medium transition-colors motion {secondary} {focus} {onSettings
+								? ''
+								: 'max-sm:hidden'}"
+							onclick={(event) => {
+								// The second click of a double-click lands here once Settings has opened.
+								if (onSettings && event.detail > 1) event.preventDefault();
+							}}
+						>
+							<span class="col-start-1 row-start-1 {onSettings ? 'invisible' : ''}"
+								>{words.settings}</span
+							>
+							<span class="col-start-1 row-start-1 {onSettings ? '' : 'invisible'}"
+								>{common.back}</span
+							>
+						</a>
+					</div>
 				</div>
 			</div>
-		{/if}
+			<div class="lg:hidden"><SyncStatus /></div>
+		</header>
 
 		<div class="relative flex min-h-0 flex-1 px-gutter pt-3 pb-5 max-sm:p-0 max-sm:pb-safe">
 			<main
@@ -356,7 +395,16 @@
 	<ImportSheet />
 
 	{#if table !== undefined}
-		<TableMenu bind:open={menuOpen} anchor={menuAnchor} {table} {view} />
+		<TableMenu
+			bind:open={menuOpen}
+			anchor={menuAnchor}
+			{table}
+			{view}
+			onask={assistant.available && me.account && sync.status !== 'offline'
+				? () => (asking = true)
+				: undefined}
+			onviewsettings={() => openViewSettings(view?.id ?? null)}
+		/>
 		{#if settingsView !== null}
 			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={settingsView} />
 		{/if}

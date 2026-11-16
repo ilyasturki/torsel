@@ -308,10 +308,7 @@ test.describe('cells', () => {
 			await cell.dblclick();
 			expect(await columnWidths(page), `editing the ${name} cell`).toEqual(widths);
 
-			await page
-				.getByRole('banner')
-				.getByText(/^\d+ rows?$/u)
-				.click();
+			await page.getByRole('banner').click({ position: { x: 1, y: 1 } });
 			expect(await columnWidths(page), `leaving the ${name} cell`).toEqual(widths);
 		}
 	});

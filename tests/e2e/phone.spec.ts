@@ -2,7 +2,16 @@ import names from '../../src/lib/i18n/names.ts';
 import type { APIRequestContext, Locator } from '@playwright/test';
 
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
-import { expect, newView, pick, seed, tablePath, test, viewSettings } from './harness.ts';
+import {
+	expect,
+	expectView,
+	newView,
+	pick,
+	seed,
+	tablePath,
+	test,
+	viewSettings
+} from './harness.ts';
 
 test.beforeEach(() => {
 	test.skip(test.info().project.name !== 'phone', 'a phone-sized screen is the point here');
@@ -77,10 +86,7 @@ test('the last field scrolls clear of the button under it', async ({ page, conte
 
 	await page.goto(tablePath(table));
 	await newView(page, 'Chart');
-	await expect(page.getByRole('link', { name: 'Chart', exact: true })).toHaveAttribute(
-		'aria-current',
-		'page'
-	);
+	await expectView(page, 'Chart');
 	await viewSettings(page);
 	const sheet = page.getByRole('dialog');
 	await sheet.getByRole('button', { name: 'Line', exact: true }).click();

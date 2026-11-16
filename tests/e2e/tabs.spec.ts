@@ -2,11 +2,11 @@ import type { BrowserContext, Page } from '@playwright/test';
 
 import {
 	askAddsDeadlift,
-	askButton,
 	askPanel,
 	cell,
 	editCell,
 	expect,
+	openAsk,
 	redo,
 	seedLifts,
 	test,
@@ -89,7 +89,7 @@ test('history a stale tab held never brings back what the other undid', async ({
 	await expect(cell(page, 'Bench')).toBeVisible();
 
 	await page.reload();
-	await askButton(page).click();
+	await openAsk(page);
 	await expect(page.getByTestId('thread').locator('[data-status="undone"]')).toBeVisible();
 	await expect(page.getByText('1 row', { exact: true })).toBeVisible();
 	await askPanel(page).getByRole('button', { name: 'Close' }).click();
@@ -105,7 +105,7 @@ test('a decision in one tab reaches the thread open in the other', async ({
 }) => {
 	await askAddsDeadlift(page, context.request);
 	const other = await secondTab(page, context, pageErrors);
-	await askButton(other).click();
+	await openAsk(other);
 	await expect(other.getByTestId('thread').locator('[data-status="applied"]')).toBeVisible();
 
 	await page.getByTestId('thread').getByRole('button', { name: 'Undo' }).click();

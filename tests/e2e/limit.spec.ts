@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { DAILY_BUDGET } from './fake-anthropic.ts';
-import { askButton, askPanel, expect, script, seedLifts, test } from './harness.ts';
+import { askPanel, expect, openAsk, script, seedLifts, test } from './harness.ts';
 
 const FAKE = process.env.TORSEL_TEST_FAKE ?? '';
 
@@ -27,7 +27,7 @@ test('once the day’s budget is spent a prompt never reaches the model, and the
 		answers.map((text) => ({ blocks: [{ type: 'text', text }], spend: 1 }))
 	);
 	await page.goto(path);
-	await askButton(page).click();
+	await openAsk(page);
 
 	const rows = page.getByTestId('thread');
 	for (const [at, answer] of answers.entries()) {

@@ -18,7 +18,7 @@
 {#if app.saveFailed || (sync.status !== 'idle' && (sync.status !== 'offline' || app.pending > 0))}
 	<p
 		role="status"
-		class="flex shrink-0 items-center gap-1 font-medium max-lg:order-last max-lg:basis-full max-lg:flex-wrap"
+		class="flex shrink-0 items-center gap-1 font-medium max-lg:flex-wrap max-lg:pb-2"
 	>
 		{#if app.saveFailed}
 			<Rich text={words.saveFailed}>

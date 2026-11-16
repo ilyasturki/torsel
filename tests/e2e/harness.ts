@@ -90,9 +90,51 @@ export async function tableMenu(page: Page, item: string): Promise<void> {
 		.click();
 }
 
-/** Opens the current view's settings from its icon in the bar. */
+/** The view tabs, from `sm` up; a phone lists the views in a menu under the current one's name. */
+export const viewStrip = (page: Page): Locator => page.getByRole('group', { name: 'Views' });
+
+/** Opens a view of the table on screen: its tab from `sm` up, the views menu on a phone. */
+export async function switchView(page: Page, name: string): Promise<void> {
+	if (base.info().project.name === 'phone') {
+		await page.locator('[data-view-menu]').click();
+		await page.getByRole('menuitem', { name, exact: true }).click();
+	} else {
+		await viewStrip(page).getByRole('link', { name, exact: true }).click();
+	}
+}
+
+/** The view on screen is this one, as its tab or the phone's views menu shows it. */
+export async function expectView(page: Page, name: string): Promise<void> {
+	if (base.info().project.name === 'phone') {
+		await expect(page.locator('[data-view-menu]')).toHaveText(name);
+	} else {
+		await expect(viewStrip(page).getByRole('link', { name, exact: true })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
+	}
+}
+
+/** The table on screen has this view `count` times, in its tabs or the phone's views menu. */
+export async function expectViewListed(page: Page, name: string, count = 1): Promise<void> {
+	if (base.info().project.name === 'phone') {
+		await page.locator('[data-view-menu]').click();
+		await expect(page.getByRole('menuitem', { name, exact: true })).toHaveCount(count);
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+	} else {
+		await expect(viewStrip(page).getByRole('link', { name, exact: true })).toHaveCount(count);
+	}
+}
+
+/** Opens the current view's settings: its icon in the header from `sm` up, the table's sheet on a phone. */
 export async function viewSettings(page: Page): Promise<void> {
-	await page.getByRole('button', { name: 'View settings', exact: true }).click();
+	if (base.info().project.name === 'phone') {
+		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'View settings' }).click();
+	} else {
+		await page.getByRole('button', { name: 'View settings', exact: true }).click();
+	}
 }
 
 /** Adds a view of a type: the "+" by the view tabs from `sm` up, the table's sheet on a phone. */
@@ -313,6 +355,29 @@ export async function editCell(page: Page, from: string, to: string): Promise<vo
 
 export const askButton = (page: Page): Locator => page.getByRole('button', { name: /^Ask/u });
 
+/** Whether Ask is offered: in the header, or in the table's sheet on a phone. */
+export async function expectAsk(page: Page, offered: boolean): Promise<void> {
+	if (base.info().project.name === 'phone' && new URL(page.url()).pathname.startsWith('/app/t/')) {
+		await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+		const ask = page.getByRole('dialog').getByRole('button', { name: 'Ask' });
+		await expect(ask).toHaveCount(offered ? 1 : 0);
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+	} else {
+		await expect(askButton(page)).toHaveCount(offered ? 1 : 0);
+	}
+}
+
+/** Opens Ask: its button in the header, or the table's sheet on a phone, where the header has no room for it. */
+export async function openAsk(page: Page, label = 'Ask', more = 'More'): Promise<void> {
+	if (base.info().project.name === 'phone' && new URL(page.url()).pathname.startsWith('/app/t/')) {
+		await page.getByRole('banner').getByRole('button', { name: more }).click();
+		await page.getByRole('dialog').getByRole('button', { name: label }).click();
+	} else {
+		await page.getByRole('button', { name: new RegExp(`^${label}`, 'u') }).click();
+	}
+}
+
 export const askPanel = (page: Page): Locator => page.locator('aside[aria-label="Ask"]');
 
 /** On the page of `seedLifts`: the assistant adds a Deadlift by itself, and the panel stays open. */
@@ -330,7 +395,7 @@ export async function askAddsDeadlift(page: Page, request: APIRequestContext): P
 		},
 		{ blocks: [{ type: 'text', text: 'Logged.' }] }
 	]);
-	await askButton(page).click();
+	await openAsk(page);
 	await page.getByPlaceholder('Ask about your tables').fill(`${key} log a deadlift`);
 	await page.getByRole('button', { name: 'Send' }).click();
 	await expect(page.getByTestId('thread').getByText('Logged.')).toBeVisible();

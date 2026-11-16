@@ -32,7 +32,11 @@
 		}
 	});
 
+	// The views sit beside the name: the field keeps the name's width, plus the 12px its -mx-1.5 takes back, so nothing moves when it closes.
+	let width = $state(0);
+
 	function begin(): void {
+		width = heading?.offsetWidth ?? 0;
 		draft = table.name;
 		editing = true;
 	}
@@ -67,7 +71,8 @@
 	{#if editing}
 		<input
 			use:select
-			class="-mx-1.5 h-control w-full min-w-0 rounded-box px-1.5 font-semibold {fieldFill} {fieldFocus}"
+			class="-mx-1.5 field-sizing-content h-control max-w-full rounded-box px-1.5 font-semibold {fieldFill} {fieldFocus}"
+			style="min-width: {width + 12}px"
 			aria-label={words.tableName}
 			bind:value={draft}
 			onblur={commit}

@@ -204,7 +204,7 @@
 	>
 		<i
 			data-indicator
-			class="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-ink transition-[transform,width] motion-slow {drag
+			class="pointer-events-none absolute inset-y-1 left-0 rounded-box bg-tint-2 transition-[transform,width] motion-slow {drag
 				? 'opacity-0'
 				: ''}"
 		></i>
@@ -225,7 +225,7 @@
 								draggable="false"
 								data-view={view.id}
 								aria-current={view.id === current?.id ? 'page' : undefined}
-								class="relative flex h-10 shrink-0 items-center rounded-box px-3 font-medium whitespace-nowrap select-none hover:text-ink {focus} {view.id ===
+								class="relative flex h-control shrink-0 items-center rounded-box px-3 font-medium whitespace-nowrap select-none hover:text-ink {focus} {view.id ===
 								current?.id
 									? 'text-ink'
 									: 'text-ink-2'} {drag?.id === view.id

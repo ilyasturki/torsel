@@ -10,9 +10,9 @@ import {
 	insertRows
 } from '../../src/lib/core/actions.ts';
 import {
-	askButton,
 	cell,
 	expect,
+	openAsk,
 	script,
 	seed,
 	syncFromSource,
@@ -336,7 +336,7 @@ test.describe('agents', () => {
 			{ blocks: [{ type: 'text', text: 'Title comes from the source.' }] }
 		]);
 		await page.goto(tablePath(movies.table));
-		await askButton(page).click();
+		await openAsk(page);
 		await page.getByPlaceholder('Ask about your tables').fill(`${key} rename Alien`);
 		await page.getByRole('button', { name: 'Send' }).click();
 		await expect(

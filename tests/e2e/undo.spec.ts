@@ -12,10 +12,14 @@ import {
 	columnMenu,
 	expect,
 	expectListed,
+	expectView,
+	expectViewListed,
 	newView,
+	openAsk,
 	redo,
 	script,
 	seed,
+	switchView,
 	tableMenu,
 	tablePath,
 	test,
@@ -199,24 +203,22 @@ test('a sort, from its toast', async ({ page }) => {
 });
 
 test('a view added, then deleted', async ({ page }) => {
-	const views = page.getByRole('group', { name: 'Views' });
-
 	await newView(page, 'Chart');
-	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
+	await expectView(page, 'Chart');
 	await toastButton(page, 'Undo').click();
-	await expect(views.getByRole('link', { name: 'Chart' })).toHaveCount(0);
+	await expectViewListed(page, 'Chart', 0);
 	await toastButton(page, 'Redo').click();
-	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
+	await expectViewListed(page, 'Chart');
 
-	await views.getByRole('link', { name: 'Chart' }).click();
+	await switchView(page, 'Chart');
 	await viewSettings(page);
 	await page
 		.getByRole('dialog', { name: 'View settings' })
 		.getByRole('button', { name: 'Delete' })
 		.click();
-	await expect(views.getByRole('link', { name: 'Chart' })).toHaveCount(0);
+	await expectViewListed(page, 'Chart', 0);
 	await toastButton(page, 'Undo').click();
-	await expect(views.getByRole('link', { name: 'Chart' })).toBeVisible();
+	await expectViewListed(page, 'Chart');
 });
 
 test('a table deleted, and a base deleted', async ({ page }) => {
@@ -226,9 +228,9 @@ test('a table deleted, and a base deleted', async ({ page }) => {
 	await toastButton(page, 'Undo').click();
 	await expectListed(page, 'Lifts');
 
-	const money = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Money' }) });
-	await money.last().getByRole('button', { name: 'More' }).click();
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+	await page.getByRole('menuitem', { name: 'Money' }).click();
+	await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
 	await expectListed(page, 'Expenses', 0);
 	await toastButton(page, 'Undo').click();
 	await expectListed(page, 'Expenses');
@@ -281,7 +283,7 @@ test('what the assistant applied undoes after a reload, and the model hears', as
 		{ blocks: [{ type: 'text', text: 'Logged.' }] },
 		{ blocks: [{ type: 'text', text: 'Understood.' }] }
 	]);
-	const ask = page.getByRole('button', { name: /^Ask/u });
+	const ask = { click: (): Promise<void> => openAsk(page) };
 	const close = page.locator('aside[aria-label="Ask"]').getByRole('button', { name: 'Close' });
 	const thread = page.getByTestId('thread');
 

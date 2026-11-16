@@ -8,7 +8,7 @@ import {
 	createView,
 	insertRows
 } from '../../src/lib/core/actions.ts';
-import { expect, seed, tableMenu, tablePath, test, toastButton } from './harness.ts';
+import { expect, seed, switchView, tableMenu, tablePath, test, toastButton } from './harness.ts';
 
 const at = (path: string): RegExp => new RegExp(`${path}$`, 'u');
 
@@ -34,10 +34,9 @@ test('a table and its views are addressed by their names', async ({ page, contex
 	await page.goto('/app/t/series');
 	await expect(page.getByRole('heading', { name: 'Séries' })).toBeVisible();
 
-	const views = page.getByRole('group', { name: 'Views' });
-	await views.getByRole('link', { name: 'Date watched' }).click();
+	await switchView(page, 'Date watched');
 	await expect(page).toHaveURL(at('/app/t/series/date-watched'));
-	await views.getByRole('link', { name: 'Grid' }).click();
+	await switchView(page, 'Grid');
 	await expect(page).toHaveURL(at('/app/t/series'));
 
 	await page.goto(tablePath(series, grid));

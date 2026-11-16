@@ -4,12 +4,12 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { createBase, createTable, defaultViews, insertRows } from '../../src/lib/core/actions.ts';
 import {
 	askAddsDeadlift,
-	askButton,
 	askPanel,
 	cell,
 	editCell,
 	expect,
 	newAccount,
+	openAsk,
 	passwordSignIn,
 	redo,
 	RETRY_RESET,
@@ -110,7 +110,7 @@ const KINDS: Kind[] = [
 				},
 				{ blocks: [{ type: 'text', text: 'Logged.' }] }
 			]);
-			await askButton(page).click();
+			await openAsk(page);
 			await page.getByPlaceholder('Ask about your tables').fill(`${key} log a deadlift`);
 		},
 		async change(page) {
@@ -119,7 +119,7 @@ const KINDS: Kind[] = [
 		},
 		async reopened(page) {
 			await expect(page.getByText('2 rows')).toBeVisible();
-			await askButton(page).click();
+			await openAsk(page);
 			await expect(
 				page.getByTestId('thread').locator('[data-testid="change"][data-status="applied"]')
 			).toBeVisible();
@@ -237,7 +237,7 @@ const changeIn = (page: Page, status: 'applied' | 'undone') =>
 	page.getByTestId('thread').locator(`[data-testid="change"][data-status="${status}"]`);
 
 async function reopenThread(page: Page): Promise<void> {
-	await askButton(page).click();
+	await openAsk(page);
 	await expect(page.getByTestId('thread').getByText('Logged.')).toBeVisible();
 }
 

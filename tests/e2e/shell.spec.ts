@@ -12,10 +12,13 @@ import {
 	allTables,
 	expect,
 	expectListed,
+	expectView,
 	newView,
+	openAsk,
 	openTable,
 	RETRY_RESET,
 	seed,
+	switchView,
 	tableList,
 	tableMenu,
 	tablePath,
@@ -116,10 +119,9 @@ test('the header list changes the table and the view strip changes the view', as
 	await page.goto(tablePath(lifts));
 	await expect(page.getByRole('heading', { name: 'Lifts' })).toBeVisible();
 
-	const views = page.getByRole('group', { name: 'Views' });
-	await views.getByRole('link', { name: 'Entry' }).click();
+	await switchView(page, 'Entry');
 	await expect(page.getByRole('button', { name: 'Add row' })).toBeVisible();
-	await views.getByRole('link', { name: 'Volume' }).click();
+	await switchView(page, 'Volume');
 	await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Volume')}$`, 'u'));
 	await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
 
@@ -136,15 +138,16 @@ test('bases group the home only once there is more than one', async ({
 	void account;
 	await seedTwoTables(context.request);
 	await page.goto('/app');
-	await expect(page.getByRole('link', { name: /Lifts/u }).first()).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Tables', level: 2 })).toHaveCount(0);
+	const lifts = page.locator('main a[data-home-row]').filter({ hasText: 'Lifts' });
+	await expect(lifts).toBeVisible();
+	await expect(lifts).not.toContainText('Tables');
 
-	await page.getByRole('button', { name: 'New base' }).click();
+	await page.getByRole('banner').getByRole('button', { name: 'More' }).click();
+	await page.getByRole('menuitem', { name: 'New base' }).click();
 	await page.getByRole('textbox', { name: 'New base' }).fill('Money');
 	await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
 
-	await expect(page.getByRole('heading', { name: 'Tables', level: 2 })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Money', level: 2 })).toBeVisible();
+	await expect(lifts).toContainText('Tables');
 });
 
 test('the table list filters as it is typed in, and opens with Ctrl P', async ({
@@ -213,7 +216,7 @@ test('the assistant stays out of the way until it is opened', async ({
 	const input = page.getByPlaceholder('Ask about your tables');
 	await expect(input).toBeHidden();
 
-	await page.getByRole('button', { name: /^Ask/u }).click();
+	await openAsk(page);
 	await expect(input).toBeVisible();
 	await expect(input).toBeFocused();
 	await expect(page.getByText('On Lifts, Grid')).toBeVisible();
@@ -235,7 +238,7 @@ test('Escape closes the table list and leaves the Ask panel open', async ({
 	const { lifts } = await seedTwoTables(context.request);
 	await page.goto(tablePath(lifts));
 	const input = page.getByPlaceholder('Ask about your tables');
-	await page.getByRole('button', { name: /^Ask/u }).click();
+	await openAsk(page);
 	await expect(input).toBeVisible();
 
 	const list = page.getByRole('listbox', { name: 'Tables' });
@@ -321,7 +324,7 @@ test('a sheet and the assistant keep room under their buttons', async ({
 		);
 	};
 
-	await page.getByRole('button', { name: /^Ask/u }).click();
+	await openAsk(page);
 	const composer = page
 		.locator('form')
 		.filter({ has: page.getByPlaceholder('Ask about your tables') });
@@ -362,9 +365,7 @@ test('the table menu renames the table, opens view settings and adds a view', as
 	await expect(dialog).toHaveCount(0);
 
 	await newView(page, 'List');
-	await expect(
-		page.getByRole('group', { name: 'Views' }).getByRole('link', { name: 'List' })
-	).toBeVisible();
+	await expectView(page, 'List');
 });
 
 test('the table menu hangs from its button on desktop and is a sheet on a phone', async ({
@@ -427,6 +428,21 @@ test('settings opens from the home and a table, and its slot turns into Back in 
 	const ask = header.getByRole('button', { name: /^Ask/u });
 
 	await page.goto('/app');
+	if (test.info().project.name === 'phone') {
+		await header.getByRole('button', { name: 'More' }).click();
+		await page.getByRole('menuitem', { name: 'Settings' }).click();
+		await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+		await header.getByRole('link', { name: 'Back' }).click();
+		await expect(page).toHaveURL(/\/app$/u);
+
+		await page.goto(tablePath(lifts));
+		await header.getByRole('button', { name: 'More' }).click();
+		await page.getByRole('link', { name: 'Settings' }).click();
+		await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+		await header.getByRole('link', { name: 'Back' }).click();
+		await expect(page).toHaveURL((url) => url.pathname.startsWith(tablePath('Lifts')));
+		return;
+	}
 	const settings = header.getByRole('link', { name: 'Settings' });
 	const slot = await settings.boundingBox();
 	const asked = (await ask.count()) > 0 ? await ask.boundingBox() : null;

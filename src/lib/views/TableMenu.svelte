@@ -29,12 +29,17 @@
 		open = $bindable(false),
 		anchor = null,
 		table,
-		view
+		view,
+		onask,
+		onviewsettings
 	}: {
 		open?: boolean;
 		anchor?: HTMLElement | null;
 		table: TableDef;
 		view?: ViewDef;
+		/** On a phone the header has no room for these, so the sheet carries them. */
+		onask?: () => void;
+		onviewsettings?: () => void;
 	} = $props();
 
 	let renaming = false;
@@ -121,6 +126,16 @@
 {:else}
 	<Dialog bind:open title={table.name} onCloseAutoFocus={keepRenameFocus}>
 		<div class="-mx-2 flex flex-col items-stretch">
+			{#if onask !== undefined}
+				<Button variant="ghost" class="justify-start" onclick={() => run(onask)}
+					>{shellWords.ask}</Button
+				>
+			{/if}
+			{#if onviewsettings !== undefined}
+				<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
+					>{viewWords.viewSettings}</Button
+				>
+			{/if}
 			<span class="px-3 pt-2 text-sm text-ink-3" id="new-view">{viewWords.newView}</span>
 			<div class="grid grid-cols-4 gap-1 px-1 pb-1" role="group" aria-labelledby="new-view">
 				{#each VIEW_TYPES as option (option.id)}
