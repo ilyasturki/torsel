@@ -42,6 +42,7 @@
 		onsort,
 		onaddsort,
 		onfilter,
+		retypable = true,
 		onretype,
 		onaction,
 		onCloseAutoFocus
@@ -58,6 +59,7 @@
 		onsort: (dir: 'asc' | 'desc' | null) => void;
 		onaddsort: () => void;
 		onfilter: (text: string) => void;
+		retypable?: boolean;
 		onretype: (type: FieldType) => void;
 		onaction: (action: ColumnAction) => void;
 		onCloseAutoFocus?: (event: Event) => void;
@@ -130,18 +132,20 @@
 		<div class="p-1">{@render filterInput(field)}</div>
 		<MenuSeparator />
 		<MenuItem icon="pencil" onSelect={() => onaction('rename')}>{common.rename}</MenuItem>
-		<MenuSub label={words.type} icon={fieldIcon(field.type)}>
-			{#each TYPES as option, at (option.value)}
-				{#if at > 0 && TYPES[at - 1].group !== option.group}<MenuSeparator />{/if}
-				<MenuItem
-					icon={option.icon}
-					checked={option.value === field.type}
-					onSelect={() => {
-						if (option.value !== field.type) onretype(option.value);
-					}}>{option.label}</MenuItem
-				>
-			{/each}
-		</MenuSub>
+		{#if retypable}
+			<MenuSub label={words.type} icon={fieldIcon(field.type)}>
+				{#each TYPES as option, at (option.value)}
+					{#if at > 0 && TYPES[at - 1].group !== option.group}<MenuSeparator />{/if}
+					<MenuItem
+						icon={option.icon}
+						checked={option.value === field.type}
+						onSelect={() => {
+							if (option.value !== field.type) onretype(option.value);
+						}}>{option.label}</MenuItem
+					>
+				{/each}
+			</MenuSub>
+		{/if}
 		{#if hidden.length > 0}
 			<MenuSub label={words.hiddenFields(hidden.length)} icon="eye">
 				{#each hidden as other (other.id)}

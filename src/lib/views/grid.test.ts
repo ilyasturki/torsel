@@ -293,6 +293,29 @@ describe('pasting', () => {
 		expect(paste.changes).toEqual([]);
 	});
 
+	it('keeps locked cells and adds no row where rows come from a source', () => {
+		const { ws, commit, tableId, note, kg } = fixture();
+		commit(insertRows(ws, tableId, [{ [note.id]: 'one', [kg.id]: 5 }]).changes);
+		const paste = pasteChanges(
+			ws,
+			tableId,
+			[note, kg],
+			ws.rows(tableId),
+			{ row: 0, col: 0 },
+			[
+				['first', '10'],
+				['second', '20']
+			],
+			{ locked: new Set([note.id]), adds: false }
+		);
+		commit(paste.changes);
+
+		expect(paste.kept).toBe(3);
+		expect(paste.added).toBe(0);
+		const rows = ws.rows(tableId);
+		expect(rows.map((row) => [row.data[note.id], row.data[kg.id]])).toEqual([['one', 10]]);
+	});
+
 	it('skips a blank line past the end instead of adding an empty row', () => {
 		const { ws, tableId, note } = fixture();
 		const paste = pasteChanges(ws, tableId, [note], [], { row: 0, col: 0 }, [['a'], [''], ['b']]);

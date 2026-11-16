@@ -187,6 +187,12 @@
 
 	const ready = $derived(keys.every((field) => !blank(keyValue(field))));
 
+	// A table filled by a source takes no rows from here: its history stays to open.
+	const adds = $derived.by(() => {
+		void app.version;
+		return app.canAddRows(tableId);
+	});
+
 	let lastAdded = { at: 0, row: '' };
 
 	function commit(): void {
@@ -398,82 +404,61 @@
 			</div>
 		{/if}
 
-		<section
-			class="flex shrink-0 flex-col gap-3 border-t border-rule p-4 lg:col-start-2 lg:border-t-0 lg:border-l {grouping ===
-			undefined
-				? 'lg:row-span-2 lg:row-start-1'
-				: 'lg:row-start-2'}"
-		>
-			{#if line?.planned != null && plan !== null}
-				<p class="flex min-h-control items-center gap-2">
-					{#each items as field (field.id)}
-						<CellValue {field} value={line.planned.data[field.id]} />
-					{/each}
-					<button
-						type="button"
-						class="ml-auto shrink-0 rounded-box text-sm text-ink-3 transition-colors motion hover:text-ink {focus}"
-						onclick={() => line?.planned && open(line.planned)}>{formatDate(plan.day)}</button
-					>
-				</p>
-			{:else}
-				{#each items as field (field.id)}
-					<EntryKey
-						{field}
-						value={values[field.id] ?? null}
-						recent={recentOf(field)}
-						onpick={(next) => pick(field, next)}
-					/>
-				{/each}
-				{#if template !== undefined && others.length > 0}
-					<p class="text-sm text-ink-3">
-						<Rich text={words.from(when(template))}>
-							{#snippet row(label: string)}
-								<button
-									type="button"
-									class="rounded-box text-ink-2 underline decoration-edge underline-offset-2 transition-colors motion hover:text-ink hover:decoration-ink {focus}"
-									onclick={() => template && open(template)}>{label}</button
-								>
-							{/snippet}
-						</Rich>
+		{#if adds}
+			<section
+				class="flex shrink-0 flex-col gap-3 border-t border-rule p-4 lg:col-start-2 lg:border-t-0 lg:border-l {grouping ===
+				undefined
+					? 'lg:row-span-2 lg:row-start-1'
+					: 'lg:row-start-2'}"
+			>
+				{#if line?.planned != null && plan !== null}
+					<p class="flex min-h-control items-center gap-2">
+						{#each items as field (field.id)}
+							<CellValue {field} value={line.planned.data[field.id]} />
+						{/each}
+						<button
+							type="button"
+							class="ml-auto shrink-0 rounded-box text-sm text-ink-3 transition-colors motion hover:text-ink {focus}"
+							onclick={() => line?.planned && open(line.planned)}>{formatDate(plan.day)}</button
+						>
 					</p>
-				{/if}
-			{/if}
-
-			{#each typed as field (field.id)}
-				{@render other(field)}
-			{/each}
-
-			{#if steppers.length > 0}
-				{#if roomy.current}
-					{#each steppers as field (field.id)}
-						{@const value = shown(field)}
-						<div class="flex items-center gap-3">
-							<span class="min-w-0 flex-1 truncate text-ink-2">{field.name}</span>
-							<Stepper
-								label={field.name}
-								size="xs"
-								text={texts[field.id] ??
-									(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
-								oninput={(text) => {
-									texts[field.id] = text;
-									set(field, readNumber(text));
-								}}
-								onstep={(direction) => step(field, direction)}
-							/>
-						</div>
-					{/each}
 				{:else}
-					<div class="grid grid-cols-2 gap-1.5">
-						{#each steppers as field, at (field.id)}
+					{#each items as field (field.id)}
+						<EntryKey
+							{field}
+							value={values[field.id] ?? null}
+							recent={recentOf(field)}
+							onpick={(next) => pick(field, next)}
+						/>
+					{/each}
+					{#if template !== undefined && others.length > 0}
+						<p class="text-sm text-ink-3">
+							<Rich text={words.from(when(template))}>
+								{#snippet row(label: string)}
+									<button
+										type="button"
+										class="rounded-box text-ink-2 underline decoration-edge underline-offset-2 transition-colors motion hover:text-ink hover:decoration-ink {focus}"
+										onclick={() => template && open(template)}>{label}</button
+									>
+								{/snippet}
+							</Rich>
+						</p>
+					{/if}
+				{/if}
+
+				{#each typed as field (field.id)}
+					{@render other(field)}
+				{/each}
+
+				{#if steppers.length > 0}
+					{#if roomy.current}
+						{#each steppers as field (field.id)}
 							{@const value = shown(field)}
-							<div
-								class={steppers.length === 1 || (at === steppers.length - 1 && at % 2 === 0)
-									? 'col-span-2'
-									: ''}
-							>
+							<div class="flex items-center gap-3">
+								<span class="min-w-0 flex-1 truncate text-ink-2">{field.name}</span>
 								<Stepper
 									label={field.name}
-									size={steppers.length === 1 ? 'lg' : 'sm'}
+									size="xs"
 									text={texts[field.id] ??
 										(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
 									oninput={(text) => {
@@ -484,37 +469,60 @@
 								/>
 							</div>
 						{/each}
-					</div>
+					{:else}
+						<div class="grid grid-cols-2 gap-1.5">
+							{#each steppers as field, at (field.id)}
+								{@const value = shown(field)}
+								<div
+									class={steppers.length === 1 || (at === steppers.length - 1 && at % 2 === 0)
+										? 'col-span-2'
+										: ''}
+								>
+									<Stepper
+										label={field.name}
+										size={steppers.length === 1 ? 'lg' : 'sm'}
+										text={texts[field.id] ??
+											(typeof value === 'number' ? formatNumber(value, { edit: true }) : '')}
+										oninput={(text) => {
+											texts[field.id] = text;
+											set(field, readNumber(text));
+										}}
+										onstep={(direction) => step(field, direction)}
+									/>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				{/if}
-			{/if}
 
-			{#each picked as field (field.id)}
-				{@render other(field)}
-			{/each}
+				{#each picked as field (field.id)}
+					{@render other(field)}
+				{/each}
 
-			{#if dateField !== undefined}
-				<label class="flex items-center gap-3">
-					<span class="w-24 shrink-0 truncate text-ink-2">{dateField.name}</span>
-					<input
-						class="{input} min-w-0 flex-1"
-						type={dateField.type === 'datetime' ? 'datetime-local' : 'date'}
-						value={nativeDateText(dateField, values[dateField.id] ?? stamp(dateField))}
-						oninput={(event) => {
-							if (dateField) values[dateField.id] = parseDate(event.currentTarget.value);
-						}}
-					/>
-				</label>
-			{/if}
+				{#if dateField !== undefined}
+					<label class="flex items-center gap-3">
+						<span class="w-24 shrink-0 truncate text-ink-2">{dateField.name}</span>
+						<input
+							class="{input} min-w-0 flex-1"
+							type={dateField.type === 'datetime' ? 'datetime-local' : 'date'}
+							value={nativeDateText(dateField, values[dateField.id] ?? stamp(dateField))}
+							oninput={(event) => {
+								if (dateField) values[dateField.id] = parseDate(event.currentTarget.value);
+							}}
+						/>
+					</label>
+				{/if}
 
-			<div class="flex-1 max-lg:hidden"></div>
-			<Button
-				variant="primary"
-				size="cta"
-				class="sticky bottom-4 z-10 shrink-0 sm:h-control sm:self-end sm:px-3 sm:text-base sm:font-medium"
-				disabled={!ready}
-				onclick={commit}>{words.addRow}</Button
-			>
-		</section>
+				<div class="flex-1 max-lg:hidden"></div>
+				<Button
+					variant="primary"
+					size="cta"
+					class="sticky bottom-4 z-10 shrink-0 sm:h-control sm:self-end sm:px-3 sm:text-base sm:font-medium"
+					disabled={!ready}
+					onclick={commit}>{words.addRow}</Button
+				>
+			</section>
+		{/if}
 	</div>
 	<RowSheet
 		bind:open={rowOpen}

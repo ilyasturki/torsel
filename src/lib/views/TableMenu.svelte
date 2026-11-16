@@ -43,6 +43,12 @@
 
 	let renaming = false;
 
+	// A table a source fills takes no rows from a file.
+	const adds = $derived.by(() => {
+		void app.version;
+		return app.canAddRows(table.id);
+	});
+
 	function run(action: () => void): void {
 		open = false;
 		action();
@@ -116,7 +122,9 @@
 			<MenuItem icon="fit" onSelect={() => run(fitAll)}>{words.fitAll}</MenuItem>
 		{/if}
 		<MenuSeparator />
-		<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>{words.importHere}</MenuItem>
+		{#if adds}
+			<MenuItem icon="arrow-down" onSelect={() => run(importHere)}>{words.importHere}</MenuItem>
+		{/if}
 		{#if view !== undefined}
 			<MenuItem icon="arrow-up" onSelect={() => run(exportHere)}>{words.exportCsv}</MenuItem>
 		{/if}
@@ -153,9 +161,11 @@
 					>{words.fitAll}</Button
 				>
 			{/if}
-			<Button variant="ghost" class="justify-start" onclick={() => run(importHere)}
-				>{words.importHere}</Button
-			>
+			{#if adds}
+				<Button variant="ghost" class="justify-start" onclick={() => run(importHere)}
+					>{words.importHere}</Button
+				>
+			{/if}
 			{#if view !== undefined}
 				<Button variant="ghost" class="justify-start" onclick={() => run(exportHere)}
 					>{words.exportCsv}</Button

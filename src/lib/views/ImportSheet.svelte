@@ -55,9 +55,13 @@
 	const hasColumns = $derived(columns.length > 0);
 	const ready = $derived(hasColumns || records !== null);
 
+	// Only tables that take new rows: a source fills the others.
 	const tables = $derived.by(() => {
 		void app.version;
-		return app.ws.bases().flatMap((item) => app.ws.tables(item.id));
+		return app.ws
+			.bases()
+			.flatMap((item) => app.ws.tables(item.id))
+			.filter((table) => app.canAddRows(table.id));
 	});
 
 	const bases = $derived.by(() => {

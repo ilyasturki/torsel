@@ -38,6 +38,17 @@
 		return app.ws.fields(tableId);
 	});
 
+	const locked = $derived.by(() => {
+		void app.version;
+		return new Set(
+			fields.filter((field) => !app.canEditValues(tableId, field.id)).map((field) => field.id)
+		);
+	});
+	const adds = $derived.by(() => {
+		void app.version;
+		return app.canAddRows(tableId);
+	});
+
 	const { group, title, show } = $derived(listLayout(fields, view.config));
 	const checks = $derived(show.filter((field) => field.type === 'check'));
 	const meta = $derived(show.filter((field) => field.type !== 'check'));
@@ -122,7 +133,15 @@
 
 {#snippet value(row: Rec, field: FieldDef)}
 	{@const current = valueOf(row, field)}
-	{#if field.type === 'choice'}
+	{#if locked.has(field.id) && field.type !== 'check'}
+		{#if !blank(current)}
+			<span class="inline-flex min-w-0 items-center gap-1.5">
+				{#if !wide.current && !BARE.has(field.type)}<span class="text-ink-3">{field.name}</span
+					>{/if}
+				<span class="min-w-0 text-ink"><CellValue {field} value={current} /></span>
+			</span>
+		{/if}
+	{:else if field.type === 'choice'}
 		<Menu label={field.name}>
 			{#snippet trigger(props)}
 				<button
@@ -180,6 +199,7 @@
 			class={checkbox}
 			aria-label={field.name}
 			checked={valueOf(row, field) === true}
+			disabled={locked.has(field.id)}
 			onchange={() => change(row, field, valueOf(row, field) !== true)}
 		/>
 	{/each}
@@ -255,7 +275,9 @@
 	{:else}
 		<div class="col-span-full">
 			<Empty text={words.noRows}>
-				<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
+				{#if adds}
+					<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
+				{/if}
 			</Empty>
 		</div>
 	{/each}

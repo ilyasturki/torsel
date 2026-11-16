@@ -172,6 +172,22 @@
 		return app.computed(tableId);
 	});
 
+	const adds = $derived.by(() => {
+		void app.version;
+		return app.canAddRows(tableId);
+	});
+
+	// Fields whose values this device may not write: a source fills them.
+	const locked = $derived.by(() => {
+		void app.version;
+		return new Set(
+			fields.filter((field) => !app.canEditValues(tableId, field.id)).map((field) => field.id)
+		);
+	});
+
+	const writable = (row: Rec | undefined, field: FieldDef): boolean =>
+		(row !== undefined || adds) && !locked.has(field.id);
+
 	const config = $derived.by((): GridConfig => {
 		const saved = view.config.filter;
 		return liveFilter === null || menuField === null
@@ -224,7 +240,7 @@
 	const stickyEnd = $derived(lefts[Math.min(1, fields.length)]);
 
 	// The window. `start` and `end` are numbers so a scroll inside one step reaches nothing below them.
-	const total = $derived(rows.length + 1);
+	const total = $derived(adds ? rows.length + 1 : rows.length);
 	const start = $derived.by(() => {
 		if (total <= VIRTUAL_ABOVE) return 0;
 		const first = Math.min(Math.floor(scrollTop / rowHeight), total) - OVERSCAN;
@@ -236,7 +252,7 @@
 		return Math.min(total, Math.ceil(last / WINDOW_STEP) * WINDOW_STEP);
 	});
 	const visible = $derived(rows.slice(start, end));
-	const showBlank = $derived(end === total);
+	const showBlank = $derived(adds && end === total);
 
 	function rowOf(pos: Pos): number {
 		return pos.row === BLANK
@@ -309,6 +325,7 @@
 		if (jump !== 0) {
 			untrack(() => {
 				gridJump.blankRow = 0;
+				if (!adds) return;
 				const first = fields.findIndex((field) => field.type !== 'formula');
 				select(rows.length, Math.max(0, first));
 				table?.focus({ preventScroll: true });
@@ -439,7 +456,7 @@
 
 	function select(r: number, c: number, extend = false): void {
 		if (fields.length === 0) return;
-		const limit = extend && anchor?.row !== BLANK ? rows.length - 1 : rows.length;
+		const limit = (extend && anchor?.row !== BLANK) || !adds ? rows.length - 1 : rows.length;
 		const row = Math.max(0, Math.min(limit, r));
 		const col = Math.max(0, Math.min(fields.length - 1, c));
 		head = posAt(row, col);
@@ -634,6 +651,7 @@
 			if (cell !== null) formulaEdit = { field: field.id, anchor: cell, typed: typed ?? '' };
 			return;
 		}
+		if (!writable(row, field)) return;
 		if (field.type === 'check') {
 			toggleCheck(key, field);
 			return;
@@ -665,7 +683,8 @@
 	}
 
 	function clearRange(): number | null {
-		const changes = clearChanges(app.ws, rangeFields(), rangeRows());
+		const clearable = rangeFields().filter((field) => !locked.has(field.id));
+		const changes = clearChanges(app.ws, clearable, rangeRows());
 		const count = changes.length;
 		return applyWithUndo(changes, words.cleared(count))?.id ?? null;
 	}
@@ -735,7 +754,7 @@
 				r -= 1;
 			}
 			// Off either end of the grid, Tab leaves it as anywhere else on the page.
-			if (r < 0 || r > rows.length) return;
+			if (r < 0 || r >= total) return;
 			event.preventDefault();
 			select(r, c);
 		} else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
@@ -994,6 +1013,7 @@
 		const stars = target.closest<HTMLElement>('[data-stars]');
 		if (field.type === 'rating' && stars !== null && !dragged && !event.shiftKey) {
 			const row = rows[cell.r] as Rec | undefined;
+			if (!writable(row, field)) return;
 			const picked = starAt(field, stars, event.clientX);
 			const created = writeCell(
 				row?.id ?? BLANK,
@@ -1078,10 +1098,10 @@
 		event.preventDefault();
 		const at = { row: top, col: left };
 		const matrix = fillSelection(parseTsv(text), bottom - top + 1, right - left + 1);
-		const paste = pasteChanges(app.ws, tableId, fields, rows, at, matrix);
-		const count = paste.rows * paste.cols;
+		const paste = pasteChanges(app.ws, tableId, fields, rows, at, matrix, { locked, adds });
+		const count = paste.rows * paste.cols - paste.kept;
 		const group = app.apply(paste.changes, words.pasteLabel(count));
-		showToast(words.pasted(count, paste.skipped), group?.id ?? null);
+		showToast(words.pasted(count, paste.skipped, paste.kept), group?.id ?? null);
 		flushSync();
 		if (paste.rows > 0 && paste.cols > 0) {
 			select(at.row, at.col);
@@ -1145,7 +1165,7 @@
 	}
 
 	function applyFill(from: Box, to: Box, series: boolean): void {
-		const fill = fillChanges(app.ws, tableId, fields, rows, computed, from, to, series);
+		const fill = fillChanges(app.ws, tableId, fields, rows, computed, from, to, series, locked);
 		if (fill.cells === 0) return;
 		applyWithUndo(fill.changes, words.filled(fill.cells));
 	}
@@ -1425,6 +1445,13 @@
 	}
 
 	const menuFieldDef = $derived(fields.find((field) => field.id === menuField));
+	const retypable = $derived.by(() => {
+		void app.version;
+		return (
+			menuFieldDef !== undefined &&
+			app.canWrite({ id: menuFieldDef.id, kind: 'field', parent: tableId }, ['type'])
+		);
+	});
 
 	function backToTop(): void {
 		if (scroller !== undefined) scroller.scrollTop = 0;
@@ -1620,6 +1647,7 @@
 		data-c={c}
 		aria-colindex={c + 2}
 		aria-selected={inRange}
+		aria-readonly={locked.has(field.id) || undefined}
 		class="h-row border-r border-b border-b-rule p-0 {c === 0
 			? 'sticky left-11 z-10 border-r-rule-strong bg-raised'
 			: 'relative border-r-rule-col'}"
@@ -1842,7 +1870,7 @@
 				bind:this={table}
 				role="grid"
 				tabindex="0"
-				aria-rowcount={rows.length + 2}
+				aria-rowcount={total + 1}
 				aria-colcount={fields.length + 1}
 				aria-activedescendant={head !== null && headRow >= start && headRow < end
 					? cellId(headRow, headCol)
@@ -1937,6 +1965,7 @@
 														: ''}"
 											>
 												{#if field.type === 'formula'}<span>ƒ</span>{/if}
+												{#if locked.has(field.id)}<Icon name="lock" class="size-3" />{/if}
 												<span class="min-w-0 truncate">{field.name}</span>
 												{#if sortKey !== null}
 													<Icon
@@ -2103,6 +2132,7 @@
 		if (menuFieldDef) sortBy(menuFieldDef, dir);
 	}}
 	onfilter={(text) => (liveFilter = text)}
+	{retypable}
 	onretype={retype}
 	onaction={columnAction}
 	onCloseAutoFocus={onmenuclosed}
@@ -2122,6 +2152,7 @@
 		rowId = rows[headRow]?.id ?? null;
 		rowOpen = rowId !== null;
 	}}
+	fixed={!adds}
 	oninsert={insertRow}
 	onduplicate={duplicateRange}
 	ondelete={deleteRows}

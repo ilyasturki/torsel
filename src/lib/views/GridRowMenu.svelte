@@ -13,6 +13,7 @@
 		anchor,
 		rows,
 		cells,
+		fixed = false,
 		onopen,
 		oninsert,
 		onduplicate,
@@ -24,6 +25,8 @@
 		anchor: HTMLElement | null;
 		rows: number;
 		cells: number;
+		/** The rows come from a source: none is added or deleted here. */
+		fixed?: boolean;
 		onopen: () => void;
 		oninsert: (below: boolean) => void;
 		onduplicate: () => void;
@@ -44,27 +47,36 @@
 {#if wide.current}
 	<Menu bind:open {anchor} label={words.row} {onCloseAutoFocus}>
 		{#if rows === 1}<MenuItem icon="open" onSelect={onopen}>{words.openRow}</MenuItem>{/if}
-		<MenuItem icon="arrow-up" onSelect={() => oninsert(false)}>{words.insertAbove}</MenuItem>
-		<MenuItem icon="arrow-down" onSelect={() => oninsert(true)}>{words.insertBelow}</MenuItem>
-		<MenuItem icon="plus" onSelect={onduplicate}>{words.duplicateRows(rows)}</MenuItem>
+		{#if !fixed}
+			<MenuItem icon="arrow-up" onSelect={() => oninsert(false)}>{words.insertAbove}</MenuItem>
+			<MenuItem icon="arrow-down" onSelect={() => oninsert(true)}>{words.insertBelow}</MenuItem>
+			<MenuItem icon="plus" onSelect={onduplicate}>{words.duplicateRows(rows)}</MenuItem>
+		{/if}
 		<MenuItem icon="copy" shortcut={keys('mod', 'c')} onSelect={oncopy}>{copy}</MenuItem>
-		<MenuSeparator />
-		<MenuItem icon="x" onSelect={ondelete}>{remove}</MenuItem>
+		{#if !fixed}
+			<MenuSeparator />
+			<MenuItem icon="x" onSelect={ondelete}>{remove}</MenuItem>
+		{/if}
 	</Menu>
 {:else}
 	<Dialog bind:open title={words.rows(rows)} {onCloseAutoFocus}>
 		<div class="-mx-2 flex flex-col items-stretch">
-			<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(false))}
-				>{words.insertAbove}</Button
-			>
-			<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(true))}
-				>{words.insertBelow}</Button
-			>
-			<Button variant="ghost" class="justify-start" onclick={() => run(onduplicate)}
-				>{words.duplicateRows(rows)}</Button
-			>
+			{#if !fixed}
+				<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(false))}
+					>{words.insertAbove}</Button
+				>
+				<Button variant="ghost" class="justify-start" onclick={() => run(() => oninsert(true))}
+					>{words.insertBelow}</Button
+				>
+				<Button variant="ghost" class="justify-start" onclick={() => run(onduplicate)}
+					>{words.duplicateRows(rows)}</Button
+				>
+			{/if}
 			<Button variant="ghost" class="justify-start" onclick={() => run(oncopy)}>{copy}</Button>
-			<Button variant="ghost" class="justify-start" onclick={() => run(ondelete)}>{remove}</Button>
+			{#if !fixed}
+				<Button variant="ghost" class="justify-start" onclick={() => run(ondelete)}>{remove}</Button
+				>
+			{/if}
 		</div>
 	</Dialog>
 {/if}

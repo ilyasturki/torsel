@@ -165,7 +165,8 @@ export function fillChanges(
 	computed: Computed,
 	from: Box,
 	to: Box,
-	series = true
+	series = true,
+	locked: ReadonlySet<string> = new Set()
 ): Fill {
 	const vertical = to.top > from.bottom || to.bottom < from.top;
 	const forward = vertical ? to.top > from.bottom : to.left > from.right;
@@ -201,7 +202,13 @@ export function fillChanges(
 		targets.forEach((at, index) => {
 			const { row, field } = cellAt(line, at);
 			const origin = origins[index % origins.length].field;
-			if (row === undefined || field === undefined || field.type === 'formula') return;
+			if (
+				row === undefined ||
+				field === undefined ||
+				field.type === 'formula' ||
+				locked.has(field.id)
+			)
+				return;
 			const raw = next[index];
 			const linked = field.type !== 'link' || raw === null || origin?.target === field.target;
 			const value = linked ? coerce(field, raw) : null;

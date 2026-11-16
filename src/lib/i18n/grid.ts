@@ -24,9 +24,10 @@ const en = {
 	copied: (cells: number) => (cells === 1 ? 'Copied 1 cell' : `Copied ${cells} cells`),
 	copyFailed: "Couldn't copy",
 	pasteLabel: (cells: number) => (cells === 1 ? 'Cell pasted' : `${cells} cells pasted`),
-	pasted: (cells: number, skipped: number) =>
+	pasted: (cells: number, skipped: number, kept = 0) =>
 		`Pasted ${cells} ${cells === 1 ? 'cell' : 'cells'}` +
-		(skipped === 0 ? '' : `, ${skipped} ${skipped === 1 ? "value doesn't" : "values don't"} fit`),
+		(skipped === 0 ? '' : `, ${skipped} ${skipped === 1 ? "value doesn't" : "values don't"} fit`) +
+		(kept === 0 ? '' : `, ${kept} synced ${kept === 1 ? 'cell' : 'cells'} kept`),
 	columnsFitted: 'Columns fitted',
 	filled: (cells: number) => (cells === 1 ? 'Filled 1 cell' : `Filled ${cells} cells`),
 	rowDeleted: (rows: number) => (rows === 1 ? 'Row deleted' : `${rows} rows deleted`),
@@ -110,13 +111,19 @@ const fr: typeof en = {
 	copyFailed: 'Copie impossible',
 	pasteLabel: (cells) =>
 		plural('fr', cells, { one: '# cellule collée', other: '# cellules collées' }),
-	pasted: (cells, skipped) =>
+	pasted: (cells, skipped, kept = 0) =>
 		plural('fr', cells, { one: '# cellule collée', other: '# cellules collées' }) +
 		(skipped === 0
 			? ''
 			: plural('fr', skipped, {
 					one: ', # valeur ne rentre pas',
 					other: ', # valeurs ne rentrent pas'
+				})) +
+		(kept === 0
+			? ''
+			: plural('fr', kept, {
+					one: ', # cellule synchronisée conservée',
+					other: ', # cellules synchronisées conservées'
 				})),
 	columnsFitted: 'Colonnes ajustées',
 	filled: (cells) =>

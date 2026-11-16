@@ -153,6 +153,15 @@
 		return app.ws.fields(tableId).map((field) => field.id);
 	});
 
+	// A source sets its fields' types.
+	const retypable = $derived.by(() => {
+		void app.version;
+		return (
+			existing === undefined ||
+			app.canWrite({ id: existing.id, kind: 'field', parent: tableId }, ['type'])
+		);
+	});
+
 	function rescaled(): boolean {
 		if (existing === undefined || type !== 'rating' || existing.type !== 'rating') return false;
 		const before = ratingScale(existing);
@@ -387,9 +396,11 @@
 			<input class={input} bind:value={name} placeholder={words.namePlaceholder} onblur={apply} />
 		</Field>
 
-		<Field label={words.type} hint={retypeHint}>
-			<Select options={TYPES} value={type} onchange={pickType} />
-		</Field>
+		{#if retypable}
+			<Field label={words.type} hint={retypeHint}>
+				<Select options={TYPES} value={type} onchange={pickType} />
+			</Field>
+		{/if}
 
 		{#if hasChoices(type)}
 			<div class="flex flex-col gap-2">

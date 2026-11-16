@@ -239,6 +239,8 @@ export type Paste = {
 	changes: Change[];
 	added: number;
 	skipped: number;
+	// Values left out because the cell, or a row past the end, is not this device's to write.
+	kept: number;
 	rows: number;
 	cols: number;
 };
@@ -249,20 +251,26 @@ export function fillSelection(matrix: string[][], rows: number, cols: number): s
 		: matrix;
 }
 
-/** The changes a paste makes from a top-left cell; rows past the end are added. */
+export type GridAccess = { locked: ReadonlySet<string>; adds: boolean };
+
+const OPEN: GridAccess = { locked: new Set(), adds: true };
+
+/** The changes a paste makes from a top-left cell; rows past the end are added where rows can be. */
 export function pasteChanges(
 	ws: Workspace,
 	tableId: string,
 	fields: FieldDef[],
 	rows: Rec[],
 	at: { row: number; col: number },
-	matrix: string[][]
+	matrix: string[][],
+	access: GridAccess = OPEN
 ): Paste {
 	const read = cellReader(ws);
 	const choices = new Map<string, Choice[]>();
 	const updates: RowUpdate[] = [];
 	const inserts: Record<string, Value>[] = [];
 	let skipped = 0;
+	let kept = 0;
 
 	matrix.forEach((line, offset) => {
 		const row: Rec | undefined = rows[at.row + offset];
@@ -270,6 +278,13 @@ export function pasteChanges(
 
 		line.forEach((raw, index) => {
 			const field: FieldDef | undefined = fields[at.col + index];
+			if (
+				field !== undefined &&
+				(access.locked.has(field.id) || (row === undefined && !access.adds))
+			) {
+				kept += raw.trim() === '' ? 0 : 1;
+				return;
+			}
 			let value = field === undefined ? undefined : read(field, raw);
 			if (field === undefined || value === undefined) {
 				skipped += raw.trim() === '' ? 0 : 1;
@@ -313,6 +328,7 @@ export function pasteChanges(
 		changes: [...fieldChanges, ...written.changes],
 		added: written.ids.length,
 		skipped,
+		kept,
 		rows: matrix.length,
 		cols: Math.min(
 			Math.max(0, ...matrix.map((line) => line.length)),

@@ -88,6 +88,11 @@
 		return table === undefined ? [] : app.ws.views(table.id);
 	});
 
+	const adds = $derived.by(() => {
+		void app.version;
+		return table !== undefined && app.canAddRows(table.id);
+	});
+
 	const view = $derived.by(() => {
 		if (table === undefined) return undefined;
 		const segment = page.params.view;
@@ -296,7 +301,7 @@
 						menuOpen = !menuOpen;
 					}}
 				/>
-				{#if view?.type !== 'entry'}
+				{#if view?.type !== 'entry' && adds}
 					<Button
 						variant="primary"
 						class="ml-auto max-sm:w-control max-sm:px-0"

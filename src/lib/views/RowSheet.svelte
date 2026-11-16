@@ -17,6 +17,7 @@
 	import Menu from '#lib/ui/Menu.svelte';
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 
+	import CellValue from './CellValue.svelte';
 	import FieldInput from './FieldInput.svelte';
 
 	let {
@@ -42,6 +43,18 @@
 	const fields = $derived.by(() => {
 		void app.version;
 		return app.ws.fields(tableId);
+	});
+
+	// Fields whose values come from a source, and whether its rows do too.
+	const locked = $derived.by(() => {
+		void app.version;
+		return new Set(
+			fields.filter((field) => !app.canEditValues(tableId, field.id)).map((field) => field.id)
+		);
+	});
+	const fixed = $derived.by(() => {
+		void app.version;
+		return !app.canAddRows(tableId);
 	});
 
 	const stored = $derived.by(() => {
@@ -179,12 +192,14 @@
 					onclick={() => step(1)}
 				/>
 			{/if}
-			<Menu bind:open={menu} label={words.row} align="end">
-				{#snippet trigger(props)}
-					<IconButton {...props} icon="more" label={common.more} tooltip={false} />
-				{/snippet}
-				<MenuItem icon="x" onSelect={remove}>{words.deleteRow}</MenuItem>
-			</Menu>
+			{#if !fixed}
+				<Menu bind:open={menu} label={words.row} align="end">
+					{#snippet trigger(props)}
+						<IconButton {...props} icon="more" label={common.more} tooltip={false} />
+					{/snippet}
+					<MenuItem icon="x" onSelect={remove}>{words.deleteRow}</MenuItem>
+				</Menu>
+			{/if}
 		{/if}
 	{/snippet}
 
@@ -209,6 +224,15 @@
 								>{toDisplay(field.expr, fields)}</span
 							>
 						{/if}
+					</p>
+				{:else if locked.has(field.id)}
+					<p
+						id="row-{field.id}"
+						class="flex min-h-control min-w-0 items-center gap-3 px-2"
+						aria-readonly="true"
+					>
+						<span class="min-w-0 truncate"><CellValue {field} value={values[field.id]} /></span>
+						<Icon name="lock" class="ml-auto size-4 shrink-0 text-ink-3" />
 					</p>
 				{:else}
 					<div class="min-w-0 {field.type === 'check' ? 'flex h-control items-center px-2' : ''}">

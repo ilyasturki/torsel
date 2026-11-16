@@ -212,7 +212,9 @@
 
 		{#if xs.length === 0}
 			<Empty text={words.noData}>
-				<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
+				{#if app.canAddRows(tableId)}
+					<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
+				{/if}
 			</Empty>
 		{:else}
 			<div class="relative" bind:clientWidth={width}>
