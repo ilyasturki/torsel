@@ -78,7 +78,7 @@ function hostInterfaces(): ReturnType<typeof networkInterfaces> {
 			interfacesFailureLogged = true;
 			console.error("fetch guard: the host's addresses are unreadable, refusing fetches:", error);
 		}
-		throw new FetchRefused('address', "the host's own addresses are unreadable");
+		throw new FetchRefused('network', "the host's own addresses are unreadable");
 	}
 }
 

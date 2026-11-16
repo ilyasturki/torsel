@@ -68,7 +68,7 @@ describe('the guard when the host addresses are unreadable', () => {
 
 	it('refuses the fetch, by name and by address, and the process lives', async () => {
 		interfaces.read = unreadable;
-		const refused = "address: the host's own addresses are unreadable";
+		const refused = "network: the host's own addresses are unreadable";
 		expect(await refusal(guard, guard.guardedFetch('http://localhost:9/', BUDGET))).toBe(refused);
 		expect(await refusal(guard, guard.guardedFetch('http://8.8.8.8:9/', BUDGET))).toBe(refused);
 		expect(uncaught).toEqual([]);
