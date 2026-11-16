@@ -87,11 +87,12 @@ function denyList(): BlockList {
 	if (denied !== undefined) {
 		return denied;
 	}
+	const host = hostInterfaces();
 	const list = new BlockList();
 	for (const [address, prefix, family] of DENIED) {
 		list.addSubnet(address, prefix, family);
 	}
-	for (const entries of Object.values(hostInterfaces())) {
+	for (const entries of Object.values(host)) {
 		for (const entry of entries ?? []) {
 			list.addAddress(entry.address, entry.family === 'IPv6' ? 'ipv6' : 'ipv4');
 		}
