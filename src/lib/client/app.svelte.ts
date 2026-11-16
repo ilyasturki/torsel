@@ -101,6 +101,8 @@ class TorselApp {
 	private readonly problems = new Map<string, FormulaProblems>();
 	// Formula values known before SQLite loads, good only while the table stays at that revision.
 	private readonly early = new Map<string, { revision: number; rows: Map<string, SqlRow> }>();
+	// Chart data known before SQLite loads, by table and config, on the same terms.
+	private readonly earlyCharts = new Map<string, { revision: number; data: ChartData }>();
 	private seq = 0;
 
 	public load(): Promise<void> {
@@ -551,9 +553,19 @@ class TorselApp {
 
 	public chart(tableId: string, config: ChartConfig): ChartData | null {
 		if (!this.ready) {
-			return null;
+			const early = this.earlyCharts.get(`${tableId} ${JSON.stringify(config)}`);
+			return early?.revision === this.ws.revision(tableId) ? early.data : null;
 		}
 		return chartData(this.built_(tableId), this.ws, tableId, config);
+	}
+
+	/** Shows this chart until SQLite loads, unless the table changes first. */
+	public chartEarly(tableId: string, config: ChartConfig, data: ChartData): void {
+		this.earlyCharts.set(`${tableId} ${JSON.stringify(config)}`, {
+			revision: this.ws.revision(tableId),
+			data
+		});
+		this.bump(false);
 	}
 
 	public checkFormula(tableId: string, stored: string): string | null {
