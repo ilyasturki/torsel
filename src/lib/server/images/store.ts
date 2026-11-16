@@ -65,6 +65,13 @@ export function receiveImagePart(db: Database, part: Part, limit: number): Recei
 		const existing = find(tx, part);
 		if (existing !== undefined) {
 			tx.delete(blobUploads).where(uploadOf(part)).run();
+			// Added again, possibly ahead of the row that names it: the sweep's 30 days start over.
+			tx.update(blobs)
+				.set({ unnamedSince: null })
+				.where(
+					and(eq(blobs.userId, part.userId), eq(blobs.baseId, part.baseId), eq(blobs.id, part.id))
+				)
+				.run();
 			return { status: 'stored', ref: existing as ImageRef };
 		}
 

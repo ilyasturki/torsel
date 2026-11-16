@@ -285,7 +285,9 @@ export const blobs = sqliteTable(
 		w: integer('w').notNull(),
 		h: integer('h').notNull(),
 		data: blob('data', { mode: 'buffer' }).notNull(),
-		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+		// When the sweep first found no live record naming it; null while one does.
+		unnamedSince: integer('unnamed_since', { mode: 'timestamp_ms' })
 	},
 	(table) => [primaryKey({ columns: [table.userId, table.baseId, table.id] })]
 );
