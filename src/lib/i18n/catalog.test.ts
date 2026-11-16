@@ -49,7 +49,8 @@ const SAME = new Set([
 	'sources.brands.letterboxd',
 	'sources.brands.sheet',
 	'sources.brands.github',
-	'sources.source'
+	'sources.source',
+	'sources.authKinds.basic'
 ]);
 
 const SAMPLES: unknown[][] = [

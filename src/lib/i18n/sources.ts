@@ -42,6 +42,10 @@ const en = {
 	stop: 'Stop syncing',
 	stopSure: 'Stop syncing for good',
 	stopped: 'Syncing stopped',
+	authKind: 'Sign in with',
+	authKinds: { bearer: 'Bearer token', header: 'Header key', query: 'Query key', basic: 'Basic' },
+	authName: { header: 'Header name', query: 'Parameter name' },
+	retry: 'Retry',
 	letterboxd: {
 		title: 'Title',
 		year: 'Year',
@@ -105,6 +109,15 @@ const fr: typeof en = {
 	stop: 'Arrêter la synchro',
 	stopSure: 'Arrêter pour de bon',
 	stopped: 'Synchro arrêtée',
+	authKind: 'Connexion par',
+	authKinds: {
+		bearer: 'Jeton Bearer',
+		header: 'Clé d’en-tête',
+		query: 'Clé dans l’URL',
+		basic: 'Basic'
+	},
+	authName: { header: 'Nom de l’en-tête', query: 'Nom du paramètre' },
+	retry: 'Réessayer',
 	letterboxd: {
 		title: 'Titre',
 		year: 'Année',
