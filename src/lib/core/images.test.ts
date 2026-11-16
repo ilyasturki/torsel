@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { imagesOf, imagesText } from './images.ts';
+import { imageLinks, imagesOf, imagesText } from './images.ts';
 import { coerce } from './values.ts';
 
 const poster = {
@@ -40,5 +40,38 @@ describe('image values', () => {
 		const still = { id: 'd'.repeat(64), type: 'image/jpeg', w: 600, h: 338, size: 9000 };
 
 		expect(imagesText([poster, still])).toBe(`dune.jpg, ${'d'.repeat(12)}`);
+	});
+
+	it('keeps where a fetched image came from, and reads as that link', () => {
+		const fetched = { ...poster, id: 'e'.repeat(64), src: 'https://image.tmdb.org/t/p/w342/dune.jpg' };
+
+		expect(imagesOf([fetched])).toEqual([fetched]);
+		expect(imagesText([fetched, poster])).toBe(`${fetched.src}, dune.jpg`);
+		expect(imagesOf([{ ...poster, src: `https://example.com/${'a'.repeat(3000)}` }])).toEqual([
+			poster
+		]);
+	});
+});
+
+describe('imageLinks', () => {
+	it('reads each link of a text, a bare domain as https', () => {
+		expect(
+			imageLinks(
+				'https://a.example/one.jpg, https://b.example/two.png\nc.example/three.webp  http://d.example/x'
+			)
+		).toEqual([
+			'https://a.example/one.jpg',
+			'https://b.example/two.png',
+			'https://c.example/three.webp',
+			'http://d.example/x'
+		]);
+	});
+
+	it('keeps a comma inside a link, and drops what isn’t one', () => {
+		expect(imageLinks('https://res.example/w_300,h_400/poster.jpg')).toEqual([
+			'https://res.example/w_300,h_400/poster.jpg'
+		]);
+		expect(imageLinks('Dune part two')).toEqual([]);
+		expect(imageLinks('javascript:alert(1) file:///etc/passwd')).toEqual([]);
 	});
 });

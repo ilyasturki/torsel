@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
-import { MAX_IMAGE_BYTES, isImageId } from '#lib/core/images.ts';
+import { MAX_IMAGE_BYTES, isBaseId, isImageId } from '#lib/core/images.ts';
 import { UPLOAD_PART } from '#lib/core/thread.ts';
 import { images as words } from '#lib/i18n/images.ts';
 import { storageLimit } from '#lib/server/config.ts';
@@ -10,8 +10,6 @@ import type { Refusal } from '#lib/server/images/store.ts';
 import { readImage, receiveImagePart } from '#lib/server/images/store.ts';
 
 import type { RequestHandler } from './$types';
-
-const isBaseId = (id: string): boolean => /^b_[0-9a-z]{1,32}$/u.test(id);
 
 const REFUSED: Record<Refusal, [number, () => string]> = {
 	'out-of-order': [409, () => words.partOutOfOrder],

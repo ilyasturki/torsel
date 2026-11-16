@@ -23,7 +23,14 @@ const en = {
 	close: 'Close',
 	missing: 'Image not here yet',
 	more: (count: number) => `+${count}`,
-	cellFull: (max: number) => `A cell holds up to ${max} images`
+	cellFull: (max: number) => `A cell holds up to ${max} images`,
+	linkScheme: 'only http and https links are fetched',
+	linkPrivate: 'this link points to a private address',
+	linkSlow: 'the image took too long to arrive',
+	linkUnreachable: 'couldn’t reach this link',
+	linkStatus: 'the link answered with an error',
+	linkNotAnImage: 'this link isn’t a JPEG, PNG, WebP, GIF or AVIF image',
+	linkBusy: 'too many links at once, try again in a minute'
 };
 
 const fr: typeof en = {
@@ -48,7 +55,14 @@ const fr: typeof en = {
 	close: 'Fermer',
 	missing: 'Image pas encore arrivée',
 	more: (count) => `+${count}`,
-	cellFull: (max) => `Une cellule contient ${max} images au plus`
+	cellFull: (max) => `Une cellule contient ${max} images au plus`,
+	linkScheme: 'seuls les liens http et https sont récupérés',
+	linkPrivate: 'ce lien mène à une adresse privée',
+	linkSlow: 'l’image a mis trop de temps à arriver',
+	linkUnreachable: 'impossible de joindre ce lien',
+	linkStatus: 'le lien a répondu par une erreur',
+	linkNotAnImage: 'ce lien n’est pas une image JPEG, PNG, WebP, GIF ou AVIF',
+	linkBusy: 'trop de liens d’un coup, réessaie dans une minute'
 };
 
 export default { en, fr };

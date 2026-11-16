@@ -18,6 +18,8 @@ export type ImageRef = {
 	h: number;
 	size: number;
 	name?: string;
+	/** The URL it was fetched from, once, by the server. */
+	src?: string;
 };
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -29,6 +31,20 @@ export const MAX_IMAGE_PIXELS = 40_000_000;
 export const MAX_IMAGES = 20;
 
 const NAME_LENGTH = 200;
+
+const SRC_LENGTH = 2048;
+
+export const isImageSource = (url: unknown): url is string => {
+	if (typeof url !== 'string' || url.length > SRC_LENGTH) return false;
+	try {
+		const { protocol } = new URL(url);
+		return protocol === 'https:' || protocol === 'http:';
+	} catch {
+		return false;
+	}
+};
+
+export const isBaseId = (id: string): boolean => /^b_[0-9a-z]{1,32}$/u.test(id);
 
 export const isImageId = (id: unknown): id is string =>
 	typeof id === 'string' && /^[0-9a-f]{64}$/u.test(id);
@@ -44,7 +60,7 @@ export function imageRef(raw: unknown): ImageRef | null {
 	if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
 		return null;
 	}
-	const { id, type, w, h, size, name } = raw as Record<string, unknown>;
+	const { id, type, w, h, size, name, src } = raw as Record<string, unknown>;
 	if (
 		!isImageId(id) ||
 		!isImageType(type) ||
@@ -61,6 +77,9 @@ export function imageRef(raw: unknown): ImageRef | null {
 	const ref: ImageRef = { id, type, w, h, size };
 	if (typeof name === 'string' && name.trim() !== '') {
 		ref.name = name.trim().slice(0, NAME_LENGTH);
+	}
+	if (isImageSource(src)) {
+		ref.src = src;
 	}
 	return ref;
 }
@@ -86,9 +105,19 @@ export function imagesValue(refs: ImageRef[]): Value {
 	return refs.length === 0 ? null : (refs.map((ref) => ({ ...ref })) as Value);
 }
 
+/** The links in a text value, each one an image to fetch: a bare domain reads as https. */
+export function imageLinks(text: string): string[] {
+	return text
+		.split(/\s+|,(?=\s|https?:\/\/)/u)
+		.map((part) => part.trim())
+		.filter((part) => part !== '')
+		.map((part) => (/^[a-z][a-z0-9+.-]*:/iu.test(part) ? part : `https://${part}`))
+		.filter((part) => isImageSource(part) && /^https?:\/\/[^/\s]+\.[^/\s]+/iu.test(part));
+}
+
 /** What copy, CSV and a text field keep of a cell's images. */
 export function imagesText(value: Value | undefined): string {
 	return imagesOf(value)
-		.map((ref) => ref.name ?? ref.id.slice(0, 12))
+		.map((ref) => ref.src ?? ref.name ?? ref.id.slice(0, 12))
 		.join(', ');
 }
