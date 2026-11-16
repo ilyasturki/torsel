@@ -770,7 +770,7 @@ describe('source tables', () => {
 
 		await s.call('update_field', { base: s.base, table: 'Movies', field: 'Rating', decimals: 2 });
 		const changes = s.actions.at(-1)?.changes ?? [];
-		expect(changes.map((change) => change.kind)).toEqual(['field']);
+		expect(changes.some((change) => change.kind === 'row')).toBe(false);
 		expect(changes[0].set.decimals).toBe(2);
 	});
 });

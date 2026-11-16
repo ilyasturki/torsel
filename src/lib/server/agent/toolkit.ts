@@ -51,7 +51,6 @@ import {
 	FORMAT_OF,
 	RESULT_TYPES,
 	VIEW_TYPES,
-	formatSet,
 	hasChoices,
 	sortsOf
 } from '../../core/model.ts';
@@ -1084,10 +1083,7 @@ export const TOOLS: Tool[] = [
 			const format = formatOf(type, input, field);
 			const reformat = FORMAT_OF[type].some((key) => input[key] !== undefined);
 			let converted: { changes: Change[]; lost: number } = { changes: [], lost: 0 };
-			// A source field's values stay as the source wrote them: its format only changes how they read.
-			if (type === field.type && reformat && hasPath(ctx.ws.get(field.id))) {
-				Object.assign(set, formatSet(type, format));
-			} else if (type !== field.type || reformat) {
+			if (type !== field.type || reformat) {
 				if (type === 'formula' && expr === null && field.type !== 'formula')
 					throw new ToolError('a formula field needs formula');
 				if (type === 'link' && input.target === undefined && field.type !== 'link')

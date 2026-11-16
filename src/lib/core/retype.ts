@@ -1,3 +1,4 @@
+import { hasPath } from './access.ts';
 import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from './model.ts';
 import { formatSet, hasChoices, isNumeric } from './model.ts';
 import { CHOICES_JOIN, coerce, durationUnit, formatDuration } from './values.ts';
@@ -108,7 +109,9 @@ export function retypeField(
 	const found: Choice[] = [...known];
 	let lost = 0;
 
-	for (const row of ws.rows(field.table)) {
+	// A source writes its fields' values: a new format of the same type only changes how they read.
+	const rows = to.type === field.type && hasPath(ws.get(fieldId)) ? [] : ws.rows(field.table);
+	for (const row of rows) {
 		const value = field.type === 'formula' ? computed?.get(row.id)?.[field.id] : row.data[field.id];
 		if (value === null || value === undefined || value === '') {
 			continue;
