@@ -16,6 +16,7 @@
 	import { publish as publishWords } from '#lib/i18n/publish.ts';
 	import { shell as shellWords } from '#lib/i18n/shell.ts';
 	import { table as words } from '#lib/i18n/table.ts';
+	import { rules as ruleWords } from '#lib/i18n/rules.ts';
 	import { views as viewWords } from '#lib/i18n/views.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -35,7 +36,8 @@
 		table,
 		view,
 		onask,
-		onviewsettings
+		onviewsettings,
+		onrules
 	}: {
 		open?: boolean;
 		anchor?: HTMLElement | null;
@@ -44,6 +46,7 @@
 		/** On a phone the header has no room for these, so the sheet carries them. */
 		onask?: () => void;
 		onviewsettings?: () => void;
+		onrules?: (kind: 'filter' | 'colors') => void;
 	} = $props();
 
 	let renaming = false;
@@ -147,6 +150,22 @@
 				<Button variant="ghost" class="justify-start" onclick={() => run(onviewsettings)}
 					>{viewWords.viewSettings}</Button
 				>
+			{/if}
+			{#if onrules !== undefined && view !== undefined}
+				{@const filters = (view.config.filters ?? []).length}
+				{@const colors = (view.config.colors ?? []).length}
+				<Button variant="ghost" class="justify-start" onclick={() => run(() => onrules('filter'))}
+					><span class="flex-1 text-left">{ruleWords.filter}</span>{#if filters > 0}<span
+							class="text-ink-3 tabular-nums">{filters}</span
+						>{/if}</Button
+				>
+				{#if view.type === 'grid'}
+					<Button variant="ghost" class="justify-start" onclick={() => run(() => onrules('colors'))}
+						><span class="flex-1 text-left">{ruleWords.colors}</span>{#if colors > 0}<span
+								class="text-ink-3 tabular-nums">{colors}</span
+							>{/if}</Button
+					>
+				{/if}
 			{/if}
 			<span class="px-3 pt-2 text-sm text-ink-3" id="new-view">{viewWords.newView}</span>
 			<div class="grid grid-cols-4 gap-1 px-1 pb-1" role="group" aria-labelledby="new-view">

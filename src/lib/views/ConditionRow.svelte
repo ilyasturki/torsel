@@ -184,82 +184,89 @@
 	const dateField: Pick<FieldDef, 'type'> = { type: 'date' };
 </script>
 
-<div class="flex flex-wrap items-start gap-2 max-sm:rounded-box max-sm:bg-tint max-sm:p-2">
+<div
+	class="flex items-start gap-2 max-sm:flex-wrap max-sm:rounded-box max-sm:bg-tint max-sm:p-2"
+	data-condition
+>
 	<Select
-		class="w-40 max-sm:min-w-0 max-sm:flex-1"
-		aria-label={words.filter}
+		class="w-36 shrink-0 max-sm:min-w-0 max-sm:flex-1"
+		aria-label={words.field}
 		options={fieldOptions}
 		value={condition.op === 'formula' ? FORMULA : (condition.field ?? '')}
 		onchange={pickField}
 	/>
 	{#if condition.op !== 'formula'}
 		<Select
-			class="w-44 max-sm:min-w-0 max-sm:flex-1"
-			aria-label={words.value}
+			class="w-48 shrink-0 max-sm:min-w-0 max-sm:flex-1"
+			aria-label={words.operator}
 			options={opOptions}
 			value={condition.op}
 			onchange={pickOp}
 		/>
 	{/if}
-	<IconButton icon="x" label={removeLabel} class="sm:order-last" onclick={onremove} />
-	{#if condition.op === 'formula'}
-		<div class="min-w-48 flex-1 max-sm:basis-full">
-			<FormulaInput
-				bind:value={formula}
-				{tableId}
-				fieldId={null}
-				label={words.customFormula}
-				placeholder={words.customFormula}
-				onblur={settleFormula}
-				onkeydown={(event) => {
-					if (event.key === 'Enter' && !event.shiftKey) {
-						event.preventDefault();
-						settleFormula();
-					}
-				}}
-			/>
-		</div>
-	{:else if shape === 'list'}
-		<div class="min-w-48 flex-1 max-sm:basis-full">
-			<ChipPicker
-				label={field?.name ?? words.value}
-				options={listOptions}
-				value={listValue}
-				onchange={pickList}
-			/>
-		</div>
-	{:else if shape !== 'none' && kind === 'date'}
-		{#each shape === 'two' ? [0, 1] : [0] as at (at)}
-			<div class="flex min-w-48 flex-1 gap-2 max-sm:basis-full">
-				<Select
-					class="w-40"
-					aria-label={shape === 'two' ? (at === 0 ? words.from : words.to) : words.value}
-					placeholder={words.value}
-					options={dayOptions}
-					value={dayChoice(at)}
-					onchange={(choice) => pickDay(at, choice)}
+	<div class="flex min-w-0 flex-1 gap-2 max-sm:order-last max-sm:basis-full">
+		{#if condition.op === 'formula'}
+			<div class="min-w-0 flex-1">
+				<FormulaInput
+					bind:value={formula}
+					{tableId}
+					fieldId={null}
+					label={words.customFormula}
+					placeholder={words.customFormula}
+					onblur={settleFormula}
+					onkeydown={(event) => {
+						if (event.key === 'Enter' && !event.shiftKey) {
+							event.preventDefault();
+							settleFormula();
+						}
+					}}
 				/>
-				{#if dayChoice(at) === EXACT}
-					<div class="min-w-0 flex-1">
-						<DateInput
-							field={dateField}
-							label={words.value}
-							bind:value={() => values[at] ?? null, (value) => setDay(at, value)}
-						/>
-					</div>
-				{/if}
 			</div>
-		{/each}
-	{:else if shape !== 'none'}
-		{#each shape === 'two' ? [0, 1] : [0] as at (at)}
-			<input
-				class="{input} min-w-24 flex-1 max-sm:basis-[calc(50%-0.25rem)]"
-				aria-label={shape === 'two' ? (at === 0 ? words.from : words.to) : words.value}
-				placeholder={shape === 'two' ? (at === 0 ? words.from : words.to) : words.value}
-				inputmode={kind === 'number' ? 'decimal' : undefined}
-				value={textOf(at)}
-				onchange={(event) => typed(at, event.currentTarget.value)}
-			/>
-		{/each}
-	{/if}
+		{:else if shape === 'list'}
+			<div class="min-w-0 flex-1">
+				<ChipPicker
+					label={field?.name ?? words.value}
+					options={listOptions}
+					value={listValue}
+					onchange={pickList}
+				/>
+			</div>
+		{:else if shape !== 'none' && kind === 'date'}
+			<div class="flex min-w-0 flex-1 flex-col gap-2">
+				{#each shape === 'two' ? [0, 1] : [0] as at (at)}
+					<div class="flex min-w-0 flex-col gap-2">
+						<Select
+							class="w-full"
+							aria-label={shape === 'two' ? (at === 0 ? words.from : words.to) : words.value}
+							placeholder={words.value}
+							options={dayOptions}
+							value={dayChoice(at)}
+							onchange={(choice) => pickDay(at, choice)}
+						/>
+						{#if dayChoice(at) === EXACT}
+							<div class="min-w-0">
+								<DateInput
+									field={dateField}
+									label={words.exactDate}
+									bind:value={() => values[at] ?? null, (value) => setDay(at, value)}
+								/>
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{:else if shape !== 'none'}
+			{#each shape === 'two' ? [0, 1] : [0] as at (at)}
+				<input
+					class="{input} min-w-0 flex-1"
+					aria-label={shape === 'two' ? (at === 0 ? words.from : words.to) : words.value}
+					placeholder={shape === 'two' ? (at === 0 ? words.from : words.to) : words.value}
+					inputmode={kind === 'number' ? 'decimal' : undefined}
+					value={textOf(at)}
+					onchange={(event) => typed(at, event.currentTarget.value)}
+				/>
+			{/each}
+		{/if}
+	</div>
+	<IconButton icon="x" label={removeLabel} onclick={onremove} />
 </div>

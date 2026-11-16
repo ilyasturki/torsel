@@ -10,7 +10,7 @@ import {
 	updateRecord
 } from '../../src/lib/core/actions.ts';
 import type { Value, ViewConfig } from '../../src/lib/core/model.ts';
-import { expect, openAsk as tapAsk, script, seed, tablePath, test } from './harness.ts';
+import { expect, openAsk as tapAsk, script, seed, tablePath, test, undo } from './harness.ts';
 
 function seedSets(
 	request: APIRequestContext,
@@ -221,6 +221,106 @@ test('a column totals the shown rows from its menu, and the totals row takes it 
 	await expect(grid.locator('tfoot')).toHaveCount(0);
 });
 
+test('the last row stays above the totals row when the keyboard reaches it', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seed(context.request, (ws, commit) => {
+		const base = createBase(ws, 'Gym');
+		commit(base.changes);
+		const made = createTable(ws, base.id, 'Long', [{ name: 'Reps', type: 'number' }], () =>
+			defaultViews(names.en)
+		);
+		commit(made.changes);
+		const [reps] = made.fieldIds;
+		commit(
+			insertRows(
+				ws,
+				made.id,
+				Array.from({ length: 60 }, (_, at) => ({ [reps]: at + 1 }))
+			).changes
+		);
+		const grid = ws.views(made.id).find((view) => view.type === 'grid');
+		if (grid !== undefined) {
+			commit(updateRecord(ws, grid.id, { config: { totals: { [reps]: 'sum' } } }));
+		}
+		return { table: made.id };
+	});
+	await page.goto(tablePath(table));
+	const grid = page.getByRole('grid');
+	await expect(grid.locator('[data-total="Reps"]')).toContainText('1,830');
+
+	await grid.locator('td[data-r="0"][data-c="0"]').click();
+	await page.keyboard.press('ControlOrMeta+End');
+	const last = grid.locator('td[data-r="59"][data-c="0"]');
+	await expect(last).toHaveText('60');
+	const cell = await last.boundingBox();
+	const foot = await grid.locator('tfoot').boundingBox();
+	expect(cell !== null && foot !== null && cell.y + cell.height <= foot.y + 1).toBe(true);
+});
+
+/** The filter or colour editor: a popover from the header's icon, a drawer from the table "…" on a phone. */
+async function openRules(page: Page, name: string, more = 'More'): Promise<Locator> {
+	if (isPhone()) {
+		await page.getByRole('button', { name: more, exact: true }).click();
+		await page.getByRole('dialog').getByRole('button', { name }).click();
+		return page.getByRole('dialog', { name });
+	}
+	await page.getByRole('button', { name: new RegExp(`^${name}`, 'u') }).click();
+	return page.getByRole('dialog', { name });
+}
+
+async function pick(scope: Locator, label: string, option: string): Promise<void> {
+	await scope.getByRole('combobox', { name: label }).click();
+	await scope.page().getByRole('option', { name: option, exact: true }).click();
+}
+
+test('the header filters the grid by several typed conditions and colours its rows', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	const { table } = await seedSets(context.request);
+	await page.goto(tablePath(table));
+	const grid = page.getByRole('grid');
+	await expect(grid.getByRole('gridcell', { name: 'Squat' })).toBeVisible();
+
+	let editor = await openRules(page, 'Filter');
+	await editor.getByRole('button', { name: 'Add condition' }).click();
+	const first = editor.locator('[data-condition]').first();
+	await first.getByRole('textbox', { name: 'Value' }).fill('bench');
+	await first.getByRole('textbox', { name: 'Value' }).press('Enter');
+	await expect(page.getByText(/: 2 of 4$/u)).toBeVisible();
+
+	await editor.getByRole('button', { name: 'Add condition' }).click();
+	const second = editor.locator('[data-condition]').nth(1);
+	await pick(second, 'Field', 'Kg');
+	await pick(second, 'Condition', 'greater than');
+	await second.getByRole('textbox', { name: 'Value' }).fill('80');
+	await second.getByRole('textbox', { name: 'Value' }).press('Enter');
+	await expect(page.getByText(/: 1 of 4$/u)).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('dialog', { name: 'Filter' })).toHaveCount(0);
+	if (!isPhone()) await expect(page.getByRole('button', { name: 'Filter (2)' })).toBeVisible();
+
+	editor = await openRules(page, 'Colours');
+	await editor.getByRole('button', { name: 'Add rule' }).click();
+	const rule = editor.locator('[data-condition]').first();
+	await pick(rule, 'Field', 'RPE');
+	await pick(rule, 'Condition', 'greater than or equal to');
+	await rule.getByRole('textbox', { name: 'Value' }).fill('9.5');
+	await rule.getByRole('textbox', { name: 'Value' }).press('Enter');
+	await page.keyboard.press('Escape');
+	await expect(grid.locator('tr[data-color="red"]')).toHaveCount(1);
+	await expect(grid.locator('tr[data-color="red"]')).toContainText('85');
+
+	await undo(page);
+	await expect(grid.locator('tr[data-color="red"]')).toHaveCount(0);
+});
+
 test.describe('in French', () => {
 	test.use({ locale: 'fr-FR' });
 
@@ -244,5 +344,15 @@ test.describe('in French', () => {
 			)
 		).toBeVisible();
 		await expect(page.getByRole('grid').locator('[data-total="Kg"]')).toHaveText(/Moyenne\s*82,5/u);
+
+		const editor = await openRules(page, 'Couleurs', 'Plus');
+		await editor.getByRole('button', { name: 'Ajouter une règle' }).click();
+		const rule = editor.locator('[data-condition]').first();
+		await pick(rule, 'Champ', 'RPE');
+		await pick(rule, 'Condition', 'supérieur ou égal à');
+		await rule.getByRole('textbox', { name: 'Valeur' }).fill('9,5');
+		await rule.getByRole('textbox', { name: 'Valeur' }).press('Enter');
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('grid').locator('tr[data-color="red"]')).toHaveCount(1);
 	});
 });

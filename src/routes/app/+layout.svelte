@@ -43,6 +43,10 @@
 	import Toast from '#lib/views/Toast.svelte';
 	import ViewSheet from '#lib/views/ViewSheet.svelte';
 	import ViewTabs from '#lib/views/ViewTabs.svelte';
+	import RulesButton from '#lib/views/RulesButton.svelte';
+	import RulesEditor from '#lib/views/RulesEditor.svelte';
+	import Drawer from '#lib/ui/Drawer.svelte';
+	import { rules as ruleWords } from '#lib/i18n/rules.ts';
 
 	let { children } = $props();
 
@@ -150,6 +154,7 @@
 	let menuOpen = $state(false);
 	let menuAnchor = $state<HTMLElement | null>(null);
 	let viewSettings = $state(false);
+	let rulesSheet = $state<'filter' | 'colors' | null>(null);
 	let settingsView = $state<string | null>(null);
 
 	function openViewSettings(viewId: string | null): void {
@@ -295,6 +300,12 @@
 				{#if roomy.current}<SyncStatus />{/if}
 				<div class="ml-auto flex shrink-0 items-center gap-1">
 					{#if table !== undefined}
+						{#if view !== undefined && view.type !== 'entry'}
+							<div class="flex items-center gap-1 max-sm:hidden">
+								<RulesButton {view} kind="filter" />
+								{#if view.type === 'grid'}<RulesButton {view} kind="colors" />{/if}
+							</div>
+						{/if}
 						<IconButton
 							icon="settings"
 							label={viewWords.viewSettings}
@@ -405,7 +416,19 @@
 				? () => (asking = true)
 				: undefined}
 			onviewsettings={() => openViewSettings(view?.id ?? null)}
+			onrules={view === undefined || view.type === 'entry'
+				? undefined
+				: (kind) => (rulesSheet = kind)}
 		/>
+		{#if view !== undefined}
+			<Drawer
+				open={rulesSheet !== null}
+				title={rulesSheet === 'colors' ? ruleWords.colors : ruleWords.filter}
+				onclose={() => (rulesSheet = null)}
+			>
+				{#if rulesSheet !== null}<RulesEditor viewId={view.id} kind={rulesSheet} />{/if}
+			</Drawer>
+		{/if}
 		{#if settingsView !== null}
 			<ViewSheet bind:open={viewSettings} tableId={table.id} viewId={settingsView} />
 		{/if}

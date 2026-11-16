@@ -62,7 +62,9 @@
 {#snippet colorButton(at: number, color: string, scale: boolean)}
 	<button
 		type="button"
-		class="flex size-control shrink-0 items-center justify-center rounded-box hover:bg-tint {focus}"
+		class="flex size-control shrink-0 items-center {scale
+			? ''
+			: 'max-sm:mt-2'} justify-center rounded-box hover:bg-tint {focus}"
 		aria-label={words.colorNames[isDataColor(color) ? color : 'gray']}
 		onclick={() => recolor(at)}
 	>
@@ -112,13 +114,13 @@
 			<div class="flex items-center gap-1">
 				{@render colorButton(at, rule.color, true)}
 				<Select
-					class="w-40"
+					class="w-40 max-sm:flex-1"
 					aria-label={words.scale}
 					options={fieldOptions(numberFields)}
 					value={rule.scale}
 					onchange={(field) => onchange(rules.with(at, { ...rule, scale: field }))}
 				/>
-				<span class="flex-1 px-2 text-ink-2">{words.scale}</span>
+				<span class="flex-1 truncate px-2 text-ink-2 max-sm:hidden">{words.scale}</span>
 				<IconButton
 					icon="x"
 					label={words.removeRule}
