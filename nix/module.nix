@@ -288,6 +288,8 @@ in
           "AF_UNIX"
           "AF_INET"
           "AF_INET6"
+          # os.networkInterfaces(), which the fetch guard reads, asks the kernel over netlink.
+          "AF_NETLINK"
         ];
         CapabilityBoundingSet = [ "" ];
         AmbientCapabilities = [ "" ];
