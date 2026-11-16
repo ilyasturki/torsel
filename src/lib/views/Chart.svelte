@@ -30,6 +30,11 @@
 		return app.chart(tableId, config);
 	});
 
+	const adds = $derived.by(() => {
+		void app.version;
+		return app.canAddRows(tableId);
+	});
+
 	const xField = $derived(config.x ? app.ws.field(config.x) : undefined);
 	const colorField = $derived(config.color ? app.ws.field(config.color) : undefined);
 	const yField = $derived(config.agg !== 'count' && config.y ? app.ws.field(config.y) : undefined);
@@ -212,7 +217,7 @@
 
 		{#if xs.length === 0}
 			<Empty text={words.noData}>
-				{#if app.canAddRows(tableId)}
+				{#if adds}
 					<Button variant="primary" onclick={() => (shell.newRow = true)}>{words.addARow}</Button>
 				{/if}
 			</Empty>

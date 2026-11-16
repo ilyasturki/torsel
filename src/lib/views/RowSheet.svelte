@@ -229,7 +229,9 @@
 						class="flex min-h-control min-w-0 items-center gap-3 px-2"
 						aria-readonly="true"
 					>
-						<span class="min-w-0 truncate"><CellValue {field} value={values[field.id]} /></span>
+						<span class="min-w-0 truncate"
+							><CellValue {field} value={stored?.data[field.id] ?? null} /></span
+						>
 						<Icon name="lock" class="ml-auto size-4 shrink-0 text-ink-3" />
 					</p>
 				{:else}
