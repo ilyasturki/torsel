@@ -458,7 +458,13 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 					if (run !== null) {
 						if (!run.ok) return { updated: table.id, problem: problemText(run.problem) };
 						const { added, changed, removed } = run;
-						return { updated: table.id, added, changed, removed };
+						return {
+							updated: table.id,
+							added,
+							changed,
+							removed,
+							...(run.problem === null ? {} : { problem: problemText(run.problem) })
+						};
 					}
 				}
 				return { updated: table.id };
