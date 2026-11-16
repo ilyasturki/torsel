@@ -164,13 +164,15 @@ export function toItems(rows: ThreadRow[], actions: ThreadAction[]): Item[] {
 			}
 		} else {
 			const content = blocks(row.content);
-			// What a reply says on its way to a tool call is progress, not the answer.
-			const acting = content.some(
-				(block) => block?.type === 'tool_use' || block?.type === 'server_tool_use'
+			// What a reply says on its way to a tool call is progress, not the answer; past a read the
+			// server ran itself (a docs page), what follows in the same reply is the answer.
+			const acting = content.some((block) => block?.type === 'tool_use');
+			const read = content.findLastIndex(
+				(block) => block?.type === 'server_tool_use' || (block?.type ?? '').endsWith('_tool_result')
 			);
 			content.forEach((block, index) => {
 				if (block === undefined) return;
-				if (block.type === 'text' && block.text !== '' && !acting) {
+				if (block.type === 'text' && block.text !== '' && !acting && index > read) {
 					items.push({ kind: 'text', key: `${at}.${index}`, text: block.text });
 				} else if (block.type === 'tool_use') {
 					const action = byId.get(block.id);

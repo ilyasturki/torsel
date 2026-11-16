@@ -45,6 +45,26 @@ describe('toItems', () => {
 		expect(items[1]).toMatchObject({ key: 'b', action: { id: 'b' } });
 	});
 
+	it('shows the answer that follows a docs page the server read, not the words before it', () => {
+		const rows: ThreadRow[] = [
+			prompt,
+			{
+				seq: 2,
+				role: 'assistant',
+				content: [
+					{ type: 'text', text: 'Reading the docs.' },
+					{ type: 'server_tool_use', id: 's', name: 'web_fetch', input: { url: 'https://x' } },
+					{ type: 'web_fetch_tool_result', tool_use_id: 's', content: {} },
+					{ type: 'text', text: 'It needs a key.' }
+				],
+				meta: null
+			}
+		];
+		expect(toItems(rows, []).map((item) => (item.kind === 'text' ? item.text : item.kind))).toEqual(
+			['user', 'It needs a key.']
+		);
+	});
+
 	it('renders an event from what the server stored', () => {
 		const rows: ThreadRow[] = [
 			{ seq: 1, role: 'event', content: { kind: 'stopped', message: 'Stopped.' }, meta: null }
