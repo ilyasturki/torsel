@@ -15,6 +15,7 @@ import type {
 } from '../core/thread.ts';
 import { MAX_FILE_BYTES, UPLOAD_PART, droppedSeqs } from '../core/thread.ts';
 import { assistant as words } from '../i18n/assistant.ts';
+import { shell as shellWords } from '../i18n/shell.ts';
 import { locale } from '../i18n/runtime.ts';
 import { ApiError, NO_SERVER, OFFLINE, apiBase, deviceToken, request, streamLines } from './api.ts';
 import type { Group } from './app.svelte.ts';
@@ -177,7 +178,10 @@ function undoOne(action: ThreadAction): void {
 		app.undo(group.id);
 		return;
 	}
-	app.apply(plain(action.before), words.undoSummary(action.summary));
+	if (app.apply(plain(action.before), words.undoSummary(action.summary)) === null) {
+		showToast(shellWords.syncedRefused);
+		return;
+	}
 	decide(action, 'undone');
 }
 
