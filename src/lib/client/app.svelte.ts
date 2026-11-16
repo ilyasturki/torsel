@@ -460,6 +460,12 @@ class TorselApp {
 		await saved;
 	}
 
+	/** The device's store, once open; none behind the landing's sample tables. */
+	public async store(): Promise<LocalDb | undefined> {
+		await this.load();
+		return this.db;
+	}
+
 	public async meta<T>(key: string): Promise<T | undefined> {
 		await this.load();
 		const stored = await readMeta<T>(this.db as LocalDb, key);

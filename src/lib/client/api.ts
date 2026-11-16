@@ -201,6 +201,37 @@ export async function streamLines<T>(
 	}
 }
 
+/** The bytes at `path`, with the credential `request` sends: an `<img>` can't carry the app's bearer token. */
+export async function requestBlob(path: string): Promise<Blob> {
+	const base = apiBase();
+	if (base === null) {
+		throw new ApiError(NO_SERVER, words.noServer);
+	}
+
+	const headers = new Headers({ 'accept-language': locale() });
+	const token = deviceToken();
+	if (token !== null) {
+		headers.set('authorization', `Bearer ${token}`);
+	}
+
+	let response: Response;
+	try {
+		response = await fetch(`${base}${path}`, { headers });
+	} catch {
+		throw new ApiError(OFFLINE, words.unreachable);
+	}
+
+	if (!response.ok) {
+		const payload: unknown = await response.json().catch(() => undefined);
+		if (response.status === 401 && token !== null) {
+			setDeviceToken(null);
+		}
+		throw new ApiError(response.status, refusal(response.status, payload), payload);
+	}
+
+	return response.blob();
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
 	const { method = 'GET', body, bytes, fetch = globalThis.fetch } = options;
 

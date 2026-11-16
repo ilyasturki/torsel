@@ -2,6 +2,7 @@ import { pushBatch } from '../core/protocol.ts';
 import type { SyncResponse } from '../core/protocol.ts';
 import { ApiError, NO_SERVER, OFFLINE, deviceToken, request } from './api.ts';
 import { app } from './app.svelte.ts';
+import { flushOutbox, retryMissing } from './images.svelte.ts';
 import type { Account } from './auth.ts';
 import { logout, session } from './auth.ts';
 import { forgetAccount, me } from './session.svelte.ts';
@@ -37,6 +38,12 @@ export function scheduleSync(delay = DEBOUNCE_MS): void {
 /** Whether the server took back any write of this device. */
 async function exchange(): Promise<boolean> {
 	let refused = false;
+	// Before the records, so another device seldom gets a ref ahead of its bytes; an image the server can't take yet holds no record back.
+	await flushOutbox().catch((error: unknown) => {
+		if (!(error instanceof ApiError) || error.status === OFFLINE || error.status === 401) {
+			throw error;
+		}
+	});
 	for (let round = 0; round < ROUNDS; round += 1) {
 		const push = pushBatch(app.dirtyRecords());
 		const watermark = (await app.meta<number>('watermark')) ?? 0;
@@ -74,6 +81,7 @@ export async function syncNow(): Promise<void> {
 					showToast(words.syncedRefused);
 				}
 				sync.status = 'idle';
+				retryMissing();
 				app.onSynced?.();
 			} catch (error) {
 				if (!(error instanceof ApiError)) {

@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto';
 
+import { openDB } from 'idb';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import type { ImageRef } from '../core/images.ts';
 import type { Rec } from '../core/model.ts';
 import type { Decision, LocalDb, Stored } from './local.ts';
 import {
@@ -9,15 +11,21 @@ import {
 	erase,
 	forgetDecisions,
 	handOver,
+	keepImage,
 	openLocal,
 	readDecisions,
+	readImage,
 	readMeta,
+	readOutbox,
 	readWritten,
-	save
+	save,
+	sent
 } from './local.ts';
 
 let db: LocalDb;
 let opened = 0;
+
+const poster: ImageRef = { id: 'a'.repeat(64), type: 'image/jpeg', w: 2, h: 3, size: 1 };
 
 function entry(id: string, dirty: boolean, data: unknown = {}): Stored {
 	return { id, dirty, rec: { id, data } as Rec };
@@ -101,6 +109,15 @@ describe('erase', () => {
 		expect(await readDecisions(db)).toEqual([]);
 		expect(await readMeta(db, 'node')).toBe('n');
 	});
+
+	it('takes the images and the ones waiting to leave', async () => {
+		await keepImage(db, poster, new Blob(['x']), 'b_home');
+
+		await erase(db);
+
+		expect(await readImage(db, poster.id)).toBeUndefined();
+		expect(await readOutbox(db)).toEqual([]);
+	});
 });
 
 describe('handOver', () => {
@@ -123,6 +140,15 @@ describe('handOver', () => {
 		expect(await readMeta(db, 'owner')).toBe('one');
 	});
 
+	it('changes nothing while an image has not reached the server', async () => {
+		await save(db, [entry('a', false)], { owner: 'one' });
+		await keepImage(db, poster, new Blob(['x']), 'b_home');
+
+		expect(await handOver(db, 'two')).toBe(false);
+		await sent(db, 'b_home', poster.id);
+		expect(await handOver(db, 'two')).toBe(true);
+	});
+
 	it('empties the store for the new owner once everything has', async () => {
 		await save(db, [entry('a', false)], { watermark: 9, owner: 'one' });
 
@@ -131,5 +157,28 @@ describe('handOver', () => {
 		expect(await records()).toEqual([]);
 		expect(await readMeta(db, 'watermark')).toBeUndefined();
 		expect(await readMeta(db, 'owner')).toBe('two');
+	});
+});
+
+describe('openLocal', () => {
+	it('upgrades a store of the first version and keeps its unsent records', async () => {
+		const name = `old-${opened}`;
+		const old = await openDB(name, 1, {
+			upgrade(store) {
+				store.createObjectStore('records', { keyPath: 'id' });
+				store.createObjectStore('meta');
+			}
+		});
+		await old.put('records', entry('a', true));
+		await old.put('meta', 4, 'watermark');
+		old.close();
+
+		const upgraded = await openLocal(name);
+		await keepImage(upgraded, poster, new Blob(['x']), 'b_home');
+
+		expect(await upgraded.get('records', 'a')).toEqual(entry('a', true));
+		expect(await readMeta(upgraded, 'watermark')).toBe(4);
+		expect((await readOutbox(upgraded)).map((item) => item.ref.id)).toEqual([poster.id]);
+		upgraded.close();
 	});
 });

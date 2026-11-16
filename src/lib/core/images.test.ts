@@ -37,7 +37,7 @@ describe('image values', () => {
 	});
 
 	it('reads as its names in text', () => {
-		const still = { ...poster, id: 'd'.repeat(64), name: undefined };
+		const still = { id: 'd'.repeat(64), type: 'image/jpeg', w: 600, h: 338, size: 9000 };
 
 		expect(imagesText([poster, still])).toBe(`dune.jpg, ${'d'.repeat(12)}`);
 	});
