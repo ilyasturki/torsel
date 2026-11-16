@@ -20,17 +20,23 @@
 	$effect(() => {
 		if (!open) return;
 		const id = view.id;
+		let current = true;
+		token = null;
 		loaded = false;
 		problem = null;
 		void request<{ view: string; token: string }[]>('/api/publications').then(
 			(listed) => {
+				if (!current) return;
 				token = listed.find((item) => item.view === id)?.token ?? null;
 				loaded = true;
 			},
 			() => {
-				problem = words.failed;
+				if (current) problem = words.failed;
 			}
 		);
+		return () => {
+			current = false;
+		};
 	});
 
 	async function run(action: () => Promise<void>): Promise<void> {
