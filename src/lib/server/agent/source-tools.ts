@@ -49,7 +49,7 @@ export type SourceHost = {
 		request: SourceRequest
 	): Promise<{ table: string; base: string; changes: Change[]; run: RunResult }>;
 	refresh(table: string): Promise<RunResult>;
-	update(table: string, patch: { every?: Every; missing?: Missing }): void;
+	update(table: string, patch: { every?: Every; missing?: Missing; url?: string }): void;
 	stop(table: string): Promise<void>;
 };
 
@@ -83,7 +83,9 @@ const PROBLEMS: Record<string, string> = {
 	key: 'missing: keep needs a key: rows told apart by all their values would come back twice when one changes',
 	count: 'the account has as many linked tables as it may keep',
 	base: 'no such base',
-	gone: 'that table has no source'
+	gone: 'that table has no source',
+	inline:
+		'the link carries the key: give it without the key; the person types the key in the table’s source'
 };
 
 export function problemText(code: string): string {
@@ -412,20 +414,27 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 			name: 'update_source',
 			title: 'Change a linked table’s source',
 			description:
-				'Changes how often a linked table refreshes (every) and what becomes of rows gone from the source (missing); stop: true stops syncing, which keeps the rows and makes every field editable, and cannot be undone.',
+				'Changes how often a linked table refreshes (every), what becomes of rows gone from the source (missing), or the link it reads (url, read at once; never with a key in it); stop: true stops syncing, which keeps the rows and makes every field editable, and cannot be undone.',
 			input: z.strictObject({
 				table: z.string().describe('name or id of the linked table'),
 				every: z.enum(EVERY).optional(),
 				missing: z.enum(MISSING).optional(),
+				url: z.string().optional().describe('a new link for the same rows, read at once'),
 				stop: z.boolean().optional()
 			}),
-			output: z.strictObject({ updated: z.string() }),
+			output: z.strictObject({
+				updated: z.string(),
+				added: z.number().optional(),
+				changed: z.number().optional(),
+				removed: z.number().optional(),
+				problem: z.string().optional()
+			}),
 			kind: 'write',
 			destructive: true,
 			idempotent: true,
 			run: async (
 				ctx,
-				input: { table: string; every?: Every; missing?: Missing; stop?: boolean }
+				input: { table: string; every?: Every; missing?: Missing; url?: string; stop?: boolean }
 			) => {
 				const table = sourceTable(ctx.ws, input.table, fail);
 				const sources = host(ctx, fail);
@@ -433,9 +442,20 @@ export function sourceTools(fail: (message: string) => never): Tool[] {
 					await hosted(() => sources.stop(table.id), fail);
 				} else {
 					await hosted(
-						async () => sources.update(table.id, { every: input.every, missing: input.missing }),
+						async () =>
+							sources.update(table.id, {
+								every: input.every,
+								missing: input.missing,
+								url: input.url
+							}),
 						fail
 					);
+					if (input.url !== undefined) {
+						const run = await hosted(() => sources.refresh(table.id), fail);
+						if (!run.ok) return { updated: table.id, problem: problemText(run.problem) };
+						const { added, changed, removed } = run;
+						return { updated: table.id, added, changed, removed };
+					}
 				}
 				return { updated: table.id };
 			}

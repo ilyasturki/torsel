@@ -2496,7 +2496,7 @@ exports[`lists the same tools in every era 1`] = `
       "openWorldHint": false,
       "readOnlyHint": false,
     },
-    "description": "Changes how often a linked table refreshes (every) and what becomes of rows gone from the source (missing); stop: true stops syncing, which keeps the rows and makes every field editable, and cannot be undone.",
+    "description": "Changes how often a linked table refreshes (every), what becomes of rows gone from the source (missing), or the link it reads (url, read at once; never with a key in it); stop: true stops syncing, which keeps the rows and makes every field editable, and cannot be undone.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2523,6 +2523,10 @@ exports[`lists the same tools in every era 1`] = `
           "description": "name or id of the linked table",
           "type": "string",
         },
+        "url": {
+          "description": "a new link for the same rows, read at once",
+          "type": "string",
+        },
       },
       "required": [
         "table",
@@ -2534,6 +2538,18 @@ exports[`lists the same tools in every era 1`] = `
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
+        "added": {
+          "type": "number",
+        },
+        "changed": {
+          "type": "number",
+        },
+        "problem": {
+          "type": "string",
+        },
+        "removed": {
+          "type": "number",
+        },
         "updated": {
           "type": "string",
         },

@@ -2,9 +2,16 @@ import { DELETED } from '../../core/model.ts';
 import type { RunResult, SourceHost } from '../agent/source-tools.ts';
 import { SourceFailure } from '../agent/source-tools.ts';
 import type { Database } from '../db/client.ts';
-import { SourceRefused, createSource, patchSource, previewSource, stopSource } from './connect.ts';
+import {
+	SourceRefused,
+	createSource,
+	patchSource,
+	previewSource,
+	splitKey,
+	stopSource
+} from './connect.ts';
 import { PullFailed } from './fetch.ts';
-import { runSource } from './run.ts';
+import { authOf, runSource } from './run.ts';
 import type { Limited } from './limits.ts';
 import { overLimit } from './limits.ts';
 import { readSource } from './store.ts';
@@ -53,7 +60,17 @@ export function sourceHost(db: Database, userId: string): SourceHost {
 				return runSource(db, userId, table);
 			}),
 		update(table, patch) {
-			if (readSource(db, userId, table) === undefined) throw new SourceFailure('gone');
+			const source = readSource(db, userId, table);
+			if (source === undefined) throw new SourceFailure('gone');
+			let inline = false;
+			try {
+				// A key only ever comes from the person, typed in the table's source, never from a conversation.
+				inline =
+					patch.url !== undefined && splitKey(patch.url, authOf(source), null).secret !== null;
+			} catch (error) {
+				throw codeOf(error);
+			}
+			if (inline) throw new SourceFailure('inline');
 			try {
 				patchSource(db, userId, table, patch);
 			} catch (error) {

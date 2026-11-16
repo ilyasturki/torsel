@@ -86,6 +86,20 @@ describe('contextNote', () => {
 		expect(note).toContain(`- ${rows.ids[0]}: {"Rating":8}`);
 	});
 
+	it('says where a linked table fills itself from, and what its last read hit', () => {
+		const { ws, base, table } = movies();
+		const note = contextNote(
+			ws,
+			at({ screen: 'table', base: base.id, table: table.id }),
+			[],
+			false,
+			{ host: 'letterboxd.com', every: 'hour', problem: 'auth' }
+		);
+		expect(note).toContain(
+			'This table fills itself from letterboxd.com, every hour; its last read failed: the link refused the request: it needs a key.'
+		);
+	});
+
 	it('says which page is open when no table is, with every table to reach', () => {
 		const { ws, table } = movies();
 		const home = contextNote(ws, at({}), [], false);

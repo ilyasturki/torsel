@@ -22,6 +22,7 @@ import { loadWorkspace, syncExchange, writeChanges } from '../db/records.ts';
 import type { SourceSpec } from './connect.ts';
 import { createSource, patchSource, previewSource, stopSource } from './connect.ts';
 import { guardedFetch } from '../net/guard.ts';
+import { sourceHost } from './host.ts';
 import { CONNECTOR, rowIdOf, runSource } from './run.ts';
 import { tick } from './schedule.ts';
 import { keyFile, open, seal } from './secrets.ts';
@@ -493,5 +494,25 @@ describe('secrets', () => {
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe('the assistant’s source host', () => {
+	it('takes a new link for a linked table, but never one that carries its key', async () => {
+		const made = await createSource(
+			db,
+			userId,
+			spec('/movies.csv', { auth: { kind: 'query', name: 'key' }, secret: 'k1' })
+		);
+		const host = sourceHost(db, userId);
+		expect(() => host.update(made.table, { url: `${base}/films.csv?key=leaked` })).toThrow(
+			expect.objectContaining({ code: 'inline' })
+		);
+		expect(readSource(db, userId, made.table)?.url).toBe(`${base}/movies.csv`);
+		host.update(made.table, { url: `${base}/films.csv` });
+		expect(readSource(db, userId, made.table)?.url).toBe(`${base}/films.csv`);
+		expect(() => host.update(made.table, { url: 'ftp://x' })).toThrow(
+			expect.objectContaining({ code: 'url' })
+		);
 	});
 });

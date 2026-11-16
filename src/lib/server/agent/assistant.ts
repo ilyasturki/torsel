@@ -24,6 +24,8 @@ import { anthropicKey } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
 import { sourceHost } from '../sources/host.ts';
+import { readSource } from '../sources/store.ts';
+import { problemText } from './source-tools.ts';
 import { envText } from '../env.ts';
 import { blocksOf, sheetOf } from './files.ts';
 import {
@@ -214,11 +216,23 @@ function tablesLine(ws: Workspace, except: string | null): string {
 	return listed.length === 0 ? 'none' : listed.join('; ');
 }
 
+/** What the open table's source is, for a linked table: read from the server, not the workspace. */
+export type Linked = { host: string; every: 'manual' | 'hour' | 'day'; problem: string | null };
+
+const EVERY_TEXT = { manual: 'only when refreshed', hour: 'every hour', day: 'every day' };
+
+function linkedLine(linked: Linked): string {
+	const problem =
+		linked.problem === null ? '' : `; its last read failed: ${problemText(linked.problem)}`;
+	return `This table fills itself from ${linked.host}, ${EVERY_TEXT[linked.every]}${problem}. Its linked fields are read-only (refresh_source, update_source).`;
+}
+
 export function contextNote(
 	ws: Workspace,
 	context: ThreadContext,
 	undone: ThreadAction[],
-	stopped: boolean
+	stopped: boolean,
+	linked: Linked | null = null
 ): string {
 	const lines = [`Today: ${context.today ?? todayIso()}.`];
 	const { shows } = context;
@@ -231,6 +245,7 @@ export function contextNote(
 	const table = context.screen === 'table' ? tableNote(ws, context) : null;
 	if (table !== null) {
 		lines.push(...table);
+		if (linked !== null) lines.push(linkedLine(linked));
 		lines.push(`Other tables: ${tablesLine(ws, context.table)}.`);
 	} else {
 		lines.push(
@@ -450,7 +465,13 @@ export async function runTurn(turn: Turn): Promise<void> {
 		const tail = rows.at(-1);
 		const stopped = tail?.role === 'event' && (tail.content as EventContent).kind === 'stopped';
 		decided = readUnreported(db, threadId);
-		const note = contextNote(ws, ask.context, decided, ask.kind === 'send' && stopped);
+		const source =
+			ask.context.table === null ? undefined : readSource(db, userId, ask.context.table);
+		const linked =
+			source === undefined
+				? null
+				: { host: new URL(source.url).host, every: source.every, problem: source.problem };
+		const note = contextNote(ws, ask.context, decided, ask.kind === 'send' && stopped, linked);
 		const marks: FileMark[] = (ask.meta.files ?? []).map((file) => ({ type: 'file', id: file.id }));
 		userSeq = appendPrompt(
 			db,
