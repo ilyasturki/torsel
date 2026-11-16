@@ -56,7 +56,10 @@ const CODE_CALLS = new Set([
 	'RangeError',
 	'SyntaxError',
 	'describe',
-	'console'
+	'console',
+	'ToolError',
+	'QueryError',
+	'SqlRefusal'
 ]);
 
 // Object keys whose string values are for the model or the protocol.

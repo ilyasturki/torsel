@@ -130,11 +130,10 @@ function resolve<T extends { id: string; name: string }>(
 			`"${ref}" names ${named.length} ${kind}s${scope}: ${named.map((candidate) => candidate.id).join(', ')}; give the id`
 		);
 	}
-	throw new ToolError(
-		candidates.length === 0
-			? `no ${missing}: there is none`
-			: `no ${missing}; the ${kind}s are ${listed(candidates)}`
-	);
+	if (candidates.length === 0) {
+		throw new ToolError(`no ${missing}: there is none`);
+	}
+	throw new ToolError(`no ${missing}; the ${kind}s are ${listed(candidates)}`);
 }
 
 function givenName(name: string, kind: string): string {
@@ -453,11 +452,12 @@ function requireRow(ws: Workspace, table: TableDef, id: string): void {
 	if (rec?.kind === 'row' && rec.parent === table.id) {
 		return;
 	}
-	throw new ToolError(
-		rec !== undefined && rec.kind !== 'row'
-			? `${id} is a ${rec.kind}, not a row of ${table.name}; rows are the "_id" column of query`
-			: `no row ${id} in ${table.name}; rows are the "_id" column of query`
-	);
+	if (rec !== undefined && rec.kind !== 'row') {
+		throw new ToolError(
+			`${id} is a ${rec.kind}, not a row of ${table.name}; rows are the "_id" column of query`
+		);
+	}
+	throw new ToolError(`no row ${id} in ${table.name}; rows are the "_id" column of query`);
 }
 
 function expected(field: FieldDef): string {
@@ -935,7 +935,7 @@ export const TOOLS: Tool[] = [
 				input.base === undefined
 					? homeBase(ctx.ws, names)
 					: { id: findBase(ctx.ws, input.base).id, changes: [] };
-			const where = ctx.ws.base(base.id)?.name ?? 'this base';
+			const where = ctx.ws.base(base.id)?.name ?? base.id;
 			const name = freeName(ctx.ws.tables(base.id), input.name, 'table', where);
 			const seen: { id: string; name: string }[] = [];
 			for (const [index, field] of input.fields.entries()) {
@@ -1138,10 +1138,11 @@ export const TOOLS: Tool[] = [
 				rec.base !== base.id ||
 				!['base', 'table', 'field', 'view'].includes(rec.kind)
 			) {
+				if (rec?.kind === 'row' && rec.base === base.id) {
+					throw new ToolError(`${input.id} is a row; delete_rows deletes rows`);
+				}
 				throw new ToolError(
-					rec?.kind === 'row' && rec.base === base.id
-						? `${input.id} is a row; delete_rows deletes rows`
-						: `no base, table, field or view ${input.id} in ${base.name}; describe_base gives the ids`
+					`no base, table, field or view ${input.id} in ${base.name}; describe_base gives the ids`
 				);
 			}
 			const name = typeof rec.data.name === 'string' ? rec.data.name : rec.id;
@@ -1300,7 +1301,7 @@ export const TOOLS: Tool[] = [
 							tables.map((table) => table.name),
 							sheet.name.replace(/\.[^.]+$/u, '')
 						)
-					: freeName(tables, input.name, 'table', ctx.ws.base(base.id)?.name ?? 'this base');
+					: freeName(tables, input.name, 'table', ctx.ws.base(base.id)?.name ?? base.id);
 			const made = importTable(ctx.ws, names, base.id, name, sheet.rows, columns);
 			ctx.commit({
 				summary: words.newTableFrom(name, sheet.name),
@@ -1389,7 +1390,7 @@ export function inputProblem(schema: z.ZodType, error: z.ZodError): string {
 	return error.issues
 		.slice(0, 5)
 		.map((issue) => {
-			const at = pathText(issue.path) || 'the input';
+			const at = pathText(issue.path) || 'input';
 			if (issue.code === 'unrecognized_keys') {
 				const known = keysAt(schema, issue.path);
 				const keys = issue.keys.map((key) => JSON.stringify(key)).join(', ');

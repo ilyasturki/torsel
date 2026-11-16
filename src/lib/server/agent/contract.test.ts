@@ -352,10 +352,7 @@ describe('tool contracts', () => {
 			const keys = Object.keys(tool.input.shape).join(', ');
 			expect(outcome).toEqual({
 				ok: false,
-				error:
-					keys === ''
-						? 'the input takes no "bogus"'
-						: `the input takes no "bogus"; it takes ${keys}`
+				error: keys === '' ? 'input takes no "bogus"' : `input takes no "bogus"; it takes ${keys}`
 			});
 			expect(g.actions).toHaveLength(before);
 		});

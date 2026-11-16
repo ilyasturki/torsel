@@ -87,7 +87,7 @@ describe.each(MODES)('the official client, as %s', (_, mode, version) => {
 		const unknown = await client.callTool({ name: 'list_bases', arguments: { limit: 3 } });
 		expect(unknown).toMatchObject({
 			isError: true,
-			content: [{ text: 'the input takes no "limit"' }]
+			content: [{ text: 'input takes no "limit"' }]
 		});
 
 		await expect(client.callTool({ name: 'drop_everything', arguments: {} })).rejects.toThrow(

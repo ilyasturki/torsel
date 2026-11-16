@@ -1,15 +1,20 @@
 import type {
 	AuthInfo,
 	CallToolResult,
+	JsonSchemaType,
+	JsonSchemaValidator,
 	McpHttpHandler,
-	StandardSchemaWithJSON
+	StandardSchemaWithJSON,
+	jsonSchemaValidator
 } from '@modelcontextprotocol/server';
 import {
 	McpServer,
 	createMcpHandler,
+	fromJsonSchema,
 	localhostAllowedOrigins,
 	originValidationResponse
 } from '@modelcontextprotocol/server';
+import { z } from 'zod';
 
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
@@ -82,9 +87,15 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 }
 
 // The toolkit validates input itself, to answer in the one error shape: the SDK only lists the schema.
+const ACCEPT_ALL: jsonSchemaValidator = {
+	getValidator<T>(): JsonSchemaValidator<T> {
+		return (input) => ({ valid: true, data: input as T, errorMessage: undefined });
+	}
+};
+
 function listedOnly(schema: Tool['input']): StandardSchemaWithJSON {
-	const standard = schema['~standard'] as StandardSchemaWithJSON['~standard'];
-	return { '~standard': { ...standard, validate: (value: unknown) => ({ value }) } };
+	const json = z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'input' });
+	return fromJsonSchema(json as JsonSchemaType, ACCEPT_ALL);
 }
 
 export function buildMcpServer(db: Database, caller: McpCaller, version: string): McpServer {
