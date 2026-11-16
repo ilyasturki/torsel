@@ -23,9 +23,11 @@
 	import { checkbox, focus } from '#lib/ui/styles.ts';
 
 	import CellValue from './CellValue.svelte';
+	import { filteredRows } from './grid.ts';
 	import ImageCell from './ImageCell.svelte';
 	import ImageThumb from './ImageThumb.svelte';
 	import RowSheet from './RowSheet.svelte';
+	import { formulaHits } from './rules.ts';
 
 	let { tableId, view }: { tableId: string; view: ViewDef } = $props();
 
@@ -98,7 +100,14 @@
 
 	const groups = $derived.by(() => {
 		void app.version;
-		const rows = [...app.ws.rows(tableId)].sort((a, b) => {
+		const shown = filteredRows(
+			app.ws,
+			tableId,
+			view.config,
+			computed,
+			formulaHits((stored) => app.formulaPreview(tableId, stored))
+		);
+		const rows = [...shown].sort((a, b) => {
 			if (isDated(group?.type ?? 'text')) {
 				const order = groupKey(b).localeCompare(groupKey(a));
 				if (order !== 0) return order;

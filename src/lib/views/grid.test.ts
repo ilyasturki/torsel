@@ -145,7 +145,7 @@ describe('exporting a view', () => {
 		const config = {
 			hidden: [ws.fields(tableId).find((field) => field.name === 'Style')?.id ?? ''],
 			sort: [{ field: kg.id, dir: 'desc' as const }],
-			filter: { field: note.id, text: 'h' }
+			filters: [{ field: note.id, op: 'contains' as const, value: 'h' }]
 		};
 		const computed = new Map([[ws.rows(tableId)[1].id, { [ws.fields(tableId)[6].id]: 2 }]]);
 
@@ -438,7 +438,10 @@ describe('the rows a grid shows', () => {
 	it('ignores a sort or filter on a field that is gone, or a sort of another shape', () => {
 		const { notes } = numbered();
 		expect(
-			notes({ sort: [{ field: 'f_gone', dir: 'asc' }], filter: { field: 'f_gone', text: 'x' } })
+			notes({
+				sort: [{ field: 'f_gone', dir: 'asc' }],
+				filters: [{ field: 'f_gone', op: 'contains', value: 'x' }]
+			})
 		).toEqual(['b', 'a', 'c10', 'c9']);
 		expect(
 			notes({ sort: { field: 'f_gone', dir: 'asc' } } as unknown as Parameters<typeof notes>[0])
@@ -447,8 +450,23 @@ describe('the rows a grid shows', () => {
 
 	it('filters on what the cell reads as', () => {
 		const { notes, note, kg } = numbered();
-		expect(notes({ filter: { field: note.id, text: 'C' } })).toEqual(['c10', 'c9']);
-		expect(notes({ filter: { field: kg.id, text: '10' } })).toEqual(['c10']);
+		expect(notes({ filters: [{ field: note.id, op: 'contains', value: 'C' }] })).toEqual([
+			'c10',
+			'c9'
+		]);
+		expect(notes({ filters: [{ field: kg.id, op: 'contains', value: '10' }] })).toEqual(['c10']);
+	});
+
+	it('keeps the rows meeting every filter', () => {
+		const { notes, note, kg } = numbered();
+		expect(
+			notes({
+				filters: [
+					{ field: note.id, op: 'starts', value: 'c' },
+					{ field: kg.id, op: 'gt', value: 9.5 }
+				]
+			})
+		).toEqual(['c10']);
 	});
 });
 

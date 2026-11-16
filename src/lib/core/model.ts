@@ -1,5 +1,6 @@
 import type { Clock } from './clock.ts';
 import { isClock } from './clock.ts';
+import type { ColorRule, Condition, Total } from './conditions.ts';
 
 export const KINDS = ['base', 'table', 'field', 'view', 'row'] as const;
 
@@ -190,11 +191,15 @@ export type GridConfig = {
 	hidden?: string[];
 	// The first key orders the rows, each next one breaks the ties left.
 	sort?: SortKey[] | null;
-	filter?: { field: string; text: string } | null;
 	widths?: Record<string, number>;
 	// Rows three times as tall: larger images, text on up to three lines.
 	tall?: boolean;
+	colors?: ColorRule[];
+	totals?: Record<string, Total>;
 };
+
+/** Every view but Saisie shows only the rows meeting all of them. */
+export type FilterConfig = { filters?: Condition[] };
 
 export type EntryConfig = { fields?: string[]; match?: string[] };
 
@@ -216,7 +221,7 @@ export type ChartConfig = {
 	rolling?: number | null;
 };
 
-export type ViewConfig = GridConfig & EntryConfig & ListConfig & ChartConfig;
+export type ViewConfig = FilterConfig & GridConfig & EntryConfig & ListConfig & ChartConfig;
 
 export type ViewDef = {
 	id: string;

@@ -390,6 +390,89 @@ describe('assistant tools', () => {
 		expect(actions.at(-1)?.summary).toMatch(/^Delete base/u);
 	});
 
+	it('sets filters, colour rules and totals by name, and refuses what a field cannot take', async () => {
+		const { call, ctx } = session();
+		const made = (await call('create_table', {
+			name: 'Séries',
+			fields: [
+				{ name: 'Date', type: 'date' },
+				{ name: 'Exercise', type: 'choice', choices: ['bench press', 'dips'] },
+				{ name: 'Weight', type: 'number' },
+				{ name: 'RPE', type: 'number' },
+				{ name: 'Done', type: 'check' }
+			]
+		})) as { id: string; base: string };
+		const [date, exercise, weight, rpe, done] = ctx.ws.fields(made.id).map((field) => field.id);
+		const grid = ctx.ws.views(made.id).find((view) => view.type === 'grid');
+		if (grid === undefined) throw new Error('no grid');
+
+		const config = {
+			filters: [
+				{ field: 'exercise', op: 'any-of', value: ['Bench Press'] },
+				{ field: 'Date', op: 'after', value: 'past-month' },
+				{ field: null, op: 'formula', value: '"Weight" * 2 > 100' }
+			],
+			colors: [
+				{ when: { field: 'RPE', op: 'gte', value: 9.5 }, color: 'red' },
+				{ choices: 'Exercise' },
+				{ scale: 'Weight', color: 'green' }
+			],
+			totals: { Weight: 'sum', RPE: 'avg', Done: 'checked' }
+		};
+		expect(
+			await call('update_view', { base: made.base, table: 'Séries', view: grid.id, config })
+		).toEqual({ updated: grid.id });
+		expect(ctx.ws.view(grid.id)?.config).toMatchObject({
+			filters: [
+				{ field: exercise, op: 'any-of', value: ['bench press'] },
+				{ field: date, op: 'after', value: 'past-month' },
+				{ field: null, op: 'formula', value: `{{${weight}}} * 2 > 100` }
+			],
+			colors: [
+				{ when: { field: rpe, op: 'gte', value: 9.5 }, color: 'red' },
+				{ choices: exercise },
+				{ scale: weight, color: 'green' }
+			],
+			totals: { [weight]: 'sum', [rpe]: 'avg', [done]: 'checked' }
+		});
+		const described = (await call('describe_base', { base: made.base })) as {
+			tables: { views: { id: string; config: unknown }[] }[];
+		};
+		expect(described.tables[0].views.find((view) => view.id === grid.id)?.config).toMatchObject({
+			filters: [
+				{ field: 'Exercise', op: 'any-of', value: ['bench press'] },
+				{ field: 'Date', op: 'after', value: 'past-month' },
+				{ field: null, op: 'formula', value: '"Weight" * 2 > 100' }
+			],
+			totals: { Weight: 'sum', RPE: 'avg', Done: 'checked' }
+		});
+
+		const refused = async (patch: unknown): Promise<unknown> =>
+			call('update_view', { base: made.base, table: 'Séries', view: grid.id, config: patch });
+		expect(await refused({ filters: [{ field: 'Weight', op: 'contains', value: '8' }] })).toEqual({
+			error: expect.stringMatching(/^Weight takes is, is-not, gt/u)
+		});
+		expect(
+			await refused({ filters: [{ field: 'Exercise', op: 'any-of', value: ['squat'] }] })
+		).toEqual({
+			error: expect.stringMatching(/no choice "squat"; its choices are bench press, dips/u)
+		});
+		expect(await refused({ filters: [{ field: 'Date', op: 'is', value: 'last week' }] })).toEqual({
+			error: expect.stringMatching(/YYYY-MM-DD or one of today/u)
+		});
+		expect(await refused({ totals: { Exercise: 'sum' } })).toEqual({
+			error: expect.stringMatching(/Exercise totals as count, not sum/u)
+		});
+
+		await call('update_view', {
+			base: made.base,
+			table: 'Séries',
+			view: grid.id,
+			config: { filters: null, colors: null, totals: null }
+		});
+		expect(ctx.ws.view(grid.id)?.config).toMatchObject({ filters: [], colors: [], totals: {} });
+	});
+
 	it('shows a table or a page rather than changing anything', async () => {
 		const { call, actions, shown } = session();
 		const made = (await call('create_table', {

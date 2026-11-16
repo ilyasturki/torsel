@@ -1,0 +1,176 @@
+import type { Op, RelativeDay, Total } from '../core/conditions.ts';
+import type { DataColor } from '../ui/colors.ts';
+import { plural } from './locale.ts';
+import { area } from './runtime.ts';
+
+const en = {
+	filter: 'Filter',
+	colors: 'Colours',
+	addCondition: 'Add condition',
+	addRule: 'Add rule',
+	removeCondition: 'Remove condition',
+	removeRule: 'Remove rule',
+	customFormula: 'Custom formula',
+	matchChoices: 'Match choice colours',
+	scale: 'Colour scale',
+	value: 'Value',
+	from: 'From',
+	to: 'To',
+	anyValue: 'Any value',
+	ops: {
+		empty: 'is empty',
+		filled: 'is not empty',
+		is: 'is',
+		'is-not': 'is not',
+		contains: 'contains',
+		'not-contains': 'does not contain',
+		starts: 'starts with',
+		ends: 'ends with',
+		gt: 'greater than',
+		gte: 'greater than or equal to',
+		lt: 'less than',
+		lte: 'less than or equal to',
+		between: 'is between',
+		'not-between': 'is not between',
+		before: 'is before',
+		after: 'is after',
+		'any-of': 'is any of',
+		'none-of': 'is none of',
+		checked: 'is checked',
+		unchecked: 'is not checked',
+		formula: 'custom formula'
+	} satisfies Record<Op, string>,
+	days: {
+		today: 'today',
+		yesterday: 'yesterday',
+		tomorrow: 'tomorrow',
+		'past-week': 'the past week',
+		'past-month': 'the past month',
+		'past-year': 'the past year'
+	} satisfies Record<RelativeDay, string>,
+	exactDate: 'exact date',
+	totals: {
+		count: 'Count',
+		sum: 'Sum',
+		avg: 'Average',
+		min: 'Min',
+		max: 'Max',
+		checked: 'Checked'
+	} satisfies Record<Total, string>,
+	noTotal: 'None',
+	calculate: 'Calculate',
+	colorNames: {
+		gray: 'Gray',
+		orange: 'Orange',
+		amber: 'Amber',
+		green: 'Green',
+		teal: 'Teal',
+		blue: 'Blue',
+		violet: 'Violet',
+		pink: 'Pink',
+		red: 'Red'
+	} satisfies Record<DataColor, string>,
+	condition: (field: string, op: string, value: string) =>
+		value === '' ? `${field} ${op}` : `${field} ${op} ${value}`,
+	either: (a: string, b: string) => `${a} and ${b}`,
+	quoted: (text: string) => `"${text}"`,
+	painted: (rule: string, color: string) => `${rule}: ${color}`,
+	choicesOf: (field: string) => `${field}'s choice colours`,
+	scaleOf: (field: string) => `${field} scale`,
+	total: (total: string, field: string) => `${total} of ${field}`,
+	conditions: (count: number) => (count === 1 ? '1 condition' : `${count} conditions`),
+	rules: (count: number) => (count === 1 ? '1 rule' : `${count} rules`),
+	filtersCleared: 'Filters cleared',
+	filtersChanged: 'Filter changed',
+	colorsChanged: 'Colours changed',
+	totalChanged: 'Total changed',
+	shownOf: (shown: number, all: number) => `${shown} of ${all} rows`
+};
+
+const fr: typeof en = {
+	filter: 'Filtrer',
+	colors: 'Couleurs',
+	addCondition: 'Ajouter une condition',
+	addRule: 'Ajouter une règle',
+	removeCondition: 'Retirer la condition',
+	removeRule: 'Retirer la règle',
+	customFormula: 'Formule personnalisée',
+	matchChoices: 'Couleurs des choix',
+	scale: 'Dégradé',
+	value: 'Valeur',
+	from: 'De',
+	to: 'À',
+	anyValue: 'Toute valeur',
+	ops: {
+		empty: 'est vide',
+		filled: 'n’est pas vide',
+		is: 'est',
+		'is-not': 'n’est pas',
+		contains: 'contient',
+		'not-contains': 'ne contient pas',
+		starts: 'commence par',
+		ends: 'se termine par',
+		gt: 'supérieur à',
+		gte: 'supérieur ou égal à',
+		lt: 'inférieur à',
+		lte: 'inférieur ou égal à',
+		between: 'est entre',
+		'not-between': 'n’est pas entre',
+		before: 'est avant',
+		after: 'est après',
+		'any-of': 'est l’un de',
+		'none-of': 'n’est aucun de',
+		checked: 'est coché',
+		unchecked: 'n’est pas coché',
+		formula: 'formule personnalisée'
+	},
+	days: {
+		today: 'aujourd’hui',
+		yesterday: 'hier',
+		tomorrow: 'demain',
+		'past-week': 'la semaine passée',
+		'past-month': 'le mois passé',
+		'past-year': 'l’année passée'
+	},
+	exactDate: 'date précise',
+	totals: {
+		count: 'Nombre',
+		sum: 'Somme',
+		avg: 'Moyenne',
+		min: 'Min',
+		max: 'Max',
+		checked: 'Cochés'
+	},
+	noTotal: 'Aucun',
+	calculate: 'Calculer',
+	colorNames: {
+		gray: 'Gris',
+		orange: 'Orange',
+		amber: 'Ambre',
+		green: 'Vert',
+		teal: 'Sarcelle',
+		blue: 'Bleu',
+		violet: 'Violet',
+		pink: 'Rose',
+		red: 'Rouge'
+	},
+	condition: (field, op, value) => (value === '' ? `${field} ${op}` : `${field} ${op} ${value}`),
+	either: (a, b) => `${a} et ${b}`,
+	quoted: (text) => `« ${text} »`,
+	painted: (rule, color) => `${rule} : ${color}`,
+	choicesOf: (field) => `couleurs des choix de ${field}`,
+	scaleOf: (field) => `dégradé sur ${field}`,
+	total: (total, field) => `${total} de ${field}`,
+	conditions: (count) => plural('fr', count, { one: '# condition', other: '# conditions' }),
+	rules: (count) => plural('fr', count, { one: '# règle', other: '# règles' }),
+	filtersCleared: 'Filtres retirés',
+	filtersChanged: 'Filtre modifié',
+	colorsChanged: 'Couleurs modifiées',
+	totalChanged: 'Total modifié',
+	shownOf: (shown, all) => `${shown} sur ${all} lignes`
+};
+
+export default { en, fr };
+
+/** The words of filters, colour rules and totals. */
+export const rules = area({ en, fr });

@@ -1,4 +1,5 @@
 import type { Hlc } from './clock.ts';
+import type { ColorRule, Condition, Op, Total } from './conditions.ts';
 import { namesIn, toDisplay } from './formula.ts';
 import { latestClock } from './merge.ts';
 import type { Change, Choice, FieldDef, Kind, Rec, SortKey, Value, ViewConfig } from './model.ts';
@@ -26,7 +27,16 @@ export type Shown =
 	| string
 	| { none: true }
 	| { sort: { field: string; ascending: boolean }[] }
-	| { filter: string; text: string };
+	| { conditions: Phrase[] }
+	| {
+			colors: (
+				{ when: Phrase; color: string } | { choices: string } | { scale: string; color: string }
+			)[];
+	  }
+	| { totals: { field: string; total: Total }[] };
+
+/** A condition with its field named and its values as text; a formula's field is empty and its value the formula. */
+export type Phrase = { field: string; op: Op; value: string[] };
 
 /** `label` is the changed key (`name`, `sort`, `newChoices`…), worded by the card. */
 export type Line = { label: string; before: Shown; after: Shown };
@@ -75,11 +85,31 @@ function choiceNames(value: Value | undefined): string[] {
 	return Array.isArray(value) ? (value as Choice[]).map((choice) => choice.name) : [];
 }
 
-function configText(
-	key: string,
-	value: Value | undefined,
-	fieldName: (id: string) => string
-): Shown {
+type Namer = {
+	field: (id: string) => string;
+	value: (field: string, value: Value) => string;
+	formula: (stored: string) => string;
+};
+
+function phrase(condition: Condition, name: Namer): Phrase {
+	if (condition.op === 'formula') {
+		return { field: '', op: 'formula', value: [name.formula(String(condition.value ?? ''))] };
+	}
+	const field = condition.field ?? '';
+	const values =
+		condition.value === undefined
+			? []
+			: Array.isArray(condition.value)
+				? condition.value
+				: [condition.value];
+	return {
+		field: name.field(field),
+		op: condition.op,
+		value: values.map((item) => name.value(field, item))
+	};
+}
+
+function configText(key: string, value: Value | undefined, name: Namer): Shown {
 	if (value === undefined || value === null) return { none: true };
 	if (key === 'sort') {
 		const sort = sortsOf({ sort: value as SortKey[] });
@@ -87,21 +117,38 @@ function configText(
 			? { none: true }
 			: {
 					sort: sort.map((item) => ({
-						field: fieldName(item.field),
+						field: name.field(item.field),
 						ascending: item.dir === 'asc'
 					}))
 				};
 	}
-	if (key === 'filter' && typeof value === 'object' && !Array.isArray(value)) {
-		const filter = value as { field: string; text: string };
-		return { filter: fieldName(filter.field), text: filter.text };
+	if (key === 'filters' && Array.isArray(value)) {
+		return value.length === 0
+			? { none: true }
+			: { conditions: (value as Condition[]).map((condition) => phrase(condition, name)) };
+	}
+	if (key === 'colors' && Array.isArray(value)) {
+		if (value.length === 0) return { none: true };
+		return {
+			colors: (value as ColorRule[]).map((rule) => {
+				if ('when' in rule) return { when: phrase(rule.when, name), color: rule.color };
+				if ('choices' in rule) return { choices: name.field(rule.choices) };
+				return { scale: name.field(rule.scale), color: rule.color };
+			})
+		};
+	}
+	if (key === 'totals' && typeof value === 'object' && !Array.isArray(value)) {
+		const totals = Object.entries(value as Record<string, Total>);
+		return totals.length === 0
+			? { none: true }
+			: { totals: totals.map(([field, total]) => ({ field: name.field(field), total })) };
 	}
 	if (Array.isArray(value)) {
 		return value.length === 0
 			? { none: true }
-			: value.map((item) => fieldName(String(item))).join(', ');
+			: value.map((item) => name.field(String(item))).join(', ');
 	}
-	if (typeof value === 'string') return value.startsWith('f_') ? fieldName(value) : value;
+	if (typeof value === 'string') return value.startsWith('f_') ? name.field(value) : value;
 	return String(value);
 }
 
@@ -112,6 +159,12 @@ function structureLines(
 	field: (id: string) => FieldDef | undefined
 ): Line[] {
 	const fieldName = (id: string): string => field(id)?.name ?? id;
+	const name: Namer = {
+		field: fieldName,
+		value: (id, value) =>
+			field(id)?.type === 'link' && typeof value === 'string' ? ws.rowTitle(value) : String(value),
+		formula: (stored) => toDisplay(stored, namesIn(ws, change.base))
+	};
 	const lines: Line[] = [];
 	for (const [key, after] of Object.entries(change.set)) {
 		if (HIDDEN_KEYS.has(key)) continue;
@@ -134,8 +187,8 @@ function structureLines(
 				if (JSON.stringify(was[part] ?? null) === JSON.stringify(now[part] ?? null)) continue;
 				lines.push({
 					label: part,
-					before: configText(part, was[part], fieldName),
-					after: configText(part, now[part], fieldName)
+					before: configText(part, was[part], name),
+					after: configText(part, now[part], name)
 				});
 			}
 		} else if (key === 'expr') {

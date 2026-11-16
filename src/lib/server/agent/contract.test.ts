@@ -243,7 +243,7 @@ const CONTRACTS: Record<string, Contract> = {
 		refused: [
 			[
 				() => ({ base: 'Gym', table: 'Sets', name: 'V', type: 'grid', config: { sorts: [] } }),
-				/^config takes no "sorts"; it takes hidden, sort, filter, /u
+				/^config takes no "sorts"; it takes hidden, sort, filters, colors, totals, /u
 			],
 			[
 				() => ({

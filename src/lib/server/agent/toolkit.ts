@@ -33,6 +33,17 @@ import {
 	duplicateTable,
 	duplicateView
 } from '../../core/duplicate.ts';
+import type { ColorRule, Condition, Op, Total } from '../../core/conditions.ts';
+import {
+	OPS,
+	OPS_OF,
+	RELATIVE_DAYS,
+	TOTALS,
+	arity,
+	daySpan,
+	kindOf,
+	totalsFor
+} from '../../core/conditions.ts';
 import { sameValue } from '../../core/entry.ts';
 import {
 	BARE_AGGREGATE,
@@ -219,6 +230,11 @@ export function findField(ws: Workspace, tableId: string, ref: string): FieldDef
 	return resolve(ws.fields(tableId), ref, 'field', `in ${ws.table(tableId)?.name ?? tableId}`);
 }
 
+function findTitled(ws: Workspace, tableId: string, ref: string): { id: string; name: string } {
+	const rows = ws.rows(tableId).map((row) => ({ id: row.id, name: ws.rowTitle(row.id) }));
+	return resolve(rows, ref, 'row', `in ${ws.table(tableId)?.name ?? tableId}`);
+}
+
 function findView(ws: Workspace, table: TableDef, ref: string): ViewDef {
 	return resolve(ws.views(table.id), ref, 'view', `on ${table.name}`);
 }
@@ -266,7 +282,7 @@ function sqlRefusal(message: string): string {
 
 function formulaRefusal(message: string): string {
 	if (message === BARE_AGGREGATE) {
-		return fieldCatalog.en.columnTotal;
+		return "a formula works row by row; a column total is the grid's totals, set with update_view";
 	}
 	if (message === 'interrupted') {
 		return `the formula ran past ${QUERY_MS} ms over this table's rows; simplify it`;
@@ -474,6 +490,145 @@ function fieldOrNull(cleared: string) {
 	return z.union([z.string(), z.null().describe(`clears it: ${cleared}`)]);
 }
 
+const CONDITION_VALUE = z.union([
+	z.string(),
+	z.number(),
+	z.boolean(),
+	z.array(z.union([z.string(), z.number()]))
+]);
+
+const CONDITION = z
+	.strictObject({
+		field: z.string().nullable().describe('the field; null with op "formula"'),
+		op: z.enum(OPS),
+		value: CONDITION_VALUE.optional().describe(
+			`none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or ${RELATIVE_DAYS.join(', ')}; a formula over field names for "formula", true rows matching`
+		)
+	})
+	.describe(
+		'ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled'
+	);
+
+const COLOR = z.enum(DATA_COLORS);
+
+const COLOR_RULE = z.union([
+	z.strictObject({ when: CONDITION, color: COLOR }),
+	z.strictObject({
+		choices: z.string().describe("a choice field: rows take their choice's colour")
+	}),
+	z.strictObject({
+		scale: z.string().describe('a number field shaded from its lowest to its highest shown value'),
+		color: COLOR
+	})
+]);
+
+function conditionOf(ws: Workspace, tableId: string, input: z.infer<typeof CONDITION>): Condition {
+	if (input.op === 'formula') {
+		if (typeof input.value !== 'string' || input.value.trim() === '') {
+			throw new ToolError('a "formula" condition needs the formula as value');
+		}
+		return { field: null, op: 'formula', value: storedFormula(ws, tableId, input.value) };
+	}
+	if (input.field === null) throw new ToolError(`op "${input.op}" needs a field`);
+	const field = findField(ws, tableId, input.field);
+	const kind = kindOf(field);
+	if (!(OPS_OF[kind] as readonly Op[]).includes(input.op)) {
+		throw new ToolError(`${field.name} takes ${OPS_OF[kind].join(', ')}, not ${input.op}`);
+	}
+	const shape = arity(input.op);
+	if (shape === 'none') return { field: field.id, op: input.op };
+	const value = input.value;
+	if (value === undefined) throw new ToolError(`op "${input.op}" on ${field.name} needs a value`);
+	if (shape === 'two' && !(Array.isArray(value) && value.length === 2)) {
+		throw new ToolError(`op "${input.op}" needs [low, high]`);
+	}
+	const items = Array.isArray(value) ? value : [value];
+	if (kind === 'date' && items.some((item) => daySpan(item, '2000-01-01') === null)) {
+		throw new ToolError(`a date is YYYY-MM-DD or one of ${RELATIVE_DAYS.join(', ')}`);
+	}
+	if (shape !== 'list') return { field: field.id, op: input.op, value };
+	if (kind === 'link') {
+		const ids = items.map((item) => findTitled(ws, field.target ?? '', String(item)).id);
+		return { field: field.id, op: input.op, value: ids };
+	}
+	if (kind === 'choice' || kind === 'choices') {
+		const names = items.map((item) => {
+			const found = field.choices.find((choice) => sameName(choice.name, String(item)));
+			if (found === undefined) {
+				throw new ToolError(
+					`${field.name} has no choice "${String(item)}"; its choices are ${field.choices.map((choice) => choice.name).join(', ')}`
+				);
+			}
+			return found.name;
+		});
+		return { field: field.id, op: input.op, value: names };
+	}
+	return { field: field.id, op: input.op, value: items.map(String) };
+}
+
+function colorRuleOf(ws: Workspace, tableId: string, input: z.infer<typeof COLOR_RULE>): ColorRule {
+	if ('when' in input) return { when: conditionOf(ws, tableId, input.when), color: input.color };
+	if ('choices' in input) {
+		const field = findField(ws, tableId, input.choices);
+		if (!hasChoices(field.type)) throw new ToolError(`${field.name} is not a choice field`);
+		return { choices: field.id };
+	}
+	const field = findField(ws, tableId, input.scale);
+	if (kindOf(field) !== 'number') throw new ToolError(`${field.name} holds no numbers to scale`);
+	return { scale: field.id, color: input.color };
+}
+
+function totalsOf(
+	ws: Workspace,
+	tableId: string,
+	input: Record<string, Total | null>
+): Record<string, Total> {
+	const totals: Record<string, Total> = {};
+	for (const [name, total] of Object.entries(input)) {
+		const field = findField(ws, tableId, name);
+		if (total === null) continue;
+		if (!totalsFor(field).includes(total)) {
+			throw new ToolError(`${field.name} totals as ${totalsFor(field).join(', ')}, not ${total}`);
+		}
+		totals[field.id] = total;
+	}
+	return totals;
+}
+
+function describeCondition(
+	ws: Workspace,
+	view: ViewDef,
+	condition: Condition
+): z.infer<typeof CONDITION> {
+	if (condition.op === 'formula') {
+		const stored = typeof condition.value === 'string' ? condition.value : '';
+		return { field: null, op: 'formula', value: toDisplay(stored, namesIn(ws, view.base)) };
+	}
+	const field = condition.field === null ? undefined : ws.field(condition.field);
+	const out: z.infer<typeof CONDITION> = {
+		field: field?.name ?? condition.field,
+		op: condition.op
+	};
+	if (condition.value === undefined) return out;
+	const value = condition.value;
+	out.value =
+		field?.type === 'link' && Array.isArray(value)
+			? value.map((id) => ws.rowTitle(String(id)))
+			: (value as z.infer<typeof CONDITION_VALUE>);
+	return out;
+}
+
+function describeColor(ws: Workspace, view: ViewDef, rule: ColorRule): z.infer<typeof COLOR_RULE> {
+	const name = (id: string): string => ws.field(id)?.name ?? id;
+	if ('when' in rule)
+		return {
+			when: describeCondition(ws, view, rule.when),
+			color: rule.color as z.infer<typeof COLOR>
+		};
+	if ('choices' in rule) return { choices: name(rule.choices) };
+	return { scale: name(rule.scale), color: rule.color as z.infer<typeof COLOR> };
+}
+
 const VIEW_CONFIG = z
 	.strictObject({
 		hidden: z.array(z.string()).optional().describe('grid: hidden fields'),
@@ -484,11 +639,27 @@ const VIEW_CONFIG = z
 			.describe(
 				'grid: the sort keys in order, each next one breaking the ties of the ones before, such as [{"field": "Date", "dir": "desc"}, {"field": "Set", "dir": "asc"}]'
 			),
-		filter: z
-			.strictObject({ field: z.string(), text: z.string() })
+		filters: z
+			.array(CONDITION)
 			.nullable()
 			.optional()
-			.describe('grid: rows whose field contains the text; null clears it'),
+			.describe(
+				'grid, list and chart: the rows shown meet every condition, such as [{"field": "Exercise", "op": "any-of", "value": ["bench press"]}] for a chart of one exercise; null or [] shows every row'
+			),
+		colors: z
+			.array(COLOR_RULE)
+			.nullable()
+			.optional()
+			.describe(
+				'grid: colour rules in order, the first a row meets colours it, such as [{"when": {"field": "RPE", "op": "gte", "value": 9}, "color": "red"}, {"choices": "Status"}]; a scale shades its own cells'
+			),
+		totals: z
+			.record(z.string(), z.enum(TOTALS).nullable())
+			.nullable()
+			.optional()
+			.describe(
+				'grid: the totals row, field to total over the shown rows, such as {"Weight": "sum", "RPE": "avg", "Done": "checked"}; checked is the share ticked; null removes one, or all'
+			),
 		tall: z
 			.boolean()
 			.optional()
@@ -545,11 +716,12 @@ function viewConfig(
 			input.sort === null
 				? null
 				: input.sort.map((key) => ({ field: findField(ws, tableId, key.field).id, dir: key.dir }));
-	if (input.filter !== undefined)
-		config.filter =
-			input.filter === null
-				? null
-				: { field: findField(ws, tableId, input.filter.field).id, text: input.filter.text };
+	if (input.filters !== undefined)
+		config.filters = (input.filters ?? []).map((condition) => conditionOf(ws, tableId, condition));
+	if (input.colors !== undefined)
+		config.colors = (input.colors ?? []).map((rule) => colorRuleOf(ws, tableId, rule));
+	if (input.totals !== undefined)
+		config.totals = input.totals === null ? {} : totalsOf(ws, tableId, input.totals);
 	if (input.tall !== undefined) config.tall = input.tall;
 	if (input.fields !== undefined) config.fields = ids(input.fields);
 	if (input.match !== undefined) config.match = ids(input.match);
@@ -918,7 +1090,9 @@ const VIEW_OUT = z.strictObject({
 			.array(z.strictObject({ field: z.string(), dir: z.enum(['asc', 'desc']) }))
 			.nullable()
 			.optional(),
-		filter: z.strictObject({ field: z.string(), text: z.string() }).nullable().optional(),
+		filters: z.array(CONDITION).optional(),
+		colors: z.array(COLOR_RULE).optional(),
+		totals: z.record(z.string(), z.enum(TOTALS)).optional(),
 		tall: z.boolean().optional(),
 		fields: z.array(z.string()).optional(),
 		match: z.array(z.string()).optional(),
@@ -955,9 +1129,14 @@ export function describeView(ws: Workspace, view: ViewDef): z.infer<typeof VIEW_
 			config.sort === null
 				? null
 				: sortsOf(config).map((key) => ({ ...key, field: name(key.field) }));
-	if (config.filter !== undefined)
-		out.filter =
-			config.filter === null ? null : { ...config.filter, field: name(config.filter.field) };
+	if (config.filters !== undefined && config.filters.length > 0)
+		out.filters = config.filters.map((condition) => describeCondition(ws, view, condition));
+	if (config.colors !== undefined && config.colors.length > 0)
+		out.colors = config.colors.map((rule) => describeColor(ws, view, rule));
+	if (config.totals !== undefined && Object.keys(config.totals).length > 0)
+		out.totals = Object.fromEntries(
+			Object.entries(config.totals).map(([id, total]) => [name(id), total])
+		);
 	if (config.tall === true) out.tall = true;
 	if (config.kind !== undefined) out.kind = config.kind;
 	if (config.bucket !== undefined) out.bucket = config.bucket;
@@ -1658,7 +1837,7 @@ export const TOOLS: Tool[] = [
 		name: 'update_view',
 		title: TITLES.update_view,
 		description:
-			'Changes a view: its name, or its settings (sort, filter and hidden fields of a grid, the fields of an entry, a list or a chart). Only the settings given change; null clears a sort or a filter.',
+			'Changes a view: its name, or its settings (filters of a grid, list or chart; sort, colour rules, totals and hidden fields of a grid; the fields of an entry, a list or a chart). Only the settings given change, a list given whole; null clears a sort, the filters, the colours or the totals.',
 		input: z.strictObject({
 			base: BASE,
 			table: TABLE,

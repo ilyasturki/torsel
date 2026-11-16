@@ -711,7 +711,7 @@ test.describe('fields and views', () => {
 
 		await viewSettings(page);
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
-		await expect(sheet.getByText('Only rows where Exercise contains "squ"')).toBeVisible();
+		await expect(sheet.getByText('Exercise contains "squ"')).toBeVisible();
 		await sheet.getByRole('button', { name: 'Clear filter' }).click();
 		await expect(cell(page, 'Bench')).toBeVisible();
 	});

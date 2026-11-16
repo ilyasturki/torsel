@@ -7,12 +7,14 @@ import { Hlc } from '../core/clock.ts';
 import type { MemoryEngine } from '../core/engine.ts';
 import { openEngine } from '../core/engine.ts';
 import { latestClock, sameRec } from '../core/merge.ts';
-import type { Change, ChartConfig, FieldDef, Rec } from '../core/model.ts';
+import type { Change, ChartConfig, FieldDef, FilterConfig, Rec } from '../core/model.ts';
 import type { Published } from '../core/published.ts';
 import { openPublished as publishedChanges } from '../core/published.ts';
 import type { FormulaProblems, SqlRow, SqlValue } from '../core/sql.ts';
 import { formulaProblem, formulaTables, formulaValues, materializeTable } from '../core/sql.ts';
 import { Workspace } from '../core/workspace.ts';
+import { filteredRows } from '../views/grid.ts';
+import { formulaHits } from '../views/rules.ts';
 import type { Decision, LocalDb } from './local.ts';
 import {
 	decisionKey,
@@ -586,12 +588,23 @@ class TorselApp {
 		return computedRows(engine, tableId, formulas);
 	}
 
-	public chart(tableId: string, config: ChartConfig): ChartData | null {
+	public chart(tableId: string, config: ChartConfig & FilterConfig): ChartData | null {
 		if (!this.ready) {
 			const early = this.earlyCharts.get(`${tableId} ${JSON.stringify(config)}`);
 			return early?.revision === this.ws.revision(tableId) ? early.data : null;
 		}
-		return chartData(this.built_(tableId), this.ws, tableId, config);
+		const engine = this.built_(tableId);
+		const only =
+			(config.filters ?? []).length === 0
+				? null
+				: filteredRows(
+						this.ws,
+						tableId,
+						config,
+						this.computed(tableId),
+						formulaHits((stored) => this.formulaPreview(tableId, stored))
+					).map((row) => row.id);
+		return chartData(engine, this.ws, tableId, config, only);
 	}
 
 	/** Shows this chart until SQLite loads, unless the table changes first. */

@@ -8,8 +8,11 @@
 	import type { ThreadAction } from '#lib/core/thread.ts';
 	import { changes as words } from '#lib/i18n/changes.ts';
 	import { common } from '#lib/i18n/common.ts';
+	import { rules as ruleWords } from '#lib/i18n/rules.ts';
+	import { isDataColor } from '#lib/ui/colors.ts';
 
 	import CellValue from './CellValue.svelte';
+	import { phraseText } from './rules.ts';
 	import SourceKey from './SourceKey.svelte';
 
 	// `onshow` stands in for the table link where the table lives only in this page (the landing).
@@ -86,7 +89,22 @@
 		if ('none' in value) return words.none;
 		if ('sort' in value)
 			return value.sort.map((key) => words.sorted(key.field, key.ascending)).join(', ');
-		return words.contains(value.filter, value.text);
+		if ('conditions' in value) return value.conditions.map(phraseText).join(', ');
+		if ('totals' in value)
+			return value.totals
+				.map((item) => ruleWords.total(ruleWords.totals[item.total], item.field))
+				.join(', ');
+		return value.colors
+			.map((rule) => {
+				if ('when' in rule) return ruleWords.painted(phraseText(rule.when), colorName(rule.color));
+				if ('choices' in rule) return ruleWords.choicesOf(rule.choices);
+				return ruleWords.painted(ruleWords.scaleOf(rule.scale), colorName(rule.color));
+			})
+			.join(', ');
+	}
+
+	function colorName(color: string): string {
+		return isDataColor(color) ? ruleWords.colorNames[color] : color;
 	}
 
 	function noteText(note: Note): string {

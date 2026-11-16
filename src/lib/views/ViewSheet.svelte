@@ -34,6 +34,7 @@
 	import Select, { type Option } from '#lib/ui/Select.svelte';
 	import { checkbox, focus, input, legend } from '#lib/ui/styles.ts';
 
+	import { conditionText } from './rules.ts';
 	import { VIEW_TYPES, viewLabel } from './views.ts';
 
 	let {
@@ -267,15 +268,12 @@
 						})}
 				/>
 			</Field>
-			{#if config.filter}
+						{#if (config.filters ?? []).length > 0}
 				<div class="flex items-center gap-2">
 					<span class="min-w-0 flex-1 truncate">
-						{words.filtered(
-							fields.find((field) => field.id === config.filter?.field)?.name ?? '',
-							config.filter.text
-						)}
+						{(config.filters ?? []).map((item) => conditionText(app.ws, tableId, item)).join(', ')}
 					</span>
-					<Button variant="ghost" onclick={() => edit((next) => (next.filter = null))}
+					<Button variant="ghost" onclick={() => edit((next) => (next.filters = []))}
 						>{words.clearFilter}</Button
 					>
 				</div>

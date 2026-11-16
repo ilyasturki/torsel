@@ -54,7 +54,13 @@ const SAME = new Set([
 	'sources.brands.sheet',
 	'sources.brands.github',
 	'sources.source',
-	'sources.authKinds.basic'
+	'sources.authKinds.basic',
+	'rules.totals.min',
+	'rules.totals.max',
+	'rules.colorNames.orange',
+	'rules.colorNames.violet',
+	'rules.condition',
+	'rules.conditions'
 ]);
 
 const SAMPLES: unknown[][] = [

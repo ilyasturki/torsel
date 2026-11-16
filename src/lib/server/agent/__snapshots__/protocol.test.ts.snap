@@ -129,6 +129,7 @@ exports[`lists the same tools in every era 1`] = `
                                   "blue",
                                   "violet",
                                   "pink",
+                                  "red",
                                 ],
                                 "type": "string",
                               },
@@ -292,34 +293,220 @@ exports[`lists the same tools in every era 1`] = `
                         "color": {
                           "type": "string",
                         },
+                        "colors": {
+                          "items": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "color": {
+                                    "enum": [
+                                      "gray",
+                                      "orange",
+                                      "amber",
+                                      "green",
+                                      "teal",
+                                      "blue",
+                                      "violet",
+                                      "pink",
+                                      "red",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "when": {
+                                    "additionalProperties": false,
+                                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                                    "properties": {
+                                      "field": {
+                                        "description": "the field; null with op "formula"",
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "op": {
+                                        "enum": [
+                                          "empty",
+                                          "filled",
+                                          "is",
+                                          "is-not",
+                                          "contains",
+                                          "not-contains",
+                                          "starts",
+                                          "ends",
+                                          "gt",
+                                          "gte",
+                                          "lt",
+                                          "lte",
+                                          "between",
+                                          "not-between",
+                                          "before",
+                                          "after",
+                                          "any-of",
+                                          "none-of",
+                                          "checked",
+                                          "unchecked",
+                                          "formula",
+                                        ],
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                          },
+                                          {
+                                            "type": "number",
+                                          },
+                                          {
+                                            "type": "boolean",
+                                          },
+                                          {
+                                            "items": {
+                                              "type": [
+                                                "string",
+                                                "number",
+                                              ],
+                                            },
+                                            "type": "array",
+                                          },
+                                        ],
+                                        "description": "none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or today, yesterday, tomorrow, past-week, past-month, past-year; a formula over field names for "formula", true rows matching",
+                                      },
+                                    },
+                                    "required": [
+                                      "field",
+                                      "op",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "when",
+                                  "color",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "choices": {
+                                    "description": "a choice field: rows take their choice's colour",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "choices",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "color": {
+                                    "enum": [
+                                      "gray",
+                                      "orange",
+                                      "amber",
+                                      "green",
+                                      "teal",
+                                      "blue",
+                                      "violet",
+                                      "pink",
+                                      "red",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "scale": {
+                                    "description": "a number field shaded from its lowest to its highest shown value",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "scale",
+                                  "color",
+                                ],
+                                "type": "object",
+                              },
+                            ],
+                          },
+                          "type": "array",
+                        },
                         "fields": {
                           "items": {
                             "type": "string",
                           },
                           "type": "array",
                         },
-                        "filter": {
-                          "anyOf": [
-                            {
-                              "additionalProperties": false,
-                              "properties": {
-                                "field": {
-                                  "type": "string",
-                                },
-                                "text": {
-                                  "type": "string",
-                                },
+                        "filters": {
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                            "properties": {
+                              "field": {
+                                "description": "the field; null with op "formula"",
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
                               },
-                              "required": [
-                                "field",
-                                "text",
-                              ],
-                              "type": "object",
+                              "op": {
+                                "enum": [
+                                  "empty",
+                                  "filled",
+                                  "is",
+                                  "is-not",
+                                  "contains",
+                                  "not-contains",
+                                  "starts",
+                                  "ends",
+                                  "gt",
+                                  "gte",
+                                  "lt",
+                                  "lte",
+                                  "between",
+                                  "not-between",
+                                  "before",
+                                  "after",
+                                  "any-of",
+                                  "none-of",
+                                  "checked",
+                                  "unchecked",
+                                  "formula",
+                                ],
+                                "type": "string",
+                              },
+                              "value": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "boolean",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                      ],
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                                "description": "none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or today, yesterday, tomorrow, past-week, past-month, past-year; a formula over field names for "formula", true rows matching",
+                              },
                             },
-                            {
-                              "type": "null",
-                            },
-                          ],
+                            "required": [
+                              "field",
+                              "op",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
                         },
                         "group": {
                           "anyOf": [
@@ -395,6 +582,23 @@ exports[`lists the same tools in every era 1`] = `
                         },
                         "title": {
                           "type": "string",
+                        },
+                        "totals": {
+                          "additionalProperties": {
+                            "enum": [
+                              "count",
+                              "sum",
+                              "avg",
+                              "min",
+                              "max",
+                              "checked",
+                            ],
+                            "type": "string",
+                          },
+                          "propertyNames": {
+                            "type": "string",
+                          },
+                          "type": "object",
                         },
                         "x": {
                           "type": "string",
@@ -836,7 +1040,7 @@ exports[`lists the same tools in every era 1`] = `
             "additionalProperties": false,
             "properties": {
               "choices": {
-                "description": "for a choice or choices field, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink); a name alone keeps the colour it has, a new one takes the next",
+                "description": "for a choice or choices field, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink, red); a name alone keeps the colour it has, a new one takes the next",
                 "items": {
                   "anyOf": [
                     {
@@ -855,6 +1059,7 @@ exports[`lists the same tools in every era 1`] = `
                             "blue",
                             "violet",
                             "pink",
+                            "red",
                           ],
                           "type": "string",
                         },
@@ -1026,7 +1231,7 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "choices": {
-          "description": "for a choice or choices field, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink); a name alone keeps the colour it has, a new one takes the next",
+          "description": "for a choice or choices field, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink, red); a name alone keeps the colour it has, a new one takes the next",
           "items": {
             "anyOf": [
               {
@@ -1045,6 +1250,7 @@ exports[`lists the same tools in every era 1`] = `
                       "blue",
                       "violet",
                       "pink",
+                      "red",
                     ],
                     "type": "string",
                   },
@@ -1216,7 +1422,7 @@ exports[`lists the same tools in every era 1`] = `
           "type": "string",
         },
         "choices": {
-          "description": "every choice, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink); a name alone keeps the colour it has; one left out is removed",
+          "description": "every choice, in order: a name, or {name, color} to set its colour (gray, orange, amber, green, teal, blue, violet, pink, red); a name alone keeps the colour it has; one left out is removed",
           "items": {
             "anyOf": [
               {
@@ -1235,6 +1441,7 @@ exports[`lists the same tools in every era 1`] = `
                       "blue",
                       "violet",
                       "pink",
+                      "red",
                     ],
                     "type": "string",
                   },
@@ -1477,6 +1684,153 @@ exports[`lists the same tools in every era 1`] = `
               ],
               "description": "chart: a choice field that splits the series",
             },
+            "colors": {
+              "anyOf": [
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "enum": [
+                              "gray",
+                              "orange",
+                              "amber",
+                              "green",
+                              "teal",
+                              "blue",
+                              "violet",
+                              "pink",
+                              "red",
+                            ],
+                            "type": "string",
+                          },
+                          "when": {
+                            "additionalProperties": false,
+                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                            "properties": {
+                              "field": {
+                                "description": "the field; null with op "formula"",
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "op": {
+                                "enum": [
+                                  "empty",
+                                  "filled",
+                                  "is",
+                                  "is-not",
+                                  "contains",
+                                  "not-contains",
+                                  "starts",
+                                  "ends",
+                                  "gt",
+                                  "gte",
+                                  "lt",
+                                  "lte",
+                                  "between",
+                                  "not-between",
+                                  "before",
+                                  "after",
+                                  "any-of",
+                                  "none-of",
+                                  "checked",
+                                  "unchecked",
+                                  "formula",
+                                ],
+                                "type": "string",
+                              },
+                              "value": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "boolean",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                      ],
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                                "description": "none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or today, yesterday, tomorrow, past-week, past-month, past-year; a formula over field names for "formula", true rows matching",
+                              },
+                            },
+                            "required": [
+                              "field",
+                              "op",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "when",
+                          "color",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "choices": {
+                            "description": "a choice field: rows take their choice's colour",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "choices",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "enum": [
+                              "gray",
+                              "orange",
+                              "amber",
+                              "green",
+                              "teal",
+                              "blue",
+                              "violet",
+                              "pink",
+                              "red",
+                            ],
+                            "type": "string",
+                          },
+                          "scale": {
+                            "description": "a number field shaded from its lowest to its highest shown value",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "scale",
+                          "color",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid: colour rules in order, the first a row meets colours it, such as [{"when": {"field": "RPE", "op": "gte", "value": 9}, "color": "red"}, {"choices": "Status"}]; a scale shades its own cells",
+            },
             "fields": {
               "description": "entry: the fields to fill, in order",
               "items": {
@@ -1484,29 +1838,83 @@ exports[`lists the same tools in every era 1`] = `
               },
               "type": "array",
             },
-            "filter": {
+            "filters": {
               "anyOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "field": {
-                      "type": "string",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                    "properties": {
+                      "field": {
+                        "description": "the field; null with op "formula"",
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "op": {
+                        "enum": [
+                          "empty",
+                          "filled",
+                          "is",
+                          "is-not",
+                          "contains",
+                          "not-contains",
+                          "starts",
+                          "ends",
+                          "gt",
+                          "gte",
+                          "lt",
+                          "lte",
+                          "between",
+                          "not-between",
+                          "before",
+                          "after",
+                          "any-of",
+                          "none-of",
+                          "checked",
+                          "unchecked",
+                          "formula",
+                        ],
+                        "type": "string",
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "number",
+                          },
+                          {
+                            "type": "boolean",
+                          },
+                          {
+                            "items": {
+                              "type": [
+                                "string",
+                                "number",
+                              ],
+                            },
+                            "type": "array",
+                          },
+                        ],
+                        "description": "none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or today, yesterday, tomorrow, past-week, past-month, past-year; a formula over field names for "formula", true rows matching",
+                      },
                     },
-                    "text": {
-                      "type": "string",
-                    },
+                    "required": [
+                      "field",
+                      "op",
+                    ],
+                    "type": "object",
                   },
-                  "required": [
-                    "field",
-                    "text",
-                  ],
-                  "type": "object",
+                  "type": "array",
                 },
                 {
                   "type": "null",
                 },
               ],
-              "description": "grid: rows whose field contains the text; null clears it",
+              "description": "grid, list and chart: the rows shown meet every condition, such as [{"field": "Exercise", "op": "any-of", "value": ["bench press"]}] for a chart of one exercise; null or [] shows every row",
             },
             "group": {
               "anyOf": [
@@ -1608,6 +2016,38 @@ exports[`lists the same tools in every era 1`] = `
                 },
               ],
               "description": "list: the field shown as the title",
+            },
+            "totals": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "count",
+                          "sum",
+                          "avg",
+                          "min",
+                          "max",
+                          "checked",
+                        ],
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid: the totals row, field to total over the shown rows, such as {"Weight": "sum", "RPE": "avg", "Done": "checked"}; checked is the share ticked; null removes one, or all",
             },
             "x": {
               "anyOf": [
@@ -1841,7 +2281,7 @@ exports[`lists the same tools in every era 1`] = `
       "openWorldHint": false,
       "readOnlyHint": false,
     },
-    "description": "Changes a view: its name, or its settings (sort, filter and hidden fields of a grid, the fields of an entry, a list or a chart). Only the settings given change; null clears a sort or a filter.",
+    "description": "Changes a view: its name, or its settings (filters of a grid, list or chart; sort, colour rules, totals and hidden fields of a grid; the fields of an entry, a list or a chart). Only the settings given change, a list given whole; null clears a sort, the filters, the colours or the totals.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1893,6 +2333,153 @@ exports[`lists the same tools in every era 1`] = `
               ],
               "description": "chart: a choice field that splits the series",
             },
+            "colors": {
+              "anyOf": [
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "enum": [
+                              "gray",
+                              "orange",
+                              "amber",
+                              "green",
+                              "teal",
+                              "blue",
+                              "violet",
+                              "pink",
+                              "red",
+                            ],
+                            "type": "string",
+                          },
+                          "when": {
+                            "additionalProperties": false,
+                            "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                            "properties": {
+                              "field": {
+                                "description": "the field; null with op "formula"",
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "op": {
+                                "enum": [
+                                  "empty",
+                                  "filled",
+                                  "is",
+                                  "is-not",
+                                  "contains",
+                                  "not-contains",
+                                  "starts",
+                                  "ends",
+                                  "gt",
+                                  "gte",
+                                  "lt",
+                                  "lte",
+                                  "between",
+                                  "not-between",
+                                  "before",
+                                  "after",
+                                  "any-of",
+                                  "none-of",
+                                  "checked",
+                                  "unchecked",
+                                  "formula",
+                                ],
+                                "type": "string",
+                              },
+                              "value": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "boolean",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                      ],
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                                "description": "none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or today, yesterday, tomorrow, past-week, past-month, past-year; a formula over field names for "formula", true rows matching",
+                              },
+                            },
+                            "required": [
+                              "field",
+                              "op",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "when",
+                          "color",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "choices": {
+                            "description": "a choice field: rows take their choice's colour",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "choices",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "color": {
+                            "enum": [
+                              "gray",
+                              "orange",
+                              "amber",
+                              "green",
+                              "teal",
+                              "blue",
+                              "violet",
+                              "pink",
+                              "red",
+                            ],
+                            "type": "string",
+                          },
+                          "scale": {
+                            "description": "a number field shaded from its lowest to its highest shown value",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "scale",
+                          "color",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid: colour rules in order, the first a row meets colours it, such as [{"when": {"field": "RPE", "op": "gte", "value": 9}, "color": "red"}, {"choices": "Status"}]; a scale shades its own cells",
+            },
             "fields": {
               "description": "entry: the fields to fill, in order",
               "items": {
@@ -1900,29 +2487,83 @@ exports[`lists the same tools in every era 1`] = `
               },
               "type": "array",
             },
-            "filter": {
+            "filters": {
               "anyOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "field": {
-                      "type": "string",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "ops by field: text contains, not-contains, is, is-not, starts, ends; numbers is, is-not, gt, gte, lt, lte, between, not-between; dates is, before, after, between; choice, choices and link any-of, none-of; check checked, unchecked; all but check empty, filled",
+                    "properties": {
+                      "field": {
+                        "description": "the field; null with op "formula"",
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "op": {
+                        "enum": [
+                          "empty",
+                          "filled",
+                          "is",
+                          "is-not",
+                          "contains",
+                          "not-contains",
+                          "starts",
+                          "ends",
+                          "gt",
+                          "gte",
+                          "lt",
+                          "lte",
+                          "between",
+                          "not-between",
+                          "before",
+                          "after",
+                          "any-of",
+                          "none-of",
+                          "checked",
+                          "unchecked",
+                          "formula",
+                        ],
+                        "type": "string",
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "number",
+                          },
+                          {
+                            "type": "boolean",
+                          },
+                          {
+                            "items": {
+                              "type": [
+                                "string",
+                                "number",
+                              ],
+                            },
+                            "type": "array",
+                          },
+                        ],
+                        "description": "none for empty, filled, checked, unchecked; [low, high] for between; a list of choices or linked row titles for any-of and none-of; a date as YYYY-MM-DD or today, yesterday, tomorrow, past-week, past-month, past-year; a formula over field names for "formula", true rows matching",
+                      },
                     },
-                    "text": {
-                      "type": "string",
-                    },
+                    "required": [
+                      "field",
+                      "op",
+                    ],
+                    "type": "object",
                   },
-                  "required": [
-                    "field",
-                    "text",
-                  ],
-                  "type": "object",
+                  "type": "array",
                 },
                 {
                   "type": "null",
                 },
               ],
-              "description": "grid: rows whose field contains the text; null clears it",
+              "description": "grid, list and chart: the rows shown meet every condition, such as [{"field": "Exercise", "op": "any-of", "value": ["bench press"]}] for a chart of one exercise; null or [] shows every row",
             },
             "group": {
               "anyOf": [
@@ -2024,6 +2665,38 @@ exports[`lists the same tools in every era 1`] = `
                 },
               ],
               "description": "list: the field shown as the title",
+            },
+            "totals": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "count",
+                          "sum",
+                          "avg",
+                          "min",
+                          "max",
+                          "checked",
+                        ],
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "grid: the totals row, field to total over the shown rows, such as {"Weight": "sum", "RPE": "avg", "Done": "checked"}; checked is the share ticked; null removes one, or all",
             },
             "x": {
               "anyOf": [

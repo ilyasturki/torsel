@@ -37,8 +37,8 @@ const en = {
 	columnResized: (field: string) => `${field} resized`,
 	filterCleared: 'Filter cleared',
 	filterChanged: 'Filter changed',
-	filterBar: (field: string, text: string, shown: number, total: number) =>
-		`${field} contains "${text}": ${shown} of ${total}`,
+	filterBar: (conditions: string, shown: number, total: number) =>
+		`${conditions}: ${shown} of ${total}`,
 	clearFilter: 'Clear filter',
 	nameOf: (field: string) => `Name of ${field}`,
 	openRow: 'Open row',
@@ -137,7 +137,7 @@ const fr: typeof en = {
 	columnResized: (field) => `Colonne « ${field} » redimensionnée`,
 	filterCleared: 'Filtre retiré',
 	filterChanged: 'Filtre modifié',
-	filterBar: (field, text, shown, total) => `${field} contient « ${text} » : ${shown} sur ${total}`,
+	filterBar: (conditions, shown, total) => `${conditions} : ${shown} sur ${total}`,
 	clearFilter: 'Retirer le filtre',
 	nameOf: (field) => `Nom de ${field}`,
 	openRow: 'Ouvrir la ligne',

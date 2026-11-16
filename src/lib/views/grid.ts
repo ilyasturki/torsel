@@ -3,7 +3,18 @@ import { browserFormats, formatValue } from '#lib/client/format.ts';
 import type { RowUpdate } from '#lib/core/actions.ts';
 import { updateRecord, updateRow, writeRows } from '#lib/core/actions.ts';
 import { parseCells, writeCells } from '#lib/core/csv.ts';
-import type { Change, Choice, FieldDef, GridConfig, Rec, Value, ViewDef } from '#lib/core/model.ts';
+import type { FormulaHits, Reading } from '#lib/core/conditions.ts';
+import { conditionTest, reading } from '#lib/core/conditions.ts';
+import type {
+	Change,
+	Choice,
+	FieldDef,
+	FilterConfig,
+	GridConfig,
+	Rec,
+	Value,
+	ViewDef
+} from '#lib/core/model.ts';
 import { hasChoices, sortsOf } from '#lib/core/model.ts';
 import type { SqlRow } from '#lib/core/sql.ts';
 import { CHOICES_JOIN, currencyOf, formatDuration, ratingScale } from '#lib/core/values.ts';
@@ -30,25 +41,43 @@ export function cellText(ws: Workspace, field: FieldDef, value: Value | undefine
 
 const collator = new Intl.Collator(undefined, { numeric: true });
 
+export function screenReading(ws: Workspace): Reading {
+	return reading((field, value) => cellText(ws, field, value as Value | undefined));
+}
+
+const noHits: FormulaHits = () => new Map();
+
+/** The rows meeting every filter of the view, in the table's order. */
+export function filteredRows(
+	ws: Workspace,
+	tableId: string,
+	config: FilterConfig,
+	computed: Computed,
+	hits: FormulaHits = noHits
+): Rec[] {
+	const rows = ws.rows(tableId);
+	const filters = config.filters ?? [];
+	if (filters.length === 0) return rows;
+	const fields = new Map(ws.fields(tableId).map((field) => [field.id, field]));
+	const test = conditionTest(
+		fields,
+		filters,
+		(row, field) => cellValue(row, field, computed),
+		screenReading(ws),
+		hits
+	);
+	return rows.filter((row) => test(row));
+}
+
 /** The rows a grid shows: oldest first so a new row lands at the end, unless the view sorts. */
 export function gridRows(
 	ws: Workspace,
 	tableId: string,
-	config: GridConfig,
-	computed: Computed
+	config: GridConfig & FilterConfig,
+	computed: Computed,
+	hits: FormulaHits = noHits
 ): Rec[] {
-	let rows = ws.rows(tableId);
-
-	const filter = config.filter;
-	const filtered = filter ? ws.field(filter.field) : undefined;
-	if (filter && filtered && filter.text !== '') {
-		const needle = filter.text.toLowerCase();
-		rows = rows.filter((row) =>
-			cellText(ws, filtered, cellValue(row, filtered, computed))
-				.toLowerCase()
-				.includes(needle)
-		);
-	}
+	const rows = filteredRows(ws, tableId, config, computed, hits);
 
 	const keys = sortsOf(config).flatMap((key) => {
 		const field = ws.field(key.field);

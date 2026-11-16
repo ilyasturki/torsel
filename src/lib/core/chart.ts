@@ -34,7 +34,13 @@ function bucketSql(field: FieldDef, bucket: ChartConfig['bucket']): string {
 	}
 }
 
-export function chartQuery(ws: Workspace, tableId: string, config: ChartConfig): string | null {
+/** With `only`, the rows left are those whose ids it holds, bound as a JSON array. */
+export function chartQuery(
+	ws: Workspace,
+	tableId: string,
+	config: ChartConfig,
+	only = false
+): string | null {
 	const x = config.x ? ws.field(config.x) : undefined;
 	if (x === undefined) {
 		return null;
@@ -51,7 +57,8 @@ export function chartQuery(ws: Workspace, tableId: string, config: ChartConfig):
 	const series = color === undefined ? "''" : `coalesce(t.${color.id}, '')`;
 	const value = agg === 'count' ? 'count(*)' : `${agg}(t.${y?.id})`;
 
-	const grouped = `select ${xSql} as x, ${series} as series, ${value} as y from v_${tableId} t where ${xSql} is not null group by 1, 2`;
+	const kept = only ? ' and t.id in (select value from json_each(?))' : '';
+	const grouped = `select ${xSql} as x, ${series} as series, ${value} as y from v_${tableId} t where ${xSql} is not null${kept} group by 1, 2`;
 
 	const rolling = config.rolling ?? null;
 	if (
@@ -111,14 +118,15 @@ export function chartData(
 	engine: Engine,
 	ws: Workspace,
 	tableId: string,
-	config: ChartConfig
+	config: ChartConfig,
+	only: readonly string[] | null = null
 ): ChartData | null {
-	const sql = chartQuery(ws, tableId, config);
+	const sql = chartQuery(ws, tableId, config, only !== null);
 	if (sql === null) {
 		return null;
 	}
 
-	const rows = engine.all(sql);
+	const rows = engine.all(sql, only === null ? [] : [JSON.stringify(only)]);
 	const points: ChartPoint[] = [];
 	const series = new Set<string>();
 

@@ -32,11 +32,13 @@
 		Change,
 		FieldDef,
 		FieldType,
+		FilterConfig,
 		GridConfig,
 		Rec,
 		Value,
 		ViewDef
 	} from '#lib/core/model.ts';
+	import type { Condition } from '#lib/core/conditions.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
 	import { MAX_IMAGES, imageLinks, imagesOf, imagesValue } from '#lib/core/images.ts';
@@ -70,6 +72,7 @@
 	import { fillChanges, fillTarget } from './fill.ts';
 	import FormulaEditor from './FormulaEditor.svelte';
 	import ImageCell from './ImageCell.svelte';
+	import { conditionText, formulaHits } from './rules.ts';
 	import {
 		cellReader,
 		cellText,
@@ -202,22 +205,20 @@
 	const writable = (row: Rec | undefined, field: FieldDef): boolean =>
 		(row !== undefined || adds) && !locked.has(field.id);
 
-	const config = $derived.by((): GridConfig => {
-		const saved = view.config.filter;
-		return liveFilter === null || menuField === null
+	const config = $derived.by((): GridConfig & FilterConfig =>
+		liveFilter === null || menuField === null
 			? view.config
-			: {
-					...view.config,
-					filter:
-						liveFilter === '' && saved?.field !== menuField
-							? saved
-							: { field: menuField, text: liveFilter }
-				};
+			: { ...view.config, filters: quickFiltered(menuField, liveFilter) }
+	);
+
+	const hits = $derived.by(() => {
+		void app.version;
+		return formulaHits((stored) => app.formulaPreview(tableId, stored));
 	});
 
 	const rows = $derived.by(() => {
 		void app.version;
-		return gridRows(app.ws, tableId, config, computed);
+		return gridRows(app.ws, tableId, config, computed, hits);
 	});
 
 	const allRows = $derived.by(() => {
@@ -228,12 +229,23 @@
 	const rowIndex = $derived(new Map(rows.map((row, index) => [row.id, index])));
 	const fieldIndex = $derived(new Map(fields.map((field, index) => [field.id, index])));
 
-	const filterField = $derived.by(() => {
-		const filter = config.filter;
-		return filter && filter.text !== ''
-			? fields.find((field) => field.id === filter.field)
-			: undefined;
-	});
+	const filters = $derived(config.filters ?? []);
+
+	/** The column menu's text box edits its field's `contains` condition, the others kept. */
+	function quickFiltered(field: string, text: string): Condition[] {
+		const saved = view.config.filters ?? [];
+		const at = saved.findIndex((item) => item.field === field && item.op === 'contains');
+		const next = text.trim() === '' ? null : { field, op: 'contains' as const, value: text };
+		if (at === -1) return next === null ? saved : [...saved, next];
+		return next === null ? saved.toSpliced(at, 1) : saved.with(at, next);
+	}
+
+	function quickText(field: string | null): string {
+		const found = (view.config.filters ?? []).find(
+			(item) => item.field === field && item.op === 'contains'
+		);
+		return typeof found?.value === 'string' ? found.value : '';
+	}
 
 	function widthOf(field: FieldDef, index: number): number {
 		if (resizing?.field === field.id) return resizing.width;
@@ -433,7 +445,7 @@
 	}
 
 	function setConfig(
-		patch: Partial<GridConfig>,
+		patch: Partial<GridConfig & FilterConfig>,
 		label: string,
 		apply: (changes: Change[], label: string) => unknown = applyWithUndo
 	): void {
@@ -1620,14 +1632,12 @@
 
 	function settleFilter(): void {
 		if (liveFilter === null || menuField === null) return;
-		const text = liveFilter.trim();
-		const saved = view.config.filter ?? null;
-		const next =
-			text === '' ? (saved?.field === menuField ? null : saved) : { field: menuField, text };
+		const saved = view.config.filters ?? [];
+		const next = quickFiltered(menuField, liveFilter.trim());
 		liveFilter = null;
 		if (JSON.stringify(next) !== JSON.stringify(saved)) {
 			backToTop();
-			setConfig({ filter: next }, next === null ? words.filterCleared : words.filterChanged);
+			setConfig({ filters: next }, next.length === 0 ? words.filterCleared : words.filterChanged);
 		}
 	}
 
@@ -1980,12 +1990,16 @@
 			<IconButton icon="x" label={common.close} class="sm:ml-auto" onclick={closeFind} />
 		</div>
 	{/if}
-	{#if filterField}
+	{#if filters.length > 0}
 		<div class="flex shrink-0 items-center gap-2 px-3 py-1 text-sm text-ink-2">
 			<span class="min-w-0 truncate">
-				{words.filterBar(filterField.name, config.filter?.text ?? '', rows.length, allRows.length)}
+				{words.filterBar(
+					filters.map((item) => conditionText(app.ws, tableId, item)).join(', '),
+					rows.length,
+					allRows.length
+				)}
 			</span>
-			<Button variant="ghost" onclick={() => setConfig({ filter: null }, words.filterCleared)}
+			<Button variant="ghost" onclick={() => setConfig({ filters: [] }, words.filterCleared)}
 				>{words.clearFilter}</Button
 			>
 		</div>
@@ -2306,7 +2320,7 @@
 	onaddsort={() => {
 		if (menuFieldDef) addSort(menuFieldDef);
 	}}
-	filter={config.filter?.field === menuField ? (config.filter?.text ?? '') : ''}
+	filter={liveFilter ?? quickText(menuField)}
 	onsort={(dir) => {
 		if (menuFieldDef) sortBy(menuFieldDef, dir);
 	}}

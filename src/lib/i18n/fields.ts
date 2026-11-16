@@ -102,7 +102,7 @@ const en = {
 	emptyFormula: 'the formula is empty',
 	selfReference: (name: string) => `"${name}" depends on itself`,
 	sqliteRefused: (detail: string) => `SQLite refused the formula: ${detail}`,
-	columnTotal: "a column total isn't a row formula",
+	columnTotal: 'a column total goes in the totals row, at the foot of the grid',
 	notALink: (name: string) => `"${name}" isn't a link`,
 	needsAggregate: (table: string) => `"${table}" holds several rows: wrap it in SUM, COUNT…`,
 	twoLinks: (table: string, links: string[]) =>
@@ -258,7 +258,7 @@ const fr: typeof en = {
 	emptyFormula: 'la formule est vide',
 	selfReference: (name) => `« ${name} » dépend de lui-même`,
 	sqliteRefused: (detail) => `SQLite refuse la formule : ${detail}`,
-	columnTotal: 'un total de colonne n’est pas une formule de ligne',
+	columnTotal: 'un total de colonne se met dans la ligne des totaux, en bas de la grille',
 	notALink: (name) => `« ${name} » n’est pas un lien`,
 	needsAggregate: (table) => `« ${table} » a plusieurs lignes : mets-le dans SUM, COUNT…`,
 	twoLinks: (table, links) =>
