@@ -187,3 +187,59 @@ describe('the locale', () => {
 		expect(us.formatValue({ type: 'formula' }, 'Squat', NOW)).toBe('Squat');
 	});
 });
+
+describe('the words for a day', () => {
+	it('reads today, tomorrow and yesterday in English and French', () => {
+		for (const locale of ['en-US', 'fr-FR']) {
+			const format = localeFormats(locale);
+			expect(format.readDate('today', NOW)).toBe('2026-11-02');
+			expect(format.readDate('Tomorrow', NOW)).toBe('2026-11-03');
+			expect(format.readDate('yesterday', NOW)).toBe('2026-11-01');
+			expect(format.readDate("aujourd'hui", NOW)).toBe('2026-11-02');
+			expect(format.readDate('aujourd’hui', NOW)).toBe('2026-11-02');
+			expect(format.readDate('Demain', NOW)).toBe('2026-11-03');
+			expect(format.readDate('hier', NOW)).toBe('2026-11-01');
+		}
+	});
+
+	it('takes a time after the word', () => {
+		expect(localeFormats('fr-FR').readDate('demain 8:15', NOW)).toBe('2026-11-03T08:15');
+		expect(localeFormats('en-US').readDate('today 3:05 pm', NOW)).toBe('2026-11-02T15:05');
+	});
+
+	it('crosses the end of a month', () => {
+		expect(localeFormats('en-US').readDate('tomorrow', new Date(2026, 11, 31))).toBe('2027-01-01');
+	});
+});
+
+describe('a currency typed in another one', () => {
+	const eur = { type: 'currency' as const, currency: 'EUR' };
+
+	it('reads the field own sign, code or none as an amount', () => {
+		for (const locale of ['en-US', 'fr-FR']) {
+			const format = localeFormats(locale);
+			for (const text of ['12', '€12', '12 €', '12 EUR']) {
+				expect(format.otherCurrency(text, 'EUR'), `${locale} ${text}`).toBe(false);
+			}
+		}
+		expect(localeFormats('fr-FR').readValue(eur, '12,50 €')).toBe(12.5);
+	});
+
+	it('tells another currency apart', () => {
+		const us = localeFormats('en-US');
+		expect(us.otherCurrency('$12', 'EUR')).toBe(true);
+		expect(us.otherCurrency('12 USD', 'EUR')).toBe(true);
+		expect(us.otherCurrency('£3', 'EUR')).toBe(true);
+	});
+
+	it('takes a narrow sign as the field own', () => {
+		expect(localeFormats('fr-FR').otherCurrency('$12', 'CAD')).toBe(false);
+		expect(localeFormats('en-US').otherCurrency('$12', 'USD')).toBe(false);
+	});
+
+	it('names the currency as an amount of it reads', () => {
+		expect(localeFormats('en-US').currencyName('EUR')).toBe('euros');
+		expect(localeFormats('fr-FR').currencyName('EUR')).toBe('euros');
+		expect(localeFormats('fr-FR').currencyName('USD')).toBe('dollars des États-Unis');
+	});
+});

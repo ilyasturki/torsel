@@ -18,6 +18,7 @@ const en = {
 		link: (draft: string, table: string) => `"${draft}" isn't a row of ${table}.`,
 		other: (draft: string) => `"${draft}" isn't valid.`
 	},
+	otherCurrency: (currency: string) => `This column is in ${currency}.`,
 	cleared: (rows: number) => plural('en', rows, { one: 'Cell cleared', other: '# rows cleared' }),
 	cut: (cells: number) => (cells === 1 ? 'Cut 1 cell' : `Cut ${cells} cells`),
 	copied: (cells: number) => (cells === 1 ? 'Copied 1 cell' : `Copied ${cells} cells`),
@@ -102,6 +103,7 @@ const fr: typeof en = {
 		link: (draft, table) => `« ${draft} » n’est pas une ligne de ${table}.`,
 		other: (draft) => `« ${draft} » n’est pas valide.`
 	},
+	otherCurrency: (currency) => `Cette colonne est en ${currency}.`,
 	cleared: (rows) => plural('fr', rows, { one: 'Cellule effacée', other: '# lignes effacées' }),
 	cut: (cells) => plural('fr', cells, { one: '# cellule coupée', other: '# cellules coupées' }),
 	copied: (cells) => plural('fr', cells, { one: '# cellule copiée', other: '# cellules copiées' }),

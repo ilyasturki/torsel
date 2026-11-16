@@ -1,6 +1,9 @@
 <script lang="ts">
-	import { affixes, bareText, readValue } from '#lib/client/format.ts';
+	import { affixes, bareText, currencyName, otherCurrency, readValue } from '#lib/client/format.ts';
+	import { showToast } from '#lib/client/toast.svelte.ts';
 	import type { FieldFormat, Value } from '#lib/core/model.ts';
+	import { currencyOf } from '#lib/core/values.ts';
+	import { grid as words } from '#lib/i18n/grid.ts';
 	import AffixInput from '#lib/ui/AffixInput.svelte';
 
 	let {
@@ -22,9 +25,11 @@
 
 	let text = $state(shown(value));
 
+	const foreign = $derived(field.type === 'currency' && otherCurrency(text, currencyOf(field)));
+
 	$effect(() => {
 		const current = typeof value === 'number' ? value : null;
-		if ((readValue(field, text) ?? null) !== current) text = shown(current);
+		if (!foreign && (readValue(field, text) ?? null) !== current) text = shown(current);
 	});
 
 	const marks = $derived(affixes(field));
@@ -40,8 +45,12 @@
 	placeholder={placeholder ??
 		(field.type === 'duration' ? (field.seconds ? 'h:mm:ss' : 'h:mm') : '')}
 	value={text}
+	aria-invalid={foreign || undefined}
 	oninput={(event) => {
 		text = event.currentTarget.value;
-		value = readValue(field, text) ?? null;
+		if (!foreign) value = readValue(field, text) ?? null;
+	}}
+	onblur={() => {
+		if (foreign) showToast(words.otherCurrency(currencyName(currencyOf(field))));
 	}}
 />

@@ -3,7 +3,7 @@
 	import { tick } from 'svelte';
 
 	import { app } from '#lib/client/app.svelte.ts';
-	import { localCurrency } from '#lib/client/format.ts';
+	import { currencyFor } from '#lib/client/format.ts';
 	import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 	import { addField } from '#lib/core/actions.ts';
 	import { nameTaken } from '#lib/core/names.ts';
@@ -74,7 +74,7 @@
 			{
 				name: label,
 				type: type === AUTO ? 'text' : type,
-				currency: type === 'currency' ? localCurrency() : undefined,
+				currency: type === 'currency' ? currencyFor(app.ws, tableId) : undefined,
 				auto: type === AUTO
 			},
 			at

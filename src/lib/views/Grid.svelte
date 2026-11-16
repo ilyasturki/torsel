@@ -4,7 +4,16 @@
 
 	import { app } from '#lib/client/app.svelte.ts';
 	import { fresh } from '#lib/client/assistant.svelte.ts';
-	import { editText, formatNumber, formatValue, localCurrency } from '#lib/client/format.ts';
+	import {
+		affixes,
+		bareText,
+		currencyFor,
+		currencyName,
+		editText,
+		formatNumber,
+		formatValue,
+		otherCurrency
+	} from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
@@ -30,7 +39,14 @@
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
 	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
-	import { freshValue, nativeDateText, nowIso, ratingScale, todayIso } from '#lib/core/values.ts';
+	import {
+		currencyOf,
+		freshValue,
+		nativeDateText,
+		nowIso,
+		ratingScale,
+		todayIso
+	} from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import { names } from '#lib/i18n/names.ts';
@@ -543,6 +559,11 @@
 			settle(target, undefined, down, across, leaving);
 			return;
 		}
+		if (field.type === 'currency' && otherCurrency(draft, currencyOf(field))) {
+			showToast(words.otherCurrency(currencyName(currencyOf(field))));
+			if (leaving) editing = null;
+			return;
+		}
 		const value = cellReader(app.ws)(field, draft);
 		if (value === undefined) {
 			showToast(invalidText(field, draft));
@@ -583,7 +604,14 @@
 
 	function initialDraft(field: FieldDef, row: Rec | undefined, native: boolean): string {
 		const value = row === undefined ? freshValue(field) : row.data[field.id];
-		return native ? nativeDateText(field, value) : editText(field, value);
+		if (native) return nativeDateText(field, value);
+		return typeof value === 'number' && affixed(field)
+			? bareText(field, value)
+			: editText(field, value);
+	}
+
+	function affixed(field: FieldDef): boolean {
+		return field.type === 'currency' || field.type === 'percent' || field.type === 'number';
 	}
 
 	function toggleCheck(rowKey: string, field: FieldDef): void {
@@ -770,7 +798,9 @@
 	function stampOf(event: KeyboardEvent): 'date' | 'time' | null {
 		if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
 		if (event.key === ';') return event.shiftKey ? 'time' : 'date';
-		return event.key === ':' ? 'time' : null;
+		// AZERTY puts ; on the Comma key, where Shift types a period.
+		const shifted = event.key === ':' || (event.key === '.' && event.code === 'Comma');
+		return shifted && event.shiftKey ? 'time' : null;
 	}
 
 	function stampText(field: FieldDef | undefined, time: boolean): string | null {
@@ -1237,7 +1267,7 @@
 			field.id,
 			{
 				type,
-				currency: type === 'currency' ? localCurrency() : undefined,
+				currency: type === 'currency' ? currencyFor(app.ws, tableId) : undefined,
 				checkWords: { yes: fieldWords.yes, no: fieldWords.no }
 			},
 			field.type === 'formula' ? computed : undefined
@@ -1653,31 +1683,43 @@
 					onkeydown={ondraftkeydown}
 					onblur={() => commitDraft({ leaving: true })}></textarea>
 			{:else}
-				<input
-					{@attach (node: HTMLInputElement) => {
-						node.focus();
-						if (node.type === 'text') node.setSelectionRange(node.value.length, node.value.length);
-						if (node.type === 'date' || node.type === 'datetime-local') {
-							try {
-								node.showPicker();
-							} catch {
-								// No user activation or no `showPicker`: a second tap still opens it.
+				{@const marks = nativeDate === null && affixed(field) ? affixes(field) : null}
+				<div
+					class="absolute inset-y-0 -right-px left-0 z-1 flex h-full items-center bg-raised ring-2 ring-accent ring-inset"
+				>
+					{#if marks?.prefix}
+						<span class="shrink-0 pl-3 text-ink-3" aria-hidden="true">{marks.prefix}</span>
+					{/if}
+					<input
+						{@attach (node: HTMLInputElement) => {
+							node.focus();
+							if (node.type === 'text')
+								node.setSelectionRange(node.value.length, node.value.length);
+							if (node.type === 'date' || node.type === 'datetime-local') {
+								try {
+									node.showPicker();
+								} catch {
+									// No user activation or no `showPicker`: a second tap still opens it.
+								}
 							}
-						}
-					}}
-					class="absolute inset-y-0 -right-px left-0 z-1 h-full bg-raised px-3 ring-2 ring-accent outline-none ring-inset {numeric
-						? 'text-right'
-						: ''}"
-					aria-label={field.name}
-					placeholder={field.name}
-					type={nativeDate ?? 'text'}
-					inputmode={numeric && field.type !== 'duration' ? 'decimal' : undefined}
-					enterkeyhint="done"
-					autocomplete="off"
-					bind:value={draft}
-					onkeydown={ondraftkeydown}
-					onblur={() => commitDraft({ leaving: true })}
-				/>
+						}}
+						class="h-full min-w-0 flex-1 bg-transparent px-3 outline-none {numeric
+							? 'text-right'
+							: ''} {marks?.prefix ? 'pl-1' : ''} {marks?.suffix ? 'pr-1' : ''}"
+						aria-label={field.name}
+						placeholder={field.name}
+						type={nativeDate ?? 'text'}
+						inputmode={numeric && field.type !== 'duration' ? 'decimal' : undefined}
+						enterkeyhint="done"
+						autocomplete="off"
+						bind:value={draft}
+						onkeydown={ondraftkeydown}
+						onblur={() => commitDraft({ leaving: true })}
+					/>
+					{#if marks?.suffix}
+						<span class="shrink-0 pr-3 text-ink-3" aria-hidden="true">{marks.suffix}</span>
+					{/if}
+				</div>
 			{/if}
 		{/if}
 		{#if r === bottom && c === right && row !== null && editing === null && filling === null}
