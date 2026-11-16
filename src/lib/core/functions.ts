@@ -5,7 +5,6 @@ import type { Sqlite3 } from './memory-engine.ts';
 type In = SqlValue | boolean | undefined;
 type Out = string | number | null;
 
-/** An argument's name in a signature, worded by the catalog; `?` marks it optional, `…` repeats it. */
 export type ArgName =
 	| 'value'
 	| 'text'
@@ -221,7 +220,6 @@ function wildcard(pattern: string): RegExp {
 	return new RegExp(`^${source}$`, 'iu');
 }
 
-/** Whether `value` meets a Sheets criterion: 5, "Food", ">=10", "<>done", "B*". */
 export function meets(value: In, criterion: In): boolean {
 	if (typeof criterion === 'number' || typeof criterion === 'bigint') {
 		return num(value) === Number(criterion);
@@ -748,7 +746,6 @@ function arities(args: Arg[]): number[] {
 	return Array.from({ length: most - least + 1 }, (_, i) => least + i);
 }
 
-/** Every function a formula may call by its Sheets name, in the order the editor offers them. */
 export const FUNCTIONS: FormulaFunction[] = [...NATIVE, ...SCALARS, ...AGGREGATES]
 	.filter((fn, index, all) => all.findIndex((other) => other.name === fn.name) === index)
 	.map(({ name, args }) => ({ name, args }))

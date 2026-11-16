@@ -142,7 +142,6 @@ class Compiler {
 	}
 }
 
-/** Each formula of a table as SQL over its columns, and the other tables they read. */
 export function formulaColumns(
 	ws: Workspace,
 	tableId: string
@@ -283,7 +282,6 @@ export function materializeTable(engine: Engine, ws: Workspace, tableId: string)
 	return problems;
 }
 
-/** A stored formula as SQL over `t`, with every table it reads loaded. */
 function formulaSql(engine: Engine, ws: Workspace, tableId: string, stored: string): string {
 	const compiler = new Compiler(ws);
 	const sql = compiler.expr(tableId, stored, 0);

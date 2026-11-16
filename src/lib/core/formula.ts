@@ -40,11 +40,8 @@ export class FormulaError extends Error {
 
 export type Named = { id: string; name: string };
 
-/** What a formula on one table may name. */
 export type Scope = {
-	/** The row's own fields. */
 	fields: Named[];
-	/** The tables that link to this one. */
 	tables: Named[];
 	/** The fields a dot reaches from a link field (its table's) or from a linking table (its own). */
 	through(id: string): Named[] | undefined;
@@ -59,7 +56,6 @@ function normal(name: string): string {
 	return name.trim().toLowerCase();
 }
 
-/** A table's fields and the tables linking to it, as `toStored` resolves them. */
 export function scopeOf(ws: Workspace, tableId: string, without: string | null = null): Scope {
 	const table = ws.table(tableId);
 	const tables = table === undefined ? [] : ws.tables(table.base);
@@ -80,7 +76,6 @@ export function scopeOf(ws: Workspace, tableId: string, without: string | null =
 	};
 }
 
-/** Every name a stored formula of this base may hold, for `toDisplay`. */
 export function namesIn(ws: Workspace, baseId: string): Named[] {
 	const tables = ws.tables(baseId);
 	return [...tables, ...tables.flatMap((table) => ws.fields(table.id))];
@@ -267,7 +262,6 @@ export function toDisplay(stored: string, names: Named[]): string {
 	});
 }
 
-/** An aggregate call that folds a linking table's rows: `fn(` at `open`, its `)` at `close`. */
 export type Rollup = { fn: string; from: number; open: number; close: number; table: string };
 
 type Call = { fn: string; from: number; open: number; close: number };
@@ -394,7 +388,6 @@ export function namesFor(at: NameAt, names: string[]): string[] {
 	return [...starting, ...holding];
 }
 
-/** The functions whose name starts with a bare word being typed. */
 export function functionsFor(at: NameAt): string[] {
 	if (at.quoted || at.owner !== undefined || at.query === '') return [];
 	const needle = at.query.toUpperCase();
@@ -415,7 +408,6 @@ export function completeName(
 	return { text: expr.slice(0, at.from) + quoted + tail, caret: at.from + quoted.length };
 }
 
-/** Writes `NAME(` over the word typed, the caret inside the parenthesis. */
 export function completeFunction(
 	expr: string,
 	caret: number,
@@ -430,7 +422,6 @@ export function completeFunction(
 		: { text: head + tail, caret: head.length + opened[0].length };
 }
 
-/** The function call holding `caret` and which of its arguments the caret is in. */
 export function callAt(expr: string, caret: number): { name: string; arg: number } | null {
 	const stack: { name: string; arg: number }[] = [];
 	let word = '';
