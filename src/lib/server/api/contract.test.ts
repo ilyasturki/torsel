@@ -311,7 +311,7 @@ describe('the REST API', () => {
 	it('reads a computed field as SQLite computes it', async () => {
 		const made = await execute(
 			db,
-			{ userId, tokenId: 'setup' },
+			{ userId, tokenId: 'setup', label: 'Setup', access: 'write' },
 			toolNamed('add_field') as Tool,
 			{ base: 'Training', table: 'Sets', name: 'Double', type: 'formula', formula: '"Weight" * 2' },
 			'mcp'

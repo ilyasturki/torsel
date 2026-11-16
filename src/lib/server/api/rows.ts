@@ -4,6 +4,7 @@ import type { FieldDef, Rec, Value } from '../../core/model.ts';
 import type { SqlValue } from '../../core/sql.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { createdAt } from '../../core/workspace.ts';
+import { serially } from '../db/serial.ts';
 import { SqlRefusal, sqlPool } from '../sql/pool.ts';
 
 export const CELL_OUT = z
@@ -39,7 +40,8 @@ async function formulas(
 	ws: Workspace,
 	table: string,
 	fields: FieldDef[],
-	rows: Rec[]
+	rows: Rec[],
+	sqlTurn: string
 ): Promise<Map<string, Map<string, SqlValue>>> {
 	const computed = fields.filter((field) => field.type === 'formula');
 	const out = new Map<string, Map<string, SqlValue>>();
@@ -49,12 +51,14 @@ async function formulas(
 	}
 	const ids = computed.map((field) => field.id);
 	try {
-		const cells = await sqlPool.run(ws.baseRecords(base), base, {
-			kind: 'formula-cells',
-			table,
-			fields: ids,
-			rows: rows.map((row) => row.id)
-		});
+		const cells = await serially(sqlTurn, () =>
+			sqlPool.run(ws.baseRecords(base), base, {
+				kind: 'formula-cells',
+				table,
+				fields: ids,
+				rows: rows.map((row) => row.id)
+			})
+		);
 		for (const [row, values] of cells) {
 			out.set(row, new Map(ids.map((id, index) => [id, values[index]])));
 		}
@@ -64,15 +68,15 @@ async function formulas(
 	return out;
 }
 
-/** Rows as the API shows them: the fields picked, by name or id, formulas computed. */
 export async function shapeRows(
 	ws: Workspace,
 	table: string,
 	rows: Rec[],
+	sqlTurn: string,
 	picked: FieldDef[] = ws.fields(table),
 	keys: Keys = 'name'
 ): Promise<Row[]> {
-	const computed = await formulas(ws, table, picked, rows);
+	const computed = await formulas(ws, table, picked, rows, sqlTurn);
 	return rows.map((row) => {
 		const fields: Row['fields'] = {};
 		for (const field of picked) {
@@ -93,20 +97,18 @@ export function rowCursor(row: Rec): string {
 
 /** Where a page cursor points, or null when it is not one this API gave. */
 export function readRowCursor(cursor: string): Position | null {
+	let parsed: unknown;
 	try {
-		const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-		if (
-			Array.isArray(parsed) &&
-			parsed.length === 2 &&
-			typeof parsed[0] === 'number' &&
-			typeof parsed[1] === 'string'
-		) {
-			return { at: parsed[0], id: parsed[1] };
-		}
+		parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
 	} catch {
-		// Falls through to the refusal.
+		return null;
 	}
-	return null;
+	return Array.isArray(parsed) &&
+		parsed.length === 2 &&
+		typeof parsed[0] === 'number' &&
+		typeof parsed[1] === 'string'
+		? { at: parsed[0], id: parsed[1] }
+		: null;
 }
 
 /** The rows after `position`, in the order `Workspace.rows` keeps: creation time, then id. */

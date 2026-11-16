@@ -4,17 +4,16 @@ import { z } from 'zod';
 
 import type { Rec } from '../../core/model.ts';
 import type { Workspace } from '../../core/workspace.ts';
+import { perMinute } from '../auth/rate-limit.ts';
 import type { Credential } from '../auth/session.ts';
-import type { Window } from '../auth/rate-limit.ts';
-import { slidingWindow } from '../auth/rate-limit.ts';
 import { apiCallsPerMinute } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
-import { execute } from '../agent/mcp.ts';
+import type { McpCaller } from '../agent/mcp.ts';
+import { callerOf, execute, sqlTurn } from '../agent/mcp.ts';
 import type { Tool, ToolResult } from '../agent/toolkit.ts';
 import {
 	ROW_VALUES,
-	ToolError,
 	findBase,
 	findField,
 	findTable,
@@ -22,26 +21,15 @@ import {
 	toolNamed
 } from '../agent/toolkit.ts';
 import { CHANGES, readChanges } from './changes.ts';
-import { ApiError, errorResponse } from './errors.ts';
+import { ApiError, errorResponse, located } from './errors.ts';
 import type { Keys } from './rows.ts';
 import { ROW, after, readRowCursor, rowCursor, shapeRows } from './rows.ts';
 
 export type Access = 'read' | 'write';
 
-export type Caller = { userId: string; tokenId: string; access: Access };
-
-export function callerOf({ user, token }: Credential): Caller {
-	return {
-		userId: user.id,
-		// A connected app's access token changes hourly: its budget follows the grant.
-		tokenId: token.grantId ?? token.id,
-		access: token.kind === 'web' || token.kind === 'device' ? 'write' : token.access
-	};
-}
-
 type Context = {
 	db: Database;
-	caller: Caller;
+	caller: McpCaller;
 	params: Record<string, string>;
 	query: Record<string, unknown>;
 	body: unknown;
@@ -83,18 +71,8 @@ const ADD_ROWS = tool('add_rows');
 const UPDATE_ROWS = tool('update_rows');
 const DELETE_ROWS = tool('delete_rows');
 
-function located<T>(find: () => T): T {
-	try {
-		return find();
-	} catch (error) {
-		if (error instanceof ToolError) throw new ApiError(404, 'not_found', error.message);
-		throw error;
-	}
-}
-
 type Place = { ws: Workspace; base: string; table: string };
 
-/** The base and table the path names, or a 404. */
 function place(ctx: Context): Place {
 	const ws = loadWorkspace(ctx.db, ctx.caller.userId);
 	const base = located(() => findBase(ws, ctx.params.base)).id;
@@ -111,7 +89,6 @@ function liveRow(ws: Workspace, table: string, id: string): Rec {
 	return rec;
 }
 
-/** Runs a toolkit tool for the caller: its validation, the access check and its one error shape. */
 async function run(
 	ctx: Context,
 	used: Tool,
@@ -139,9 +116,9 @@ const KEYS = z
 	.enum(['name', 'id'])
 	.describe('key the fields of each row by field name (the default) or by field id');
 
-async function rowsByIds(ws: Workspace, table: string, ids: string[], keys?: Keys) {
+async function rowsByIds(ctx: Context, ws: Workspace, table: string, ids: string[]) {
 	const rows = ids.map((id) => ws.get(id)).filter((rec) => rec !== undefined);
-	return { rows: await shapeRows(ws, table, rows, ws.fields(table), keys) };
+	return { rows: await shapeRows(ws, table, rows, sqlTurn(ctx.caller.tokenId)) };
 }
 
 const ROWS_PATH = '/bases/{base}/tables/{table}/rows';
@@ -233,7 +210,7 @@ export const OPERATIONS: Operation[] = [
 			const rest = after(ws.rows(table), position);
 			const page = rest.slice(0, limit);
 			return {
-				rows: await shapeRows(ws, table, page, fields, query.keys),
+				rows: await shapeRows(ws, table, page, sqlTurn(ctx.caller.tokenId), fields, query.keys),
 				cursor: rest.length > limit ? rowCursor(page[page.length - 1]) : null
 			};
 		}
@@ -251,7 +228,7 @@ export const OPERATIONS: Operation[] = [
 		run: async (ctx) => {
 			const { base, table } = place(ctx);
 			const { result, ws } = await run(ctx, ADD_ROWS, { ...(ctx.body as object), base, table });
-			return rowsByIds(ws, table, result.added as string[]);
+			return rowsByIds(ctx, ws, table, result.added as string[]);
 		}
 	},
 	{
@@ -268,7 +245,7 @@ export const OPERATIONS: Operation[] = [
 			const { base, table } = place(ctx);
 			const body = ctx.body as { updates: { id: string }[] };
 			const { ws } = await run(ctx, UPDATE_ROWS, { ...body, base, table });
-			return rowsByIds(ws, table, [...new Set(body.updates.map((update) => update.id))]);
+			return rowsByIds(ctx, ws, table, [...new Set(body.updates.map((update) => update.id))]);
 		}
 	},
 	{
@@ -304,7 +281,14 @@ export const OPERATIONS: Operation[] = [
 		run: async (ctx) => {
 			const { ws, table } = place(ctx);
 			const rec = liveRow(ws, table, ctx.params.row);
-			const [row] = await shapeRows(ws, table, [rec], ws.fields(table), ctx.query.keys as Keys);
+			const [row] = await shapeRows(
+				ws,
+				table,
+				[rec],
+				sqlTurn(ctx.caller.tokenId),
+				ws.fields(table),
+				ctx.query.keys as Keys
+			);
 			return row;
 		}
 	},
@@ -326,7 +310,7 @@ export const OPERATIONS: Operation[] = [
 				table,
 				updates: [{ id, values: ctx.body }]
 			});
-			const [row] = (await rowsByIds(ws, table, [id])).rows;
+			const [row] = (await rowsByIds(ctx, ws, table, [id])).rows;
 			return row;
 		}
 	},
@@ -367,29 +351,11 @@ export const OPERATIONS: Operation[] = [
 			cursor: z.string().describe('pass it as since on the next call'),
 			more: z.boolean().describe('more changes wait: call again at once with the new cursor')
 		}),
-		run: (ctx) => readChanges(ctx.db, ctx.caller.userId, ctx.query as z.infer<typeof CHANGES>)
+		run: (ctx) => readChanges(ctx.db, ctx.caller, ctx.query as z.infer<typeof CHANGES>)
 	}
 ];
 
-const MINUTE_MS = 60_000;
-
-const windows = new Map<number, Window>();
-
-/** Seconds the caller must wait before this request may run, or null when it may run now. */
-function throttled(caller: Caller): number | null {
-	const limit = apiCallsPerMinute();
-	if (limit === 0) {
-		return null;
-	}
-	let window = windows.get(limit);
-	if (window === undefined) {
-		window = slidingWindow(limit, MINUTE_MS);
-		windows.set(limit, window);
-	}
-	return window.hit(caller.tokenId)
-		? Math.max(1, Math.ceil(window.wait(caller.tokenId) / 1000))
-		: null;
-}
+const throttled = perMinute(apiCallsPerMinute);
 
 function unwrapped(schema: z.ZodType): z.ZodType {
 	let at = schema;
@@ -454,7 +420,7 @@ export async function serveOperation(
 				'this token reads only; a read and write token can change data'
 			);
 		}
-		const wait = throttled(caller);
+		const wait = throttled(caller.tokenId);
 		if (wait !== null) {
 			const refused = errorResponse(
 				429,

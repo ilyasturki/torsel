@@ -3,13 +3,15 @@ import { z } from 'zod';
 
 import type { Kind, Rec } from '../../core/model.ts';
 import { isDeleted } from '../../core/model.ts';
+import type { McpCaller } from '../agent/mcp.ts';
+import { sqlTurn } from '../agent/mcp.ts';
 import { findBase } from '../agent/toolkit.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
 import { records } from '../db/schema.ts';
 import type { Row } from './rows.ts';
 import { shapeRows } from './rows.ts';
-import { ApiError } from './errors.ts';
+import { ApiError, located } from './errors.ts';
 
 export const CHANGES = z.strictObject({
 	base: z.string().describe('name or id of the base'),
@@ -39,15 +41,11 @@ function tableOf(rec: Rec): string | null {
 
 export async function readChanges(
 	db: Database,
-	userId: string,
+	caller: McpCaller,
 	query: z.infer<typeof CHANGES>
 ): Promise<{ changes: Change[]; cursor: string; more: boolean }> {
-	let base: string;
-	try {
-		base = findBase(loadWorkspace(db, userId), query.base).id;
-	} catch (error) {
-		throw new ApiError(404, 'not_found', (error as Error).message);
-	}
+	const { userId } = caller;
+	const base = located(() => findBase(loadWorkspace(db, userId), query.base)).id;
 	const since = query.since === undefined ? 0 : seqOf(query.since, base);
 	const limit = query.limit ?? 100;
 
@@ -78,7 +76,7 @@ export async function readChanges(
 	}
 	const shaped = new Map<string, Row>();
 	for (const [table, rows] of byTable) {
-		for (const row of await shapeRows(ws, table, rows)) {
+		for (const row of await shapeRows(ws, table, rows, sqlTurn(caller.tokenId))) {
 			shaped.set(row.id, row);
 		}
 	}

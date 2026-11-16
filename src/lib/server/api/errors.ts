@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 
+import { ToolError } from '../agent/toolkit.ts';
+
 export class ApiError extends Error {
 	public constructor(
 		public readonly status: number,
@@ -18,4 +20,13 @@ export const ERROR = z
 
 export function errorResponse(status: number, code: string, message: string): Response {
 	return json({ error: { code, message } }, { status });
+}
+
+export function located<T>(find: () => T): T {
+	try {
+		return find();
+	} catch (error) {
+		if (error instanceof ToolError) throw new ApiError(404, 'not_found', error.message);
+		throw error;
+	}
 }

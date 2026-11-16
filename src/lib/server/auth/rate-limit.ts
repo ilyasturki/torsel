@@ -48,6 +48,23 @@ export function slidingWindow(limit: number, windowMs: number): Window {
 	};
 }
 
+/** Seconds `key` must wait, or null when it may go now; `limit` is read per call, 0 for no cap. */
+export function perMinute(limit: () => number): (key: string) => number | null {
+	const windows = new Map<number, Window>();
+	return (key) => {
+		const max = limit();
+		if (max === 0) {
+			return null;
+		}
+		let window = windows.get(max);
+		if (window === undefined) {
+			window = slidingWindow(max, MINUTE);
+			windows.set(max, window);
+		}
+		return window.hit(key) ? Math.max(1, Math.ceil(window.wait(key) / 1000)) : null;
+	};
+}
+
 // By address alone: every sign-in starts here, so a window per email would let anyone lock its owner out.
 const lookups = slidingWindow(30, 15 * MINUTE);
 

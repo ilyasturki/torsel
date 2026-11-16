@@ -20,12 +20,10 @@ export function mcpResource(origin: string): string {
 	return `${origin}${MCP_PATH}`;
 }
 
-/** The REST API as an audience. */
 export function apiResource(origin: string): string {
 	return `${origin}${API_PATH}`;
 }
 
-/** Every audience a token of this server can have. */
 export function resources(origin: string): string[] {
 	return [mcpResource(origin), apiResource(origin)];
 }

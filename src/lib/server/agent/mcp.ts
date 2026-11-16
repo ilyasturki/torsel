@@ -21,8 +21,8 @@ import type { Workspace } from '../../core/workspace.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeUndoable } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
-import type { Window } from '../auth/rate-limit.ts';
-import { slidingWindow } from '../auth/rate-limit.ts';
+import { perMinute } from '../auth/rate-limit.ts';
+import type { Credential } from '../auth/session.ts';
 import { allowedOrigins, mcpCallsPerMinute, siteOrigin } from '../config.ts';
 import { recordToolChange } from './threads.ts';
 import type { Tool, ToolContext } from './toolkit.ts';
@@ -45,22 +45,21 @@ export type McpCaller = {
 // No screen here to show a table on, and no attachment to import.
 const SERVED = TOOLS.filter((tool) => tool.kind !== 'screen' && tool.name !== 'import_file');
 
-const MINUTE_MS = 60_000;
-
-const windows = new Map<number, Window>();
-
-function overLimit(caller: McpCaller): number | null {
-	const limit = mcpCallsPerMinute();
-	if (limit === 0) {
-		return null;
-	}
-	let window = windows.get(limit);
-	if (window === undefined) {
-		window = slidingWindow(limit, MINUTE_MS);
-		windows.set(limit, window);
-	}
-	return window.hit(caller.tokenId) ? limit : null;
+export function callerOf({ user, token }: Credential): McpCaller {
+	return {
+		userId: user.id,
+		// A connected app's access token changes hourly: its call budget and its conversation follow the grant.
+		tokenId: token.grantId ?? token.id,
+		label: token.label,
+		access: token.kind === 'web' || token.kind === 'device' ? 'write' : token.access
+	};
 }
+
+export function sqlTurn(tokenId: string): string {
+	return `query:${tokenId}`;
+}
+
+const overLimit = perMinute(mcpCallsPerMinute);
 
 type Outcome = Awaited<ReturnType<typeof runTool>>;
 
@@ -68,8 +67,8 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 	if (tool.kind !== 'read' && caller.access !== 'write') {
 		return { ok: false, error: READ_ONLY };
 	}
-	const limit = overLimit(caller);
-	if (limit !== null) {
+	if (overLimit(caller.tokenId) !== null) {
+		const limit = mcpCallsPerMinute();
 		return {
 			ok: false,
 			error: `this token made more than ${limit} calls in the last minute; wait a few seconds and call again`
@@ -82,7 +81,7 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 /** Runs a tool for a credential outside the app; the workspace it ran on, writes included. */
 export async function execute(
 	db: Database,
-	caller: Pick<McpCaller, 'userId' | 'tokenId'>,
+	caller: McpCaller,
 	tool: Tool,
 	input: unknown,
 	path: Path
@@ -116,7 +115,7 @@ export async function execute(
 	if (tool.kind !== 'read') {
 		return serially(caller.userId, work);
 	}
-	return tool.name === 'query' ? serially(`query:${caller.tokenId}`, work) : work();
+	return tool.name === 'query' ? serially(sqlTurn(caller.tokenId), work) : work();
 }
 
 // The toolkit validates input itself, to answer in the one error shape: the SDK only lists the schema.
