@@ -468,9 +468,9 @@ describe('the preview', () => {
 		expect(preview).toMatchObject({ format: 'csv', count: 2, more: false, key: 'id' });
 		expect(preview.columns.map(({ path, type }) => [path, type])).toEqual([
 			['id', 'number'],
-			['Title', 'choice'],
-			['Rating', 'number'],
-			['Genre', 'choice']
+			['Title', 'text'],
+			['Rating', 'rating'],
+			['Genre', 'text']
 		]);
 	});
 });

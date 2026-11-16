@@ -108,7 +108,12 @@ function namesRepeat(cells: string[][]): string[] | null {
 	const names = cells.flat();
 	const distinct = [...new Set(names)];
 	const short = distinct.every((name) => name.length <= 60);
-	if (distinct.length > MAX_CHOICES || !short || distinct.length > Math.max(3, names.length / 2)) {
+	if (
+		distinct.length === names.length ||
+		distinct.length > MAX_CHOICES ||
+		!short ||
+		distinct.length > Math.max(3, names.length / 2)
+	) {
 		return null;
 	}
 	return distinct.sort((a, b) => a.localeCompare(b));
@@ -149,6 +154,13 @@ function guessType(values: string[]): Omit<ColumnGuess, 'name'> {
 	return choices === null ? { type: 'text', choices: [] } : { type: 'choice', choices };
 }
 
+const RATING_NAME = /(?<!\p{L})(?:ratings?|stars?|note|étoiles?)(?!\p{L})/iu;
+
+function starsOutOfFive(name: string, values: string[]): boolean {
+	const filled = values.map((value) => value.trim()).filter((value) => value !== '');
+	return RATING_NAME.test(name) && filled.every((value) => /^[1-5]$/u.test(value));
+}
+
 export function guessColumns(rows: string[][], names: DefaultNames): ColumnGuess[] {
 	const [header = [], ...body] = rows;
 	const used = new Set<string>();
@@ -161,7 +173,14 @@ export function guessColumns(rows: string[][], names: DefaultNames): ColumnGuess
 		}
 		used.add(name.toLowerCase());
 
-		return { name, ...guessType(body.map((cells) => cells[index] ?? '')) };
+		const values = body.map((cells) => cells[index] ?? '');
+		const guess = guessType(values);
+		return {
+			name,
+			...(guess.type === 'number' && starsOutOfFive(name, values)
+				? { ...guess, type: 'rating' }
+				: guess)
+		};
 	});
 }
 

@@ -199,6 +199,12 @@ describe('detection', () => {
 		expect(columns[6].choices).toEqual(['Animation', 'Crime', 'Drama', 'Sci-fi']);
 	});
 
+	it('reads names that never repeat as text and a 1-to-5 rating column as Rating', () => {
+		const csv = ['Item,Rating,Sets', 'Coffee beans,4,3', 'Train ticket,5,4', 'Book,2,5'].join('\n');
+		const types = guessColumns(parseCsv(csv), names.en).map((column) => column.type);
+		expect(types).toEqual(['text', 'rating', 'number']);
+	});
+
 	it('keeps notes with a comma as text', () => {
 		const csv = ['note', ...[3, 4, 5, 6, 7].map((seat) => `"seat ${seat}, low"`), '', ''].join(
 			'\n'
