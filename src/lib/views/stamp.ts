@@ -23,7 +23,6 @@ export function stampText(field: FieldFormat | undefined, time: boolean): string
 	return null;
 }
 
-/** Ctrl+; typed into a text input: the stamp goes in at the caret. */
 export function insertStamp(event: KeyboardEvent, field: FieldFormat): boolean {
 	const kind = stampOf(event);
 	const input = event.currentTarget;

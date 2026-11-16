@@ -13,6 +13,7 @@
 		value = $bindable(),
 		id,
 		size = 'xs',
+		caption = true,
 		onenter
 	}: {
 		field: FieldFormat;
@@ -20,6 +21,7 @@
 		value?: Value;
 		id?: string;
 		size?: 'xs' | 'sm';
+		caption?: boolean;
 		onenter?: () => void;
 	} = $props();
 
@@ -53,6 +55,7 @@
 	{id}
 	{label}
 	{size}
+	{caption}
 	full
 	{text}
 	inputmode="text"

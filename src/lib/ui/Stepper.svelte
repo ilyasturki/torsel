@@ -11,6 +11,7 @@
 		text,
 		size = 'md',
 		full = false,
+		caption = true,
 		id,
 		placeholder,
 		inputmode = 'decimal',
@@ -23,8 +24,9 @@
 		label: string;
 		text: string;
 		size?: 'xs' | 'sm' | 'md' | 'lg';
-		/** The width of its row instead of a fixed one, at `xs`. */
 		full?: boolean;
+		/** The label above the number, from `sm` up; off where a title already names it. */
+		caption?: boolean;
 		id?: string;
 		placeholder?: string;
 		inputmode?: HTMLInputAttributes['inputmode'];
@@ -53,7 +55,7 @@
 		<Icon name="minus" class={icon} />
 	</button>
 	<label class="relative flex min-w-0 flex-1 items-center justify-center">
-		{#if size !== 'xs'}
+		{#if size !== 'xs' && caption}
 			<span
 				class="absolute inset-x-0 top-2 truncate px-1 text-center text-sm font-medium text-ink-3"
 				>{label}</span
@@ -63,7 +65,9 @@
 			class="w-full min-w-0 bg-transparent text-center leading-none tighter text-ink outline-none placeholder:text-ink-3 {size ===
 			'xs'
 				? ''
-				: 'pt-3 font-semibold'}"
+				: caption
+					? 'pt-3 font-semibold'
+					: 'font-semibold'}"
 			{id}
 			{inputmode}
 			{placeholder}

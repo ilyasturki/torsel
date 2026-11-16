@@ -550,7 +550,11 @@ for (const { locale, word, shift } of [
 				await drawer.getByRole('textbox').press('Enter');
 				await expect(drawer).toHaveCount(0);
 			} else {
-				await page.getByLabel('Date', { exact: true }).fill(word);
+				const date = page.getByLabel('Date', { exact: true });
+				await date.clear();
+				await expect(date).toHaveValue('');
+				await date.pressSequentially(word);
+				await expect(date).toHaveValue(word);
 			}
 			await page.getByRole('button', { name: words.addRow }).click();
 			await expect

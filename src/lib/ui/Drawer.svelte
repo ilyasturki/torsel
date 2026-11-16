@@ -37,7 +37,7 @@
 	function dismiss(): void {
 		if (leaving) return;
 		leaving = true;
-		const ms = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mid'));
+		const ms = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slow'));
 		setTimeout(
 			() => {
 				open = false;

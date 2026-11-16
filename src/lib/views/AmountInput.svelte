@@ -46,10 +46,9 @@
 	aria-label={label}
 	prefix={marks.prefix}
 	suffix={marks.suffix}
-	inputmode={field.type === 'duration' ? undefined : 'decimal'}
+	inputmode="decimal"
 	autocomplete="off"
-	placeholder={placeholder ??
-		(field.type === 'duration' ? (field.seconds ? 'h:mm:ss' : 'h:mm') : '')}
+	{placeholder}
 	value={text}
 	aria-invalid={foreign || undefined}
 	oninput={(event) => {

@@ -93,11 +93,13 @@
 			oninput={(event) => {
 				text = event.currentTarget.value;
 				const next = readValue(field, text);
-				if (next !== undefined) put(next);
+				// Cleared, it empties on blur: Entry would put today back under the caret.
+				if (next !== undefined && next !== null) put(next);
 			}}
 			onclick={() => (open = true)}
 			onblur={() => {
 				open = false;
+				if (text.trim() === '') put(null);
 				text = shown(value);
 			}}
 			{onkeydown}

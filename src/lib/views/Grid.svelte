@@ -55,6 +55,7 @@
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import { keys } from '#lib/ui/keys.ts';
+	import { wide } from '#lib/ui/media.svelte.ts';
 	import Rating from '#lib/ui/Rating.svelte';
 	import { focus, input as inputStyle } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
@@ -680,7 +681,7 @@
 		}
 		const initial = initialDraft(field, row);
 		const drawn =
-			touch && typed === undefined
+			touch && typed === undefined && !wide.current
 				? isDated(field.type)
 					? 'date'
 					: field.type === 'duration'
@@ -2322,6 +2323,7 @@
 					{field}
 					label={field.name}
 					size="sm"
+					caption={false}
 					bind:value={drawerValue}
 					onenter={() => {
 						if (editing === target) keepDuration(target);

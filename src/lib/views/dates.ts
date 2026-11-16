@@ -8,7 +8,6 @@ export function dayPicked(field: FieldFormat, value: Value | undefined, day: str
 
 const DURATION_STEP = 300;
 
-/** A duration nudged five minutes up or down, never below zero. */
 export function durationStep(value: Value | undefined, direction: 1 | -1): number {
 	const base = typeof value === 'number' ? value : 0;
 	return Math.max(0, base + direction * DURATION_STEP);
