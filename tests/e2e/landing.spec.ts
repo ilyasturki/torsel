@@ -310,6 +310,20 @@ test.describe('with motion', () => {
 		expect(await frames(page)).toBeGreaterThan(before);
 	});
 
+	test('the cells stop drawing once scrolled away', async ({ page }) => {
+		await countFrames(page);
+		await page.goto('/');
+		await page.waitForTimeout(800);
+		const demo = page.getByTestId('demo');
+		await demo.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+		await expect(page.locator('[data-testid="field"][data-shape="chart"]')).not.toBeInViewport();
+		await expect(page.locator('[data-testid="field"][data-shape="band"]')).not.toBeInViewport();
+		await page.waitForTimeout(400);
+		const before = await frames(page);
+		await page.waitForTimeout(800);
+		expect(await frames(page)).toBe(before);
+	});
+
 	test('the cells take colour under the pointer or a finger', async ({ page, isMobile }) => {
 		await page.goto('/');
 		const chart = page.locator('[data-testid="field"][data-shape="chart"]');

@@ -11,7 +11,7 @@
 <CellField
 	shape="chart"
 	keep={copy}
-	class="grid h-hero content-start px-gutter pt-36 max-lg:h-svh max-lg:pt-28"
+	class="grid min-h-hero content-start px-gutter pt-36 pb-16 max-lg:min-h-svh max-lg:pt-28"
 >
 	<div bind:this={copy} class="grid justify-items-start gap-5 justify-self-start">
 		<h1 class="max-w-hero-copy text-h1 leading-none font-semibold tighter text-balance">

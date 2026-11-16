@@ -172,7 +172,8 @@ export class Field {
 				data[offset] = red;
 				data[offset + 1] = green;
 				data[offset + 2] = blue;
-				data[offset + 3] = Math.max(rest, strength * 0.95) * 255;
+				// The closing band carries its copy straight on the cells: its paint stays softer.
+				data[offset + 3] = Math.max(rest, strength * (this.shape === 'band' ? 0.65 : 0.95)) * 255;
 			}
 		}
 		this.context.putImageData(image, 0, 0);
@@ -180,6 +181,7 @@ export class Field {
 	}
 
 	public start(): void {
+		if (this.frame !== 0) return;
 		const run = (now: number): void => {
 			this.frame = requestAnimationFrame(run);
 			if (document.hidden) return;
