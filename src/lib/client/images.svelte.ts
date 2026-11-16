@@ -2,7 +2,7 @@ import type { ImageRef, ImageType } from '../core/images.ts';
 import { MAX_IMAGES, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS, isImageType } from '../core/images.ts';
 import { UPLOAD_PART } from '../core/thread.ts';
 import { images as words } from '../i18n/images.ts';
-import { ApiError, request, requestBlob, sentence } from './api.ts';
+import { ApiError, OFFLINE, request, requestBlob, sentence } from './api.ts';
 import { app } from './app.svelte.ts';
 import type { LocalDb } from './local.ts';
 import { keepImage, readImage, readOutbox, sent } from './local.ts';
@@ -107,7 +107,10 @@ async function local(): Promise<LocalDb> {
 export async function addImages(base: string, files: File[], held: number): Promise<ImageRef[]> {
 	const refs: ImageRef[] = [];
 	for (const file of files) {
-		if (held + refs.length >= MAX_IMAGES) break;
+		if (held + refs.length >= MAX_IMAGES) {
+			showToast(words.cellFull(MAX_IMAGES));
+			break;
+		}
 		try {
 			const db = await local();
 			const { ref, blob } = await prepareImage(file);
@@ -198,7 +201,11 @@ export async function flushOutbox(): Promise<void> {
 				if (answer.ref !== undefined) break;
 			}
 		} catch (error) {
-			if (!(error instanceof ApiError) || !FINAL.has(error.status)) throw error;
+			if (error instanceof ApiError && (error.status === OFFLINE || error.status === 401)) {
+				throw error;
+			}
+			// One image the server can't take now waits for the next sync without holding back the rest.
+			if (!(error instanceof ApiError) || !FINAL.has(error.status)) continue;
 			showToast(words.notKept(ref.name ?? 'image', sentence(error.message)));
 		}
 		await sent(db, base, ref.id);

@@ -22,7 +22,8 @@ const en = {
 	next: 'Next image',
 	close: 'Close',
 	missing: 'Image not here yet',
-	more: (count: number) => `+${count}`
+	more: (count: number) => `+${count}`,
+	cellFull: (max: number) => `A cell holds up to ${max} images`
 };
 
 const fr: typeof en = {
@@ -46,7 +47,8 @@ const fr: typeof en = {
 	next: 'Image suivante',
 	close: 'Fermer',
 	missing: 'Image pas encore arrivée',
-	more: (count) => `+${count}`
+	more: (count) => `+${count}`,
+	cellFull: (max) => `Une cellule contient ${max} images au plus`
 };
 
 export default { en, fr };
