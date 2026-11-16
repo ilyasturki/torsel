@@ -126,7 +126,7 @@ function fieldLine(ws: Workspace, field: FieldDef): string {
 	const filled =
 		field.fill === null
 			? ''
-			: `, filled by AI from "${promptToDisplay(field.fill.prompt, ws.fields(field.table))}"${field.fill.auto ? ' on new rows' : ''}`;
+			: `, filled by AI from "${promptToDisplay(field.fill.prompt, ws.fields(field.table))}"${field.fill.web ? ' with a web search' : ''}${field.fill.auto ? ' on new rows' : ''}`;
 	return `${field.name} (${field.id}, ${field.type}${extra}${about}${filled})`;
 }
 
@@ -245,7 +245,7 @@ export function contextNote(
 	const { shows } = context;
 	if (shows !== undefined) {
 		lines.push(
-			`Their screen (${shows.locale}) writes today as "${shows.today}", a date of another year as "${shows.past}" and a number as "${shows.number}": write dates and numbers so in your reply. Tool inputs stay YYYY-MM-DD dates and plain numbers.`
+			`Their screen (${shows.locale}) writes today as "${shows.today}", a date of another year as "${shows.past}" and a number as "${shows.number}": write dates and numbers exactly so in your reply, in whatever language you reply ("${shows.today}" stays "${shows.today}", never translated). Tool inputs stay YYYY-MM-DD dates and plain numbers.`
 		);
 	}
 
@@ -284,7 +284,7 @@ export function contextNote(
 	}
 	// Their data is often in another language than their words, and the model follows the data.
 	lines.push(
-		'Answer in the language of the message below, whatever the language of the data above. After changes, the diff speaks: reply "Done." unless it cannot show something.'
+		`Answer in the language of the message below, whatever the language of the data above${shows === undefined ? '' : ", its dates and numbers in their screen's form"}. After changes, the diff speaks: reply "Done." unless it cannot show something.`
 	);
 
 	return lines.join('\n');

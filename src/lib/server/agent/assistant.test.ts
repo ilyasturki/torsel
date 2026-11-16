@@ -145,6 +145,30 @@ describe('contextNote', () => {
 		);
 	});
 
+	it('keeps the screen’s date form in a reply in another language', () => {
+		const { ws } = movies();
+		const note = contextNote(
+			ws,
+			at({ shows: { locale: 'en-US', today: 'Nov 2', past: 'May 7, 2025', number: '12,345.5' } }),
+			[],
+			false
+		);
+		expect(note).toContain('in whatever language you reply ("Nov 2" stays "Nov 2", never translated)');
+		expect(note).toContain("its dates and numbers in their screen's form");
+	});
+
+	it('says a filled field searches the web, and fills new rows', () => {
+		const { ws, base, table } = movies();
+		const hlc = new Hlc('w');
+		const [title, , rating] = table.fieldIds;
+		const fill = { prompt: `IMDb rating of {{${title}}}`, web: true, auto: true, since: 0 };
+		for (const change of updateRecord(ws, rating, { fill })) ws.stamp(change, hlc.tick());
+		const note = contextNote(ws, at({ screen: 'table', base: base.id, table: table.id }), [], false);
+		expect(note).toContain(
+			'filled by AI from "IMDb rating of {Title}" with a web search on new rows'
+		);
+	});
+
 	it('tells what the person undid', () => {
 		const { ws } = movies();
 		const note = contextNote(
