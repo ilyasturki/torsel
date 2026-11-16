@@ -23,6 +23,7 @@ import { assistant as words } from '../../i18n/assistant.ts';
 import { anthropicKey } from '../config.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace } from '../db/records.ts';
+import { imageHost } from '../images/host.ts';
 import { sourceHost } from '../sources/host.ts';
 import { readSource } from '../sources/store.ts';
 import { problemText } from './source-tools.ts';
@@ -68,7 +69,7 @@ The open table's schema is in the note: write to it without reading it first. Re
 
 You can do what the person can do by hand from the app: change data, fields, views, tables and bases, show them a table, view or page (open), import an attached file (import_file), download a table as CSV (export_table), download a backup (export), and make a table that fills itself from a link or an API (read_source, then connect_source; web_fetch reads an API's docs). A key a link needs is never asked for or typed in the conversation: the change card has a field for it. Their account stays theirs: password, sign-in, tokens and erasing the device are not yours to touch.
 
-Files they attach come with their message: images and PDFs as themselves, tables and text as text. Follow what they say to do with them; import_file brings a table in whole.
+Files they attach come with their message: images and PDFs as themselves, tables and text as text. Follow what they say to do with them; import_file brings a table in whole, and an image field takes an attached image by its id. An image field also takes a link to an image, which the server fetches once and keeps.
 
 For a computed field, write an SQLite expression over the row's fields, names in double quotes; Sheets function names work, "Link"."Field" reads through a link, and SUM("Table"."Field") folds the rows of a table linking here. For a view, pick the type that answers the request: chart for a progression, entry for fast input, list for browsing.
 
@@ -492,6 +493,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 		ws,
 		actor: { user: userId, path: 'assistant' },
 		sources: sourceHost(db, userId),
+		images: imageHost(db, userId, () => (files ??= readFiles(db, threadId))),
 		commit(action: Action) {
 			committed = {
 				id: current,

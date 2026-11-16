@@ -9,7 +9,7 @@ import { openEngine } from './engine.ts';
 import type { Change, FieldFormat, FieldType, Value } from './model.ts';
 import { FIELD_TYPES } from './model.ts';
 import type { Retype } from './retype.ts';
-import { retypeField } from './retype.ts';
+import { imageLinksOf, retypeField } from './retype.ts';
 import { materializeBase, readQuery } from './sql.ts';
 import {
 	coerce,
@@ -245,6 +245,50 @@ describe('detection', () => {
 });
 
 describe('retype', () => {
+	it('turns links into the images fetched from them, a link that failed counting as lost', () => {
+		const poster = (id: string, src: string) => ({
+			id: id.repeat(64),
+			type: 'image/jpeg' as const,
+			w: 342,
+			h: 513,
+			size: 9000,
+			src
+		});
+		const dune = poster('a', 'https://img.example/dune.jpg');
+		const alien = poster('b', 'https://img.example/alien.jpg');
+		const fetched = new Map([
+			[dune.src, dune],
+			[alien.src, alien]
+		]);
+
+		const result = retyped(
+			{ name: 'Poster', type: 'text' },
+			[dune.src, `${dune.src}, ${alien.src}`, 'https://img.example/gone.jpg', 'Dune'],
+			{ type: 'image', fetched }
+		);
+
+		expect(result.values).toEqual([[dune], [dune, alien], null, null]);
+		expect(result.lost).toBe(2);
+	});
+
+	it('lists the links a field holds, once each', () => {
+		const { ws, apply, baseId } = setup();
+		const table = createTable(ws, baseId, 'T', [{ name: 'Poster', type: 'text' }], () =>
+			defaultViews(names.en)
+		);
+		apply(table.changes);
+		const [field] = table.fieldIds;
+		apply(
+			insertRows(ws, table.id, [
+				{ [field]: 'https://img.example/a.jpg img.example/b.png' },
+				{ [field]: 'https://img.example/a.jpg' },
+				{ [field]: 'no link' }
+			]).changes
+		);
+
+		expect(imageLinksOf(ws, field)).toEqual(['https://img.example/a.jpg', 'https://img.example/b.png']);
+	});
+
 	it('carries numbers between number types, a duration in its smallest unit', () => {
 		expect(retyped({ name: 'N', type: 'number' }, [12.5, 4], { type: 'currency' }).values).toEqual([
 			12.5, 4

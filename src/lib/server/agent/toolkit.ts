@@ -65,13 +65,18 @@ import {
 	sortsOf
 } from '../../core/model.ts';
 import { nameTaken, numberedName, sameName } from '../../core/names.ts';
-import { retypeField } from '../../core/retype.ts';
+import type { ImageRef } from '../../core/images.ts';
+import { MAX_IMAGES, imageRef, imagesValue, isImageId, isImageSource } from '../../core/images.ts';
+import { imageLinksOf, retypeField } from '../../core/retype.ts';
 import { sourceMark } from '../../core/source.ts';
 import type { SqlValue } from '../../core/sql.ts';
 import { coerce, parseCheck, ratingScale } from '../../core/values.ts';
 import type { Effect } from '../../core/thread.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { DATA_COLORS, isDataColor, nextChoice } from '../../ui/colors.ts';
+import type { ImageHost } from '../images/host.ts';
+import type { IngestProblem } from '../images/ingest.ts';
+import { IngestFailed, ingestAll } from '../images/ingest.ts';
 import type { SqlResult, SqlTask } from '../sql/jobs.ts';
 import { SQL_LIMITS, SqlRefusal, sqlPool } from '../sql/pool.ts';
 import type { Sheet } from './files.ts';
@@ -89,6 +94,7 @@ export type ToolContext = {
 	show?(effect: Effect): void;
 	sheet?(file: string): Sheet | null;
 	sources?: SourceHost;
+	images?: ImageHost;
 };
 
 // `screen` tools act on what the person sees, `write` tools change records.
@@ -323,7 +329,7 @@ const CELL = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.s
 export const ROW_VALUES = z
 	.record(z.string(), CELL)
 	.describe(
-		'values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text'
+		'values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text; for an image, a link to it, an attached file\'s id or a stored image\'s id, or an array of them'
 	);
 
 const FORMAT = {
@@ -628,7 +634,7 @@ function expected(field: FieldDef): string {
 		case 'phone':
 			return 'a phone number';
 		case 'image':
-			return 'images, which only the person adds, from the app';
+			return 'an image: a link to one, an attached file\'s id, a stored image\'s id, or an array of them';
 		case 'text':
 		case 'longtext':
 		case 'formula':
@@ -687,6 +693,93 @@ function linkValue(ws: Workspace, field: FieldDef, value: unknown): unknown {
 		);
 	}
 	return matches[0].id;
+}
+
+// Fetching stores bytes, whatever the call ends with: a call fetches this many links at most.
+const MAX_FETCHES = 50;
+
+// A retype fetches every link of a column, within the account's fetch budget.
+const MAX_RETYPE_FETCHES = 300;
+
+const FETCH_PROBLEMS: Record<IngestProblem, string> = {
+	scheme: 'only http and https links are fetched',
+	address: 'it points to a private address',
+	timeout: 'it took too long to answer',
+	network: 'it could not be reached',
+	status: 'it answered with an error',
+	size: 'it is over 10 MB',
+	'not-an-image': 'it is not a JPEG, PNG, WebP, GIF or AVIF image',
+	'too-many-pixels': 'it has over 40 million pixels',
+	full: 'the account\'s image storage is full',
+	busy: 'too many images were fetched this minute; try again in a minute'
+};
+
+function imageHostOf(ctx: ToolContext): ImageHost {
+	if (ctx.images === undefined) {
+		throw new ToolError('images cannot be added from here');
+	}
+	return ctx.images;
+}
+
+/** Links, attached files and stored ids given for image fields, as the images they name; any one that fails refuses the call. */
+async function storedImages(
+	ctx: ToolContext,
+	baseId: string,
+	tableId: string,
+	rows: Record<string, unknown>[],
+	where: (index: number) => string
+): Promise<Record<string, unknown>[]> {
+	type Item = { at: string; given: string; ref: ImageRef | null };
+	const wanted: { row: number; field: string; items: Item[] }[] = [];
+	for (const [index, values] of rows.entries()) {
+		for (const [name, value] of Object.entries(values)) {
+			const field = findField(ctx.ws, tableId, name);
+			if (field.type !== 'image' || blank(value)) continue;
+			const at = `${where(index)}.${JSON.stringify(field.name)}`;
+			const given = (Array.isArray(value) ? value : [value]).filter((item) => !blank(item));
+			if (given.length > MAX_IMAGES) {
+				throw new ToolError(`${at}: a cell holds up to ${MAX_IMAGES} images; nothing was written`);
+			}
+			const host = imageHostOf(ctx);
+			const items = given.map((item): Item => {
+				const ref = imageRef(item);
+				if (ref !== null) return { at, given: ref.id, ref };
+				if (typeof item !== 'string') {
+					throw new ToolError(`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`);
+				}
+				const text = item.trim();
+				const stored = isImageId(text) ? host.fromId(baseId, text) : null;
+				const attached = stored ?? host.fromFile(baseId, text);
+				if (attached !== null) return { at, given: text, ref: attached };
+				if (!isImageSource(text)) {
+					throw new ToolError(`${at}: ${JSON.stringify(item)} is not ${expected(field)}; nothing was written`);
+				}
+				return { at, given: text, ref: null };
+			});
+			wanted.push({ row: index, field: name, items });
+		}
+	}
+
+	const links = [...new Set(wanted.flatMap(({ items }) => items.filter((item) => item.ref === null).map((item) => item.given)))];
+	if (links.length > MAX_FETCHES) {
+		throw new ToolError(`a call fetches up to ${MAX_FETCHES} image links; split the rest into further calls`);
+	}
+	const host = links.length === 0 ? null : imageHostOf(ctx);
+	const fetched = host === null ? new Map() : await ingestAll(links, (url) => host.fromUrl(baseId, url));
+
+	const out = rows.map((values) => ({ ...values }));
+	for (const { row, field, items } of wanted) {
+		const refs = items.map((item) => {
+			const got = item.ref ?? fetched.get(item.given);
+			if (got instanceof IngestFailed || got === undefined) {
+				const why = got instanceof IngestFailed ? FETCH_PROBLEMS[got.problem] : 'it could not be fetched';
+				throw new ToolError(`${item.at}: ${item.given} was not stored: ${why}; nothing was written`);
+			}
+			return got;
+		});
+		out[row][field] = imagesValue(refs);
+	}
+	return out;
 }
 
 /** Field names to ids, link texts to row ids, unseen choices added to their field. */
@@ -978,7 +1071,7 @@ export const TOOLS: Tool[] = [
 		kind: 'write',
 		destructive: false,
 		idempotent: false,
-		run: (
+		run: async (
 			ctx,
 			input: {
 				base: string;
@@ -991,11 +1084,12 @@ export const TOOLS: Tool[] = [
 			const base = findBase(ctx.ws, input.base);
 			const table = findTable(ctx.ws, base.id, input.table);
 			const span = rowSpan(ctx.ws, table, input.after, input.before);
+			const where = (index: number) => `rows[${index}]`;
 			const { rows, fieldChanges } = rowsByName(
 				ctx.ws,
 				table.id,
-				input.rows,
-				(index) => `rows[${index}]`
+				await storedImages(ctx, base.id, table.id, input.rows, where),
+				where
 			);
 			const inserted = insertRows(ctx.ws, table.id, rows);
 			if (span !== null) {
@@ -1028,7 +1122,7 @@ export const TOOLS: Tool[] = [
 				.max(500)
 		}),
 		output: z.strictObject({ updated: z.number() }),
-		run: (
+		run: async (
 			ctx,
 			input: {
 				base: string;
@@ -1041,11 +1135,18 @@ export const TOOLS: Tool[] = [
 			for (const update of input.updates) {
 				requireRow(ctx.ws, table, update.id);
 			}
+			const where = (index: number) => `updates[${index}].values`;
 			const { rows, fieldChanges } = rowsByName(
 				ctx.ws,
 				table.id,
-				input.updates.map((update) => update.values),
-				(index) => `updates[${index}].values`
+				await storedImages(
+					ctx,
+					base.id,
+					table.id,
+					input.updates.map((update) => update.values),
+					where
+				),
+				where
 			);
 			const changes = input.updates.flatMap((update, index) =>
 				updateRow(ctx.ws, update.id, rows[index])
@@ -1186,7 +1287,7 @@ export const TOOLS: Tool[] = [
 		name: 'update_field',
 		title: TITLES.update_field,
 		description:
-			'Renames a field, or changes its type, format, choices, formula or description. A new type or scale converts every value; `lost` counts those it cannot hold, now empty.',
+			'Renames a field, or changes its type, format, choices, formula or description. A new type or scale converts every value; `lost` counts those it cannot hold, now empty. A field becoming image fetches the image each link in its values names.',
 		kind: 'write',
 		destructive: true,
 		idempotent: true,
@@ -1269,11 +1370,28 @@ export const TOOLS: Tool[] = [
 								)
 							)
 						: undefined;
+				let fetched: Map<string, ImageRef> | undefined;
+				if (type === 'image' && field.type !== 'image') {
+					const links = imageLinksOf(ctx.ws, field.id);
+					if (links.length > MAX_RETYPE_FETCHES) {
+						throw new ToolError(
+							`"${field.name}" holds ${links.length} links; a retype to image fetches up to ${MAX_RETYPE_FETCHES}`
+						);
+					}
+					const host = links.length === 0 ? null : imageHostOf(ctx);
+					fetched = new Map();
+					if (host !== null) {
+						for (const [link, got] of await ingestAll(links, (url) => host.fromUrl(base.id, url))) {
+							if (!(got instanceof IngestFailed)) fetched.set(link, got);
+						}
+					}
+				}
 				converted = retypeField(
 					ctx.ws,
 					field.id,
 					{
 						type,
+						fetched,
 						...format,
 						target:
 							input.target === undefined

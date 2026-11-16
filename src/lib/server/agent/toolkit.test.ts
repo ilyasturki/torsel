@@ -6,6 +6,9 @@ import { Hlc } from '../../core/clock.ts';
 import { Workspace } from '../../core/workspace.ts';
 import type { Effect } from '../../core/thread.ts';
 import { inLocale, requestLocale } from '../http/locale.ts';
+import type { ImageRef } from '../../core/images.ts';
+import type { ImageHost } from '../images/host.ts';
+import { IngestFailed } from '../images/ingest.ts';
 import type { Sheet } from './files.ts';
 import type { Action, ToolContext } from './toolkit.ts';
 import catalog from '../../i18n/assistant.ts';
@@ -818,5 +821,129 @@ describe('step line', () => {
 			expect(catalog.en.steps[tool.name], tool.name).toBeTruthy();
 			expect(catalog.fr.steps[tool.name], tool.name).toBeTruthy();
 		}
+	});
+});
+
+describe('image writes', () => {
+	const ref = (letter: string, src?: string): ImageRef => ({
+		id: letter.repeat(64),
+		type: 'image/jpeg',
+		w: 342,
+		h: 513,
+		size: 9000,
+		...(src === undefined ? {} : { src })
+	});
+
+	function withImages() {
+		const s = session();
+		const fetched: string[] = [];
+		const images: ImageHost = {
+			async fromUrl(_, url) {
+				fetched.push(url);
+				if (url.includes('gone')) throw new IngestFailed('status');
+				return ref(url.includes('alien') ? 'b' : 'a', url);
+			},
+			fromFile: (_, name) => (name === 'receipt.jpg' ? { ...ref('c'), name } : null),
+			fromId: (_, id) => (id === 'd'.repeat(64) ? ref('d') : null)
+		};
+		s.ctx.images = images;
+		return { ...s, fetched };
+	}
+
+	async function posters(s: ReturnType<typeof withImages>) {
+		await s.call('create_table', {
+			name: 'Movies',
+			fields: [
+				{ name: 'Title', type: 'text' },
+				{ name: 'Poster', type: 'image' }
+			]
+		});
+		return s.ctx.ws.bases()[0].id;
+	}
+
+	it('stores a linked image, an attached file and a stored id, each fetched once', async () => {
+		const s = withImages();
+		const base = await posters(s);
+		const dune = 'https://img.example/dune.jpg';
+
+		const added = (await s.call('add_rows', {
+			base,
+			table: 'Movies',
+			rows: [
+				{ Title: 'Dune', Poster: dune },
+				{ Title: 'Dune again', Poster: [dune, 'receipt.jpg', 'd'.repeat(64)] }
+			]
+		})) as { added: string[] };
+
+		expect(s.fetched).toEqual([dune]);
+		const poster = s.ctx.ws.fields(s.ctx.ws.tables(base)[0].id)[1].id;
+		expect(s.ctx.ws.live(added.added[0])?.data[poster]).toEqual([ref('a', dune)]);
+		expect(s.ctx.ws.live(added.added[1])?.data[poster]).toEqual([
+			ref('a', dune),
+			{ ...ref('c'), name: 'receipt.jpg' },
+			ref('d')
+		]);
+	});
+
+	it('writes nothing when one link fails, and says which', async () => {
+		const s = withImages();
+		const base = await posters(s);
+		const before = s.actions.length;
+
+		expect(
+			await s.call('add_rows', {
+				base,
+				table: 'Movies',
+				rows: [{ Poster: 'https://img.example/dune.jpg' }, { Poster: 'https://img.example/gone.jpg' }]
+			})
+		).toEqual({
+			error:
+				'rows[1]."Poster": https://img.example/gone.jpg was not stored: it answered with an error; nothing was written'
+		});
+		expect(await s.call('add_rows', { base, table: 'Movies', rows: [{ Poster: 'a poster' }] })).toEqual(
+			{ error: expect.stringContaining('"a poster" is not an image') }
+		);
+		expect(s.actions.length).toBe(before);
+	});
+
+	it('refuses images where no host stores them', async () => {
+		const s = withImages();
+		const base = await posters(s);
+		s.ctx.images = undefined;
+
+		expect(
+			await s.call('add_rows', {
+				base,
+				table: 'Movies',
+				rows: [{ Poster: 'https://img.example/dune.jpg' }]
+			})
+		).toEqual({ error: 'images cannot be added from here' });
+	});
+
+	it('turns a column of links into images, a failed one lost', async () => {
+		const s = withImages();
+		await s.call('create_table', {
+			name: 'Movies',
+			fields: [{ name: 'Poster', type: 'url' }]
+		});
+		const base = s.ctx.ws.bases()[0].id;
+		await s.call('add_rows', {
+			base,
+			table: 'Movies',
+			rows: [
+				{ Poster: 'https://img.example/alien.jpg' },
+				{ Poster: 'https://img.example/gone.jpg' }
+			]
+		});
+
+		expect(
+			await s.call('update_field', { base, table: 'Movies', field: 'Poster', type: 'image' })
+		).toEqual({ updated: expect.any(String), lost: 1 });
+		const table = s.ctx.ws.tables(base)[0].id;
+		const field = s.ctx.ws.fields(table)[0].id;
+		expect(s.ctx.ws.rows(table).map((row) => row.data[field] ?? null)).toEqual([
+			[ref('b', 'https://img.example/alien.jpg')],
+			null
+		]);
 	});
 });

@@ -23,6 +23,7 @@ import type { Workspace } from '../../core/workspace.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeUndoable } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
+import { imageHost } from '../images/host.ts';
 import { sourceHost } from '../sources/host.ts';
 import { perMinute } from '../auth/rate-limit.ts';
 import type { Credential } from '../auth/session.ts';
@@ -114,7 +115,8 @@ export async function execute(
 					console.error('mcp change record:', thrown instanceof Error ? thrown.message : thrown);
 				}
 			},
-			sources: sourceHost(db, caller.userId)
+			sources: sourceHost(db, caller.userId),
+			images: imageHost(db, caller.userId)
 		};
 		return { outcome: await runTool(ctx, tool, input), ws };
 	};

@@ -1,7 +1,8 @@
 import { hasPath } from './access.ts';
 import type { Change, Choice, FieldDef, FieldType, FormatKey, Value } from './model.ts';
 import { formatSet, hasChoices, isNumeric } from './model.ts';
-import { imagesText } from './images.ts';
+import type { ImageRef } from './images.ts';
+import { MAX_IMAGES, imageLinks, imagesText, imagesValue } from './images.ts';
 import { CHOICES_JOIN, coerce, durationUnit, formatDuration } from './values.ts';
 import type { Workspace } from './workspace.ts';
 
@@ -12,6 +13,8 @@ export type Retype = {
 	choices?: Choice[];
 	/** How a check value reads once it is text, in the language of whoever converts it. */
 	checkWords?: { yes: string; no: string };
+	/** For a field becoming images: each link its values hold, as the image fetched from it. */
+	fetched?: ReadonlyMap<string, ImageRef>;
 } & Partial<Pick<FieldDef, FormatKey>>;
 
 /** A value as the person reads it, without a locale: what a text field keeps of it. */
@@ -70,7 +73,29 @@ function convert(
 	if (text === null) {
 		return null;
 	}
+	if (to.type === 'image') {
+		const refs = imageLinks(text).flatMap((link) => to.fetched?.get(link) ?? []);
+		return imagesValue(refs.slice(0, MAX_IMAGES));
+	}
 	return to.type === 'link' ? (titles.get(text.trim().toLowerCase()) ?? null) : coerce(to, text);
+}
+
+/** Every link a field's values hold, for a retype to images to fetch before it converts. */
+export function imageLinksOf(ws: Workspace, fieldId: string): string[] {
+	const field = ws.field(fieldId);
+	if (field === undefined || field.type === 'image' || field.type === 'formula') {
+		return [];
+	}
+	const links = new Set<string>();
+	for (const row of ws.rows(field.table)) {
+		const value = row.data[field.id];
+		const text =
+			value === null || value === undefined ? null : asText(ws, field, { type: 'image' }, value);
+		for (const link of text === null ? [] : imageLinks(text)) {
+			links.add(link);
+		}
+	}
+	return [...links];
 }
 
 function linkTitles(ws: Workspace, target: string | null | undefined): Map<string, string> {

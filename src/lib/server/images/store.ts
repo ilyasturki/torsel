@@ -138,6 +138,15 @@ export function receiveImagePart(db: Database, part: Part, limit: number): Recei
 	}, WRITER);
 }
 
+export function imageInfo(
+	db: Database,
+	userId: string,
+	baseId: string,
+	id: string
+): ImageRef | undefined {
+	return find(db, { userId, baseId, id }) as ImageRef | undefined;
+}
+
 export function readImage(
 	db: Database,
 	userId: string,

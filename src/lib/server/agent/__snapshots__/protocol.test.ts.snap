@@ -590,7 +590,7 @@ exports[`lists the same tools in every era 1`] = `
                 },
               ],
             },
-            "description": "values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text",
+            "description": "values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text; for an image, a link to it, an attached file's id or a stored image's id, or an array of them",
             "propertyNames": {
               "type": "string",
             },
@@ -681,7 +681,7 @@ exports[`lists the same tools in every era 1`] = `
                     },
                   ],
                 },
-                "description": "values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text",
+                "description": "values by field name: text; a number (an amount for currency, points for percent: 25 for 25%, a score on the scale for rating); "h:mm:ss" or seconds for a duration; a YYYY-MM-DD date, YYYY-MM-DDTHH:MM for a datetime; a boolean for a check; the choice text; an array of choice texts for choices; the main text of the linked row; a URL, email or phone as text; for an image, a link to it, an attached file's id or a stored image's id, or an array of them",
                 "propertyNames": {
                   "type": "string",
                 },
@@ -1203,7 +1203,7 @@ exports[`lists the same tools in every era 1`] = `
       "openWorldHint": false,
       "readOnlyHint": false,
     },
-    "description": "Renames a field, or changes its type, format, choices, formula or description. A new type or scale converts every value; \`lost\` counts those it cannot hold, now empty.",
+    "description": "Renames a field, or changes its type, format, choices, formula or description. A new type or scale converts every value; \`lost\` counts those it cannot hold, now empty. A field becoming image fetches the image each link in its values names.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
