@@ -18,8 +18,8 @@ export const isDecisionKey = (key: string): boolean => key.startsWith(DECISION);
 
 const decisionKeys = (): IDBKeyRange => IDBKeyRange.bound(DECISION, `${DECISION}\uffff`);
 
-/** An image not yet on the server, under `outboxKey`. */
-export type Outgoing = { base: string; ref: ImageRef; blob: Blob };
+/** An image not yet on the server, under `outboxKey`; its bytes stay in `images`. */
+export type Outgoing = { base: string; ref: ImageRef };
 
 export const outboxKey = (base: string, id: string): string => `${base}/${id}`;
 
@@ -186,7 +186,7 @@ export async function keepImage(
 		tx.objectStore('images').put(blob, ref.id),
 		base === undefined
 			? undefined
-			: tx.objectStore('outbox').put({ base, ref, blob }, outboxKey(base, ref.id)),
+			: tx.objectStore('outbox').put({ base, ref }, outboxKey(base, ref.id)),
 		tx.done
 	]);
 }
@@ -195,8 +195,15 @@ export function readImage(db: LocalDb, id: string): Promise<Blob | undefined> {
 	return db.get('images', id);
 }
 
-export function readOutbox(db: LocalDb): Promise<Outgoing[]> {
-	return db.getAll('outbox');
+export async function readOutbox(db: LocalDb): Promise<(Outgoing & { blob: Blob })[]> {
+	const tx = db.transaction(['images', 'outbox'], 'readonly');
+	const queued = await tx.objectStore('outbox').getAll();
+	const blobs = await Promise.all(queued.map(({ ref }) => tx.objectStore('images').get(ref.id)));
+	await tx.done;
+	return queued.flatMap((item, at) => {
+		const blob = blobs[at];
+		return blob === undefined ? [] : [{ ...item, blob }];
+	});
 }
 
 export async function sent(db: LocalDb, base: string, id: string): Promise<void> {
