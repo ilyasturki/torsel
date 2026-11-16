@@ -60,7 +60,7 @@
 	import Icon from '#lib/ui/Icon.svelte';
 	import { keys } from '#lib/ui/keys.ts';
 	import Rating from '#lib/ui/Rating.svelte';
-	import { input as inputStyle } from '#lib/ui/styles.ts';
+	import { focus, input as inputStyle } from '#lib/ui/styles.ts';
 	import Tooltip from '#lib/ui/Tooltip.svelte';
 
 	import AddField from './AddField.svelte';
@@ -268,6 +268,7 @@
 	}
 
 	const headRow = $derived(head === null ? -1 : rowOf(head));
+	const blankOpen = $derived(headRow === rows.length || editing?.row === BLANK);
 	const headCol = $derived(head === null ? -1 : colOf(head));
 	const anchorRow = $derived(anchor === null ? -1 : rowOf(anchor));
 	const anchorCol = $derived(anchor === null ? -1 : colOf(anchor));
@@ -328,13 +329,16 @@
 		if (jump !== 0) {
 			untrack(() => {
 				gridJump.blankRow = 0;
-				if (!adds) return;
-				const first = fields.findIndex((field) => field.type !== 'formula');
-				select(rows.length, Math.max(0, first));
-				table?.focus({ preventScroll: true });
+				if (adds) openBlank();
 			});
 		}
 	});
+
+	function openBlank(): void {
+		const first = fields.findIndex((field) => field.type !== 'formula');
+		select(rows.length, Math.max(0, first));
+		table?.focus({ preventScroll: true });
+	}
 
 	$effect(() => {
 		if (gridJump.fitAll !== 0) {
@@ -1723,14 +1727,10 @@
 				<span class="flex size-4 items-center justify-center rounded-box ring-1 ring-edge">
 					<CellValue {field} {value} />
 				</span>
-			{:else if row === null && isDated(field.type)}
-				<span class="truncate text-ink-3">{formatValue(field, freshValue(field))}</span>
 			{:else if field.type === 'rating' && value == null}
 				<span class="flex opacity-0 group-hover:opacity-100 {isActive ? 'opacity-100' : ''}">
 					<Rating {...ratingScale(field)} value={null} size="sm" />
 				</span>
-			{:else if row === null && field.type !== 'formula'}
-				<span class="truncate text-ink-3">{field.name}</span>
 			{:else}
 				<CellValue {field} {value} />
 			{/if}
@@ -2105,7 +2105,31 @@
 							<td colspan={fields.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
-					{#if showBlank}
+					{#if showBlank && !blankOpen}
+						<tr class="group" aria-rowindex={rows.length + 2}>
+							<td
+								role="rowheader"
+								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
+							>
+								<button
+									type="button"
+									class="absolute inset-0 flex items-center justify-end pr-2 text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
+									aria-label={words.addRow}
+									onclick={() => {
+										rowId = null;
+										rowOpen = true;
+									}}><Icon name="plus" class="size-3" /></button
+								>
+							</td>
+							<td colspan={fields.length + 2} class="h-row border-b border-rule p-0">
+								<button
+									type="button"
+									class="sticky left-11 flex h-row items-center px-3 text-ink-3 transition-colors motion group-hover:text-ink-2 hover:text-ink {focus}"
+									onclick={openBlank}>{words.newRow}</button
+								>
+							</td>
+						</tr>
+					{:else if showBlank}
 						<tr class="group" aria-rowindex={rows.length + 2}>
 							<td
 								role="rowheader"

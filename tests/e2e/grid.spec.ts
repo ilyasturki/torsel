@@ -147,6 +147,9 @@ const at = (page: Page, row: number, col: number): Locator =>
 
 const grid = (page: Page): Locator => page.getByRole('grid');
 
+/** The line under the last row that opens the blank row to type in. */
+const newRowLine = (page: Page): Locator => grid(page).getByRole('button', { name: 'New row' });
+
 const selected = (page: Page): Locator => page.locator('td[aria-selected="true"]');
 
 const editor = (page: Page): Locator => page.getByRole('gridcell').getByRole('textbox');
@@ -558,6 +561,7 @@ test.describe('new rows', () => {
 		const numbers = page.getByRole('rowheader').locator('button');
 		await expect(numbers).toHaveText(['1', '2', '3', '']);
 
+		await newRowLine(page).click();
 		const blank = await at(page, 3, 0).boundingBox();
 		await at(page, 3, 0).click();
 		await page.keyboard.type('Row four');
@@ -588,6 +592,7 @@ test.describe('new rows', () => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);
 
+		await newRowLine(page).click();
 		await at(page, 3, 0).click();
 		await page.keyboard.press('Enter');
 		await page.keyboard.press('Enter');
@@ -608,6 +613,7 @@ test.describe('new rows', () => {
 			day: 'numeric'
 		});
 
+		await newRowLine(page).click();
 		await at(page, 1, 2).click();
 		await page.keyboard.press('Enter');
 		await expect(editor(page)).toHaveValue(today);
@@ -642,6 +648,7 @@ test.describe('new rows', () => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);
 
+		await press(newRowLine(page));
 		await press(at(page, 3, 3));
 		await expect(page.getByText('4 rows')).toBeVisible();
 		await expect(at(page, 3, 3).getByRole('img', { name: 'Yes' })).toBeVisible();
@@ -661,6 +668,22 @@ test.describe('columns', () => {
 			'colspan',
 			'2'
 		);
+	});
+
+	test('the end of the grid is one New row line that opens a blank row to type in', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await open(page, (await seedPlain(context.request, 3)).path);
+		await expect(at(page, 3, 0)).toHaveCount(0);
+		await expect(newRowLine(page)).toBeVisible();
+
+		await press(newRowLine(page));
+		await expect(newRowLine(page)).toHaveCount(0);
+		await expect(at(page, 3, 0)).toHaveAttribute('aria-selected', 'true');
+		await expect(at(page, 3, 0)).toHaveText('');
 	});
 
 	test('start fitted to their content', async ({ page, context, account }) => {
@@ -846,7 +869,7 @@ test.describe('scale', () => {
 		expect(typical, 'the median frame while scrolling, ms').toBeLessThan(100);
 
 		await expect(at(page, 379, 0)).toHaveText('Row 380');
-		await expect(at(page, 380, 0)).toBeAttached();
+		await expect(newRowLine(page)).toBeAttached();
 		expect(await page.locator('tbody tr').count()).toBeLessThan(120);
 	});
 
@@ -1092,6 +1115,7 @@ test.describe('phone', () => {
 		void account;
 		await open(page, (await seedLifts(context.request)).path);
 
+		await newRowLine(page).tap();
 		const blank = at(page, 3, 0);
 		await blank.tap();
 		await blank.locator('input').fill('Row four');
