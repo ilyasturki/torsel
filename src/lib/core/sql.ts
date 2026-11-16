@@ -324,6 +324,27 @@ export function formulaCells(
 	return engine.all(sql, rows).map((row) => [String(row.id), fields.map((id) => row[id] ?? null)]);
 }
 
+/** Every row's formula values, by row id; the table must be materialized. */
+export function computedCells(
+	engine: Engine,
+	ws: Workspace,
+	tableId: string
+): [string, Record<string, SqlValue>][] {
+	const formulas = ws
+		.fields(tableId)
+		.filter((field) => field.type === 'formula')
+		.map((field) => field.id);
+	if (formulas.length === 0) {
+		return [];
+	}
+	return engine
+		.all(`select id, ${formulas.map(quote).join(', ')} from v_${tableId}`)
+		.map((row) => [
+			String(row.id),
+			Object.fromEntries(formulas.map((id) => [id, plainCell(row[id])]))
+		]);
+}
+
 /** Why SQLite refuses a stored formula on this table, or null; the table must be materialized. */
 export function formulaProblem(
 	engine: Engine,

@@ -121,7 +121,7 @@ export function createHandle(database: () => Database): Handle {
 		if (!api) {
 			event.locals.credential = null;
 			const response = await resolve(event);
-			if (pathname === '/app' || pathname.startsWith('/app/')) {
+			if (pathname === '/app' || pathname.startsWith('/app/') || pathname.startsWith('/v/')) {
 				response.headers.set('x-robots-tag', 'noindex');
 			}
 			return response;

@@ -80,6 +80,15 @@ export const LIMITS = {
 	code: { ip: slidingWindow(30, 15 * MINUTE), email: slidingWindow(30, 15 * MINUTE) }
 };
 
+// Per address: a link is opened by anyone, and each image of it is one more request.
+export const PUBLISHED = { page: slidingWindow(60, MINUTE), files: slidingWindow(600, MINUTE) };
+
+export function enforcePublished(window: Window, address: string): void {
+	if (window.hit(address)) {
+		error(429, errors.tooMany);
+	}
+}
+
 /** Charges both windows even when the first refuses: a flood must not spare the other. */
 export function enforce(
 	limit: { ip: Window; email: Window },
@@ -96,6 +105,8 @@ export function enforce(
 
 export function resetRateLimits(): void {
 	lookups.reset();
+	PUBLISHED.page.reset();
+	PUBLISHED.files.reset();
 	for (const limit of Object.values(LIMITS)) {
 		limit.ip.reset();
 		limit.email.reset();

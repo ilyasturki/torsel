@@ -1,18 +1,23 @@
+import type { ChartData } from '../../core/chart.ts';
 import type { EngineLimits } from '../../core/memory-engine.ts';
-import type { Rec } from '../../core/model.ts';
+import type { ChartConfig, Rec } from '../../core/model.ts';
 import type { QueryPage, SqlValue } from '../../core/sql.ts';
 
 export type SqlTask =
 	| { kind: 'query'; sql: string; offset: number }
 	| { kind: 'formula-problem'; table: string; stored: string }
 	| { kind: 'formula-values'; table: string; stored: string }
-	| { kind: 'formula-cells'; table: string; fields: string[]; rows: string[] };
+	| { kind: 'formula-cells'; table: string; fields: string[]; rows: string[] }
+	| { kind: 'computed'; table: string }
+	| { kind: 'chart'; table: string; config: ChartConfig };
 
 export type SqlResult = {
 	query: QueryPage;
 	'formula-problem': string | null;
 	'formula-values': [string, SqlValue][];
 	'formula-cells': [string, SqlValue[]][];
+	computed: [string, Record<string, SqlValue>][];
+	chart: ChartData | null;
 };
 
 export type SqlJob = {

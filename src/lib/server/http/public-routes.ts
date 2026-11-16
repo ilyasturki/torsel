@@ -13,6 +13,7 @@ export const PUBLIC_API_ROUTES: Record<string, string> = {
 	'/api/oauth/token': 'OAuth clients trade a code or a refresh token, which is the credential',
 	'/api/oauth/register': 'OAuth clients register before anyone signs in, rate limited',
 	'/api/oauth/revoke': 'OAuth clients hand back a token, which is the credential',
+	'/api/published': "a published view's token is the credential, rate limited",
 	'/api/v1/openapi.json':
 		'the REST API description, the same for everyone, read by tools before any token'
 };

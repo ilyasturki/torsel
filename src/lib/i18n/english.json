@@ -44,6 +44,7 @@
 	"src/lib/core/sql.ts\tselect ({sql}) from {tableId} t limit 0",
 	"src/lib/core/sql.ts\tselect * from ({statement} ) limit {most + 1} offset {offset}",
 	"src/lib/core/sql.ts\tselect id, {fields.map(quote).join(', ')} from v_{tableId} where id in ({rows.map(() => '?').join(', ')})",
+	"src/lib/core/sql.ts\tselect id, {formulas.map(quote).join(', ')} from v_{tableId}",
 	"src/lib/core/sql.ts\tselect t.id as id, ({sql}) as v from {tableId} t",
 	"src/lib/core/sql.ts\tv.id as \"_id\"",
 	"src/lib/core/sql.ts\tv.{quote(CREATED)} as \"_created\"",
@@ -278,6 +279,7 @@
 	"src/lib/server/http/public-routes.ts\tOAuth clients hand back a token, which is the credential",
 	"src/lib/server/http/public-routes.ts\tOAuth clients register before anyone signs in, rate limited",
 	"src/lib/server/http/public-routes.ts\tOAuth clients trade a code or a refresh token, which is the credential",
+	"src/lib/server/http/public-routes.ts\ta published view's token is the credential, rate limited",
 	"src/lib/server/http/public-routes.ts\taccount creation, off unless the server opts in, rate limited",
 	"src/lib/server/http/public-routes.ts\tpassword sign-in, throttled",
 	"src/lib/server/http/public-routes.ts\trequests an emailed sign-in, rate limited",
@@ -383,5 +385,7 @@
 	"src/routes/app/settings/+page.svelte\tClaude Code",
 	"src/routes/app/settings/+page.svelte\tTorsel",
 	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl}",
-	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl} --header \"Authorization: Bearer {minted}\""
+	"src/routes/app/settings/+page.svelte\tclaude mcp add --transport http torsel {mcpUrl} --header \"Authorization: Bearer {minted}\"",
+	"src/routes/v/[token]/files/[id]/+server.ts\tdefault-src 'none'; sandbox",
+	"src/routes/v/[token]/files/[id]/+server.ts\tpublic, max-age=60"
 ]

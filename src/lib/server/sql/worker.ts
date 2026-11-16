@@ -1,9 +1,11 @@
 import { parentPort, workerData } from 'node:worker_threads';
 
+import { chartData } from '../../core/chart.ts';
 import type { MemoryEngine, Sqlite3 } from '../../core/memory-engine.ts';
 import { memoryEngine } from '../../core/memory-engine.ts';
 import {
 	QueryError,
+	computedCells,
 	formulaCells,
 	formulaProblem,
 	formulaValues,
@@ -36,6 +38,10 @@ function run(engine: MemoryEngine, ws: Workspace, job: SqlJob): SqlResult[SqlJob
 			return [...formulaValues(engine, ws, task.table, task.stored)];
 		case 'formula-cells':
 			return formulaCells(engine, task.table, task.fields, task.rows);
+		case 'computed':
+			return computedCells(engine, ws, task.table);
+		case 'chart':
+			return chartData(engine, ws, task.table, task.config);
 	}
 }
 

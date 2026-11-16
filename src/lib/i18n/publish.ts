@@ -1,0 +1,39 @@
+import { area } from './runtime.ts';
+
+const en = {
+	publish: 'Publish to web',
+	publishNow: 'Publish',
+	link: 'Link',
+	copyLink: 'Copy link',
+	linkCopied: 'Link copied',
+	unpublish: 'Unpublish',
+	unpublished: (view: string) => `${view} unpublished`,
+	notSynced: 'This view isn’t synced yet',
+	failed: 'Couldn’t reach the server',
+	madeWith: 'Made with Torsel',
+	gone: 'This link no longer works',
+	loadFailed: 'Couldn’t load this view',
+	noSuchLink: 'no such link',
+	noSuchView: 'no such view'
+};
+
+const fr: typeof en = {
+	publish: 'Publier sur le web',
+	publishNow: 'Publier',
+	link: 'Lien',
+	copyLink: 'Copier le lien',
+	linkCopied: 'Lien copié',
+	unpublish: 'Retirer du web',
+	unpublished: (view) => `${view} retirée du web`,
+	notSynced: 'Cette vue n’est pas encore synchronisée',
+	failed: 'Serveur injoignable',
+	madeWith: 'Fait avec Torsel',
+	gone: 'Ce lien ne marche plus',
+	loadFailed: 'Impossible de charger cette vue',
+	noSuchLink: 'lien introuvable',
+	noSuchView: 'vue introuvable'
+};
+
+export default { en, fr };
+
+export const publish = area({ en, fr });

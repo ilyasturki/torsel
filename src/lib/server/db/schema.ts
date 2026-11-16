@@ -1,4 +1,12 @@
-import { blob, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+	blob,
+	index,
+	integer,
+	primaryKey,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 
 import type { Change, Rec } from '../../core/model.ts';
 import type { ActionStatus, RowMeta } from '../../core/thread.ts';
@@ -347,3 +355,22 @@ export const savedPrompts = sqliteTable(
 	},
 	(table) => [primaryKey({ columns: [table.id] }), index('saved_prompts_user_idx').on(table.userId)]
 );
+
+// The token is kept as is, unlike `auth_tokens`: the owner copies the link again, and it opens only what the view shows.
+export const publications = sqliteTable(
+	'publications',
+	{
+		token: text('token').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		viewId: text('view_id').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.token] }),
+		uniqueIndex('publications_user_view_idx').on(table.userId, table.viewId)
+	]
+);
+
+export type Publication = typeof publications.$inferSelect;
