@@ -6,11 +6,16 @@ import {
 	createTable,
 	createView,
 	defaultViews,
-	insertRows
+	insertRows,
+	updateRecord
 } from '../../src/lib/core/actions.ts';
+import type { Value, ViewConfig } from '../../src/lib/core/model.ts';
 import { expect, openAsk as tapAsk, script, seed, tablePath, test } from './harness.ts';
 
-function seedSets(request: APIRequestContext) {
+function seedSets(
+	request: APIRequestContext,
+	config: (fields: string[]) => ViewConfig = () => ({})
+) {
 	return seed(request, (ws, commit) => {
 		const base = createBase(ws, 'Gym');
 		commit(base.changes);
@@ -35,6 +40,10 @@ function seedSets(request: APIRequestContext) {
 			{ [exercise]: 'Dips', [reps]: 10, [kg]: 0, [rpe]: 7 }
 		]);
 		commit(rows.changes);
+		const grid = ws.views(table.id).find((view) => view.type === 'grid');
+		if (grid !== undefined) {
+			commit(updateRecord(ws, grid.id, { config: config(table.fieldIds) as Value }));
+		}
 		return { base: base.id, table: table.id, rows: rows.ids, fields: table.fieldIds };
 	});
 }
@@ -199,7 +208,10 @@ test('a column totals the shown rows from its menu, and the totals row takes it 
 	const total = grid.locator('[data-total="Kg"]');
 	await expect(total).toHaveText(/Sum\s*265/u);
 
-	await grid.getByRole('columnheader', { name: 'Exercise', exact: true }).getByRole('button').click();
+	await grid
+		.getByRole('columnheader', { name: 'Exercise', exact: true })
+		.getByRole('button')
+		.click();
 	await page.getByRole('textbox', { name: 'Filter Exercise' }).fill('bench');
 	await page.keyboard.press('Enter');
 	await expect(total).toHaveText(/Sum\s*165/u);
@@ -207,4 +219,30 @@ test('a column totals the shown rows from its menu, and the totals row takes it 
 	await total.click();
 	await page.getByRole('menuitem', { name: 'None' }).click();
 	await expect(grid.locator('tfoot')).toHaveCount(0);
+});
+
+test.describe('in French', () => {
+	test.use({ locale: 'fr-FR' });
+
+	test('the filter line and the totals read in French, numbers in its own forms', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		const { table } = await seedSets(context.request, ([exercise, , kg]) => ({
+			filters: [
+				{ field: exercise, op: 'contains', value: 'ench' },
+				{ field: kg, op: 'gte', value: 80 }
+			],
+			totals: { [kg]: 'avg' }
+		}));
+		await page.goto(tablePath(table));
+		await expect(
+			page.getByText(
+				'Exercise contient «\u00a0ench\u00a0», Kg supérieur ou égal à 80\u00a0: 2 sur 4'
+			)
+		).toBeVisible();
+		await expect(page.getByRole('grid').locator('[data-total="Kg"]')).toHaveText(/Moyenne\s*82,5/u);
+	});
 });
