@@ -136,6 +136,12 @@ test('an image from a file shows in its cell whole, and Space opens it', async (
 	await page.keyboard.press('Escape');
 	await expect(lightbox).toBeHidden();
 
+	// Images can't travel as text, so a cut copies them and leaves them in place.
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await page.keyboard.press('Control+X');
+	await expect(page.getByRole('status')).toContainText('Copied');
+	await expect(posterCell(page, 'Dune').getByRole('img')).toBeVisible();
+
 	await expect.poll(() => serverValue(context.request, movies.rows[0])).toHaveLength(1);
 });
 

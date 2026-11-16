@@ -692,8 +692,11 @@
 		return fields.slice(Math.max(0, left), right + 1);
 	}
 
-	function clearRange(): number | null {
-		const clearable = rangeFields().filter((field) => !locked.has(field.id));
+	/** `moving`: a cut, whose images can't travel as text and so stay where they are. */
+	function clearRange(moving = false): number | null {
+		const clearable = rangeFields().filter(
+			(field) => !locked.has(field.id) && !(moving && field.type === 'image')
+		);
 		const changes = clearChanges(app.ws, clearable, rangeRows());
 		const count = changes.length;
 		return applyWithUndo(changes, words.cleared(count))?.id ?? null;
@@ -1110,12 +1113,13 @@
 		event.preventDefault();
 		const height = bottom - top + 1;
 		const count = height * rangeFields().length;
-		// Synced cells are copied, never cleared: a cut of only those is a copy.
+		// Synced cells and images are copied, never cleared: a cut of only those is a copy.
 		const cleared = cut
-			? height * rangeFields().filter((field) => !locked.has(field.id)).length
+			? height *
+				rangeFields().filter((field) => !locked.has(field.id) && field.type !== 'image').length
 			: 0;
 		backToGrid();
-		const undo = cleared > 0 ? clearRange() : null;
+		const undo = cleared > 0 ? clearRange(true) : null;
 		showToast(cleared > 0 ? words.cut(cleared) : words.copied(count), undo);
 	}
 
