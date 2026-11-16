@@ -208,7 +208,7 @@ export function listLayout(fields: FieldDef[], config: ViewConfig): ListLayout {
 	};
 }
 
-export function chartAxis(fields: FieldDef[], config: ViewConfig): string | null {
+function chartAxis(fields: FieldDef[], config: ViewConfig): string | null {
 	return (
 		config.x ??
 		fields.find((field) => isDated(field.type))?.id ??

@@ -509,10 +509,10 @@ test.describe('adding and correcting rows', () => {
 		await expect(source).toHaveText('From today');
 		const log = page.getByRole('listitem');
 		await expect(log).toHaveCount(2);
-		await expect(log.first()).toContainText('Oct 22');
-		await expect(log.first()).toContainText('100');
-		await expect(log.last()).toContainText('Today');
-		await expect(log.last()).toContainText('102.5');
+		await expect(log.first()).toContainText('Today');
+		await expect(log.first()).toContainText('102.5');
+		await expect(log.last()).toContainText('Oct 22');
+		await expect(log.last()).toContainText('100');
 	});
 });
 
@@ -601,10 +601,13 @@ test.describe('fields and views', () => {
 		let sheet = await openSettings();
 		await pick(sheet.getByRole('combobox', { name: 'Add a sort' }), 'Kg');
 		await pick(sheet.getByRole('combobox', { name: 'Order' }), 'Descending');
-		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(firstRow).toContainText('100');
 		await expect(header(page, 'Kg').locator('svg')).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(sheet).toHaveCount(0);
 
+		await undo(page);
+		await expect(firstRow).not.toContainText('100');
 		await undo(page);
 		await expect(header(page, 'Kg').locator('svg')).toHaveCount(0);
 		await redo(page);
@@ -615,7 +618,8 @@ test.describe('fields and views', () => {
 		await pick(sheet.getByRole('combobox', { name: 'Add a sort' }), 'Exercise');
 		await sheet.getByRole('button', { name: 'Remove sort' }).first().click();
 		await expect(sheet.getByRole('combobox', { name: 'Sort field 1' })).toHaveValue('Exercise');
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await page.keyboard.press('Escape');
+		await expect(sheet).toHaveCount(0);
 		await expect(header(page, 'Kg').locator('svg')).toHaveCount(0);
 		await expect(firstRow).toContainText('Bench');
 
@@ -625,7 +629,7 @@ test.describe('fields and views', () => {
 			'placeholder',
 			'None, oldest first'
 		);
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await page.keyboard.press('Escape');
 		await expect(header(page, 'Exercise').locator('svg')).toHaveCount(0);
 	});
 
@@ -637,7 +641,8 @@ test.describe('fields and views', () => {
 
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await sheet.getByRole('button', { name: /^Chart/u }).click();
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
+		await page.keyboard.press('Escape');
 
 		await expect(page).toHaveURL(new RegExp(`${tablePath('Lifts', 'Sets')}$`, 'u'));
 		await expect(page.getByRole('img', { name: /per Date/u })).toBeVisible();
@@ -665,7 +670,8 @@ test.describe('fields and views', () => {
 		await expect(sheet.getByRole('checkbox', { name: 'Date' })).not.toBeChecked();
 
 		await pick(sheet.getByRole('combobox', { name: 'Group by' }), 'Nothing');
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await page.keyboard.press('Escape');
+		await expect(sheet).toHaveCount(0);
 		await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
 
 		await page.goto(tablePath(table, chart));
@@ -692,7 +698,6 @@ test.describe('fields and views', () => {
 		const sheet = page.getByRole('dialog', { name: 'View settings' });
 		await expect(sheet.getByText('Only rows where Exercise contains "squ"')).toBeVisible();
 		await sheet.getByRole('button', { name: 'Clear filter' }).click();
-		await sheet.getByRole('button', { name: 'Save' }).click();
 		await expect(cell(page, 'Bench')).toBeVisible();
 	});
 

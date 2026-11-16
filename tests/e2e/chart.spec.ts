@@ -9,7 +9,7 @@ import {
 	createView,
 	insertRows
 } from '../../src/lib/core/actions.ts';
-import { expect, seed, tablePath, test } from './harness.ts';
+import { expect, newView, seed, tableMenu, tablePath, test, undo } from './harness.ts';
 
 const onPhone = (): boolean => test.info().project.name === 'phone';
 
@@ -99,4 +99,29 @@ test.describe('in French', () => {
 		await pointAt(page, chart, 0.03);
 		await expect(page.getByTestId('chart-readout')).toContainText(/10\s088,4/u);
 	});
+});
+
+test('a new chart starts from a guess, and its settings apply as they are picked', async ({
+	page,
+	context,
+	account
+}) => {
+	void account;
+	await page.goto(await seedWeighIns(context.request));
+	await newView(page, 'Chart');
+	const chart = page.getByRole('img', { name: 'Average kg per Day' });
+	await expect(chart.locator('polyline')).toHaveCount(1);
+
+	await tableMenu(page, 'View settings');
+	const sheet = page.getByRole('dialog', { name: 'View settings' });
+	await expect(sheet.getByRole('combobox', { name: 'Calculation' })).toHaveValue('Average');
+	await expect(sheet.getByRole('button', { name: 'Save' })).toHaveCount(0);
+	await sheet.getByRole('button', { name: 'Bars', exact: true }).click();
+	await expect(chart.locator('polyline')).toHaveCount(0);
+	await expect(page.getByRole('status')).toContainText('View "Chart" changed');
+
+	await page.keyboard.press('Escape');
+	await expect(sheet).toHaveCount(0);
+	await undo(page);
+	await expect(chart.locator('polyline')).toHaveCount(1);
 });

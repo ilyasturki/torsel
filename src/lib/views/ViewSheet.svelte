@@ -7,7 +7,7 @@
 	import { tableUrl } from '#lib/client/nav.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
 	import {
-		chartAxis,
+		chartSetup,
 		defaultMatch,
 		deleteRecords,
 		entryFields,
@@ -42,14 +42,6 @@
 		viewId
 	}: { open?: boolean; tableId: string; viewId: string } = $props();
 
-	let name = $state('');
-	let type = $state<ViewType>('grid');
-	let config = $state<ViewConfig>({});
-	let start = $state('');
-
-	const snapshot = (): string => JSON.stringify({ name, type, config });
-	const dirty = $derived(open && snapshot() !== start);
-
 	const existing = $derived.by(() => {
 		void app.version;
 		return app.ws.view(viewId);
@@ -60,19 +52,41 @@
 		return app.ws.fields(tableId);
 	});
 
+	const type = $derived<ViewType>(existing?.type ?? 'grid');
+	const config = $derived<ViewConfig>(existing?.config ?? {});
+
+	let draft = $state<string | null>(null);
+
+	function commit(set: { name?: string; type?: ViewType; config?: ViewConfig }): void {
+		if (existing === undefined) return;
+		const label = set.name ?? existing.name;
+		const record: Record<string, Value> = { ...set };
+		if (set.config !== undefined) record.config = JSON.parse(JSON.stringify(set.config)) as Value;
+		applyWithUndo(updateRecord(app.ws, existing.id, record), words.viewChanged(label));
+	}
+
+	function edit(change: (next: ViewConfig) => void): void {
+		const next = structuredClone($state.snapshot(config)) as ViewConfig;
+		change(next);
+		commit({ config: next });
+	}
+
+	function rename(): void {
+		if (draft === null || existing === undefined) return;
+		const label = draft.trim() || viewLabel(type);
+		draft = null;
+		if (label !== existing.name) commit({ name: label });
+	}
+
 	$effect(() => {
-		if (open) {
-			const view = app.ws.view(viewId);
-			name = view?.name ?? '';
-			type = view?.type ?? 'grid';
-			config = structuredClone($state.snapshot(view?.config ?? {}));
-			start = untrack(snapshot);
-		}
+		if (!open) untrack(rename);
 	});
 
 	function pickType(next: ViewType): void {
-		if (name === viewLabel(type)) name = viewLabel(next);
-		type = next;
+		if (existing === undefined || next === type) return;
+		commit(
+			existing.name === viewLabel(type) ? { type: next, name: viewLabel(next) } : { type: next }
+		);
 	}
 
 	function toggle(
@@ -80,10 +94,12 @@
 		id: string,
 		fallback: string[]
 	): void {
-		const list = config[key] ?? fallback;
-		const next = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
-		const at = (item: string): number => fields.findIndex((field) => field.id === item);
-		config[key] = key === 'match' ? next.sort((a, b) => at(a) - at(b)) : next;
+		edit((next) => {
+			const list = next[key] ?? fallback;
+			const toggled = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+			const at = (item: string): number => fields.findIndex((field) => field.id === item);
+			next[key] = key === 'match' ? toggled.sort((a, b) => at(a) - at(b)) : toggled;
+		});
 	}
 
 	const fillable = $derived(fields.filter((field) => field.type !== 'formula'));
@@ -108,43 +124,42 @@
 	const fieldOptions = (list: FieldDef[]): Option[] =>
 		list.map((field) => ({ value: field.id, label: field.name, icon: fieldIcon(field.type) }));
 
-	const axis = $derived(chartAxis(fields, config));
-	const xField = $derived(fields.find((field) => field.id === axis));
+	const chart = $derived.by(() => {
+		void app.version;
+		return chartSetup(fields, config, app.ws.rows(tableId));
+	});
+	const xField = $derived(fields.find((field) => field.id === chart.x));
 
 	function setChart<K extends keyof ChartConfig>(key: K, value: ChartConfig[K]): void {
-		config[key] = value as ViewConfig[K];
+		edit((next) => {
+			next[key] = value as ViewConfig[K];
+		});
 	}
 
 	function setAgg(agg: ChartConfig['agg']): void {
-		setChart('agg', agg);
-		if (agg !== 'count' && !config.y) setChart('y', numeric[0]?.id ?? null);
+		edit((next) => {
+			next.agg = agg;
+			if (agg !== 'count' && !chart.y) next.y = numeric[0]?.id ?? null;
+		});
 	}
 
 	const sortKeys = $derived(sortsOf(config));
 
 	/** Sets, adds (at the end) or removes (with null) the sort key at `at`. */
 	function setSort(at: number, key: SortKey | null): void {
-		const next = [...sortKeys];
-		if (key === null) next.splice(at, 1);
-		else next[at] = key;
-		config.sort = next.length === 0 ? null : next;
+		const keys = [...sortKeys];
+		if (key === null) keys.splice(at, 1);
+		else keys[at] = key;
+		edit((next) => {
+			next.sort = keys.length === 0 ? null : keys;
+		});
 	}
 
 	function setGroup(value: string): void {
-		if (value === 'auto') delete config.group;
-		else config.group = value || null;
-	}
-
-	function save(): void {
-		if (existing !== undefined) {
-			const label = name.trim() || viewLabel(type);
-			const clean = JSON.parse(JSON.stringify(config)) as Value;
-			applyWithUndo(
-				updateRecord(app.ws, existing.id, { name: label, type, config: clean }),
-				words.viewChanged(label)
-			);
-		}
-		open = false;
+		edit((next) => {
+			if (value === 'auto') delete next.group;
+			else next.group = value || null;
+		});
 	}
 
 	function remove(): void {
@@ -163,10 +178,16 @@
 	): boolean => (config[key] ?? fallback).includes(field.id);
 </script>
 
-<Dialog bind:open title={words.viewSettings} {dirty} onsubmit={save}>
+<Dialog bind:open title={words.viewSettings} onsubmit={() => (open = false)}>
 	<div class="flex flex-col gap-3">
 		<Field label={words.name}>
-			<input class={input} bind:value={name} placeholder={viewLabel(type)} />
+			<input
+				class={input}
+				value={draft ?? existing?.name ?? ''}
+				placeholder={viewLabel(type)}
+				oninput={(event) => (draft = event.currentTarget.value)}
+				onchange={rename}
+			/>
 		</Field>
 
 		<div class="grid grid-cols-4 gap-1" role="group" aria-label={words.viewType}>
@@ -237,7 +258,8 @@
 							config.filter.text
 						)}
 					</span>
-					<Button variant="ghost" onclick={() => (config.filter = null)}>{words.clearFilter}</Button
+					<Button variant="ghost" onclick={() => edit((next) => (next.filter = null))}
+						>{words.clearFilter}</Button
 					>
 				</div>
 			{/if}
@@ -308,7 +330,7 @@
 						...fieldOptions(shown)
 					]}
 					value={config.title ?? ''}
-					onchange={(title) => (config.title = title || null)}
+					onchange={(title) => edit((next) => (next.title = title || null))}
 				/>
 			</Field>
 			{#if images.length > 0}
@@ -316,7 +338,7 @@
 					<Select
 						options={[{ value: '', label: words.nothing }, ...fieldOptions(images)]}
 						value={layout.cover?.id ?? ''}
-						onchange={(cover) => (config.cover = cover || null)}
+						onchange={(cover) => edit((next) => (next.cover = cover || null))}
 					/>
 				</Field>
 			{/if}
@@ -344,8 +366,8 @@
 				{#each [{ id: 'bar', label: words.bars }, { id: 'line', label: words.line }] as option (option.id)}
 					<button
 						type="button"
-						class="h-control rounded-box font-medium transition-colors motion {(config.kind ??
-							'bar') === option.id
+						class="h-control rounded-box font-medium transition-colors motion {chart.kind ===
+						option.id
 							? 'bg-fill text-on-fill'
 							: 'bg-tint hover:bg-tint-2'}"
 						onclick={() => setChart('kind', option.id as 'bar' | 'line')}>{option.label}</button
@@ -355,7 +377,7 @@
 			<Field label={words.xAxis}>
 				<Select
 					options={fieldOptions(shown)}
-					value={axis ?? ''}
+					value={chart.x ?? ''}
 					onchange={(x) => setChart('x', x || null)}
 				/>
 			</Field>
@@ -367,7 +389,7 @@
 							{ value: 'week', label: words.week },
 							{ value: 'month', label: words.month }
 						]}
-						value={config.bucket ?? 'day'}
+						value={chart.bucket ?? 'day'}
 						onchange={(bucket) => setChart('bucket', bucket)}
 					/>
 				</Field>
@@ -382,15 +404,15 @@
 							{ value: 'max', label: words.aggregates.max },
 							{ value: 'min', label: words.aggregates.min }
 						]}
-						value={config.agg ?? 'count'}
+						value={chart.agg ?? 'count'}
 						onchange={setAgg}
 					/>
 				</Field>
 				<Field label={words.of}>
 					<Select
 						options={fieldOptions(numeric)}
-						value={config.y ?? ''}
-						disabled={(config.agg ?? 'count') === 'count'}
+						value={chart.y ?? ''}
+						disabled={chart.agg === 'count'}
 						onchange={(y) => setChart('y', y || null)}
 					/>
 				</Field>
@@ -398,18 +420,18 @@
 			<Field label={words.colourBy}>
 				<Select
 					options={[{ value: '', label: words.oneSeries }, ...fieldOptions(choices)]}
-					value={config.color ?? ''}
+					value={chart.color ?? ''}
 					onchange={(color) => setChart('color', color || null)}
 				/>
 			</Field>
-			{#if (config.kind ?? 'bar') === 'line' && isDated(xField?.type ?? 'text')}
+			{#if chart.kind === 'line' && isDated(xField?.type ?? 'text')}
 				<Field label={words.rollingDays}>
 					<input
 						class={input}
 						inputmode="numeric"
 						placeholder="7"
-						value={config.rolling ?? ''}
-						oninput={(event) => {
+						value={chart.rolling ?? ''}
+						onchange={(event) => {
 							const days = Number(event.currentTarget.value);
 							setChart('rolling', Number.isInteger(days) && days > 1 ? days : null);
 						}}
@@ -421,7 +443,5 @@
 
 	{#snippet footer()}
 		<Button variant="ghost" onclick={remove}>{common.delete}</Button>
-		<div class="flex-1"></div>
-		<Button variant="primary" onclick={save}>{common.save}</Button>
 	{/snippet}
 </Dialog>
