@@ -128,6 +128,11 @@
 			dateStyle: look === 'short' ? null : look,
 			result: result === AUTO ? null : result
 		};
+		if (type === 'formula') {
+			if (result !== 'number' && result !== 'percent') options.decimals = null;
+			if (result !== 'currency') options.currency = null;
+			if (result !== 'date') options.dateStyle = null;
+		}
 		return formatSet(type, options) as Partial<Pick<FieldDef, FormatKey>>;
 	}
 	const dirty = $derived(open && snapshot() !== start);
