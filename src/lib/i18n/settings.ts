@@ -12,7 +12,7 @@ const en = {
 	signOut: 'Sign out',
 	newPassword: 'New password',
 	password: 'Password',
-	changeHint: 'Changing it signs out your other devices and revokes your MCP tokens.',
+	changeHint: 'Changing it signs out your other devices and revokes your MCP tokens and apps.',
 	setHint: 'You sign in with an emailed code. A password makes it one step.',
 	changePassword: 'Change password',
 	setPassword: 'Set password',
@@ -74,7 +74,7 @@ const fr: typeof en = {
 	signOut: 'Se déconnecter',
 	newPassword: 'Nouveau mot de passe',
 	password: 'Mot de passe',
-	changeHint: 'Le changer déconnecte tes autres appareils et révoque tes jetons MCP.',
+	changeHint: 'Le changer déconnecte tes autres appareils et révoque tes jetons et apps MCP.',
 	setHint:
 		'Tu te connectes avec un code reçu par email. Avec un mot de passe, c’est une seule étape.',
 	changePassword: 'Changer le mot de passe',
