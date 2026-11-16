@@ -16,7 +16,7 @@
 		otherCurrency
 	} from '#lib/client/format.ts';
 	import { gridJump } from '#lib/client/grid.svelte.ts';
-	import { addImages, addLinks, fetchesLinks } from '#lib/client/images.svelte.ts';
+	import { addImages, fetchLinks, fetchesLinks, linkedImages } from '#lib/client/images.svelte.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
 	import { shell } from '#lib/client/shell.svelte.ts';
 	import { applyWithUndo, showToast } from '#lib/client/toast.svelte.ts';
@@ -39,7 +39,7 @@
 	} from '#lib/core/model.ts';
 	import { CREATED, hasChoices, isDated, isNumeric, sortsOf } from '#lib/core/model.ts';
 	import { duplicateField, duplicateRows } from '#lib/core/duplicate.ts';
-	import { imageLinks, imagesOf, imagesValue } from '#lib/core/images.ts';
+	import { MAX_IMAGES, imageLinks, imagesOf, imagesValue } from '#lib/core/images.ts';
 	import { nameTaken, numberedName } from '#lib/core/names.ts';
 	import { retypeField } from '#lib/core/retype.ts';
 	import { currencyOf, freshValue, ratingScale } from '#lib/core/values.ts';
@@ -125,7 +125,6 @@
 	// app.css's [data-tall] rule makes a tall row this many base rows.
 	const TALL_ROWS = 3;
 
-	// The header row keeps the base height; a tall view's rows are taller.
 	let headHeight = $state(34);
 	const tall = $derived(view.config.tall === true);
 	const rowHeight = $derived(tall ? headHeight * TALL_ROWS : headHeight);
@@ -1174,19 +1173,21 @@
 	}
 
 	async function pasteLinks(cells: LinkedCell[]): Promise<void> {
-		const fetched = await Promise.all(
-			cells.map(({ row, field, links }) =>
-				addLinks(field.base, links, imagesOf(app.ws.live(row)?.data[field.id]).length)
-			)
+		const held = ({ row, field }: LinkedCell): number =>
+			imagesOf(app.ws.live(row)?.data[field.id]).length;
+		const fetched = await fetchLinks(
+			cells[0].field.base,
+			cells.flatMap((cell) => cell.links.slice(0, Math.max(0, MAX_IMAGES - held(cell))))
 		);
 		let count = 0;
-		const changes = cells.flatMap(({ row, field }, index) => {
-			const added = fetched[index];
-			const kept = app.ws.live(row);
-			if (added.length === 0 || kept === undefined) return [];
+		const changes = cells.flatMap((cell) => {
+			const kept = app.ws.live(cell.row);
+			if (kept === undefined) return [];
+			const added = linkedImages(cell.links, held(cell), fetched);
+			if (added.length === 0) return [];
 			count += added.length;
-			return updateRow(app.ws, row, {
-				[field.id]: imagesValue([...imagesOf(kept.data[field.id]), ...added])
+			return updateRow(app.ws, cell.row, {
+				[cell.field.id]: imagesValue([...imagesOf(kept.data[cell.field.id]), ...added])
 			});
 		});
 		if (changes.length > 0) applyWithUndo(changes, imageWords.added(count));
@@ -1524,7 +1525,7 @@
 	function onheaderdown(event: PointerEvent, field: FieldDef): void {
 		if (event.button !== 0 || event.pointerType === 'touch') return;
 		const from = event.clientX;
-		const point = { x: event.clientX, y: event.clientY + headHeight + rowHeight };
+		const point = { x: event.clientX, y: event.clientY + headHeight * 2 };
 		let stopScroll: (() => void) | null = null;
 
 		const update = (): void => {

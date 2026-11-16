@@ -126,7 +126,6 @@ export async function addImages(base: string, files: File[], held: number): Prom
 	return refs;
 }
 
-/** Whether the server can fetch links for this device: it has one, and is signed in to it. */
 export function fetchesLinks(): boolean {
 	return apiBase() !== null && me.account != null;
 }
@@ -136,8 +135,7 @@ const AT_ONCE = 4;
 /** Each distinct link fetched by the server into `base`, a few at a time; a failure maps to its message. */
 export async function fetchLinks(
 	base: string,
-	links: string[],
-	onEach?: (done: number) => void
+	links: string[]
 ): Promise<Map<string, ImageRef | string>> {
 	const queue = [...new Set(links)];
 	const out = new Map<string, ImageRef | string>();
@@ -159,23 +157,24 @@ export async function fetchLinks(
 	const worker = async (): Promise<void> => {
 		for (let link = queue.shift(); link !== undefined; link = queue.shift()) {
 			out.set(link, await one(link));
-			onEach?.(out.size);
 		}
 	};
 	await Promise.all(Array.from({ length: Math.min(AT_ONCE, queue.length) }, worker));
 	return out;
 }
 
-/** The image each link names, up to a cell's room past the `held` it has; a link that fails is told and skipped. */
-export async function addLinks(base: string, links: string[], held: number): Promise<ImageRef[]> {
+/** The images `fetched` holds for `links`, up to a cell's room past the `held` it has; a link that failed is told and skipped. */
+export function linkedImages(
+	links: string[],
+	held: number,
+	fetched: ReadonlyMap<string, ImageRef | string>
+): ImageRef[] {
 	const room = Math.max(0, MAX_IMAGES - held);
 	if (links.length > room) {
 		showToast(words.cellFull(MAX_IMAGES));
 	}
-	const wanted = links.slice(0, room);
-	const fetched = await fetchLinks(base, wanted);
 	const refs: ImageRef[] = [];
-	for (const link of wanted) {
+	for (const link of links.slice(0, room)) {
 		const got = fetched.get(link);
 		if (typeof got === 'string' || got === undefined) {
 			showToast(words.notKept(link, got ?? ''));
@@ -184,6 +183,11 @@ export async function addLinks(base: string, links: string[], held: number): Pro
 		}
 	}
 	return refs;
+}
+
+export async function addLinks(base: string, links: string[], held: number): Promise<ImageRef[]> {
+	const wanted = links.slice(0, Math.max(0, MAX_IMAGES - held));
+	return linkedImages(links, held, await fetchLinks(base, wanted));
 }
 
 const urls = new Map<string, string>();
