@@ -31,6 +31,7 @@
 	import { formatDate, formatNumber } from '#lib/client/format.ts';
 	import { SETTINGS } from '#lib/client/nav.ts';
 	import { clearSelection, selection } from '#lib/client/selection.svelte.ts';
+	import { me } from '#lib/client/session.svelte.ts';
 	import type { TableDef, ViewDef } from '#lib/core/model.ts';
 	import type {
 		Attachment,
