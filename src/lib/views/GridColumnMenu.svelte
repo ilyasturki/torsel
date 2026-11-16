@@ -1,6 +1,14 @@
 <script lang="ts" module>
 	export type ColumnAction =
-		'rename' | 'formula' | 'insert-left' | 'insert-right' | 'hide' | 'fit' | 'settings' | 'delete';
+		| 'rename'
+		| 'formula'
+		| 'insert-left'
+		| 'insert-right'
+		| 'hide'
+		| 'fit'
+		| 'find'
+		| 'settings'
+		| 'delete';
 </script>
 
 <script lang="ts">
@@ -16,6 +24,7 @@
 	import MenuItem from '#lib/ui/MenuItem.svelte';
 	import MenuSeparator from '#lib/ui/MenuSeparator.svelte';
 	import MenuSub from '#lib/ui/MenuSub.svelte';
+	import { keys } from '#lib/ui/keys.ts';
 	import { input } from '#lib/ui/styles.ts';
 
 	import { typeOptions } from './field-types.ts';
@@ -55,7 +64,7 @@
 		label: option.value === 'link' || option.value === 'formula' ? `${option.label}…` : option.label
 	}));
 
-	type Entry = { action: ColumnAction; label: string; icon: IconName } | 'gap';
+	type Entry = { action: ColumnAction; label: string; icon: IconName; shortcut?: string } | 'gap';
 
 	const entries = $derived.by((): Entry[] => [
 		...(field?.type === 'formula'
@@ -66,6 +75,7 @@
 		'gap',
 		{ action: 'hide', label: words.hide, icon: 'eye-off' },
 		{ action: 'fit', label: words.fitAll, icon: 'fit' },
+		{ action: 'find', label: words.findReplace, icon: 'search', shortcut: keys('mod', 'h') },
 		{ action: 'settings', label: words.fieldSettings, icon: 'settings' },
 		'gap',
 		{ action: 'delete', label: common.delete, icon: 'x' }
@@ -130,7 +140,11 @@
 			{#if entry === 'gap'}
 				<MenuSeparator />
 			{:else}
-				<MenuItem icon={entry.icon} onSelect={() => onaction(entry.action)}>{entry.label}</MenuItem>
+				<MenuItem
+					icon={entry.icon}
+					shortcut={entry.shortcut}
+					onSelect={() => onaction(entry.action)}>{entry.label}</MenuItem
+				>
 			{/if}
 		{/each}
 	</Menu>

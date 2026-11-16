@@ -14,7 +14,8 @@
 		insertRows,
 		reorder,
 		updateRecord,
-		updateRow
+		updateRow,
+		writeRows
 	} from '#lib/core/actions.ts';
 	import type {
 		Change,
@@ -31,7 +32,9 @@
 	import { freshValue, nativeDateText, nowIso, ratingScale, todayIso } from '#lib/core/values.ts';
 	import { fields as fieldWords } from '#lib/i18n/fields.ts';
 	import { grid as words } from '#lib/i18n/grid.ts';
+	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import IconButton from '#lib/ui/IconButton.svelte';
 	import { nextChoice } from '#lib/ui/colors.ts';
 	import Icon from '#lib/ui/Icon.svelte';
 	import { keys } from '#lib/ui/keys.ts';
@@ -1196,6 +1199,8 @@
 			);
 		} else if (action === 'fit') {
 			fitAll();
+		} else if (action === 'find') {
+			afterMenu = () => openFind(true);
 		} else {
 			const label = fieldWords.deleted(field.name);
 			applyWithUndo(deleteRecords(app.ws, [field.id]), label);
@@ -1418,6 +1423,111 @@
 		}
 	}
 
+	let finding = $state(false);
+	let replacing = $state(false);
+	let needle = $state('');
+	let replacement = $state('');
+	let found = $state(-1);
+	let findInput = $state<HTMLInputElement>();
+	let panel = $state<HTMLElement>();
+
+	// Every row is searched, the ones the window leaves out of the DOM included.
+	const matches = $derived.by(() => {
+		const text = needle.trim().toLocaleLowerCase();
+		if (!finding || text === '') return [];
+		const out: { r: number; c: number }[] = [];
+		rows.forEach((row, r) => {
+			fields.forEach((field, c) => {
+				const shown = cellText(app.ws, field, cellValue(row, field, computed));
+				if (shown.toLocaleLowerCase().includes(text)) out.push({ r, c });
+			});
+		});
+		return out;
+	});
+
+	function openFind(replace: boolean): void {
+		finding = true;
+		replacing ||= replace;
+		flushSync();
+		findInput?.focus();
+		findInput?.select();
+	}
+
+	function closeFind(): void {
+		finding = false;
+		replacing = false;
+		found = -1;
+		table?.focus({ preventScroll: true });
+	}
+
+	function stepFind(by: number): void {
+		if (matches.length === 0) return;
+		found = (found + by + matches.length) % matches.length;
+		const { r, c } = matches[found];
+		select(r, c);
+	}
+
+	function onfindkeydown(event: KeyboardEvent): void {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			stepFind(event.shiftKey ? -1 : 1);
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			closeFind();
+		}
+	}
+
+	const TEXT_LIKE = new Set<FieldType>(['text', 'longtext', 'url', 'email', 'phone']);
+
+	/** Every match in a text-like field, as one undo step; a value its field won't take stays as it was. */
+	function replaceAll(): void {
+		const text = needle.trim();
+		if (text === '') return;
+		const pattern = new RegExp(text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'giu');
+		const read = cellReader(app.ws);
+		const updates = new Map<string, Record<string, Value>>();
+		let refused = 0;
+		for (const { r, c } of matches) {
+			const row = rows[r];
+			const field = fields[c];
+			const before = row.data[field.id];
+			if (!TEXT_LIKE.has(field.type) || typeof before !== 'string') continue;
+			const after = before.replace(pattern, replacement);
+			if (after === before) continue;
+			const value = read(field, after);
+			if (value === undefined) {
+				refused += 1;
+				continue;
+			}
+			updates.set(row.id, { ...updates.get(row.id), [field.id]: value });
+		}
+		const count = [...updates.values()].reduce((sum, set) => sum + Object.keys(set).length, 0);
+		if (count === 0) {
+			showToast(words.replacedNone(refused));
+			return;
+		}
+		const { changes } = writeRows(
+			app.ws,
+			tableId,
+			[...updates].map(([id, values]) => ({ id, values })),
+			[]
+		);
+		const group = app.apply(changes, words.replaced(count));
+		showToast(words.replacedRefusing(count, refused), group?.id ?? null);
+	}
+
+	function onwindowkeydown(event: KeyboardEvent): void {
+		const command = event.metaKey || event.ctrlKey;
+		const key = event.key.toLowerCase();
+		if (!command || event.altKey || event.shiftKey || (key !== 'f' && key !== 'h')) return;
+		const target = event.target;
+		if (target !== document.body && !(target instanceof Node && panel?.contains(target))) return;
+		event.preventDefault();
+		commitDraft({ leaving: true });
+		openFind(key === 'h');
+	}
+
 	const pickerOptions = (
 		field: FieldDef
 	): { id: string; label: string; color?: string | null }[] =>
@@ -1543,7 +1653,7 @@
 	</td>
 {/snippet}
 
-<div class="relative flex h-full flex-col">
+<div bind:this={panel} class="relative flex h-full flex-col">
 	<textarea
 		bind:this={catcher}
 		class="pointer-events-none fixed top-0 left-0 size-px opacity-0"
@@ -1560,6 +1670,70 @@
 			<span><span class="text-ink-3">{words.average}</span> {summed(summary.average)}</span>
 			<span><span class="text-ink-3">{words.count}</span> {formatNumber(summary.count)}</span>
 		</p>
+	{/if}
+	{#if finding}
+		<div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-rule px-3 py-1.5">
+			<div class="flex min-w-0 flex-1 items-center gap-1 sm:max-w-sm">
+				<input
+					bind:this={findInput}
+					class="{inputStyle} min-w-0 flex-1"
+					aria-label={words.find}
+					placeholder={words.find}
+					autocomplete="off"
+					spellcheck="false"
+					bind:value={needle}
+					oninput={() => {
+						found = -1;
+						stepFind(1);
+					}}
+					onkeydown={onfindkeydown}
+				/>
+				<span class="shrink-0 px-1 text-sm text-ink-2 tabular-nums" aria-live="polite">
+					{needle.trim() === ''
+						? ''
+						: matches.length === 0
+							? words.noMatch
+							: words.matchOf(found + 1, matches.length)}
+				</span>
+				<IconButton
+					icon="arrow-up"
+					label={words.previousMatch}
+					disabled={matches.length === 0}
+					onclick={() => stepFind(-1)}
+				/>
+				<IconButton
+					icon="arrow-down"
+					label={words.nextMatch}
+					disabled={matches.length === 0}
+					onclick={() => stepFind(1)}
+				/>
+			</div>
+			{#if replacing}
+				<div class="flex min-w-0 flex-1 items-center gap-1 sm:max-w-sm">
+					<input
+						class="{inputStyle} min-w-0 flex-1"
+						aria-label={words.replaceWith}
+						placeholder={words.replaceWith}
+						autocomplete="off"
+						spellcheck="false"
+						bind:value={replacement}
+						onkeydown={(event) => {
+							if (event.key === 'Enter') {
+								event.preventDefault();
+								replaceAll();
+							} else if (event.key === 'Escape') {
+								event.preventDefault();
+								closeFind();
+							}
+						}}
+					/>
+					<Button variant="secondary" disabled={matches.length === 0} onclick={replaceAll}
+						>{words.replaceAll}</Button
+					>
+				</div>
+			{/if}
+			<IconButton icon="x" label={common.close} class="ml-auto" onclick={closeFind} />
+		</div>
 	{/if}
 	{#if filterField}
 		<div class="flex shrink-0 items-center gap-2 px-3 py-1 text-sm text-ink-2">
@@ -1821,6 +1995,8 @@
 		</div>
 	</div>
 </div>
+
+<svelte:window onkeydown={onwindowkeydown} />
 
 <GridColumnMenu
 	bind:open={menuOpen}

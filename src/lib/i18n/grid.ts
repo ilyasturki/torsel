@@ -56,6 +56,19 @@ const en = {
 	sum: 'Sum',
 	average: 'Average',
 	count: 'Count',
+	find: 'Find',
+	replaceWith: 'Replace with',
+	replaceAll: 'Replace all',
+	findReplace: 'Find and replace',
+	previousMatch: 'Previous match',
+	nextMatch: 'Next match',
+	matchOf: (at: number, total: number) => (at === 0 ? String(total) : `${at} of ${total}`),
+	replaced: (cells: number) => (cells === 1 ? 'Replaced in 1 cell' : `Replaced in ${cells} cells`),
+	replacedRefusing: (cells: number, refused: number) =>
+		(cells === 1 ? 'Replaced in 1 cell' : `Replaced in ${cells} cells`) +
+		(refused === 0 ? '' : refused === 1 ? ', 1 left as it was' : `, ${refused} left as they were`),
+	replacedNone: (refused: number): string =>
+		refused === 0 ? 'Nothing to replace' : "The new text doesn't fit these fields",
 	type: 'Type',
 	addOption: (name: string) => `Add "${name}"`,
 	noMatch: 'No match',
@@ -128,6 +141,25 @@ const fr: typeof en = {
 	sum: 'Somme',
 	average: 'Moyenne',
 	count: 'Nombre',
+	find: 'Rechercher',
+	replaceWith: 'Remplacer par',
+	replaceAll: 'Tout remplacer',
+	findReplace: 'Rechercher et remplacer',
+	previousMatch: 'Résultat précédent',
+	nextMatch: 'Résultat suivant',
+	matchOf: (at, total) => (at === 0 ? String(total) : `${at} sur ${total}`),
+	replaced: (cells) =>
+		plural('fr', cells, { one: 'Remplacé dans # cellule', other: 'Remplacé dans # cellules' }),
+	replacedRefusing: (cells, refused) =>
+		plural('fr', cells, { one: 'Remplacé dans # cellule', other: 'Remplacé dans # cellules' }) +
+		(refused === 0
+			? ''
+			: plural('fr', refused, {
+					one: ', # laissée telle quelle',
+					other: ', # laissées telles quelles'
+				})),
+	replacedNone: (refused) =>
+		refused === 0 ? 'Rien à remplacer' : 'Le nouveau texte ne va pas dans ces champs',
 	type: 'Type',
 	addOption: (name) => `Ajouter « ${name} »`,
 	noMatch: 'Aucun résultat',

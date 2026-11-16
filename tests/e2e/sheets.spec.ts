@@ -167,6 +167,75 @@ test.describe('grid keys', () => {
 	});
 });
 
+function seedLong(request: APIRequestContext): Promise<string> {
+	return seed(request, (ws, commit) => {
+		const base = createBase(ws, 'Gym');
+		commit(base.changes);
+		const table = createTable(
+			ws,
+			base.id,
+			'Sets',
+			[
+				{ name: 'Note', type: 'text' },
+				{ name: 'Kg', type: 'number' }
+			],
+			() => defaultViews(names.en)
+		);
+		commit(table.changes);
+		const [note, kg] = table.fieldIds;
+		commit(
+			insertRows(
+				ws,
+				table.id,
+				Array.from({ length: 150 }, (_, at) => ({
+					[note]: at === 119 || at === 144 ? `heavy bar ${at + 1}` : `set ${at + 1}`,
+					[kg]: at
+				}))
+			).changes
+		);
+		return tablePath(table.id);
+	});
+}
+
+test.describe('find and replace', () => {
+	test('finds through every row and replaces in one undo step', async ({
+		page,
+		context,
+		account
+	}) => {
+		void account;
+		await page.goto(await seedLong(context.request));
+		await expect(cell(page, 'set 1')).toBeVisible();
+		await expect(cell(page, 'heavy bar 145')).toHaveCount(0);
+
+		if (test.info().project.name === 'phone') {
+			await columnMenu(page, 'Note', 'Find and replace');
+		} else {
+			await page.getByRole('grid').focus();
+			await page.keyboard.press('Control+h');
+		}
+		const find = page.getByRole('textbox', { name: 'Find' });
+		await expect(find).toBeFocused();
+		await find.fill('BAR');
+		await expect(page.getByText('1 of 2')).toBeVisible();
+		await expect(cell(page, 'heavy bar 120')).toBeInViewport();
+		await find.press('Enter');
+		await expect(page.getByText('2 of 2')).toBeVisible();
+		await expect(cell(page, 'heavy bar 145')).toBeInViewport();
+
+		await page.getByRole('textbox', { name: 'Replace with' }).fill('bell');
+		await page.getByRole('button', { name: 'Replace all' }).click();
+		await expect(page.getByRole('status')).toContainText('Replaced in 2 cells');
+		await expect(cell(page, 'heavy bell 145')).toBeVisible();
+		await expect(page.getByText('No match')).toBeVisible();
+
+		await find.press('Escape');
+		await expect(find).toHaveCount(0);
+		await undo(page);
+		await expect(cell(page, 'heavy bar 145')).toBeVisible();
+	});
+});
+
 const FORMATS = [
 	{
 		locale: 'en-US',
