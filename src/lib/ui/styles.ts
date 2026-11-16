@@ -31,3 +31,6 @@ export const menuItem =
 	'motion flex h-control w-full cursor-default items-center gap-2 rounded-box px-2 text-ink outline-none transition-colors select-none data-disabled:text-ink-3 data-highlighted:bg-tint-2';
 
 export const popup = 'z-50 rounded-panel bg-float p-1 shadow-float outline-none';
+
+/** A word of a sentence that opens a menu, as a chart's settings line has. */
+export const token = `motion inline-flex h-control items-center gap-1 rounded-box bg-tint pr-1.5 pl-2 font-medium text-ink transition-colors hover:bg-tint-2 aria-expanded:bg-tint-2 ${focus}`;

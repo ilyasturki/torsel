@@ -2,6 +2,7 @@ import { goto } from '$app/navigation';
 
 import { app } from '#lib/client/app.svelte.ts';
 import { tableUrl } from '#lib/client/nav.ts';
+import { shell } from '#lib/client/shell.svelte.ts';
 import { applyWithUndo } from '#lib/client/toast.svelte.ts';
 import { createView, reorder, shifted } from '#lib/core/actions.ts';
 import type { ViewType } from '#lib/core/model.ts';
@@ -34,6 +35,7 @@ export function addView(tableId: string, type: ViewType): void {
 	const config = type === 'list' && cover !== undefined ? { cover: cover.id } : {};
 	const { id, changes } = createView(app.ws, tableId, { name, type, config });
 	applyWithUndo(changes, words.viewAdded(name));
+	if (type === 'chart') shell.freshChart = id;
 	void goto(tableUrl(tableId, id));
 }
 

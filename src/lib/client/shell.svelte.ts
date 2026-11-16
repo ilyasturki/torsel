@@ -18,7 +18,9 @@ export const shell = $state({
 	namingTable: null as string | null,
 	addingField: false,
 	switching: false,
-	renamingTable: null as string | null
+	renamingTable: null as string | null,
+	/** A chart just added, which opens on its first setting. */
+	freshChart: null as string | null
 });
 
 export function isTyping(target: EventTarget | null): boolean {

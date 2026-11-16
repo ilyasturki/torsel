@@ -99,9 +99,17 @@ test.describe('in French', () => {
 		await pointAt(page, chart, 0.03);
 		await expect(page.getByTestId('chart-readout')).toContainText(/10\s088,4/u);
 	});
+
+	test('a chart reads its settings as a French sentence', async ({ page, context, account }) => {
+		void account;
+		await page.goto(await seedWeighIns(context.request));
+		await expect(page.getByTestId('chart-line')).toHaveText(
+			/^Moyenne\s*de\s*Kg\s*par\s*Day\s*par\s*jour$/u
+		);
+	});
 });
 
-test('a new chart starts from a guess, and its settings apply as they are picked', async ({
+test('a new chart starts from a guess, and its sentence sets it as it is picked', async ({
 	page,
 	context,
 	account
@@ -111,17 +119,32 @@ test('a new chart starts from a guess, and its settings apply as they are picked
 	await newView(page, 'Chart');
 	const chart = page.getByRole('img', { name: 'Average kg per Day' });
 	await expect(chart.locator('polyline')).toHaveCount(1);
+	await expect(page.getByTestId('chart-line')).toHaveText(
+		/Average\s*of\s*Kg\s*by\s*Day\s*per\s*day/u
+	);
 
-	await tableMenu(page, 'View settings');
-	const sheet = page.getByRole('dialog', { name: 'View settings' });
-	await expect(sheet.getByRole('combobox', { name: 'Calculation' })).toHaveValue('Average');
-	await expect(sheet.getByRole('button', { name: 'Save' })).toHaveCount(0);
-	await sheet.getByRole('button', { name: 'Bars', exact: true }).click();
+	if (onPhone()) {
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+	} else {
+		await expect(page.getByRole('menuitem', { name: 'Average' })).toBeVisible();
+		await page.keyboard.press('Escape');
+	}
+
+	await page
+		.getByRole('group', { name: 'Chart kind' })
+		.getByRole('button', { name: 'Bars' })
+		.click();
 	await expect(chart.locator('polyline')).toHaveCount(0);
 	await expect(page.getByRole('status')).toContainText('View "Chart" changed');
-
-	await page.keyboard.press('Escape');
-	await expect(sheet).toHaveCount(0);
 	await undo(page);
 	await expect(chart.locator('polyline')).toHaveCount(1);
+
+	await page.getByRole('button', { name: 'Calculation: Average' }).click();
+	await (
+		onPhone()
+			? page.getByRole('option', { name: 'Row count' })
+			: page.getByRole('menuitem', { name: 'Row count' })
+	).click();
+	await expect(page.getByRole('img', { name: 'Row count per Day' })).toBeVisible();
+	await expect(page.getByTestId('chart-line')).toHaveText(/^Row count\s*by\s*Day\s*per\s*day$/u);
 });

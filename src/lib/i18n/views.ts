@@ -44,6 +44,7 @@ const en = {
 	title: 'Title',
 	cover: 'Cover',
 	fieldsUnderTitle: 'Fields under the title',
+	chartKind: 'Chart kind',
 	bars: 'Bars',
 	line: 'Line',
 	xAxis: 'Horizontal axis',
@@ -72,11 +73,11 @@ const en = {
 		min: (field: string) => `Lowest ${field.toLowerCase()}`
 	} satisfies Record<Aggregate, (field: string) => string>,
 	chartName: (value: string, x: string) => `${value} per ${x}`,
-	perWeek: 'per week',
-	perMonth: 'per month',
-	perField: (x: string) => `per ${x.toLowerCase()}`,
-	byField: (x: string) => `by ${x.toLowerCase()}`,
 	rolling: (days: number) => `${days}-day rolling average`,
+	/** A chart's settings as its sentence: each tag is a menu, `measured` when it sums a field, `dated` when its axis is a date. */
+	chartLine: (measured: boolean, dated: boolean, _field: string) =>
+		`<agg>.</agg>${measured ? ' of <y>.</y>' : ''} by <x>.</x>${dated ? ' per <bucketToken>.</bucketToken>' : ''}`,
+	chartColour: (field: string | null) => (field === null ? 'One colour' : `Colour by ${field}`),
 	noValue: 'No value',
 	total: 'Total',
 	yes: 'yes',
@@ -139,6 +140,7 @@ const fr: typeof en = {
 	title: 'Titre',
 	cover: 'Couverture',
 	fieldsUnderTitle: 'Champs sous le titre',
+	chartKind: 'Type de graphique',
 	bars: 'Barres',
 	line: 'Courbe',
 	xAxis: 'Axe horizontal',
@@ -166,15 +168,14 @@ const fr: typeof en = {
 		min: (field) => `Minimum ${deFr(field.toLowerCase())}`
 	},
 	chartName: (value, x) => `${value} par ${x}`,
-	perWeek: 'par semaine',
-	perMonth: 'par mois',
-	perField: (x) => `par ${x.toLowerCase()}`,
-	byField: (x) => `par ${x.toLowerCase()}`,
 	rolling: (days) =>
 		plural('fr', days, {
 			one: 'moyenne glissante sur # jour',
 			other: 'moyenne glissante sur # jours'
 		}),
+	chartLine: (measured, dated, field) =>
+		`<agg>.</agg>${measured ? ` ${/^[aeiouyhàâéèêëîïôûù]/iu.test(field) ? 'd’' : 'de '}<y>.</y>` : ''} par <x>.</x>${dated ? ' par <bucketToken>.</bucketToken>' : ''}`,
+	chartColour: (field) => (field === null ? 'Une couleur' : `Couleur selon ${field}`),
 	noValue: 'Sans valeur',
 	total: 'Total',
 	yes: 'oui',
