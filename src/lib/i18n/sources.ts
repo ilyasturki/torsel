@@ -26,6 +26,9 @@ const en = {
 		gone: 'No such source'
 	},
 	brands: { letterboxd: 'Letterboxd', sheet: 'Google Sheets', github: 'GitHub' },
+	key: 'Key',
+	userPassword: 'user:password',
+	connect: 'Connect',
 	letterboxd: {
 		title: 'Title',
 		year: 'Year',
@@ -73,6 +76,9 @@ const fr: typeof en = {
 		gone: 'Source introuvable'
 	},
 	brands: { letterboxd: 'Letterboxd', sheet: 'Google Sheets', github: 'GitHub' },
+	key: 'Clé',
+	userPassword: 'utilisateur:mot de passe',
+	connect: 'Connecter',
 	letterboxd: {
 		title: 'Titre',
 		year: 'Année',

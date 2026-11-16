@@ -335,6 +335,8 @@ function onEvent(event: TurnEvent): void {
 			if (event.action !== null) {
 				assistant.actions.push(event.action);
 				settle();
+				// The server wrote it (a linked table): only a pull brings it here.
+				if (event.action.status === 'applied') void syncNow();
 			}
 			if (event.effect !== null) {
 				perform(event.effect);

@@ -10,6 +10,7 @@
 	import { common } from '#lib/i18n/common.ts';
 
 	import CellValue from './CellValue.svelte';
+	import SourceKey from './SourceKey.svelte';
 
 	// `onshow` stands in for the table link where the table lives only in this page (the landing).
 	let {
@@ -322,4 +323,6 @@
 			{/if}
 		</div>
 	{/if}
+
+	<SourceKey {action} />
 </div>

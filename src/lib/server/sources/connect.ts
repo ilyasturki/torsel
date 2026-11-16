@@ -5,7 +5,7 @@ import { guessColumns } from '../../core/csv.ts';
 import type { Change, FieldType } from '../../core/model.ts';
 import { FIELD_TYPES, FORMAT_KEYS, hasChoices } from '../../core/model.ts';
 import { numberedName } from '../../core/names.ts';
-import type { Column, Every, Missing } from '../../core/source.ts';
+import type { Column, Every, Missing, SourceState } from '../../core/source.ts';
 import { EVERY, MISSING, markValue } from '../../core/source.ts';
 import { names } from '../../i18n/names.ts';
 import { sourceLimits } from '../config.ts';
@@ -284,7 +284,7 @@ export async function stopSource(db: Database, userId: string, tableId: string):
 }
 
 /** What a device may know of a source: never its key, only that it has one and how it ends. */
-export function publicSource(source: Source) {
+export function publicSource(source: Source): SourceState {
 	return {
 		table: source.tableId,
 		url: source.url,

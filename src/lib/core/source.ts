@@ -43,3 +43,24 @@ export type Column = {
 	type: FieldType;
 	choices?: string[];
 } & Partial<Pick<FieldDef, FormatKey>>;
+
+/** What a device may know of a source: never its key, only whether it has one and its last four characters. */
+export type SourceState = {
+	table: string;
+	url: string;
+	auth: 'none' | 'header' | 'query' | 'bearer' | 'basic';
+	authName: string | null;
+	hasKey: boolean;
+	hint: string | null;
+	every: Every;
+	missing: Missing;
+	lastAt: number | null;
+	lastOkAt: number | null;
+	nextAt: number | null;
+	failures: number;
+	problem: string | null;
+};
+
+export type RunOutcome =
+	| { ok: true; added: number; changed: number; removed: number; problem: string | null }
+	| { ok: false; problem: string };
