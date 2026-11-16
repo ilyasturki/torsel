@@ -6,9 +6,8 @@ import { todayIso } from '../../core/values.ts';
 import type { Workspace } from '../../core/workspace.ts';
 import { createdAt } from '../../core/workspace.ts';
 import type { Locale } from '../../i18n/locale.ts';
-import { envText } from '../env.ts';
 import { cellText, tableNote } from './assistant.ts';
-import { TITLE_MODEL } from './title.ts';
+import { quickModel } from './title.ts';
 
 const SUGGEST_MS = 15_000;
 
@@ -119,11 +118,9 @@ export async function suggest(
 
 	const message = await client.beta.messages.create(
 		{
-			model: envText('TORSEL_AI_TITLE_MODEL', TITLE_MODEL),
+			...quickModel(),
 			max_tokens: 400,
 			system: SYSTEM,
-			// On, it spends the small budget thinking and the answer never comes.
-			thinking: { type: 'disabled' },
 			output_config: { effort: 'low', format: FORMAT },
 			messages: [{ role: 'user', content: prompt }]
 		},

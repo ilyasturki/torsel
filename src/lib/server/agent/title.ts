@@ -5,6 +5,12 @@ import { envText } from '../env.ts';
 
 export const TITLE_MODEL = 'claude-haiku-5-5';
 
+/** A short answer's model; Haiku would spend the small budget thinking, the larger models refuse thinking off. */
+export function quickModel(): { model: string; thinking?: { type: 'disabled' } } {
+	const model = envText('TORSEL_AI_TITLE_MODEL', TITLE_MODEL);
+	return model.startsWith('claude-haiku') ? { model, thinking: { type: 'disabled' } } : { model };
+}
+
 // Past it the reply is long done, and the first message stands in.
 const TITLE_MS = 20_000;
 
@@ -33,11 +39,9 @@ export async function generateTitle(
 ): Promise<string | null> {
 	const message = await client.beta.messages.create(
 		{
-			model: envText('TORSEL_AI_TITLE_MODEL', TITLE_MODEL),
+			...quickModel(),
 			max_tokens: 200,
 			system: SYSTEM,
-			// On, it spends the small budget thinking and the answer never comes.
-			thinking: { type: 'disabled' },
 			output_config: { effort: 'low', format: FORMAT },
 			messages: [{ role: 'user', content: titlePrompt(prompt, where) }]
 		},
