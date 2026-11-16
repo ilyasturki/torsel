@@ -17,7 +17,7 @@ import { overLimit } from '../sources/limits.ts';
 import { readSource, updateSource } from '../sources/store.ts';
 import type { McpCaller } from './mcp.ts';
 import type { SourceHost } from './source-tools.ts';
-import { serveMcp } from './mcp.ts';
+import { callTool, within } from './mcp.fixture.test.ts';
 
 const MOVIES = 'id,Title\n1,Alien\n2,Heat\n';
 
@@ -73,39 +73,8 @@ beforeEach(async () => {
 	slow = { hold: false, release: () => undefined };
 });
 
-function within<T>(promise: Promise<T>, ms = 3000): Promise<T> {
-	return Promise.race([
-		promise,
-		new Promise<never>((_settle, fail) =>
-			setTimeout(() => fail(new Error(`still pending after ${ms} ms`)), ms)
-		)
-	]);
-}
-
-async function tool(name: string, args: unknown): Promise<{ isError?: boolean; text: string }> {
-	const response = await serveMcp(
-		db,
-		caller,
-		new Request('http://torsel.test/api/mcp', {
-			method: 'POST',
-			headers: {
-				'content-type': 'application/json',
-				accept: 'application/json, text/event-stream'
-			},
-			body: JSON.stringify({
-				jsonrpc: '2.0',
-				id: 1,
-				method: 'tools/call',
-				params: { name, arguments: args }
-			})
-		}),
-		'test'
-	);
-	const body = await response.text();
-	const { result } = JSON.parse(
-		body.startsWith('{') ? body : (/^data: (.*)$/mu.exec(body)?.[1] ?? '')
-	) as { result: { isError?: boolean; content: { text: string }[] } };
-	return { isError: result.isError, text: result.content[0].text };
+function tool(name: string, args: unknown): Promise<{ isError?: boolean; text: string }> {
+	return callTool(db, caller, name, args);
 }
 
 function movies(): Parameters<SourceHost['connect']>[0] {
