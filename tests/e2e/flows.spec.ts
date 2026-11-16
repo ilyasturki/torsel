@@ -631,7 +631,10 @@ test.describe('fields and views', () => {
 		sheet = await openSettings();
 		await expect(sheet.getByRole('combobox', { name: 'Sort field 1' })).toHaveValue('Kg');
 		await pick(sheet.getByRole('combobox', { name: 'Add a sort' }), 'Exercise');
-		await sheet.getByRole('button', { name: 'Remove sort' }).first().click();
+		// A mouse left on the next row's button opens its tooltip, which takes the first Escape; a finger hovers nothing.
+		const remove = sheet.getByRole('button', { name: 'Remove sort' }).first();
+		if (onPhone()) await remove.tap();
+		else await remove.click();
 		await expect(sheet.getByRole('combobox', { name: 'Sort field 1' })).toHaveValue('Exercise');
 		await page.keyboard.press('Escape');
 		await expect(sheet).toHaveCount(0);
