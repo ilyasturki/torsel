@@ -366,6 +366,7 @@ export async function runTurn(turn: Turn): Promise<void> {
 	let files: ReturnType<typeof readFiles> | undefined;
 	const ctx: ToolContext = {
 		ws,
+		actor: { user: userId, path: 'assistant' },
 		commit(action: Action) {
 			committed = {
 				id: current,

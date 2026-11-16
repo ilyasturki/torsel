@@ -16,5 +16,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(400, 'expected { watermark, push } with well-formed records');
 	}
 
-	return json(syncExchange(getDatabase(), user.id, body));
+	return json(syncExchange(getDatabase(), { user: user.id, path: 'device' }, body));
 };

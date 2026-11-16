@@ -7,6 +7,8 @@ import fieldCatalog, {
 } from '../../i18n/fields.ts';
 import { names } from '../../i18n/names.ts';
 
+import type { Actor } from '../../core/access.ts';
+import { hasPath, lockedKeys } from '../../core/access.ts';
 import type { FieldSpec } from '../../core/actions.ts';
 import {
 	addField,
@@ -41,11 +43,14 @@ import type {
 	ViewDef
 } from '../../core/model.ts';
 import {
+	CREATED,
 	DATE_STYLES,
+	DELETED,
 	FIELD_TYPES,
 	FORMAT_OF,
 	RESULT_TYPES,
 	VIEW_TYPES,
+	formatSet,
 	hasChoices,
 	sortsOf
 } from '../../core/model.ts';
@@ -64,6 +69,7 @@ export type Action = { summary: string; changes: Change[] };
 
 export type ToolContext = {
 	ws: Workspace;
+	actor: Actor;
 	commit(action: Action): void;
 	// What the app shows for the person; absent where there is no screen, as over MCP.
 	show?(effect: Effect): void;
@@ -1077,7 +1083,10 @@ export const TOOLS: Tool[] = [
 			const format = formatOf(type, input, field);
 			const reformat = FORMAT_OF[type].some((key) => input[key] !== undefined);
 			let converted: { changes: Change[]; lost: number } = { changes: [], lost: 0 };
-			if (type !== field.type || reformat) {
+			// A source field's values stay as the source wrote them: its format only changes how they read.
+			if (type === field.type && reformat && hasPath(ctx.ws.get(field.id))) {
+				Object.assign(set, formatSet(type, format));
+			} else if (type !== field.type || reformat) {
 				if (type === 'formula' && expr === null && field.type !== 'formula')
 					throw new ToolError('a formula field needs formula');
 				if (type === 'link' && input.target === undefined && field.type !== 'link')
@@ -1521,6 +1530,49 @@ export function inputProblem(schema: z.ZodType, error: z.ZodError): string {
 		.join('; ');
 }
 
+/** The keys a change gives a new value: all of them for a record it creates. */
+function changedKeys(ws: Workspace, change: Change): string[] {
+	const rec = ws.get(change.id);
+	return Object.keys(change.set).filter(
+		(key) =>
+			rec === undefined || JSON.stringify(rec.data[key] ?? null) !== JSON.stringify(change.set[key])
+	);
+}
+
+/** Refuses, before anything is written, changes the actor may not make, saying where to go instead. */
+function refuseLocked(ws: Workspace, actor: Actor, changes: Change[]): void {
+	const get = (id: string): Rec | undefined => ws.get(id);
+	for (const change of changes) {
+		const keys = lockedKeys(get, actor, change, changedKeys(ws, change));
+		if (keys.length === 0) continue;
+		const stored = ws.get(change.id);
+		const tableId = stored?.parent ?? change.parent;
+		const table = JSON.stringify(ws.table(tableId)?.name ?? tableId);
+		if (
+			change.kind === 'row' &&
+			(stored === undefined || keys.includes(DELETED) || keys.includes(CREATED))
+		) {
+			throw new ToolError(
+				`${table} gets its rows from its source: none can be added or deleted here`
+			);
+		}
+		if (change.kind === 'row') {
+			const locked = ws
+				.fields(tableId)
+				.filter((field) => hasPath(get(field.id)))
+				.map((field) => JSON.stringify(field.name));
+			throw new ToolError(
+				`${table} gets ${locked.join(', ')} from its source: change them there, or add your own field beside them`
+			);
+		}
+		if (keys.includes('type')) {
+			const field = JSON.stringify(ws.field(change.id)?.name ?? change.id);
+			throw new ToolError(`${field} in ${table} gets its type from its source`);
+		}
+		throw new ToolError(`only a source sets ${keys.join(', ')}`);
+	}
+}
+
 export async function runTool(
 	ctx: ToolContext,
 	tool: Tool,
@@ -1531,8 +1583,16 @@ export async function runTool(
 		return { ok: false, error: inputProblem(tool.input, parsed.error) };
 	}
 
+	const guarded: ToolContext = {
+		...ctx,
+		commit(action) {
+			refuseLocked(ctx.ws, ctx.actor, action.changes);
+			ctx.commit(action);
+		}
+	};
+
 	try {
-		return { ok: true, result: await tool.run(ctx, parsed.data as never) };
+		return { ok: true, result: await tool.run(guarded, parsed.data as never) };
 	} catch (error) {
 		if (error instanceof ToolError) {
 			return { ok: false, error: error.message };

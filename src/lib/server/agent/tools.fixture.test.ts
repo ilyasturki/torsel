@@ -20,6 +20,7 @@ export function session(sheets: Record<string, Sheet> = {}): Session {
 	const shown: Effect[] = [];
 	const ctx: ToolContext = {
 		ws,
+		actor: { user: 'u_test', path: 'assistant' },
 		commit(action) {
 			for (const change of action.changes) {
 				ws.stamp(change, hlc.tick());

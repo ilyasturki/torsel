@@ -16,6 +16,7 @@ import {
 } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
+import type { Actor } from '../../core/access.ts';
 import type { Database } from '../db/client.ts';
 import { loadWorkspace, writeChanges } from '../db/records.ts';
 import { serially } from '../db/serial.ts';
@@ -70,10 +71,12 @@ async function call(db: Database, caller: McpCaller, tool: Tool, input: unknown)
 
 	const work = async () => {
 		const ws = loadWorkspace(db, caller.userId);
+		const actor: Actor = { user: caller.userId, path: 'mcp' };
 		const ctx: ToolContext = {
 			ws,
+			actor,
 			commit(action) {
-				writeChanges(db, caller.userId, ws, action.changes);
+				writeChanges(db, actor, ws, action.changes);
 			}
 		};
 		return runTool(ctx, tool, input);

@@ -18,7 +18,7 @@ async function account(): Promise<{ db: Database; userId: string; caller: McpCal
 
 	const ws = loadWorkspace(db, user.id);
 	const base = createBase(ws, 'Films');
-	writeChanges(db, user.id, ws, base.changes);
+	writeChanges(db, { user: user.id, path: 'mcp' }, ws, base.changes);
 	const table = createTable(
 		ws,
 		base.id,
@@ -29,7 +29,7 @@ async function account(): Promise<{ db: Database; userId: string; caller: McpCal
 		],
 		() => defaultViews(names.en)
 	);
-	writeChanges(db, user.id, ws, table.changes);
+	writeChanges(db, { user: user.id, path: 'mcp' }, ws, table.changes);
 
 	return { db, userId: user.id, caller: { userId: user.id, tokenId: 'test', access: 'write' } };
 }

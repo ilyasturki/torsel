@@ -3,7 +3,10 @@ import { isRec } from './model.ts';
 
 export type SyncRequest = { watermark: number; push: Rec[] };
 
-export type SyncResponse = { records: Rec[]; watermark: number };
+/** A write the server took back, each key restamped with the value it keeps. */
+export type Refusal = { id: string; keys: string[] };
+
+export type SyncResponse = { records: Rec[]; watermark: number; refused: Refusal[] };
 
 export const MAX_PUSH = 1000;
 

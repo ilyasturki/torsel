@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { PATH, SOURCE } from '../../core/access.ts';
+import { updateRecord } from '../../core/actions.ts';
 import { Hlc } from '../../core/clock.ts';
 import { Workspace } from '../../core/workspace.ts';
 import type { Effect } from '../../core/thread.ts';
@@ -22,6 +24,7 @@ function session(sheets: Record<string, Sheet> = {}): {
 	const shown: Effect[] = [];
 	const ctx: ToolContext = {
 		ws,
+		actor: { user: 'u_test', path: 'assistant' },
 		commit(action) {
 			for (const change of action.changes) {
 				ws.stamp(change, hlc.tick());
@@ -691,5 +694,83 @@ describe('the language of what the assistant writes', () => {
 		]);
 		const [table] = ctx.ws.tables(ctx.ws.bases()[0].id);
 		expect(ctx.ws.views(table.id).map((view) => view.name)).toEqual(['Grille', 'Saisie']);
+	});
+});
+
+describe('source tables', () => {
+	async function sourced() {
+		const s = session();
+		await s.call('create_table', {
+			name: 'Movies',
+			fields: [
+				{ name: 'Title', type: 'text' },
+				{ name: 'Rating', type: 'number' },
+				{ name: 'Notes', type: 'text' }
+			]
+		});
+		const ws = s.ctx.ws;
+		const table = ws.bases().flatMap((base) => ws.tables(base.id))[0];
+		const [title, rating] = ws.fields(table.id);
+		await s.call('add_rows', {
+			table: 'Movies',
+			base: table.base,
+			rows: [{ Title: 'Alien', Rating: 4 }]
+		});
+		const hlc = new Hlc('conn');
+		for (const change of [
+			...updateRecord(ws, table.id, { [SOURCE]: { kind: 'rss' } }),
+			...updateRecord(ws, title.id, { [PATH]: 'title' }),
+			...updateRecord(ws, rating.id, { [PATH]: 'rating' })
+		]) {
+			ws.stamp(change, hlc.tick());
+		}
+		const row = ws.rows(table.id)[0].id;
+		const written = s.actions.length;
+		return { ...s, base: table.base, row, written };
+	}
+
+	it('refuses writing source values and says where to go instead', async () => {
+		const s = await sourced();
+		const refused = await s.call('update_rows', {
+			base: s.base,
+			table: 'Movies',
+			updates: [{ id: s.row, values: { Title: 'Aliens', Notes: 'seen' } }]
+		});
+		expect(refused).toEqual({
+			error:
+				'"Movies" gets "Title", "Rating" from its source: change them there, or add your own field beside them'
+		});
+		expect(s.actions).toHaveLength(s.written);
+
+		await s.call('update_rows', {
+			base: s.base,
+			table: 'Movies',
+			updates: [{ id: s.row, values: { Notes: 'seen' } }]
+		});
+		expect(s.actions).toHaveLength(s.written + 1);
+	});
+
+	it('refuses adding and deleting rows of a source table', async () => {
+		const s = await sourced();
+		const rows = 'gets its rows from its source';
+		expect(
+			await s.call('add_rows', { base: s.base, table: 'Movies', rows: [{ Notes: 'x' }] })
+		).toEqual({ error: expect.stringContaining(rows) });
+		expect(await s.call('delete_rows', { base: s.base, table: 'Movies', ids: [s.row] })).toEqual({
+			error: expect.stringContaining(rows)
+		});
+		expect(s.actions).toHaveLength(s.written);
+	});
+
+	it("refuses a source field's type and takes its format without touching its values", async () => {
+		const s = await sourced();
+		expect(
+			await s.call('update_field', { base: s.base, table: 'Movies', field: 'Rating', type: 'text' })
+		).toEqual({ error: '"Rating" in "Movies" gets its type from its source' });
+
+		await s.call('update_field', { base: s.base, table: 'Movies', field: 'Rating', decimals: 2 });
+		const changes = s.actions.at(-1)?.changes ?? [];
+		expect(changes.map((change) => change.kind)).toEqual(['field']);
+		expect(changes[0].set.decimals).toBe(2);
 	});
 });
