@@ -1970,7 +1970,7 @@ exports[`lists the same tools in every era 1`] = `
                   "type": "null",
                 },
               ],
-              "description": "list: the field to group by",
+              "description": "list and grid: the field to group rows by; a grid shows each group under a collapsible header carrying its totals as subtotals",
             },
             "hidden": {
               "description": "grid: hidden fields",
@@ -2641,7 +2641,7 @@ exports[`lists the same tools in every era 1`] = `
                   "type": "null",
                 },
               ],
-              "description": "list: the field to group by",
+              "description": "list and grid: the field to group rows by; a grid shows each group under a collapsible header carrying its totals as subtotals",
             },
             "hidden": {
               "description": "grid: hidden fields",

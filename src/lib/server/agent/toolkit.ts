@@ -685,7 +685,11 @@ const VIEW_CONFIG = z
 			.describe(
 				'entry: the fields that identify "last time" for prefilling, in order, such as ["Exercise"]; with two or more, the first repeats its last occurrence row by row, such as ["Session", "Exercise"]'
 			),
-		group: fieldOrNull('no groups').optional().describe('list: the field to group by'),
+		group: fieldOrNull('no groups')
+			.optional()
+			.describe(
+				'list and grid: the field to group rows by; a grid shows each group under a collapsible header carrying its totals as subtotals'
+			),
 		title: fieldOrNull('the first text field')
 			.optional()
 			.describe('list: the field shown as the title'),
@@ -739,7 +743,11 @@ function viewConfig(
 	if (input.tall !== undefined) config.tall = input.tall;
 	if (input.fields !== undefined) config.fields = ids(input.fields);
 	if (input.match !== undefined) config.match = ids(input.match);
-	if (input.group !== undefined) config.group = id(input.group);
+	if (input.group !== undefined) {
+		config.group = id(input.group);
+		if (config.group !== null && ws.field(config.group)?.type === 'image')
+			throw new ToolError(`${input.group} holds images, which rows can't be grouped by`);
+	}
 	if (input.title !== undefined) config.title = id(input.title);
 	if (input.show !== undefined) config.show = ids(input.show);
 	if (input.kind !== undefined) config.kind = input.kind;

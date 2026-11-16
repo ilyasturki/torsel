@@ -51,6 +51,7 @@
 	import { grid as words } from '#lib/i18n/grid.ts';
 	import { names } from '#lib/i18n/names.ts';
 	import { rules as ruleWords } from '#lib/i18n/rules.ts';
+	import { views as viewWords } from '#lib/i18n/views.ts';
 	import { common } from '#lib/i18n/common.ts';
 	import Button from '#lib/ui/Button.svelte';
 	import CalendarPopover from '#lib/ui/CalendarPopover.svelte';
@@ -74,6 +75,7 @@
 	import FieldSheet from './FieldSheet.svelte';
 	import type { Box } from './fill.ts';
 	import { fillChanges, fillTarget } from './fill.ts';
+	import { foldedGroups, setFolded } from './collapsed.svelte.ts';
 	import FormulaEditor from './FormulaEditor.svelte';
 	import ImageCell from './ImageCell.svelte';
 	import { conditionText, formulaHits } from './rules.ts';
@@ -86,7 +88,11 @@
 		copyText,
 		fillSelection,
 		fitWidth,
+		gridLayout,
 		gridRows,
+		groupFieldOf,
+		groupLook,
+		groupRows,
 		linkOptions,
 		screenReading,
 		parseTsv,
@@ -96,6 +102,7 @@
 		toHtml,
 		toTsv
 	} from './grid.ts';
+	import type { GridLine, RowGroup } from './grid.ts';
 	import type { ColumnAction } from './GridColumnMenu.svelte';
 	import GridColumnMenu from './GridColumnMenu.svelte';
 	import GridPicker from './GridPicker.svelte';
@@ -222,10 +229,56 @@
 		return formulaHits((stored) => app.formulaPreview(tableId, stored));
 	});
 
-	const rows = $derived.by(() => {
+	// Every row the filters keep, folded groups included: what totals and colour scales count.
+	const shown = $derived.by(() => {
 		void app.version;
 		return gridRows(app.ws, tableId, config, computed, hits);
 	});
+
+	const groupField = $derived.by(() => {
+		void app.version;
+		return groupFieldOf(app.ws, tableId, view.config);
+	});
+
+	const groups = $derived(
+		groupField === undefined ? null : groupRows(app.ws, groupField, shown, config, computed)
+	);
+
+	const folded = $derived(
+		groupField === undefined ? new Set<string>() : foldedGroups(view.id, groupField.id)
+	);
+
+	function toggleGroup(key: string): void {
+		if (groupField === undefined) return;
+		const next = new Set(folded);
+		if (!next.delete(key)) next.add(key);
+		setFolded(view.id, groupField.id, [...next]);
+	}
+
+	// The rows a person reaches: selection, paste, fill and find never touch a folded one.
+	const rows = $derived(
+		groups === null ? shown : groups.flatMap((group) => (folded.has(group.key) ? [] : group.rows))
+	);
+
+	const lines = $derived.by((): GridLine[] => {
+		if (groups === null) return rows.map((_, row) => ({ row }));
+		const out: GridLine[] = [];
+		let row = 0;
+		groups.forEach((group, at) => {
+			out.push({ group: at });
+			if (folded.has(group.key)) return;
+			for (let i = 0; i < group.rows.length; i += 1) out.push({ row: row++ });
+		});
+		return out;
+	});
+
+	const layout = $derived(gridLayout(lines, adds, { head: headHeight, row: rowHeight }));
+
+	const subtotals = $derived(
+		groups === null || view.config.totals === undefined
+			? null
+			: groups.map((group) => columnTotals(group.rows, fields, view.config.totals ?? {}, computed))
+	);
 
 	const allRows = $derived.by(() => {
 		void app.version;
@@ -247,11 +300,11 @@
 			(row, field) => cellValue(row, field, computed),
 			screenReading(app.ws),
 			hits,
-			rows
+			shown
 		);
 	});
 
-	const totals = $derived(columnTotals(rows, fields, view.config.totals ?? {}, computed));
+	const totals = $derived(columnTotals(shown, fields, view.config.totals ?? {}, computed));
 	const totalled = $derived(totals.size > 0);
 
 	let totalOpen = $state(false);
@@ -315,18 +368,18 @@
 	const stickyEnd = $derived(lefts[Math.min(1, fields.length)]);
 
 	// The window. `start` and `end` are numbers so a scroll inside one step reaches nothing below them.
-	const total = $derived(adds ? rows.length + 1 : rows.length);
+	const total = $derived(layout.count);
 	const start = $derived.by(() => {
 		if (total <= VIRTUAL_ABOVE) return 0;
-		const first = Math.min(Math.floor(scrollTop / rowHeight), total) - OVERSCAN;
+		const first = layout.lineAt(scrollTop) - OVERSCAN;
 		return Math.max(0, Math.floor(first / WINDOW_STEP) * WINDOW_STEP);
 	});
 	const end = $derived.by(() => {
 		if (total <= VIRTUAL_ABOVE) return total;
-		const last = Math.ceil((scrollTop + viewHeight) / rowHeight) + OVERSCAN;
+		const last = layout.lineAt(scrollTop + viewHeight) + 1 + OVERSCAN;
 		return Math.min(total, Math.ceil(last / WINDOW_STEP) * WINDOW_STEP);
 	});
-	const visible = $derived(rows.slice(start, end));
+	const visible = $derived(lines.slice(start, Math.min(end, lines.length)));
 	const showBlank = $derived(adds && end === total);
 
 	function rowOf(pos: Pos): number {
@@ -450,7 +503,7 @@
 		if (target === null) return;
 		const r = target.row === BLANK ? rows.length : rowIndex.get(target.row);
 		// A row scrolled far enough away leaves the DOM, and its editor with it.
-		if (r === undefined || r < start || r >= end) {
+		if (r === undefined || layout.lineOf(r) < start || layout.lineOf(r) >= end) {
 			const type = app.ws.field(target.field)?.type;
 			if (type === 'choice' || type === 'choices' || type === 'link') editing = null;
 			else commitDraft({ leaving: true });
@@ -512,7 +565,7 @@
 
 	function reveal(r: number, c: number): void {
 		if (scroller === undefined) return;
-		const y = headHeight + r * rowHeight;
+		const y = headHeight + layout.yOf(r);
 		const height = scroller.clientHeight - (totalled ? headHeight : 0);
 		if (y < scroller.scrollTop + headHeight) {
 			scroller.scrollTop = y - headHeight;
@@ -1018,7 +1071,7 @@
 
 	function cellAtPoint(x: number, y: number): { r: number; c: number } {
 		const box = (scroller as HTMLElement).getBoundingClientRect();
-		const r = Math.floor((y - box.top + scrollTop - headHeight) / rowHeight);
+		const r = layout.rowAt(y - box.top + scrollTop - headHeight);
 		const inside = x - box.left;
 		const across = inside >= stickyEnd ? inside + scrollLeft : inside;
 		const c = lefts.findIndex((edge, index) => index > 0 && across < edge);
@@ -1539,7 +1592,11 @@
 		const here = created(near) ?? Date.now();
 		const next = created(ordered[index + (below ? 1 : -1)]);
 		const at = next === undefined ? here + (below ? 1 : -1) : (here + next) / 2;
-		const made = insertRows(app.ws, tableId, [todayDates()], at);
+		const values = todayDates();
+		// A row inserted inside a group stays in it.
+		if (groupField !== undefined && groupField.type !== 'formula' && !locked.has(groupField.id))
+			values[groupField.id] = near.data[groupField.id] ?? null;
+		const made = insertRows(app.ws, tableId, [values], at);
 		applyWithUndo(made.changes, words.rowAdded);
 		flushSync();
 		selectPos(made.ids[0], fields[Math.max(0, headCol)]?.id ?? '');
@@ -1822,6 +1879,111 @@
 			: linkOptions(app.ws, field.target);
 </script>
 
+{#snippet dataRow(row: Rec, r: number, line: number)}
+	{@const paint = paints?.get(row.id)}
+	<tr
+		class="group"
+		aria-rowindex={line + 2}
+		data-fresh={fresh.has(row.id) || undefined}
+		data-color={paint?.color ?? undefined}
+	>
+		<td
+			role="rowheader"
+			data-r={r}
+			class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
+			style={paint?.color ? rowTint(paint.color) : undefined}
+		>
+			{#if readOnly}
+				<span class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3"
+					>{r + 1}</span
+				>
+			{:else}
+				<button
+					type="button"
+					class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
+					aria-label={words.openRow}
+					onclick={() => {
+						rowId = row.id;
+						rowOpen = true;
+					}}>{r + 1}</button
+				>
+			{/if}
+		</td>
+		{#each fields as field, c (field.id)}
+			{@render dataCell(row, r, field, c)}
+		{/each}
+		<td colspan="2" class="border-b border-rule" aria-hidden="true"></td>
+	</tr>
+{/snippet}
+
+{#snippet groupHeader(at: number, line: number)}
+	{@const group = (groups as RowGroup[])[at]}
+	{@const open = !folded.has(group.key)}
+	{@const sums = subtotals?.[at]}
+	{@const firstSum = fields.findIndex((field) => sums?.has(field.id))}
+	{@const span = firstSum === -1 ? fields.length : Math.max(1, firstSum)}
+	<tr aria-rowindex={line + 2} data-group={group.key}>
+		<td
+			class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
+			aria-hidden="true"
+		></td>
+		<td
+			colspan={span}
+			class="h-row border-b border-b-rule bg-band p-0 {span === 1
+				? 'sticky left-11 z-10 border-r border-r-rule-strong'
+				: ''}"
+		>
+			<button
+				type="button"
+				aria-expanded={open}
+				class="sticky left-11 flex h-full max-w-full min-w-0 items-center gap-1.5 pr-3 pl-2 text-sm text-ink-2 transition-colors motion hover:text-ink {span ===
+				1
+					? 'w-full'
+					: ''} {focus}"
+				onclick={() => toggleGroup(group.key)}
+			>
+				<Icon name={open ? 'chevron-down' : 'chevron'} class="size-3.5 shrink-0 text-ink-3" />
+				{#if group.value === null}
+					<span class="truncate">{viewWords.noValue}</span>
+				{:else}
+					<span class="flex min-w-0 items-center overflow-hidden"
+						><CellValue field={groupLook(groupField as FieldDef)} value={group.value} /></span
+					>
+				{/if}
+				<span class="text-xs text-ink-3 tabular-nums">{formatNumber(group.rows.length)}</span>
+				{#if span === 1 && firstSum === 0}
+					{@render subtotal(fields[0], sums?.get(fields[0].id) ?? '', 'ml-auto')}
+				{/if}
+			</button>
+		</td>
+		{#each fields.slice(span) as field (field.id)}
+			{@const numeric =
+				(isNumeric(field.type) && field.type !== 'rating') || field.type === 'formula'}
+			<td
+				class="h-row border-r border-b border-r-rule-col border-b-rule bg-band px-3 text-sm {numeric
+					? 'text-right'
+					: field.type === 'check'
+						? 'text-center'
+						: ''}"
+			>
+				{#if sums?.get(field.id)}
+					{@render subtotal(field, sums.get(field.id) ?? '', '')}
+				{/if}
+			</td>
+		{/each}
+		<td colspan="2" class="border-b border-rule bg-band" aria-hidden="true"></td>
+	</tr>
+{/snippet}
+
+{#snippet subtotal(field: FieldDef, figure: string, extra: string)}
+	{@const total = view.config.totals?.[field.id]}
+	<span
+		class="font-medium text-ink tabular-nums {extra}"
+		title={total === undefined ? undefined : ruleWords.total(ruleWords.totals[total], field.name)}
+		>{figure}</span
+	>
+{/snippet}
+
 {#snippet dataCell(row: Rec | null, r: number, field: FieldDef, c: number)}
 	{@const inRange = r >= top && r <= bottom && c >= left && c <= right}
 	{@const isActive = r === headRow && c === headCol}
@@ -2047,7 +2209,7 @@
 			<span class="min-w-0 truncate">
 				{words.filterBar(
 					filters.map((item) => conditionText(app.ws, tableId, item)).join(', '),
-					rows.length,
+					shown.length,
 					allRows.length
 				)}
 			</span>
@@ -2072,7 +2234,9 @@
 				tabindex="0"
 				aria-rowcount={total + 1}
 				aria-colcount={fields.length + 1}
-				aria-activedescendant={head !== null && headRow >= start && headRow < end
+				aria-activedescendant={head !== null &&
+				layout.lineOf(headRow) >= start &&
+				layout.lineOf(headRow) < end
 					? cellId(headRow, headCol)
 					: undefined}
 				class="w-full table-fixed border-separate border-spacing-0 select-none"
@@ -2233,55 +2397,24 @@
 				</thead>
 				<tbody data-tall={tall || undefined}>
 					{#if start > 0}
-						<tr aria-hidden="true" style="height: {start * rowHeight}px">
+						<tr aria-hidden="true" style="height: {layout.tops[start]}px">
 							<td colspan={fields.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
-					{#each visible as row, offset (row.id)}
-						{@const r = start + offset}
-						{@const paint = paints?.get(row.id)}
-						<tr
-							class="group"
-							aria-rowindex={r + 2}
-							data-fresh={fresh.has(row.id) || undefined}
-							data-color={paint?.color ?? undefined}
-						>
-							<td
-								role="rowheader"
-								data-r={r}
-								class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
-								style={paint?.color ? rowTint(paint.color) : undefined}
-							>
-								{#if readOnly}
-									<span
-										class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3"
-										>{r + 1}</span
-									>
-								{:else}
-									<button
-										type="button"
-										class="absolute inset-0 flex items-center justify-end pr-2 text-xs text-ink-3 transition-colors motion group-hover:bg-tint hover:text-ink"
-										aria-label={words.openRow}
-										onclick={() => {
-											rowId = row.id;
-											rowOpen = true;
-										}}>{r + 1}</button
-									>
-								{/if}
-							</td>
-							{#each fields as field, c (field.id)}
-								{@render dataCell(row, r, field, c)}
-							{/each}
-							<td colspan="2" class="border-b border-rule" aria-hidden="true"></td>
-						</tr>
+					{#each visible as line, offset ('group' in line ? `group:${groups?.[line.group].key}` : rows[line.row].id)}
+						{#if 'group' in line}
+							{@render groupHeader(line.group, start + offset)}
+						{:else}
+							{@render dataRow(rows[line.row], line.row, start + offset)}
+						{/if}
 					{/each}
 					{#if end < total}
-						<tr aria-hidden="true" style="height: {(total - end) * rowHeight}px">
+						<tr aria-hidden="true" style="height: {layout.height - layout.tops[end]}px">
 							<td colspan={fields.length + 3} class="p-0"></td>
 						</tr>
 					{/if}
 					{#if showBlank && !blankOpen}
-						<tr class="group" aria-rowindex={rows.length + 2}>
+						<tr class="group" aria-rowindex={total + 1}>
 							<td
 								role="rowheader"
 								class="sticky left-0 z-10 h-row border-r border-b border-r-rule-col border-b-rule bg-band p-0"
@@ -2305,7 +2438,7 @@
 							</td>
 						</tr>
 					{:else if showBlank}
-						<tr class="group" aria-rowindex={rows.length + 2}>
+						<tr class="group" aria-rowindex={total + 1}>
 							<td
 								role="rowheader"
 								class="sticky left-0 z-10 h-cell border-r border-b border-r-rule-col border-b-rule bg-band p-0"
@@ -2388,19 +2521,22 @@
 				<div
 					aria-hidden="true"
 					class="pointer-events-none absolute ring-1 ring-accent ring-inset"
-					style="left: {lefts[left]}px; top: {headHeight + top * rowHeight}px; width: {lefts[
+					style="left: {lefts[left]}px; top: {headHeight + layout.yOf(top)}px; width: {lefts[
 						right + 1
-					] - lefts[left]}px; height: {(bottom - top + 1) * rowHeight}px"
+					] - lefts[left]}px; height: {layout.yOf(bottom) + rowHeight - layout.yOf(top)}px"
 				></div>
 			{/if}
 			{#if filling !== null}
 				<div
 					aria-hidden="true"
 					class="pointer-events-none absolute z-15 border border-dashed border-accent"
-					style="top: {headHeight + rowHeight * filling.top}px; left: {lefts[
+					style="top: {headHeight + layout.yOf(filling.top)}px; left: {lefts[
 						filling.left
-					]}px; width: {lefts[filling.right + 1] - lefts[filling.left]}px; height: {rowHeight *
-						(filling.bottom - filling.top + 1)}px"
+					]}px; width: {lefts[filling.right + 1] - lefts[filling.left]}px; height: {layout.yOf(
+						filling.bottom
+					) +
+						rowHeight -
+						layout.yOf(filling.top)}px"
 				></div>
 			{/if}
 			{#if columnDrag !== null}
@@ -2437,6 +2573,10 @@
 	}}
 	filter={liveFilter ?? quickText(menuField)}
 	total={menuField === null ? null : (view.config.totals?.[menuField] ?? null)}
+	grouped={menuField !== null && groupField?.id === menuField}
+	ongroup={(group) => {
+		if (menuField !== null) setConfig({ group: group ? menuField : null }, words.groupChanged);
+	}}
 	ontotal={(total) => {
 		if (menuField !== null) setTotal(menuField, total);
 	}}

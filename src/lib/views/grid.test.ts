@@ -8,7 +8,8 @@ import {
 	createTable,
 	defaultViews,
 	insertRows,
-	reorder
+	reorder,
+	updateRecord
 } from '#lib/core/actions.ts';
 import { Hlc } from '#lib/core/clock.ts';
 import { guessColumns, parseCells, parseCsv, toCsv } from '#lib/core/csv.ts';
@@ -23,7 +24,10 @@ import {
 	copyText,
 	fillSelection,
 	fitWidth,
+	gridLayout,
 	gridRows,
+	groupFieldOf,
+	groupRows,
 	parseTsv,
 	pasteChanges,
 	sampleRows,
@@ -596,5 +600,130 @@ describe('pasting into a currency column', () => {
 
 		expect(paste.foreign).toBeNull();
 		expect(paste.skipped).toBe(0);
+	});
+});
+
+describe('grouping a grid', () => {
+	function grouped() {
+		const made = fixture();
+		const { ws, commit, tableId, note, kg, style, done } = made;
+		commit(
+			updateRecord(ws, style.id, {
+				choices: [
+					{ name: 'Strict', color: 'blue' },
+					{ name: 'Loose', color: 'green' }
+				]
+			})
+		);
+		commit(
+			insertRows(ws, tableId, [
+				{ [note.id]: 'a', [style.id]: 'Loose', [kg.id]: 5 },
+				{ [note.id]: 'b', [kg.id]: 1 },
+				{ [note.id]: 'c', [style.id]: 'Strict', [kg.id]: 3, [done.id]: true },
+				{ [note.id]: 'd', [style.id]: 'Loose', [kg.id]: 2 }
+			]).changes
+		);
+		const groups = (config: Parameters<typeof gridRows>[2]) => {
+			const field = groupFieldOf(ws, tableId, config);
+			if (field === undefined) return null;
+			return groupRows(ws, field, gridRows(ws, tableId, config, new Map()), config, new Map()).map(
+				(group) => [group.value, group.rows.map((row) => row.data[note.id])]
+			);
+		};
+		return { ...made, groups };
+	}
+
+	it('orders choices as the field lists them, blanks last, rows in the view order inside', () => {
+		const { groups, style } = grouped();
+		expect(groups({ group: style.id })).toEqual([
+			['Strict', ['c']],
+			['Loose', ['a', 'd']],
+			[null, ['b']]
+		]);
+	});
+
+	it('follows the sort on the group field, and the other keys inside', () => {
+		const { groups, style, kg } = grouped();
+		expect(
+			groups({
+				group: style.id,
+				sort: [
+					{ field: kg.id, dir: 'asc' },
+					{ field: style.id, dir: 'desc' }
+				]
+			})
+		).toEqual([
+			['Loose', ['d', 'a']],
+			['Strict', ['c']],
+			[null, ['b']]
+		]);
+	});
+
+	it('groups a check, and nothing for no field, a gone one or an image', () => {
+		const { groups, done } = grouped();
+		expect(groups({ group: done.id })).toEqual([
+			[true, ['c']],
+			[null, ['a', 'b', 'd']]
+		]);
+		expect(groups({})).toBeNull();
+		expect(groups({ group: null })).toBeNull();
+		expect(groups({ group: 'f_gone' })).toBeNull();
+	});
+
+	it('groups a datetime by its day and a link by its title', () => {
+		const { ws, commit, tableId, note, lift, target } = fixture();
+		const when = addField(ws, tableId, { name: 'When', type: 'datetime' });
+		commit(when.changes);
+		const squat = ws.rows(target.id)[0].id;
+		commit(
+			insertRows(ws, tableId, [
+				{ [note.id]: 'late', [when.id]: '2026-11-02T18:00', [lift.id]: squat },
+				{ [note.id]: 'early', [when.id]: '2026-11-02T07:00' },
+				{ [note.id]: 'before', [when.id]: '2026-11-01T07:00', [lift.id]: squat }
+			]).changes
+		);
+		const by = (id: string) =>
+			groupRows(ws, ws.field(id) as FieldDef, ws.rows(tableId), {}, new Map()).map((group) => [
+				group.value,
+				group.rows.map((row) => row.data[note.id])
+			]);
+		expect(by(when.id)).toEqual([
+			['2026-11-01', ['before']],
+			['2026-11-02', ['late', 'early']]
+		]);
+		expect(by(lift.id)).toEqual([
+			[squat, ['late', 'before']],
+			[null, ['early']]
+		]);
+	});
+});
+
+describe('the layout of a grouped grid', () => {
+	const layout = gridLayout(
+		[{ group: 0 }, { row: 0 }, { row: 1 }, { group: 1 }, { row: 2 }],
+		true,
+		{
+			head: 30,
+			row: 90
+		}
+	);
+
+	it('places rows under their headers and the blank row last', () => {
+		expect(layout.tops).toEqual([0, 30, 120, 210, 240, 330, 420]);
+		expect([0, 1, 2, 3].map(layout.yOf)).toEqual([30, 120, 240, 330]);
+		expect(layout.height).toBe(420);
+	});
+
+	it('finds the row under a point, the next one over a header', () => {
+		expect([-5, 0, 29, 30, 119, 120, 215, 300, 400, 9999].map(layout.rowAt)).toEqual([
+			-1, 0, 0, 0, 0, 1, 2, 2, 3, 3
+		]);
+	});
+
+	it('is a plain grid with no groups', () => {
+		const plain = gridLayout([{ row: 0 }, { row: 1 }], false, { head: 30, row: 30 });
+		expect([0, 1].map(plain.yOf)).toEqual([0, 30]);
+		expect([0, 45, 61].map(plain.rowAt)).toEqual([0, 1, 1]);
+		expect(gridLayout([], false, { head: 30, row: 30 }).rowAt(10)).toBe(0);
 	});
 });

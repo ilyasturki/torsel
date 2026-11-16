@@ -115,6 +115,106 @@ function compareCells(a: Value | undefined, b: Value | undefined, direction: num
 	return order * direction;
 }
 
+export type RowGroup = { key: string; value: Value; rows: Rec[] };
+
+/** The field a grid view groups by, never a list's automatic one. */
+export function groupFieldOf(
+	ws: Workspace,
+	tableId: string,
+	config: GridConfig
+): FieldDef | undefined {
+	if (typeof config.group !== 'string') return undefined;
+	return ws.fields(tableId).find((field) => field.id === config.group && field.type !== 'image');
+}
+
+/** A datetime groups by its day. */
+export function groupValue(field: FieldDef, value: Value | undefined): Value {
+	if (isBlank(value)) return null;
+	return field.type === 'datetime' ? String(value).slice(0, 10) : (value as Value);
+}
+
+/** How a group's value displays: a datetime's day reads as a date. */
+export function groupLook(field: FieldDef): FieldDef {
+	return field.type === 'datetime' ? { ...field, type: 'date' } : field;
+}
+
+/** Ordered by the group field's sort key when the view sorts on it, ascending otherwise, blanks last; rows keep their order inside. */
+export function groupRows(
+	ws: Workspace,
+	field: FieldDef,
+	rows: readonly Rec[],
+	config: GridConfig,
+	computed: Computed
+): RowGroup[] {
+	const groups = new Map<string, RowGroup>();
+	for (const row of rows) {
+		const value = groupValue(field, cellValue(row, field, computed));
+		const key = value === null ? '' : JSON.stringify(value);
+		const group = groups.get(key);
+		if (group === undefined) groups.set(key, { key, value, rows: [row] });
+		else group.rows.push(row);
+	}
+	const direction = sortsOf(config).find((key) => key.field === field.id)?.dir === 'desc' ? -1 : 1;
+	const rank = (value: Value): Value =>
+		value === null
+			? null
+			: field.type === 'choice'
+				? field.choices.findIndex((choice) => choice.name === value)
+				: field.type === 'link' || Array.isArray(value)
+					? cellText(ws, field, value)
+					: value;
+	return [...groups.values()].sort((a, b) => compareCells(rank(a.value), rank(b.value), direction));
+}
+
+export type GridLine = { group: number } | { row: number };
+
+/** Where each line of a grid sits: a group header is `head` tall, a row `row` tall, the blank row last when `blank`. */
+export function gridLayout(
+	lines: readonly GridLine[],
+	blank: boolean,
+	heights: { head: number; row: number }
+) {
+	const tops = [0];
+	const before = [0];
+	let rows = 0;
+	for (const line of lines) {
+		tops.push((tops.at(-1) as number) + ('group' in line ? heights.head : heights.row));
+		rows += 'row' in line ? 1 : 0;
+		before.push(rows);
+	}
+	if (blank) tops.push((tops.at(-1) as number) + heights.row);
+	const count = lines.length + (blank ? 1 : 0);
+	const lineOfRow: number[] = [];
+	lines.forEach((line, at) => {
+		if ('row' in line) lineOfRow[line.row] = at;
+	});
+
+	function lineAt(y: number): number {
+		let low = 0;
+		let high = count - 1;
+		while (low < high) {
+			const mid = Math.ceil((low + high) / 2);
+			if (tops[mid] <= y) low = mid;
+			else high = mid - 1;
+		}
+		return low;
+	}
+
+	return {
+		count,
+		tops,
+		height: tops[count],
+		/** The top of row `r`; `r` past the last row is the blank row. */
+		yOf: (r: number): number => tops[lineOfRow[r] ?? lines.length],
+		lineOf: (r: number): number => lineOfRow[r] ?? lines.length,
+		lineAt,
+		/** The row under `y`; over a group header, the first row after it. */
+		rowAt: (y: number): number => (y < 0 ? -1 : (before[lineAt(y)] ?? rows))
+	};
+}
+
+export type GridLayout = ReturnType<typeof gridLayout>;
+
 export function parseTsv(text: string): string[][] {
 	return parseCells(text, '\t');
 }

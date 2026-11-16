@@ -254,6 +254,13 @@
 					{/key}
 				{/if}
 			</fieldset>
+			<Field label={words.groupBy}>
+				<Select
+					options={[{ value: '', label: words.nothing }, ...fieldOptions(shown)]}
+					value={typeof config.group === 'string' ? config.group : ''}
+					onchange={(group) => edit((next) => (next.group = group || null))}
+				/>
+			</Field>
 			<Field label={words.rowHeight}>
 				<Select
 					options={[

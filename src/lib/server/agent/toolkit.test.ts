@@ -488,6 +488,40 @@ describe('assistant tools', () => {
 		expect(ctx.ws.view(grid.id)?.config).toMatchObject({ filters: [], colors: [], totals: {} });
 	});
 
+	it('groups a grid by name, describes it by name, and refuses an image field', async () => {
+		const { call, ctx } = session();
+		const made = (await call('create_table', {
+			name: 'Séries',
+			fields: [
+				{ name: 'Exercise', type: 'choice', choices: ['bench press', 'dips'] },
+				{ name: 'Weight', type: 'number' },
+				{ name: 'Photo', type: 'image' }
+			]
+		})) as { id: string; base: string };
+		const exercise = ctx.ws.fields(made.id)[0].id;
+		const grid = ctx.ws.views(made.id).find((view) => view.type === 'grid');
+		if (grid === undefined) throw new Error('no grid');
+		const update = (config: unknown): Promise<unknown> =>
+			call('update_view', { base: made.base, table: 'Séries', view: grid.id, config });
+
+		expect(await update({ group: 'exercise', totals: { Weight: 'sum' } })).toEqual({
+			updated: grid.id
+		});
+		expect(ctx.ws.view(grid.id)?.config.group).toBe(exercise);
+		const described = (await call('describe_base', { base: made.base })) as {
+			tables: { views: { id: string; config: unknown }[] }[];
+		};
+		expect(described.tables[0].views.find((view) => view.id === grid.id)?.config).toMatchObject({
+			group: 'Exercise',
+			totals: { Weight: 'sum' }
+		});
+		expect(await update({ group: 'Photo' })).toEqual({
+			error: expect.stringMatching(/Photo holds images/u)
+		});
+		expect(await update({ group: null })).toEqual({ updated: grid.id });
+		expect(ctx.ws.view(grid.id)?.config.group).toBeNull();
+	});
+
 	it('shows a table or a page rather than changing anything', async () => {
 		const { call, actions, shown } = session();
 		const made = (await call('create_table', {

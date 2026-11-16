@@ -48,6 +48,8 @@
 		filter,
 		total,
 		ontotal,
+		grouped,
+		ongroup,
 		onsort,
 		onaddsort,
 		onfilter,
@@ -67,6 +69,9 @@
 		filter: string;
 		total: Total | null;
 		ontotal: (total: Total | null) => void;
+		// The view groups by this field.
+		grouped: boolean;
+		ongroup: (group: boolean) => void;
 		onsort: (dir: 'asc' | 'desc' | null) => void;
 		onaddsort: () => void;
 		onfilter: (text: string) => void;
@@ -154,6 +159,11 @@
 				>
 			{/each}
 		</MenuSub>
+		{#if field.type !== 'image'}
+			<MenuItem icon="view-list" onSelect={() => ongroup(!grouped)}
+				>{grouped ? words.ungroup : words.groupRows}</MenuItem
+			>
+		{/if}
 		<MenuSeparator />
 		<MenuItem icon="pencil" onSelect={() => onaction('rename')}>{common.rename}</MenuItem>
 		{#if retypable}
@@ -232,6 +242,11 @@
 					onchange={(picked) => run(() => ontotal(picked === '' ? null : (picked as Total)))}
 				/>
 			</div>
+			{#if field.type !== 'image'}
+				<Button variant="ghost" class="justify-start" onclick={() => run(() => ongroup(!grouped))}
+					>{grouped ? words.ungroup : words.groupRows}</Button
+				>
+			{/if}
 			<Button variant="ghost" class="justify-start" onclick={() => run(() => onaction('rename'))}
 				>{common.rename}</Button
 			>

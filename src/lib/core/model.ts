@@ -196,6 +196,7 @@ export type GridConfig = {
 	tall?: boolean;
 	colors?: ColorRule[];
 	totals?: Record<string, Total>;
+	group?: string | null;
 };
 
 /** Every view but Saisie shows only the rows meeting all of them. */
