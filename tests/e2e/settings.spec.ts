@@ -63,12 +63,16 @@ test('mints a read-only token that expires, and lists what it may do and when it
 		.locator('section')
 		.filter({ has: page.getByRole('heading', { name: 'Agents (MCP)' }) });
 
+	await expect(
+		agents.locator('code', { hasText: /^claude mcp add --transport http torsel \S+\/api\/mcp$/u })
+	).toBeVisible();
+
 	await agents.getByRole('textbox', { name: 'Token name' }).fill('Reader');
 	await pick(agents.getByRole('combobox', { name: 'Access' }), 'Read only');
 	await pick(agents.getByRole('combobox', { name: 'Expiry' }), '30 days');
 	await agents.getByRole('button', { name: 'Create token' }).click();
 
-	const command = await agents.locator('code', { hasText: 'claude mcp add' }).innerText();
+	const command = await agents.locator('code', { hasText: 'Authorization: Bearer' }).innerText();
 	const token = /Bearer (ts_[\w-]+)/u.exec(command)?.[1];
 	const details = agents.getByText(/^ts_[\w-]+…, read only/u);
 	await expect(details).toHaveText(/^ts_[\w-]+…, read only, never used, expires \w+ \d+, \d{4}$/u);

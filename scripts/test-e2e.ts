@@ -129,6 +129,8 @@ function boot(
 			BREVO_API_KEY: '',
 			TORSEL_EMAIL_FROM: '',
 			TORSEL_PUBLIC_SIGNUP: '1',
+			// The specs' fixtures, an OAuth client's metadata document among them, listen on loopback.
+			TORSEL_FETCH_PRIVATE: '1',
 			GOOGLE_CLIENT_ID: 'e2e-client',
 			GOOGLE_CLIENT_SECRET: 'e2e-secret',
 			TORSEL_GOOGLE_ISSUER: google.url,
