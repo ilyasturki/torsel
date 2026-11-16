@@ -40,12 +40,14 @@
 	<p>
 		The assistant runs when you open it or ask it something. Your messages, and the table data it
 		reads to answer you or to suggest a request when you open it on a table, are sent to Anthropic,
-		which runs the model. When a request needs the web, it searches through Anthropic's web search,
-		which receives the search words. Under
+		which runs the model. A field you set to fill with AI sends, for each row it fills, the fields
+		its prompt names, also for new rows when you choose so. When a request or a fill needs the web,
+		it searches through Anthropic's web search, which receives the search words. Under
 		<a class={link} href="https://www.anthropic.com/legal/commercial-terms">
 			Anthropic's commercial terms
 		</a>
-		that content is not used to train its models. If you never open the assistant, nothing goes to Anthropic.
+		that content is not used to train its models. If you never open the assistant or set a field to fill
+		with AI, nothing goes to Anthropic.
 	</p>
 </LegalSection>
 

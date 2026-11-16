@@ -43,13 +43,14 @@
 	<p>
 		L’assistant s’exécute quand tu l’ouvres ou que tu lui demandes quelque chose. Tes messages et
 		les données de table qu’il lit pour te répondre, ou pour te proposer une demande quand tu
-		l’ouvres sur une table, sont envoyés à Anthropic, qui fait tourner le modèle. Quand une demande
-		a besoin du web, il cherche avec la recherche web d’Anthropic, qui reçoit les mots cherchés.
-		Selon les
+		l’ouvres sur une table, sont envoyés à Anthropic, qui fait tourner le modèle. Un champ que tu
+		fais remplir par l’IA envoie, pour chaque ligne remplie, les champs que sa consigne nomme, y
+		compris pour les nouvelles lignes si tu le choisis. Quand une demande ou un remplissage a besoin
+		du web, il cherche avec la recherche web d’Anthropic, qui reçoit les mots cherchés. Selon les
 		<a class={link} href="https://www.anthropic.com/legal/commercial-terms">
 			conditions commerciales d’Anthropic</a
-		>, ce contenu ne sert pas à entraîner ses modèles. Si tu n’ouvres jamais l’assistant, rien ne
-		part chez Anthropic.
+		>, ce contenu ne sert pas à entraîner ses modèles. Si tu n’ouvres jamais l’assistant et ne fais
+		remplir aucun champ par l’IA, rien ne part chez Anthropic.
 	</p>
 </LegalSection>
 
