@@ -13,7 +13,9 @@ const handed = new Map<string, string>();
 const former = new Map<string, string>();
 
 function goneAt(rec: Rec): number | undefined {
-	return isDeleted(rec) ? parseClock(rec.clocks[DELETED] ?? '').wall : undefined;
+	if (!isDeleted(rec)) return undefined;
+	const clock = rec.clocks[DELETED];
+	return clock === undefined ? 0 : parseClock(clock).wall;
 }
 
 function dated(rec: Rec, def: Named, parent?: Rec): Dated {

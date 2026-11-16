@@ -8,7 +8,17 @@ import {
 	createView,
 	insertRows
 } from '../../src/lib/core/actions.ts';
-import { expect, seed, switchView, tableMenu, tablePath, test, toastButton } from './harness.ts';
+import {
+	expect,
+	newView,
+	seed,
+	switchView,
+	tableMenu,
+	tablePath,
+	test,
+	toastButton,
+	undo
+} from './harness.ts';
 
 const at = (path: string): RegExp => new RegExp(`${path}$`, 'u');
 
@@ -114,6 +124,22 @@ test('two tables with one name each get their own address', async ({ page, conte
 	await page.goto(twin);
 	await expect(page.getByRole('heading', { name: 'Sets' })).toBeVisible();
 	await expect(page).toHaveURL(at(twin));
+});
+
+test('a view made after one was deleted takes its address', async ({ page, context, account }) => {
+	void account;
+	await seedSeries(context.request);
+	await page.goto('/app/t/series');
+	await expect(page.getByRole('heading', { name: 'Séries' })).toBeVisible();
+
+	await newView(page, 'Chart');
+	await expect(page).toHaveURL(at('/app/t/series/chart'));
+	await page.keyboard.press('Escape');
+	await undo(page);
+	await expect(page).toHaveURL(at('/app/t/series'));
+
+	await newView(page, 'Chart');
+	await expect(page).toHaveURL(at('/app/t/series/chart'));
 });
 
 test('an unknown address lands on the home with a word why', async ({ page, account }) => {
